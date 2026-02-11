@@ -1,9 +1,8 @@
 #version 430 compatibility
 
-layout (rgba16f) uniform readonly restrict image3D lightVox;
 
-#include "/lib/voxel/voxelBoundsCheck.glsl"
-#include "/lib/voxel/voxelDebugSampler.glsl"
+//#include "/lib/voxel/voxelHelper.glsl"
+#include "/lib/voxel/voxelSampler.glsl"
 
 
 uniform sampler2D lightmap;
@@ -28,8 +27,8 @@ void main() {
 
 	bool voxelLit = isVoxelInBounds(worldPos);
 	if(voxelLit){
-		vec4 voxelLight = voxelSample(worldPos,normal);
-		color.rgb*=voxelLight.a*0.9+0.1;
+		vec3 voxelLight = voxelSample(worldPos,normal);
+		color.rgb*=voxelLight;
 	}else{
 		color *= vanillaLightingColor;
 	}

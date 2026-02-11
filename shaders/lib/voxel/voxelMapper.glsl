@@ -1,5 +1,5 @@
 
-#include "/lib/voxel/voxelBoundsCheck.glsl"
+#include "/lib/voxel/voxelHelper.glsl"
 
 //block info, RGB are color,
 //A is, from MSB to LSB,
