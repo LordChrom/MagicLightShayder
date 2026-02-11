@@ -12,9 +12,7 @@ layout (rgba8ui) uniform writeonly restrict uimage3D worldVox;
 
 
 void writeVoxelMap(vec3 worldPos, uvec4 blockInfo){
-
-    worldPos=worldPos*1-vec3(0.01);
-    ivec3 worldPosi = ivec3(round(worldPos));
+    ivec3 worldPosi = worldPosToSection(worldPos);
 
     if(!isVoxelInBounds(worldPos)) return;
 
