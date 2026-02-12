@@ -2,10 +2,9 @@
 #define SECTION_DEPTH 16
 #define UPDATE_STRIDE 2
 
-#define SLOPE_BITS 6
+#define SLOPE_BITS 7
 
 #define PACKED_POS_MASK 0x00ffffffu
-//#define PACKED_POS_OFFSET 0x00800000
 
 
 struct lightVoxData{
@@ -18,10 +17,15 @@ struct lightVoxData{
 const float packedPosScale = 256.0;
 const float packedPosScaleInv = 1.0/packedPosScale;
 
-const uint slopeOffset = 32;
-const float slopeScale = 24.0;
+const uint slopeOffset = 1<<(SLOPE_BITS-1);
+const uint slopeMask = (1<<SLOPE_BITS)-1;
+const float slopeScale = 60.0;
+
+const uint slopeMin = slopeOffset-int(slopeScale);
+const uint slopeMax = slopeOffset+int(slopeScale);
+
 const float invSlopeScale = 1.0/slopeScale;
-const uvec4 fullLightSpread = uvec2(slopeOffset+slopeScale,slopeOffset-slopeScale).xyxy;
+const uvec4 fullLightSpread = uvec2(slopeMax,slopeMin).xyxy;
 
 
 
@@ -72,19 +76,19 @@ vec3 sectionPosToWorld(ivec3 pos){
 //uppper A, lower A, upper B, lower B
 uvec4 unpackSlopes(uint packed){
     return uvec4(
-        0x3fu&(packed>>(4+3*SLOPE_BITS)),
-        0x3fu&(packed>>(4+2*SLOPE_BITS)),
-        0x3fu&(packed>>(4+1*SLOPE_BITS)),
-        0x3fu&(packed>>(4+0*SLOPE_BITS))
+        slopeMask&(packed>>(4+3*SLOPE_BITS)),
+        slopeMask&(packed>>(4+2*SLOPE_BITS)),
+        slopeMask&(packed>>(4+1*SLOPE_BITS)),
+        slopeMask&(packed>>(4+0*SLOPE_BITS))
     );
 }
 
 uint packSlopes(uvec4 slopes){
      return
-     ((0x3fu&slopes.x)<<(4+3*SLOPE_BITS))|
-     ((0x3fu&slopes.y)<<(4+2*SLOPE_BITS))|
-     ((0x3fu&slopes.z)<<(4+1*SLOPE_BITS))|
-     ((0x3fu&slopes.w)<<(4+0*SLOPE_BITS));
+     ((slopeMask&slopes.x)<<(4+3*SLOPE_BITS))|
+     ((slopeMask&slopes.y)<<(4+2*SLOPE_BITS))|
+     ((slopeMask&slopes.z)<<(4+1*SLOPE_BITS))|
+     ((slopeMask&slopes.w)<<(4+0*SLOPE_BITS));
 }
 
 lightVoxData unpackLightData(uvec4 packed){
@@ -107,22 +111,20 @@ uvec4 packLightData(lightVoxData data){
 
 
 
-//uvec4 combineSlopeBounds(uvec4 boundsA, uvec4 boundsB){
-//    boundsA.xz=min(boundsA.xz,boundsB.xz);
-//    boundsA.yw=max(boundsA.yw,boundsB.yw);
-//    return boundsA;
-//}
+uvec4 combineSlopeBounds(uvec4 boundsA, uvec4 boundsB){
+    return uvec4(min(boundsA.xz,boundsB.xz),max(boundsA.yw,boundsB.yw)).xzyw;
+}
 
 uvec2 convertSlopesFtoU(vec2 slopesF, float depth){
-    return clamp(ivec2(0),ivec2(trunc(slopesF*(slopeScale/depth)))+slopeOffset,ivec2(63));
+    return clamp(ivec2(slopeMin),ivec2(trunc(slopesF*(slopeScale/depth)))+slopeOffset,ivec2(slopeMax));
 }
 
 uvec4 convertSlopesFtoU(vec4 slopesF, float depth){
-    return clamp(ivec4(0),ivec4(trunc(slopesF*(slopeScale/depth)))+slopeOffset,ivec4(63));
+    return clamp(ivec4(slopeMin),ivec4(trunc(slopesF*(slopeScale/depth)))+slopeOffset,ivec4(slopeMax));
 }
 
 uvec2 convertSlopesFtoU(vec2 slopesF){
-    return clamp(ivec2(0),ivec2(trunc(slopesF*slopeScale))+slopeOffset,ivec2(63));
+    return clamp(ivec2(slopeMin),ivec2(trunc(slopesF*slopeScale))+slopeOffset,ivec2(slopeMax));
 }
 
 ////worldOffset MUST be in ABP
