@@ -21,7 +21,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
 
     uvec4 testSlopes = lightSrc.slopes;
     if(!isAdjustedPointInSlopes(displacement, testSlopes)){
-        lightStrength*=0.5;
+        lightStrength*=0.2;
     }
 
     float mult = 0.1+lightStrength/max(lengthSquared,0.01);

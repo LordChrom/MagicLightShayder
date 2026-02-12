@@ -19,9 +19,9 @@ const float packedPosScale = 256.0;
 const float packedPosScaleInv = 1.0/packedPosScale;
 
 const uint slopeOffset = 32;
-const float slopeScale = 16.0;
+const float slopeScale = 24.0;
 const float invSlopeScale = 1.0/slopeScale;
-const uvec4 fullLightSpread = uvec4(48,16,48,16);
+const uvec4 fullLightSpread = uvec2(slopeOffset+slopeScale,slopeOffset-slopeScale).xyxy;
 
 
 
@@ -69,6 +69,7 @@ vec3 sectionPosToWorld(ivec3 pos){
     return sectionPosToWorld(pos,0.5);
 }
 
+//uppper A, lower A, upper B, lower B
 uvec4 unpackSlopes(uint packed){
     return uvec4(
         0x3fu&(packed>>(4+3*SLOPE_BITS)),
@@ -106,15 +107,27 @@ uvec4 packLightData(lightVoxData data){
 
 
 
-uvec4 combineSlopeBounds(uvec4 boundsA, uvec4 boundsB){
-    boundsA.xz=min(boundsA.xz,boundsB.xz);
-    boundsA.yw=max(boundsA.yw,boundsB.yw);
-    return boundsA;
+//uvec4 combineSlopeBounds(uvec4 boundsA, uvec4 boundsB){
+//    boundsA.xz=min(boundsA.xz,boundsB.xz);
+//    boundsA.yw=max(boundsA.yw,boundsB.yw);
+//    return boundsA;
+//}
+
+uvec2 convertSlopesFtoU(vec2 slopesF, float depth){
+    return clamp(ivec2(0),ivec2(trunc(slopesF*(slopeScale/depth)))+slopeOffset,ivec2(63));
+}
+
+uvec4 convertSlopesFtoU(vec4 slopesF, float depth){
+    return clamp(ivec4(0),ivec4(trunc(slopesF*(slopeScale/depth)))+slopeOffset,ivec4(63));
+}
+
+uvec2 convertSlopesFtoU(vec2 slopesF){
+    return clamp(ivec2(0),ivec2(trunc(slopesF*slopeScale))+slopeOffset,ivec2(63));
 }
 
 ////worldOffset MUST be in ABP
 bool isAdjustedPointInSlopes(vec3 offset, uvec4 slopes){
-    uvec2 intSlopes = ivec2(trunc(offset.xy*(slopeScale/offset.z)))+slopeOffset;
+    uvec2 intSlopes = convertSlopesFtoU(offset.xy,offset.z);
     return (slopes.y<intSlopes.x)&&(intSlopes.x<slopes.x)&&(slopes.w<intSlopes.y)&&(intSlopes.y<slopes.z);
 }
 
