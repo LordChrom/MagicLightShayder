@@ -31,11 +31,12 @@ void lightVoxel(ivec3 sectionPos, uint section,ivec3 progress,uint axisNum){
     uvec4 [3][3] nearbyVoxels;
     bool [3][3] frontOcclusions;
     bool [3][3] rearOcclusions;
+    bool [3][3] blocked;
 
     ivec3 rearVoxPos = sectionPos-progress;
 
 
-
+    //all the relevant memory accesses
     for (int a=-1;a<=1;a++){
         for (int b=-1; b<=1;b++){
             uvec4 frontVoxel = imageLoad(worldVox,sectionPos+ivec3(a,b,0));
@@ -46,6 +47,7 @@ void lightVoxel(ivec3 sectionPos, uint section,ivec3 progress,uint axisNum){
         }
     }
 
+    //determine best light source first
     for (int a=-1;a<=1;a++){
         for (int b=-1; b<=1;b++){
             ivec3 offset = ivec3(a,b,0);
@@ -79,60 +81,38 @@ void lightVoxel(ivec3 sectionPos, uint section,ivec3 progress,uint axisNum){
             bool helpersOccluded = (rearOcclusions[a+1][1]||frontOcclusions[a+1][1]) && (rearOcclusions[1][b+1] || frontOcclusions[1][b+1]);
 
 
-            if((selfEmissive&&selfFrontOccluded) || (selfRearOccluded&&!selfEmissive)
-                || centerFrontOccluded || (helpersOccluded && !isCenter)){
-                continue;
-            }
-
             vec3 centerDispl = mainWorldPos-voxHalf*progress-lightSrc.worldPos.xyz;
             float lenSquared = dot(centerDispl, centerDispl);
             float strength = float(lightSrc.emissive)/max(0.1, lenSquared);
             vec3 displ = centerDispl + offset*2*voxHalf;
-            bool connectionBlocked = centerFrontOccluded || (displ.x*offset.x>0) || (displ.y*offset.y>0);
+            bool srcBlocked = centerFrontOccluded || (helpersOccluded && !isCenter) ||
+                (selfEmissive&&(selfFrontOccluded || selfRearOccluded));
 
+            srcBlocked = srcBlocked || (displ.x*offset.x>0) || (displ.y*offset.y>0); //will be unnecessary soon
 
-            connectionBlocked = connectionBlocked || (!(
-                isAdjustedPointInSlopes(displ, lightSrc.slopes)||
-                isAdjustedPointInSlopes(displ+offset*voxHalf, lightSrc.slopes)||
-                isAdjustedPointInSlopes(displ+offset*voxHalf, lightSrc.slopes) || true
-            ));
+//            srcBlocked = srcBlocked || (!(
+//                isAdjustedPointInSlopes(displ, lightSrc.slopes)||
+//                isAdjustedPointInSlopes(displ+offset*voxHalf, lightSrc.slopes)||
+//                isAdjustedPointInSlopes(displ+offset*voxHalf, lightSrc.slopes) || true
+//            ));
 
+            blocked[a+1][b+1]=srcBlocked;
 
-//            strength*=(lightSrc.slopes.x-lightSrc.slopes.y)*(lightSrc.slopes.z-lightSrc.slopes.w);
-
-
-            uvec4 oldBounds = bestLight.slopes;
-            bool sameSource = bestLight.worldPos==lightSrc.worldPos;
-
-            if (strength>bestStrength && !connectionBlocked){
+            if (strength>bestStrength && !srcBlocked){
                 bestLight=lightSrc;
                 bestStrength=strength;
             }
-
-
-//            if(sameSource  && !connectionBlocked && isEdge){
-//                uvec4 directionsToTake = uvec4(0);
-//                directionsToTake = uvec4(bvec4(
-//                    b==0 && centerDispl.x>0,
-//                    b==0 && centerDispl.x<0,
-//                    a==0 && centerDispl.y>0,
-//                    a==0 && centerDispl.y<0
-//                ));
-//
-//                uvec4 newBounds = lightSrc.slopes*directionsToTake + (1-directionsToTake)*fullLightSpread;
-//
-//                neighborBounds = combineSlopeBounds(neighborBounds,newBounds);
-////                neighborBounds=fullLightSpread;
-//            }
         }
     }
 
+    // then pick the 4 relevant input samples
+    // (the voxels further from the center of the light source do not contribute)
+    // implementation coming soontm
+
+
+    //then calculate new occlusion values (the following code will change cuz the whole current approach is flawed)
+
     int centerOccluded = int(frontOcclusions[1][1]||rearOcclusions[1][1]);
-
-//    bestLight.slopes=centerBounds*(1-centerOccluded)+neighborBounds*centerOccluded;
-
-//    bestLight.slopes=centerBounds;
-
 
     vec3 displ = mainWorldPos-voxHalf*progress-bestLight.worldPos;
     vec2 voxelOutset = vec2(voxHalf,-voxHalf);
@@ -140,8 +120,7 @@ void lightVoxel(ivec3 sectionPos, uint section,ivec3 progress,uint axisNum){
     uvec4 bounds = fullLightSpread;
     uvec4 edgeSlopes = convertSlopesFtoU(vec4(displ.x+voxelOutset,displ.y+voxelOutset),displ.z);
 
-        edgeSlopes+=(1-centerOccluded)*ivec4(1,-1,1,-1);
-//    edgeSlopes+=ivec4(1,-1,1,-1);
+    edgeSlopes+=(1-centerOccluded)*ivec4(1,-1,1,-1);
 
     //1 means the edge in that dir is occupied
     uvec4 edgeOcclusions = uvec4(
@@ -154,46 +133,28 @@ void lightVoxel(ivec3 sectionPos, uint section,ivec3 progress,uint axisNum){
 
     //1 means light is free to travel in that direction
     uvec4 lightDirMask = uvec4(step(-0.1,vec4(displ.x,-displ.x,displ.y,-displ.y)));
-//        bounds=combineSlopeBounds(bounds, slopeOffset + uvec2(slopeScale,-slopeScale).xyxy*lightDirMask);
 
-
-
-//
     if(centerOccluded>0){
         uvec4 faceBounds = edgeSlopes.yxwz*lightDirMask;
         faceBounds.xz = max(uvec2(slopeOffset),faceBounds.xz);
         faceBounds.yw = min(uvec2(slopeOffset),faceBounds.yw);
 
-//        bounds.xy = faceBounds.xy;
         faceBounds.zw=uvec2(slopeMax,slopeMin);
-//
+
         bounds=combineSlopeBounds(bounds,faceBounds);
-        bounds=faceBounds;
     }else{
-//        bounds=uvec
-
-//        if((edgeOcclusions.x*edgeOcclusions.y*edgeOcclusions.z*edgeOcclusions.w)!=0){
-//            bounds = uvec4(74,54,74,54);
-//        }
             edgeOcclusions *=(1-lightDirMask);
-//            edgeOcclusions|=uint(frontOcclusions[1][1]||rearOcclusions[1][1]);
-
             bounds=edgeOcclusions*edgeSlopes+(1-edgeOcclusions)*fullLightSpread;
     }
 
 
-//    bounds.y=64;
-//    combineSlopeBounds(slopes, uvec4().xxyy*vec2(slopeScale,-slopeScale).yxyx+slopeOffset));
-
     bestLight.slopes=combineSlopeBounds(bestLight.slopes,bounds);
-
     imageStore(lightVox,sectionPos,packLightData(bestLight));
 }
 
 void lightVoxels(uvec3 groupId, uvec3 localId){
     uint section = 0;
     ivec3 sectionPos = ivec3(localId)+ivec3(1);
-
     ivec3 progress = axisNumToVec(debugAxisNum);
 
     for(int i = frameOffset;i<SECTION_DEPTH;i+=UPDATE_STRIDE){
