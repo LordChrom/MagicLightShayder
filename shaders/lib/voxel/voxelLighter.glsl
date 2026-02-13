@@ -1,78 +1,45 @@
 
-// rgb is the worldPos of the light source's center
-//a encodes partial occlusion, as 4 bits empty, 4x 6 bit slope cutoffs, 4 bits strength.
-//each angular cutoff is an inverse slope indicating angle off occlusion from light source, mapping linearly from [0,50] to [-1,1]
 layout (rgba32ui) uniform restrict uimage3D lightVox;
-
-
 layout (rgba8ui) uniform readonly restrict uimage3D worldVox;
 #include "/lib/voxel/voxelHelper.glsl"
 
 
-//#define FULL_SPREAD vec4(1,-1,1,-1);
-#define NO_LIGHT 0
-
 uniform int frameCounter;
 int frameOffset = frameCounter%UPDATE_STRIDE;
+
 
 const ivec3 workGroups = ivec3(1,1,1);
 layout (local_size_x = SECTION_WIDTH, local_size_y = SECTION_WIDTH, local_size_z = 1) in;
 
-void lightVoxel(ivec3 sectionPos, uint section,ivec3 progress,uint axisNum){
-    vec3 mainWorldPos = sectionPosToWorld(sectionPos);
-    float voxHalf = 0.5;
-
-    ivec3 A = axisNumToA(axisNum);
-    ivec3 B = axisNumToB(axisNum);
-
-    lightVoxData bestLight = unpackLightData(uvec4(0));
-    float bestStrength = 0;
-
-    uvec4 [3][3] nearbyVoxels;
-    bool [3][3] frontOcclusions;
-    bool [3][3] rearOcclusions;
-    bool [3][3] blocked;
-
-    ivec3 rearVoxPos = sectionPos-progress;
 
 
-    //all the relevant memory accesses
+lightVoxData determineBestLightSource(
+    ivec3 sectionPos, vec3 mainWorldPos, float voxHalf,
+    lightVoxData[3][3] inputSamples, uvec4 [3][3] frontVoxels, uvec4 [3][3] rearVoxels, bool [3][3] frontOcclusions, bool [3][3] rearOcclusions,
+    out bool [3][3] blocked
+){
+    lightVoxData bestLight = noLight;
+    float bestStrength = -1;
+
+    bool centerFrontOccluded = (frontVoxels[1][1].w&1u)==1u;
+
     for (int a=-1;a<=1;a++){
         for (int b=-1; b<=1;b++){
-            uvec4 frontVoxel = imageLoad(worldVox,sectionPos+ivec3(a,b,0));
-            uvec4 rearVoxel = imageLoad(worldVox,rearVoxPos+ivec3(a,b,0));
-            nearbyVoxels[a+1][b+1]=rearVoxel;
-            rearOcclusions[a+1][b+1]=(rearVoxel.w&1u)==1;
-            frontOcclusions[a+1][b+1]=(frontVoxel.w&1u)==1;
-        }
-    }
-
-    //determine best light source first
-    for (int a=-1;a<=1;a++){
-        for (int b=-1; b<=1;b++){
-            ivec3 offset = ivec3(a,b,0);
-
-            lightVoxData lightSrc = unpackLightData(imageLoad(lightVox, rearVoxPos+offset));
-            uvec4 rearVoxel = nearbyVoxels[a+1][b+1];
+            lightVoxData lightSrc = inputSamples[a+1][b+1];
+            uvec4 rearVoxel = rearVoxels[a+1][b+1];
             uint selfEmission = rearVoxel.a>>4;
             bool selfEmissive = selfEmission>0;
 
 
             if (selfEmissive){
-                lightSrc.worldPos = sectionPosToWorld(rearVoxPos+offset);
+                lightSrc.worldPos = sectionPosToWorld(sectionPos+ivec3(a,b,-1));
                 lightSrc.recolor = uvec3(0);
                 lightSrc.slopes = fullLightSpread;
                 lightSrc.emissive=selfEmission;
-
-                rearOcclusions[a+1][b+1]=false;
             }
 
-            bool isCorner = a*b!=0;
             bool isCenter = (a|b)==0;
-            bool isEdge = !isCenter && !isCorner;
 
-            bool centerRearOccluded = rearOcclusions[1][1];
-            bool centerFrontOccluded = frontOcclusions[1][1];
             bool selfRearOccluded = rearOcclusions[a+1][b+1];
             bool selfFrontOccluded = frontOcclusions[a+1][b+1];
 
@@ -81,20 +48,20 @@ void lightVoxel(ivec3 sectionPos, uint section,ivec3 progress,uint axisNum){
             bool helpersOccluded = (rearOcclusions[a+1][1]||frontOcclusions[a+1][1]) && (rearOcclusions[1][b+1] || frontOcclusions[1][b+1]);
 
 
-            vec3 centerDispl = mainWorldPos-voxHalf*progress-lightSrc.worldPos.xyz;
+            vec3 centerDispl = mainWorldPos-lightSrc.worldPos.xyz;
             float lenSquared = dot(centerDispl, centerDispl);
             float strength = float(lightSrc.emissive)/max(0.1, lenSquared);
-            vec3 displ = centerDispl + offset*2*voxHalf;
+            vec3 displ = centerDispl + ivec3(a,b,0)*(2*voxHalf);
             bool srcBlocked = centerFrontOccluded || (helpersOccluded && !isCenter) ||
-                (selfEmissive&&(selfFrontOccluded || selfRearOccluded));
+            (selfFrontOccluded || selfRearOccluded);
 
-            srcBlocked = srcBlocked || (displ.x*offset.x>0) || (displ.y*offset.y>0); //will be unnecessary soon
+            srcBlocked = srcBlocked || (displ.x*a>0) || (displ.y*b>0); //will be unnecessary soon
 
-//            srcBlocked = srcBlocked || (!(
-//                isAdjustedPointInSlopes(displ, lightSrc.slopes)||
-//                isAdjustedPointInSlopes(displ+offset*voxHalf, lightSrc.slopes)||
-//                isAdjustedPointInSlopes(displ+offset*voxHalf, lightSrc.slopes) || true
-//            ));
+            //            srcBlocked = srcBlocked || (!(
+            //                isAdjustedPointInSlopes(displ, lightSrc.slopes)||
+            //                isAdjustedPointInSlopes(displ+offset*voxHalf, lightSrc.slopes)||
+            //                isAdjustedPointInSlopes(displ+offset*voxHalf, lightSrc.slopes) || true
+            //            ));
 
             blocked[a+1][b+1]=srcBlocked;
 
@@ -105,16 +72,77 @@ void lightVoxel(ivec3 sectionPos, uint section,ivec3 progress,uint axisNum){
         }
     }
 
+    return bestLight;
+}
+
+
+
+//out of 9 input samples, only up to 4 can have any light flowing between the source and the output
+//output format has center at [0][0], corner at [1][1],
+lightVoxData[2][2] pickRelevantInputSamples(lightVoxData bestSource, lightVoxData[3][3] inputSamples, vec3 displ){
+    int a = int(sign(displ.x));
+    int b = int(sign(displ.y));
+    lightVoxData[2][2] ret = {{inputSamples[1][1],inputSamples[a+1][1]},{inputSamples[1][b+1],inputSamples[a+1][b+1]}};
+
+    for(int i=0; i<2; i++){
+        for(int j=0; j<2; j++){
+            //the lights dont contribute if from a different source, or if they're on an outer axis but the light doesnt travel along that axis
+            //eg, if the light was directly behind the output sample, all input samples to the side should contribute nothing
+            if(ret[i][j].worldPos!=bestSource.worldPos || bool(i&~a) || bool(j&~b))
+                ret[i][j]=noLight;
+        }
+    }
+
+    return ret;
+}
+
+
+
+//for one voxel face, determines the light entering that voxel face
+//based on the 9 adjacent voxel faces in the previous plane & the nearby terrain voxels
+void lightVoxelFace(ivec3 sectionPos, uint section,ivec3 progress,uint axisNum){
+    float voxHalf = 0.5;
+    vec3 mainWorldPos = sectionPosToWorld(sectionPos) -voxHalf*progress;
+
+    lightVoxData [3][3] inputSamples;
+    uvec4 [3][3] frontVoxels;
+    uvec4 [3][3] rearVoxels;
+    bool [3][3] frontOcclusions;
+    bool [3][3] rearOcclusions;
+    bool [3][3] blocked;
+
+
+    //all the relevant memory accesses
+    for (int a=-1;a<=1;a++){
+        for (int b=-1; b<=1;b++){
+            frontVoxels[a+1][b+1] = imageLoad(worldVox,sectionPos+ivec3(a,b,0));
+            rearVoxels[a+1][b+1] = imageLoad(worldVox,sectionPos+ivec3(a,b,-1));
+            inputSamples[a+1][b+1] = unpackLightData(imageLoad(lightVox, sectionPos+ivec3(a,b,-1)));
+
+            rearOcclusions[a+1][b+1]=(frontVoxels[a+1][b+1].w&1u)==1;
+            frontOcclusions[a+1][b+1]=(rearVoxels[a+1][b+1].w&1u)==1 || rearOcclusions[a+1][b+1];
+        }
+    }
+
+
+    //determine best light source first
+    lightVoxData bestLight = determineBestLightSource(
+        sectionPos, mainWorldPos, voxHalf,
+        inputSamples, frontVoxels, rearVoxels, frontOcclusions, rearOcclusions,
+        blocked
+    );
+
+    vec3 displ = mainWorldPos-bestLight.worldPos;
+
+
     // then pick the 4 relevant input samples
     // (the voxels further from the center of the light source do not contribute)
-    // implementation coming soontm
+    lightVoxData[2][2] relevantSources = pickRelevantInputSamples(bestLight, inputSamples, displ);
 
 
     //then calculate new occlusion values (the following code will change cuz the whole current approach is flawed)
 
     int centerOccluded = int(frontOcclusions[1][1]||rearOcclusions[1][1]);
-
-    vec3 displ = mainWorldPos-voxHalf*progress-bestLight.worldPos;
     vec2 voxelOutset = vec2(voxHalf,-voxHalf);
 
     uvec4 bounds = fullLightSpread;
@@ -129,7 +157,6 @@ void lightVoxel(ivec3 sectionPos, uint section,ivec3 progress,uint axisNum){
         frontOcclusions[1][2]||rearOcclusions[1][2],
         frontOcclusions[1][0]||rearOcclusions[1][0]
     );
-
 
     //1 means light is free to travel in that direction
     uvec4 lightDirMask = uvec4(step(-0.1,vec4(displ.x,-displ.x,displ.y,-displ.y)));
@@ -152,13 +179,13 @@ void lightVoxel(ivec3 sectionPos, uint section,ivec3 progress,uint axisNum){
     imageStore(lightVox,sectionPos,packLightData(bestLight));
 }
 
-void lightVoxels(uvec3 groupId, uvec3 localId){
+void lightVoxelFaces(uvec3 groupId, uvec3 localId){
     uint section = 0;
     ivec3 sectionPos = ivec3(localId)+ivec3(1);
     ivec3 progress = axisNumToVec(debugAxisNum);
 
     for(int i = frameOffset;i<SECTION_DEPTH;i+=UPDATE_STRIDE){
-        lightVoxel(sectionPos+progress*i,section,progress,debugAxisNum);
+        lightVoxelFace(sectionPos+progress*i,section,progress,debugAxisNum);
     }
 }
 

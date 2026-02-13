@@ -8,5 +8,5 @@ in uint  gl_LocalInvocationIndex;
 */
 
 void main(){
-    lightVoxels(gl_WorkGroupID,gl_LocalInvocationID);
+    lightVoxelFaces(gl_WorkGroupID,gl_LocalInvocationID);
 }

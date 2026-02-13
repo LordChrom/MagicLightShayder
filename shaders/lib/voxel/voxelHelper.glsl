@@ -27,6 +27,7 @@ const uint slopeMax = slopeOffset+int(slopeScale);
 const float invSlopeScale = 1.0/slopeScale;
 const uvec4 fullLightSpread = uvec2(slopeMax,slopeMin).xyxy;
 
+const lightVoxData noLight = {uvec3(0),0,uvec4(0),vec3(0)};
 
 
 const int debugAxisNum = 5;
