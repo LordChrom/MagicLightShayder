@@ -1,10 +1,10 @@
 #version 330 compatibility
 
+const vec2 maxLm = vec2(15.0/16.0);
+
 uniform mat4 shadowModelViewInverse;
 uniform vec3 cameraPosition;
 
-//in vec4 at_midBlock;
-//in vec3 gl_Normal;
 
 out vec2 lmcoord;
 out vec2 texcoord;
@@ -21,6 +21,7 @@ void main() {
 
 	texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
 	lmcoord = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
+	lmcoord = min(lmcoord,maxLm);
 	glcolor = gl_Color;
 	normal = gl_Normal;
 }

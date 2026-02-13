@@ -115,15 +115,15 @@ uvec4 combineSlopeBounds(uvec4 boundsA, uvec4 boundsB){
 }
 
 uvec2 convertSlopesFtoU(vec2 slopesF, float depth){
-    return clamp(ivec2(slopeMin),ivec2(trunc(slopesF*(slopeScale/depth)))+slopeOffset,ivec2(slopeMax));
+    return clamp(ivec2(trunc(slopesF*(slopeScale/depth)))+slopeOffset,ivec2(slopeMin),ivec2(slopeMax));
 }
 
 uvec4 convertSlopesFtoU(vec4 slopesF, float depth){
-    return clamp(ivec4(slopeMin),ivec4(trunc(slopesF*(slopeScale/depth)))+slopeOffset,ivec4(slopeMax));
+    return clamp(ivec4(trunc(slopesF*(slopeScale/depth)))+slopeOffset,ivec4(slopeMin),ivec4(slopeMax));
 }
 
 uvec2 convertSlopesFtoU(vec2 slopesF){
-    return clamp(ivec2(slopeMin),ivec2(trunc(slopesF*slopeScale))+slopeOffset,ivec2(slopeMax));
+    return clamp(ivec2(trunc(slopesF*slopeScale))+slopeOffset,ivec2(slopeMin),ivec2(slopeMax));
 }
 
 ////worldOffset MUST be in ABP

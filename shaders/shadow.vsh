@@ -5,9 +5,6 @@ uniform vec3 cameraPosition;
 
 in vec4 at_midBlock;
 
-//out vec2 texcoord;
-//out vec4 glcolor;
-
 void main() {
     int emission = int(at_midBlock.w);
 
