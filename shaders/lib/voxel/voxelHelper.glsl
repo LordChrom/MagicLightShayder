@@ -73,13 +73,12 @@ vec3 sectionPosToWorld(ivec3 pos){
     return sectionPosToWorld(pos,0.5);
 }
 
-//uppper A, lower A, upper B, lower B
-uvec4 unpackSlopes(uint packed){
+uvec4 unpackSlopes(uint packedValue){
     return uvec4(
-        slopeMask&(packed>>(4+3*SLOPE_BITS)),
-        slopeMask&(packed>>(4+2*SLOPE_BITS)),
-        slopeMask&(packed>>(4+1*SLOPE_BITS)),
-        slopeMask&(packed>>(4+0*SLOPE_BITS))
+        slopeMask&(packedValue>>(4+3*SLOPE_BITS)),
+        slopeMask&(packedValue>>(4+2*SLOPE_BITS)),
+        slopeMask&(packedValue>>(4+1*SLOPE_BITS)),
+        slopeMask&(packedValue>>(4+0*SLOPE_BITS))
     );
 }
 
@@ -91,14 +90,14 @@ uint packSlopes(uvec4 slopes){
      ((slopeMask&slopes.w)<<(4+0*SLOPE_BITS));
 }
 
-lightVoxData unpackLightData(uvec4 packed){
+lightVoxData unpackLightData(uvec4 packedData){
     lightVoxData ret;
-    vec3 worldPos = ((ivec3(packed.xyz&PACKED_POS_MASK)<<8)>>8)*packedPosScaleInv;
+    vec3 worldPos = ((ivec3(packedData.xyz&PACKED_POS_MASK)<<8)>>8)*packedPosScaleInv;
 
     ret.worldPos=worldPos;
-    ret.recolor=packed.xyz>>24;
-    ret.slopes=unpackSlopes(packed.w);
-    ret.emissive=packed.w&0xfu;
+    ret.recolor=packedData.xyz>>24;
+    ret.slopes=unpackSlopes(packedData.w);
+    ret.emissive=packedData.w&0xfu;
     return ret;
 }
 
