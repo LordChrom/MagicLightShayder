@@ -5,7 +5,7 @@ layout (rgba8ui) uniform readonly restrict uimage3D worldVox;
 #include "/lib/voxel/voxelHelper.glsl"
 
 vec3 voxelSample(vec3 worldPos, vec3 normal){
-    worldPos+=vec3(0,0,-0.099); //TODO figure this out, probably something stupid
+    worldPos+=vec3(0,0,-0.1); //TODO figure this out, probably something stupid
 
     worldPos+=normal*0.001;
     ivec3 sectionPos = worldPosToSection(worldPos,1);
@@ -15,24 +15,23 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
 
     vec3 displacement = lightSrc.lightTravel + subVoxelOffset(worldPos,1);
 
+    lightStrength*=step(0,displacement.z);
+
     float lengthSquared = dot(displacement,displacement);
 
     lightStrength/=max(lengthSquared,0.01);
 
-    uvec4 testSlopes = lightSrc.slopes;
-    bool receivesLight = isAdjustedPointInSlopes(displacement, testSlopes);
-
 
     float lightDotN = -dot(displacement,normal);
 
-    receivesLight = receivesLight && lightDotN>=0 && lightSrc.emissive>0;
+    bool receivesLight = lightDotN>=0 && lightSrc.emissive>0;
 
 
 
     if(receivesLight){
-        lightStrength=max(lightStrength,0.2);
+        lightStrength=max(lightStrength,0.03); //mostly just for testing
     }else{
-        lightStrength*=0.2;
+        lightStrength*=0.2; //also mostly just for testing
     }
     float mult = 0.1+lightStrength;
 
