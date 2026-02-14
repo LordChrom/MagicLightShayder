@@ -80,7 +80,7 @@ vec4[2][2] pickRelevantInputSamples(lightVoxData bestSource, lightVoxData[3][3] 
     vec4 occludeSlopes = (abs(lightTravel.xy).xyxy + vec4(0.5,0.5,-0.5,-0.5))*slopeScale;
 
     //00 01 10 11
-    vec2 potentialOcclusions = {{occludeSlopes.xy,occludeSlopes.xw},{occludeSlopes.zy,occludeSlopes.zw}};
+    vec2[2][2] potentialOcclusions = {{occludeSlopes.xy,occludeSlopes.xw},{occludeSlopes.zy,occludeSlopes.zw}};
 
     for(int i=0; i<2; i++){
         for(int j=0; j<2; j++){
@@ -89,32 +89,30 @@ vec4[2][2] pickRelevantInputSamples(lightVoxData bestSource, lightVoxData[3][3] 
             lightVoxData relevantSample = inputSamples[1+a][1+b];
             bool sameSource = relevantSample.lightTravel==bestSource.lightTravel;
             bool obstructed = obstructions[1+a][1+b];
-            bvec2 aligned = bvec2(lightTravel.x+a==0,lightTravel.y+b==0); //on the same axis from light src direction
+            bvec2 alignedSrc = bvec2(lightTravel.x+a==0,lightTravel.y+b==0); //on the same axis from light src direction
 
 
             vec4 occlusion = relevantSample.occlusion;
             //TODO make this branchless once it all works
-            if(obstructed){
-                if(i==1){ //edge/corner
-                    occlusion.z = occludeSlopes.x;//increase occlusion.
-                }else { //center/edge
-                    occlusion.x = occludeSlopes.x;//reduce illumination
-                }
-
-                if(j==1){ //edge/corner
-                    occlusion.w = occludeSlopes.y;//increase occlusion.
-                }else { //center/edge
-                    occlusion.y = occludeSlopes.y;//reduce illumination
-                }
-
-                if(i==1 && j==1){ //corner only
-
-                }
+            if(obstructed){//blocked from inside, increase occlusion
+                occlusion.zw = max(occlusion.xz,potentialOcclusions[i][j]);
             }
 
-            if(aligned.x)
+            if(i==0 && blockages[1+aSignSrc][1+b]){ //blocked from outside (a), decrease illumination
+                occlusion.x = min(occlusion.x,occludeSlopes.x);
+            }
+
+            if(j==0 && blockages[1+a][1+bSignSrc]){ //b
+                occlusion.y = min(occlusion.y,occludeSlopes.y);
+            }
+
+            //TODO: outer corner occlusion, like if light is going
+
+
+
+            if(alignedSrc.x)
                 occlusion.yw=vec2(1,0);
-            if(aligned.y)
+            if(alignedSrc.y)
                 occlusion.xz=vec2(1,0);
 
             if(!sameSource)
