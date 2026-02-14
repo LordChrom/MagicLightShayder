@@ -7,13 +7,13 @@
 #define PACKED_POS_MASK 0x00ffffff
 
 
-//axes for voxel faces are represented as a,b,d, with d being the direction light travels in, a being the axis after it, and b being the one after that
-//all examples are xyz,yx-z, zxy,zx-y,yzx,yz-x
+//axes for voxel faces are represented as a,b,d, with d being the direction light travels in, a being the axis after it,
+//and b being the one after that. all examples are xyz,xy-z, zxy, zx-y, yzx,yz-x. Handedness be damned idc.
 struct lightVoxData{
-//illumination and occlusion both represent, of a rectangular pyramid from the source, the slope to the corner which
-//shares an a,b quarant with the sample. A position is lit if it's inside illumination and outside occlusion
-    vec2 illumination;
-    vec2 occlusion;
+    //illumination (xy) and occlusion (zw) both represent, of a rectangular pyramid originating from the source,
+    //the magnitude of the slope to the corner which shares an a,b quarant with the sample.
+    //A position is lit if it's inside illumination and outside occlusion
+    vec4 occlusion;
     vec3 color;
     uint emission; //blocklight strength. Potentially redundant w/ color.
     vec3 lightTravel; //the displacement from the light source voxel center to the sample's voxel center
@@ -26,7 +26,7 @@ struct lightVoxData{
 const float lightTravelScaleInv = 16.0; //most voxels per block representable for lightTravel
 const float lightTravelScale = 1.0/lightTravelScaleInv;
 
-const lightVoxData noLight = {vec2(0),vec2(0),vec3(0),0,vec3(0)};
+const lightVoxData noLight = {vec4(0),vec3(0),0,vec3(0)};
 
 const int debugAxisNum = 5;
 
@@ -65,6 +65,7 @@ lightVoxData unpackLightData(uvec4 packedData){
     ret.lightTravel = vec3(ivec3(packedData.x,packedData.x<<16,packedData.y<<16)>>16)*lightTravelScale;
     ret.emission = packedData.z&0xfu;
     ret.color=unpackUnorm4x8(packedData.z).yzw;
+    ret.occlusion=unpackUnorm4x8(packedData.w);
     return ret;
 }
 
@@ -74,6 +75,6 @@ uvec4 packLightData(lightVoxData data){
     ret.x = (intTravel.x<<16) | (0xffffu&intTravel.y);
     ret.y = intTravel.z;
     ret.z = (data.emission&0xfu) | (0xffffff00u&packUnorm4x8(vec4(0,data.color)));
-    ret.w = packUnorm4x8(vec4(data.illumination,data.occlusion));
+    ret.w = packUnorm4x8(data.occlusion);
     return ret;
 }
