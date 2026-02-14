@@ -7,12 +7,16 @@
 #define PACKED_POS_MASK 0x00ffffff
 
 
+//axes for voxel faces are represented as a,b,d, with d being the direction light travels in, a being the axis after it, and b being the one after that
+//all examples are xyz,yx-z, zxy,zx-y,yzx,yz-x
 struct lightVoxData{
-    vec2 illumination; //
+//illumination and occlusion both represent, of a rectangular pyramid from the source, the slope to the corner which
+//shares an a,b quarant with the sample. A position is lit if it's inside illumination and outside occlusion
+    vec2 illumination;
     vec2 occlusion;
     vec3 color;
-    uint emission;
-    vec3 lightTravel;
+    uint emission; //blocklight strength. Potentially redundant w/ color.
+    vec3 lightTravel; //the displacement from the light source voxel center to the sample's voxel center
 };
 
 
