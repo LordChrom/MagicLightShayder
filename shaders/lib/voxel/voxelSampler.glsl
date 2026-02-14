@@ -11,7 +11,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
     ivec3 sectionPos = worldPosToSection(worldPos,1);
     lightVoxData lightSrc = unpackLightData(imageLoad(lightVox, sectionPos));
 
-    float lightStrength = lightSrc.emissive/15.0;
+    float lightStrength = lightSrc.emission/15.0;
 
     vec3 displacement = lightSrc.lightTravel + subVoxelOffset(worldPos,1);
 
@@ -24,7 +24,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
 
     float lightDotN = -dot(displacement,normal);
 
-    bool receivesLight = lightDotN>=0 && lightSrc.emissive>0;
+    bool receivesLight = lightDotN>=0 && lightSrc.emission>0;
 
 
 

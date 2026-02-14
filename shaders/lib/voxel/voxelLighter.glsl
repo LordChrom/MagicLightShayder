@@ -26,7 +26,7 @@ lightVoxData determineBestLightSource(
         for (int b=-1; b<=1;b++){
             lightVoxData lightSrc = inputSamples[a+1][b+1];
 
-            if(lightSrc.emissive==0)
+            if(lightSrc.emission==0)
                 continue;
 
             bool isCenter = (a|b)==0;
@@ -41,7 +41,7 @@ lightVoxData determineBestLightSource(
 
             vec3 displ = lightSrc.lightTravel;
             float lenSquared = dot(displ, displ);
-            float strength = float(lightSrc.emissive)/max(0.1, lenSquared);
+            float strength = float(lightSrc.emission)/max(0.1, lenSquared);
             displ.xy+=vec2(a,b)*scale;
 
             bool srcBlocked = centerFrontOccluded || (helpersOccluded && !isCenter) ||
@@ -53,7 +53,7 @@ lightVoxData determineBestLightSource(
 
 //            blocked[a+1][b+1]=srcBlocked;
             if(srcBlocked)
-                inputSamples[a+1][b+1].emissive=0;
+                inputSamples[a+1][b+1].emission=0;
 
             if (strength>bestStrength && !srcBlocked){
                 bestLight=lightSrc;
@@ -84,6 +84,13 @@ lightVoxData[2][2] pickRelevantInputSamples(lightVoxData bestSource, lightVoxDat
     }
 
     return ret;
+}
+
+
+
+//
+void doIlluminationOcclusion(){
+
 }
 
 
@@ -129,52 +136,13 @@ void lightVoxelFace(ivec3 sectionPos, uint section,ivec3 progress,uint axisNum){
     lightVoxData[2][2] relevantSources = pickRelevantInputSamples(bestLight, inputSamples);
 
 
-    //then calculate new occlusion values (the following code will change cuz the whole current approach is flawed)
+    //then calculate new illumination/occlusion values
 
-//    int centerOccluded = int(frontOcclusions[1][1]||rearOcclusions[1][1]);
-//    vec2 voxelOutset = vec2(voxHalf,-voxHalf);
-//
-//    uvec4 bounds = fullLightSpread;
-//    uvec4 edgeSlopes = convertSlopesFtoU(vec4(displ.x+voxelOutset,displ.y+voxelOutset),displ.z);
-//
-//    edgeSlopes+=(1-centerOccluded)*ivec4(1,-1,1,-1);
-//
-//    //1 means the edge in that dir is occupied
-//    uvec4 edgeOcclusions = uvec4(
-//        frontOcclusions[2][1]||rearOcclusions[2][1],
-//        frontOcclusions[0][1]||rearOcclusions[0][1],
-//        frontOcclusions[1][2]||rearOcclusions[1][2],
-//        frontOcclusions[1][0]||rearOcclusions[1][0]
-//    );
-//
-//    //1 means light is free to travel in that direction
-//    uvec4 lightDirMask = uvec4(step(-0.1,vec4(displ.x,-displ.x,displ.y,-displ.y)));
-//
-//    if(centerOccluded>0){
-//        uvec4 faceBounds = edgeSlopes.yxwz*lightDirMask;
-//        faceBounds.xz = max(uvec2(slopeOffset),faceBounds.xz);
-//        faceBounds.yw = min(uvec2(slopeOffset),faceBounds.yw);
-//
-//        faceBounds.zw=uvec2(slopeMax,slopeMin);
-//
-//        bounds=combineSlopeBounds(bounds,faceBounds);
-//    }else{
-//            edgeOcclusions *=(1-lightDirMask);
-//            bounds=edgeOcclusions*edgeSlopes+(1-edgeOcclusions)*fullLightSpread;
-//    }
-//
-//
-//    bestLight.slopes=combineSlopeBounds(bestLight.slopes,bounds);
-
-
-
-//    bestLight.slopes=fullLightSpread;
 
     if (frontVoxels[1][1].w>0xf){
         bestLight.lightTravel = vec3(0);
-        bestLight.recolor = uvec3(0);
-//        bestLight.slopes = fullLightSpread;
-        bestLight.emissive = frontVoxels[1][1].w>>4;
+        bestLight.color = uvec3(0);
+        bestLight.emission = frontVoxels[1][1].w>>4;
     }
 
     imageStore(lightVox,sectionPos,packLightData(bestLight));
