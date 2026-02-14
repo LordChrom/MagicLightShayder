@@ -4,14 +4,15 @@
 
 #define SLOPE_BITS 7
 
-#define PACKED_POS_MASK 0x00ffffffu
+#define PACKED_POS_MASK 0x00ffffff
 
+#define WORLD_OFFSET_SCALE 0.0625f; //one pixel
 
 struct lightVoxData{
     uvec3 recolor;
     uint emissive;
     uvec4 slopes;
-    vec3 worldPos;
+    vec3 lightTravel;
 };
 
 const float packedPosScale = 256.0;
@@ -45,34 +46,26 @@ ivec3 axisNumToVec(uint axis){
     return ivec3(upper==0,upper==1,upper==2)*(((int(axis)&1)<<1)-1);
 }
 
-ivec3 axisNumToA(uint axis){
-    return axisNumToVec((axis+2)%6u);
-}
+//ivec3 axisNumToA(uint axis){
+//    return axisNumToVec((axis+2)%6u);
+//}
+//
+//
+//ivec3 axisNumToB(uint axis){
+//    return axisNumToVec((axis+4)%6u);
+//}
 
 
-ivec3 axisNumToB(uint axis){
-    return axisNumToVec((axis+4)%6u);
-}
 
 ivec3 worldPosToSection(vec3 pos, float scale){
-    return ivec3(round(pos+scale));
+    return ivec3(round(pos/scale+0.5)*scale);
+}
+
+vec3 subVoxelOffset(vec3 pos, float scale){
+    return (fract(pos/scale)-0.5)*scale;
 }
 
 
-ivec3 worldPosToSection(vec3 pos){
-    float scale = 0.5;
-    return worldPosToSection(pos,0.5);
-}
-
-vec3 sectionPosToWorld(ivec3 pos, float scale){
-    return vec3(pos)-scale;
-}
-
-
-vec3 sectionPosToWorld(ivec3 pos){
-    float scale = 0.5;
-    return sectionPosToWorld(pos,0.5);
-}
 
 uvec4 unpackSlopes(uint packedValue){
     return uvec4(
@@ -93,9 +86,9 @@ uint packSlopes(uvec4 slopes){
 
 lightVoxData unpackLightData(uvec4 packedData){
     lightVoxData ret;
-    vec3 worldPos = ((ivec3(packedData.xyz&PACKED_POS_MASK)<<8)>>8)*packedPosScaleInv;
+    vec3 sourceOffset = (((ivec3(packedData.xyz)&PACKED_POS_MASK)<<8)>>8)*packedPosScaleInv;
 
-    ret.worldPos=worldPos;
+    ret.lightTravel=sourceOffset;
     ret.recolor=packedData.xyz>>24;
     ret.slopes=unpackSlopes(packedData.w);
     ret.emissive=packedData.w&0xfu;
@@ -104,7 +97,7 @@ lightVoxData unpackLightData(uvec4 packedData){
 
 uvec4 packLightData(lightVoxData data){
     uvec4 ret;
-    ret.xyz=(uvec3(data.worldPos*packedPosScale)&PACKED_POS_MASK)+(data.recolor<<24)*0;
+    ret.xyz=(ivec3(data.lightTravel*packedPosScale)&PACKED_POS_MASK)+(data.recolor<<24)*0;
     ret.w=packSlopes(data.slopes)+data.emissive;
     return ret;
 }

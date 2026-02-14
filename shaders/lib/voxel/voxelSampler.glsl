@@ -8,18 +8,14 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
     worldPos+=vec3(0,0,-0.099); //TODO figure this out, probably something stupid
 
     worldPos+=normal*0.001;
-    ivec3 sectionPos = worldPosToSection(worldPos);
+    ivec3 sectionPos = worldPosToSection(worldPos,1);
     lightVoxData lightSrc = unpackLightData(imageLoad(lightVox, sectionPos));
-
-//    uvec4 sourceVox = imageLoad(worldVox,worldPosToSection(lightMeta.xyz));
 
     float lightStrength = lightSrc.emissive/15.0;
 
-    vec3 displacement = worldPos-lightSrc.worldPos;
+    vec3 displacement = lightSrc.lightTravel + subVoxelOffset(worldPos,1);
 
     float lengthSquared = dot(displacement,displacement);
-
-//    uvec4 testSlopes = uvec4(32+16,32-16,32+16,32-16);
 
     lightStrength/=max(lengthSquared,0.01);
 
@@ -27,9 +23,9 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
     bool receivesLight = isAdjustedPointInSlopes(displacement, testSlopes);
 
 
-    float lightDotN = dot(displacement,-normal);
+    float lightDotN = -dot(displacement,normal);
 
-    receivesLight = receivesLight && lightDotN>0;
+    receivesLight = receivesLight && lightDotN>=0 && lightSrc.emissive>0;
 
 
 
