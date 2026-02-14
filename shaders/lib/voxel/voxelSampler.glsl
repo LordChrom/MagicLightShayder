@@ -25,6 +25,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
     float lightDotN = -dot(displacement,normal);
 
     bool receivesLight = lightDotN>=0 && lightSrc.emission>0;
+    receivesLight = receivesLight && isLit(displacement,lightSrc);
 
 
     vec3 outColor = vec3(0.1);

@@ -19,8 +19,6 @@ lightVoxData determineBestLightSource( float scale,
     lightVoxData bestLight = noLight;
     float bestStrength = 0;
 
-    bool centerFrontOccluded = (frontVoxels[1][1].w&1u)==1u;
-
     for (int a=-1;a<=1;a++){
         for (int b=-1; b<=1;b++){
             lightVoxData lightSrc = inputSamples[a+1][b+1];
@@ -30,8 +28,6 @@ lightVoxData determineBestLightSource( float scale,
 
             bool isCenter = (a|b)==0;
 
-//            bool selfRearOccluded = rearOcclusions[a+1][b+1];
-//            bool selfFrontOccluded = frontOcclusions[a+1][b+1];
             bool selfOccluded = obstructions[a+1][b+1];
 
             //if corner, its neighbors. If edge, itself and center. If center, itself twice
@@ -44,7 +40,7 @@ lightVoxData determineBestLightSource( float scale,
             float strength = float(lightSrc.emission)/max(0.1, lenSquared);
             displ.xy+=vec2(a,b)*scale;
 
-            bool srcBlocked = centerFrontOccluded || (helpersOccluded && !isCenter) || selfOccluded;
+            bool srcBlocked = (helpersOccluded && !isCenter) || selfOccluded;
 
             srcBlocked = srcBlocked || (displ.x*a>0) || (displ.y*b>0); //will be unnecessary soon
 
@@ -66,71 +62,62 @@ lightVoxData determineBestLightSource( float scale,
 
 
 //out of 9 input samples, only up to 4 can have any light flowing between the source and the output
-//center at [0][0], corner at [1][1],
-//each vec4 is an illuminate/occlude thing
-vec4[2][2] pickRelevantInputSamples(lightVoxData bestSource, lightVoxData[3][3] inputSamples, bool[3][3] obstructions, float scale){
-    vec4[2][2] ret;
+//corner closest to source at [0][0], output at [1][1]
+//newObstructions is flipped to match this, with [2][2] being the firthest corner from source
+void pickRelevantInputSamples(lightVoxData bestSource, lightVoxData[3][3] inputSamples, bool[3][3] obstructions, float scale,
+    out lightVoxData[2][2] samples, out bool[2][2] relevance, out bool[3][3] newObstructions){
+
     vec3 lightTravel = bestSource.lightTravel;
     int aSignSrc = int(sign(lightTravel.x));
     int bSignSrc = int(sign(lightTravel.y));
 
-    float slopeScale = scale/lightTravel.z;
-
-    //of the output voxel face, represents outer a, outer b, inner a, inner b bounds
-    vec4 occludeSlopes = (abs(lightTravel.xy).xyxy + vec4(0.5,0.5,-0.5,-0.5))*slopeScale;
-
-    //00 01 10 11
-    vec2[2][2] potentialOcclusions = {{occludeSlopes.xy,occludeSlopes.xw},{occludeSlopes.zy,occludeSlopes.zw}};
-
-    for(int i=0; i<2; i++){
-        for(int j=0; j<2; j++){
-            int a = -i*aSignSrc;
-            int b = -j*bSignSrc;
-            lightVoxData relevantSample = inputSamples[1+a][1+b];
-            bool sameSource = relevantSample.lightTravel==bestSource.lightTravel;
-            bool obstructed = obstructions[1+a][1+b];
-            bvec2 alignedSrc = bvec2(lightTravel.x+a==0,lightTravel.y+b==0); //on the same axis from light src direction
-
-
-            vec4 occlusion = relevantSample.occlusion;
-            //TODO make this branchless once it all works
-            if(obstructed){//blocked from inside, increase occlusion
-                occlusion.zw = max(occlusion.xz,potentialOcclusions[i][j]);
-            }
-
-            if(i==0 && blockages[1+aSignSrc][1+b]){ //blocked from outside (a), decrease illumination
-                occlusion.x = min(occlusion.x,occludeSlopes.x);
-            }
-
-            if(j==0 && blockages[1+a][1+bSignSrc]){ //b
-                occlusion.y = min(occlusion.y,occludeSlopes.y);
-            }
-
-            //TODO: outer corner occlusion, like if light is going
-
-
-
-            if(alignedSrc.x)
-                occlusion.yw=vec2(1,0);
-            if(alignedSrc.y)
-                occlusion.xz=vec2(1,0);
-
-            if(!sameSource)
-                occlusion=vec4(0); //not 100% sure about this
-
-            ret[i][j]=occlusion;
+    for(int i=-1; i<=1; i++){
+        for(int j=-1; j<=1; j++){
+            newObstructions[1+i][1+j]=obstructions[1+aSignSrc*i][1+bSignSrc*i];
         }
     }
 
-    return ret;
+    for(int i=0; i<2; i++){
+        for(int j=0; j<2; j++){
+            int a = i*aSignSrc;
+            int b = j*bSignSrc;
+            lightVoxData relevantSample = inputSamples[1+a][1+b];
+            bool sameSource = relevantSample.lightTravel==bestSource.lightTravel;
+
+            relevance[i][j] = sameSource;
+            samples[i][j] = relevantSample;
+        }
+    }
 }
 
 
 
-//output is
-vec4 doIlluminationOcclusion(vec4 illumA, vec4 illumB, vec4 occlA, vec4 occlB){
+//separating these out just for more readability
+void occludeOuterEdge(float edge, inout float rayPart, inout bvec2 mapParts){
+    rayPart=min(rayPart,edge);
+    mapParts=bvec2(false);
+}
+void occludeInnerEdge(float edge, inout float rayPart, inout bvec2 mapParts){
+    rayPart=max(rayPart,edge);
+    mapParts=bvec2(false);
+}
+void occludeOuterEdgeA(float edge, inout vec2 ray, inout bvec4 map){occludeOuterEdge(edge,ray.x,map.xz);}
+void occludeOuterEdgeB(float edge, inout vec2 ray, inout bvec4 map){occludeOuterEdge(edge,ray.y,map.xy);}
+void occludeInnerEdgeA(float edge, inout vec2 ray, inout bvec4 map){occludeInnerEdge(edge,ray.x,map.yw);}
+void occludeInnerEdgeB(float edge, inout vec2 ray, inout bvec4 map){occludeInnerEdge(edge,ray.y,map.zw);}
 
-    return vec4(0);
+vec4 getBoundingSlopes(vec3 lightTravel, float scale){
+    float slopeScale = scale/(lightTravel.z-0.5);
+    return (abs(lightTravel.xy).xyxy + vec4(0.5,0.5,-0.5,-0.5))*slopeScale;
+}
+
+
+//okay so i'll be calling the +b direction "top" and the +a direction "left"
+//as though you're looking along the +z direction and the light is going +x+y
+void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bool[3][3] obstructions, vec4 occludeSlopes,
+    out vec2 outRay, out bvec4 outMap
+){
+
 }
 
 
@@ -154,7 +141,16 @@ void lightVoxelFace(ivec3 sectionPos, uint section,ivec3 progress,uint axisNum){
             lightVoxData inputSample = unpackLightData(imageLoad(lightVox, sectionPos+localOffset));
             inputSample.lightTravel-=vec3(localOffset)*scale;
 
-            obstructions[a+1][b+1]=(rearVoxel.w&1u)==1 || (frontVoxel.w&1u)==1;
+            bool rearObstructed = (rearVoxel.w&1u)==1;
+            bool frontObstructed = (frontVoxel.w&1u)==1;
+//            frontObstructed = frontObstructed && !(a==0&&b==0);
+
+            if(rearVoxel.w==0x01){ //non emissive
+                inputSample=noLight;
+            }
+
+
+            obstructions[a+1][b+1]= rearObstructed || frontObstructed;
             frontVoxels[a+1][b+1] = frontVoxel;
             rearVoxels[a+1][b+1] = rearVoxel;
             inputSamples[a+1][b+1] = inputSample;
@@ -167,21 +163,28 @@ void lightVoxelFace(ivec3 sectionPos, uint section,ivec3 progress,uint axisNum){
         scale, inputSamples, frontVoxels, rearVoxels, obstructions
     );
 
-    vec3 displ = bestLight.lightTravel;
 
     // then pick the 4 relevant input samples
     // (the voxels further from the center of the light source do not contribute)
-    vec4[2][2] relevantSources = pickRelevantInputSamples(bestLight, inputSamples, obstructions, scale);
+    lightVoxData[2][2] relevantSamples;
+    bool[2][2] relevance;
+    bool[3][3] newObstructions;
+    pickRelevantInputSamples(bestLight, inputSamples, obstructions, scale,
+        relevantSamples,relevance, newObstructions);
 
-
-    //then calculate new illumination/occlusion values
+    determineOcclusion(relevantSamples, relevance, newObstructions, getBoundingSlopes(bestLight.lightTravel,scale),
+        bestLight.occlusionRay, bestLight.occlusionMap);
 
 
     if (frontVoxels[1][1].w>0xf){
         bestLight.lightTravel = vec3(0);
         bestLight.color = frontVoxels[1][1].rgb*(1.0/255.0);
         bestLight.emission = frontVoxels[1][1].w>>4;
+        bestLight.occlusionMap=bvec4(true);
     }
+
+//    bestLight.occlusionRay = abs(bestLight.lightTravel.xy/(bestLight.lightTravel.z-0.5));
+//    bestLight.occlusionMap = bvec4(false,true,false,true);
 
     imageStore(lightVox,sectionPos,packLightData(bestLight));
 }

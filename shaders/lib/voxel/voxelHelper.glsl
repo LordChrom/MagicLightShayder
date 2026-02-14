@@ -7,26 +7,21 @@
 #define PACKED_POS_MASK 0x00ffffff
 
 
-//axes for voxel faces are represented as a,b,d, with d being the direction light travels in, a being the axis after it,
+//axes for voxel faces are represented as a,b,L, with L being the direction light travels in, a being the axis after it,
 //and b being the one after that. all examples are xyz,xy-z, zxy, zx-y, yzx,yz-x. Handedness be damned idc.
 struct lightVoxData{
-    //illumination (xy) and occlusion (zw) both represent, of a rectangular pyramid originating from the source,
-    //the magnitude of the slope to the corner which shares an a,b quarant with the sample.
-    //A position is lit if it's inside illumination and outside occlusion
-    vec4 occlusion;
+    vec2 occlusionRay;// ( |da/dL|, |db/dL| )                                ( x y )   ( +|a,b|  +|0,b| )
+    bvec4 occlusionMap;//quadrants in which occlusion occurs, lit if true -> ( z w ) = ( +|b,0|  +|0,0| )
     vec3 color;
-    uint emission; //blocklight strength. Potentially redundant w/ color.
-    vec3 lightTravel; //the displacement from the light source voxel center to the sample's voxel center
+    uint emission;//blocklight strength. Potentially redundant w/ color.
+    vec3 lightTravel;//the displacement from the light source voxel center to the sample's voxel center
 };
 
-
-//const float packedPosScale = 256.0;
-//const float packedPosScaleInv = 1.0/packedPosScale;
 
 const float lightTravelScaleInv = 16.0; //most voxels per block representable for lightTravel
 const float lightTravelScale = 1.0/lightTravelScaleInv;
 
-const lightVoxData noLight = {vec4(0),vec3(0),0,vec3(0)};
+const lightVoxData noLight = {vec2(0),bvec4(false),vec3(0),0,vec3(0)};
 
 const int debugAxisNum = 5;
 
@@ -56,25 +51,40 @@ vec3 subVoxelOffset(vec3 pos, float scale){
 
 
 //bit layout of the packing
-//first uint is 2x16 a,b of travel
-//second is 1x16 free, 1x16 z of travel
-//third is 3x8 color, 1x4 unused, 1x4 emissive strength,
-//4th is 2x8 illumination, 2x8 occlusion,
+//x is 2x16 a,b of travel
+//y is 2x8 occlusion (b then a), 1x16 z of travel
+//z is 3x8 color, 1x4 occlusion map, 1x4 emissive strength,
+//w is all free! Yay! Could save memory but will likely use for more more features later
 lightVoxData unpackLightData(uvec4 packedData){
     lightVoxData ret;
     ret.lightTravel = vec3(ivec3(packedData.x,packedData.x<<16,packedData.y<<16)>>16)*lightTravelScale;
     ret.emission = packedData.z&0xfu;
+    ret.occlusionMap = bvec4(packedData.z&0x80u,packedData.z&0x40u,packedData.z&0x20u,packedData.z&0x10u);
     ret.color=unpackUnorm4x8(packedData.z).yzw;
-    ret.occlusion=unpackUnorm4x8(packedData.w);
+    ret.occlusionRay=unpackUnorm4x8(packedData.y).zw; //higher bits are later vec elements
     return ret;
 }
 
 uvec4 packLightData(lightVoxData data){
     uvec4 ret;
     uvec3 intTravel = ivec3(round(data.lightTravel*lightTravelScaleInv));
+    uvec4 intOcclMap = uvec4(data.occlusionMap)<<uvec4(7,6,5,4);
+
     ret.x = (intTravel.x<<16) | (0xffffu&intTravel.y);
-    ret.y = intTravel.z;
-    ret.z = (data.emission&0xfu) | (0xffffff00u&packUnorm4x8(vec4(0,data.color)));
-    ret.w = packUnorm4x8(data.occlusion);
+    ret.y = intTravel.z | (packUnorm4x8(vec4(0,0,data.occlusionRay))&0xffff0000u);
+    ret.z = (0xffffff00u&packUnorm4x8(vec4(0,data.color))) | (data.emission&0xfu)
+            | (0xf0u&((intOcclMap.x|intOcclMap.y)|(intOcclMap.z|intOcclMap.w)));
+    ret.w = 0;
     return ret;
+}
+
+
+bool isLit(vec3 position, vec2 ray, bvec4 map){
+    vec2 slope = abs(position.xy/position.z);
+    ivec2 pos = ivec2(int(slope.x>ray.x),int(slope.y>ray.y));
+    return map[3-pos.x-(pos.y+pos.y)];
+}
+
+bool isLit(vec3 position, lightVoxData light){
+    return isLit(position,light.occlusionRay,light.occlusionMap);
 }
