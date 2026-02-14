@@ -49,9 +49,8 @@ lightVoxData determineBestLightSource(
 
             srcBlocked = srcBlocked || (displ.x*a>0) || (displ.y*b>0); //will be unnecessary soon
 
-            //TODO: occlusion stuff goes here
+            //occlusion stuff goes here, maybe
 
-//            blocked[a+1][b+1]=srcBlocked;
             if(srcBlocked)
                 inputSamples[a+1][b+1].emission=0;
 
@@ -141,7 +140,7 @@ void lightVoxelFace(ivec3 sectionPos, uint section,ivec3 progress,uint axisNum){
 
     if (frontVoxels[1][1].w>0xf){
         bestLight.lightTravel = vec3(0);
-        bestLight.color = uvec3(0);
+        bestLight.color = frontVoxels[1][1].rgb*(1.0/255.0);
         bestLight.emission = frontVoxels[1][1].w>>4;
     }
 

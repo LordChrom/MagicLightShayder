@@ -10,5 +10,5 @@ void main() {
 
     vec3 worldPos = gl_Vertex.xyz-gl_ProjectionMatrix[3].xyz+cameraPosition;
     worldPos+= at_midBlock.xyz/64.0;
-    writeVoxelMap(worldPos,vec3(0.5,0,0.5),emission, false, emission==0);
+    writeVoxelMap(worldPos,vec3(0.9,0.6,0.6),emission, false, emission==0);
 }

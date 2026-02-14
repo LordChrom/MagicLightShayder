@@ -27,13 +27,12 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
     bool receivesLight = lightDotN>=0 && lightSrc.emission>0;
 
 
+    vec3 outColor = vec3(0.1);
 
     if(receivesLight){
         lightStrength=max(lightStrength,0.03); //mostly just for testing
-    }else{
-        lightStrength*=0.2; //also mostly just for testing
+        outColor += lightSrc.color*(0.1+0.9*min(lightStrength,1));
     }
-    float mult = 0.1+lightStrength;
 
-    return vec3(mult);
+    return outColor;
 }
