@@ -99,7 +99,7 @@ lightVoxData determineBestLightSource( float scale,
 
 
 //out of 9 input samples, only up to 4 can have any light flowing between the source and the output
-//corner closest to source at [0][0], output sample at [1][1]
+//for all 2x2 selected sample arrays, corner closest to source at [0][0], output sample at [1][1]
 //newObstructions is flipped to match this, with [2][2] being the firthest corner from source
 void pickRelevantInputSamples(lightVoxData bestSource, lightVoxData[3][3] inputSamples, bool[3][3] obstructions, float scale,
     out lightVoxData[2][2] samples, out bool[2][2] relevance, out bvec2 alignment, out bool[2][2] newObstructions){
@@ -107,6 +107,7 @@ void pickRelevantInputSamples(lightVoxData bestSource, lightVoxData[3][3] inputS
     vec3 lightTravel = bestSource.lightTravel;
     int aSignSrc = int(sign(lightTravel.x));
     int bSignSrc = int(sign(lightTravel.y));
+
 
     for(int i=0; i<2; i++){
         int a = (i-1)*aSignSrc;
@@ -116,9 +117,11 @@ void pickRelevantInputSamples(lightVoxData bestSource, lightVoxData[3][3] inputS
             lightVoxData relevantSample = inputSamples[1+a][1+b];
             //TODO: also probably check for color when translucents stuff
             bool sameSource = relevantSample.lightTravel==bestSource.lightTravel;
-            bool aligned = (lightTravel.x+a*scale<=0) || (lightTravel.y+b*scale<=0);
+            bool alignedX = (lightTravel.x+a*scale<=0);
+            bool alignedY = (lightTravel.y+b*scale<=0);
 
-            relevance[i][j] = sameSource && !aligned;
+            relevance[i][j] = sameSource;
+            relevance[i][j] = sameSource && !((alignedX&&a!=0) || (alignedY&&b!=0));
             samples[i][j] = relevantSample;
         }
     }
@@ -128,7 +131,7 @@ void pickRelevantInputSamples(lightVoxData bestSource, lightVoxData[3][3] inputS
 
 
 
-//11 is top left corner, -1 -1 is bottom left corner
+//for this function only, 1,1 is top left corner, -1,-1 is bottom right corner
 void occludeCorner(inout vec2 corner, vec2 occluder, vec2 whichCorner){
     corner = whichCorner*(max(whichCorner*corner,whichCorner*occluder));
 }
@@ -148,9 +151,6 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
     vec2 innerSlope  = (lightTravel.xy-halfScale)*slopeScaleFar;   //anything less than this will not be visible
 
 
-    //    bestLight.occlusionRay = abs(bestLight.lightTravel.xy/(bestLight.lightTravel.z-0.5));
-//    middleSlope = abs(lightTravel.xy/(lightTravel.z-0.5));
-
     vec2[2][2] corners = {{vec2(-1,-1),vec2(-1,2)},{vec2(2,-1),vec2(2,2)}};
 
     //corners from blocks
@@ -162,11 +162,34 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
         }
     }
 
-    //corners from samples
+    //corners from samples TODO this
     for(int i=0; i<2; i++){
         for(int j=0; j<2; j++){
-            if(!relevance[i][j])
+//            continue;
+            if((!relevance[i][j]) || (i==0 && alignment.y) || (j==0 && alignment.x))
                 continue;
+
+            //1 if outer of block is inner of sample, -1 if outer
+            bvec4 map = samples[i][j].occlusionMap;
+            vec2 ray = samples[i][j].occlusionRay;
+
+
+            bool inOuterA = ray.x<=outerSlope.x;
+            bool inOuterB = ray.y<=outerSlope.y;
+            bool inInnerA = ray.x>=innerSlope.x;
+            bool inInnerB = ray.y>=innerSlope.y;
+
+//            if(!(inOuterA && inOuterB && inInnerA && inInnerB))
+//                continue;
+
+            if((!map.x) && inInnerA && inInnerB)
+                occludeCorner(corners[1][1],vec2(ray.x,ray.y),vec2(-1,-1));
+            if((!map.y) && inOuterA && inInnerB)
+                occludeCorner(corners[0][1],vec2(ray.x,ray.y),vec2(1,-1));
+            if((!map.z) && inInnerA && inOuterB)
+                occludeCorner(corners[1][0],vec2(ray.x,ray.y),vec2(-1,1));
+            if((!map.w) && inOuterA && inOuterB)
+                occludeCorner(corners[0][0],vec2(ray.x,ray.y),vec2(1,1));
       }
     }
 
@@ -174,9 +197,9 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
     outMap = bvec4( !(corners[1][1].x<=outerSlope.x && corners[1][1].y<=outerSlope.y), !(corners[0][1].x>=innerSlope.x && corners[0][1].y<=outerSlope.y),
                     !(corners[1][0].x<=outerSlope.x && corners[1][0].y>=innerSlope.y), !(corners[0][0].x>=innerSlope.x && corners[0][0].y>=innerSlope.y));
 
-    bvec4 edges = getOcclusionEdges(outMap);
 
-//    outMap = edges;
+
+    bvec4 edges = getOcclusionEdges(outMap);
 
     if(edges.x)
         outRay.x=min(corners[1][0].x,corners[1][1].x);
@@ -195,9 +218,16 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
         if(!outMap.w) outRay=corners[0][0];
     }
 
-//    outRay = abs(middleSlope);
-//    outMap = bvec2(true,false).xyyx;
-//        outRay = abs(lightTravel.xy/(lightTravel.z-0.5));
+
+    if(alignment.x){
+        outMap=and(outMap, outMap.zwxy);
+        outRay.y=0;
+    }
+    if(alignment.y){
+        outMap=and(outMap, outMap.yxwz);
+        outRay.x=0;
+    }
+
 }
 
 
@@ -249,6 +279,10 @@ void lightVoxelFace(ivec3 sectionPos, uint section,ivec3 progress,uint axisNum){
 
 //    bestLight.occlusionRay = abs(bestLight.lightTravel.xy/(bestLight.lightTravel.z-0.5));
 //    bestLight.occlusionMap = bvec2(true,false).xyyx;
+
+    if(!(bestLight.occlusionMap.x||bestLight.occlusionMap.y||bestLight.occlusionMap.z||bestLight.occlusionMap.w)){
+//        bestLight=noLight; //TODO reenable
+    }
 
     imageStore(lightVox,sectionPos,packLightData(bestLight));
 }

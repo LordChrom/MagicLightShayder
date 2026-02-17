@@ -66,10 +66,10 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
             }
             bvec4 edges = getOcclusionEdges(lightSrc.occlusionMap);
             if(
-            (debugQuadrant.x>0 && edges.x) ||
-            (debugQuadrant.x<0 && edges.z) ||
-            (debugQuadrant.y>0 && edges.y) ||
-            (debugQuadrant.y<0 && edges.w)
+                (debugQuadrant.x>0 && edges.x) ||
+                (debugQuadrant.x<0 && edges.z) ||
+                (debugQuadrant.y>0 && edges.y) ||
+                (debugQuadrant.y<0 && edges.w)
             ){
                 outColor.r*=2;
             }
