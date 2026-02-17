@@ -109,8 +109,8 @@ void pickRelevantInputSamples(lightVoxData bestSource, lightVoxData[3][3] inputS
     int bSignSrc = int(sign(lightTravel.y));
 
     for(int i=0; i<2; i++){
+        int a = (i-1)*aSignSrc;
         for(int j=0; j<2; j++){
-            int a = (i-1)*aSignSrc;
             int b = (j-1)*bSignSrc;
             newObstructions[i][j]=obstructions[1+a][1+b];
             lightVoxData relevantSample = inputSamples[1+a][1+b];
@@ -122,6 +122,7 @@ void pickRelevantInputSamples(lightVoxData bestSource, lightVoxData[3][3] inputS
             samples[i][j] = relevantSample;
         }
     }
+    newObstructions[0][0] = newObstructions[0][0] || (newObstructions[1][0] && newObstructions[0][1]);
     alignment = bvec2(bSignSrc==0,aSignSrc==0);
 }
 
@@ -139,11 +140,12 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
 ){
     float halfScale = 0.5*scale;
 
+    lightTravel.xy=abs(lightTravel.xy);
     float slopeScaleNear = abs(scale/(lightTravel.z-halfScale));
     float slopeScaleFar  = abs(scale/(lightTravel.z+halfScale));
-    vec2 outerSlope  = abs(lightTravel.xy+halfScale)*slopeScaleNear;  //anything more than this will not be visible
-    vec2 middleSlope = abs(lightTravel.xy-halfScale)*slopeScaleNear;  //ray going to the center corner of the 4 relevant samples
-    vec2 innerSlope  = abs(lightTravel.xy-halfScale)*slopeScaleFar;   //anything less than this will not be visible
+    vec2 outerSlope  = (lightTravel.xy+halfScale)*slopeScaleNear;  //anything more than this will not be visible
+    vec2 middleSlope = (lightTravel.xy-halfScale)*slopeScaleNear;  //ray going to the center corner of the 4 relevant samples
+    vec2 innerSlope  = (lightTravel.xy-halfScale)*slopeScaleFar;   //anything less than this will not be visible
 
 
     //    bestLight.occlusionRay = abs(bestLight.lightTravel.xy/(bestLight.lightTravel.z-0.5));
@@ -185,8 +187,8 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
     if(edges.w)
         outRay.y=max(corners[0][0].y,corners[1][0].y);
 
-    int cornerCount = int(outMap.x)+int(outMap.y)+int(outMap.z)+int(outMap.w);
-    if(cornerCount==3){//only one corner is obstructed
+    int edgeCount = int(edges.x)+int(edges.y)+int(edges.z)+int(edges.w);
+    if(edgeCount==0){//only one corner is obstructed
         if(!outMap.x) outRay=corners[1][1];
         if(!outMap.y) outRay=corners[0][1];
         if(!outMap.z) outRay=corners[1][0];
