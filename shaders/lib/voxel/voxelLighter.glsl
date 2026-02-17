@@ -40,7 +40,7 @@ void takeSamples(ivec3 sectionPos, float scale,
             }
 
 
-            obstructions[a+1][b+1]= rearObstructed || frontObstructed;
+            obstructions[a+1][b+1]= rearObstructed || frontObstructed; //TODO make better
             frontVoxels[a+1][b+1] = frontVoxel;
             rearVoxels[a+1][b+1] = rearVoxel;
             inputSamples[a+1][b+1] = inputSample;
@@ -102,122 +102,100 @@ lightVoxData determineBestLightSource( float scale,
 //corner closest to source at [0][0], output sample at [1][1]
 //newObstructions is flipped to match this, with [2][2] being the firthest corner from source
 void pickRelevantInputSamples(lightVoxData bestSource, lightVoxData[3][3] inputSamples, bool[3][3] obstructions, float scale,
-    out lightVoxData[2][2] samples, out bool[2][2] relevance, out bool[2][2] alignment, out bool[3][3] newObstructions){
+    out lightVoxData[2][2] samples, out bool[2][2] relevance, out bvec2 alignment, out bool[2][2] newObstructions){
 
     vec3 lightTravel = bestSource.lightTravel;
     int aSignSrc = int(sign(lightTravel.x));
     int bSignSrc = int(sign(lightTravel.y));
 
-    //this flips it to align the positive directions
-    //also, if a signSrc is 0, it'll take only that slice
-    for(int i=-1; i<=1; i++){
-        for(int j=-1; j<=1; j++){
-            newObstructions[1+i][1+j]=obstructions[1+aSignSrc*i][1+bSignSrc*i];
-        }
-    }
-
     for(int i=0; i<2; i++){
         for(int j=0; j<2; j++){
-            int a = i*aSignSrc;
-            int b = j*bSignSrc;
+            int a = (i-1)*aSignSrc;
+            int b = (j-1)*bSignSrc;
+            newObstructions[i][j]=obstructions[1+a][1+b];
             lightVoxData relevantSample = inputSamples[1+a][1+b];
+            //TODO: also probably check for color when translucents stuff
             bool sameSource = relevantSample.lightTravel==bestSource.lightTravel;
             bool aligned = (lightTravel.x+a*scale<=0) || (lightTravel.y+b*scale<=0);
 
-            alignment[i][j] = aligned;
             relevance[i][j] = sameSource && !aligned;
             samples[i][j] = relevantSample;
         }
     }
+    alignment = bvec2(bSignSrc==0,aSignSrc==0);
 }
 
 
 
-//separating these out just for more readability
-//probably wont even use any of this
-void occludeOuterEdge(float edge, inout float rayPart, inout bvec2 mapParts){
-    rayPart=min(rayPart,edge);
-    mapParts=bvec2(false);
+//11 is top left corner, -1 -1 is bottom left corner
+void occludeCorner(inout vec2 corner, vec2 occluder, vec2 whichCorner){
+    corner = whichCorner*(max(whichCorner*corner,whichCorner*occluder));
 }
-void occludeInnerEdge(float edge, inout float rayPart, inout bvec2 mapParts){
-    rayPart=max(rayPart,edge);
-    mapParts=bvec2(false);
-}
-void occludeLeftEdge(float edge, inout vec2 ray, inout bvec4 map){occludeOuterEdge(edge,ray.x,map.xz);}
-void occludeTopEdge(float edge, inout vec2 ray, inout bvec4 map){occludeOuterEdge(edge,ray.y,map.xy);}
-void occludeRightEdge(float edge, inout vec2 ray, inout bvec4 map){occludeInnerEdge(edge,ray.x,map.yw);}
-void occludeBottomEdge(float edge, inout vec2 ray, inout bvec4 map){occludeInnerEdge(edge,ray.y,map.zw);}
-
-vec4 getBoundingSlopes(vec3 lightTravel, float scale){
-    float slopeScale = scale/(lightTravel.z-0.5);
-    return (abs(lightTravel.xy).xyxy + vec4(0.5,0.5,-0.5,-0.5))*slopeScale;
-}
-
-
 
 //i'll be calling the +b direction "top" and the +a direction "left", both of these directions are away from src
 //as though you're looking along the +z direction and the light is going +x+y
-void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bool[2][2] alignment, bool[3][3] obstructions, vec4 boundingSlopes,
+void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignment, bool[2][2] obstructions, vec3 lightTravel, float scale,
     out vec2 outRay, out bvec4 outMap
 ){
-    if(outMap.x&&outMap.y&&outMap.z&&outMap.z)
-        outRay=vec2(0);
-//    vec4 edgeSlopes = vec4(1,1,0,0); //left, top, right, bottom
-    bvec4 outEdges;
-    lightVoxData centerSample = samples[1][1];
+    float halfScale = 0.5*scale;
 
-    outEdges = bvec4(obstructions[2][1],obstructions[1][2],obstructions[0][1],obstructions[1][0]);
-
-    bool hasValidSample = false;
+    float slopeScaleNear = abs(scale/(lightTravel.z-halfScale));
+    float slopeScaleFar  = abs(scale/(lightTravel.z+halfScale));
+    vec2 outerSlope  = abs(lightTravel.xy+halfScale)*slopeScaleNear;  //anything more than this will not be visible
+    vec2 middleSlope = abs(lightTravel.xy-halfScale)*slopeScaleNear;  //ray going to the center corner of the 4 relevant samples
+    vec2 innerSlope  = abs(lightTravel.xy-halfScale)*slopeScaleFar;   //anything less than this will not be visible
 
 
-    //center can occlude in any shape, corner can only occlude bottom right corner
-    //bottom edge can occlude a bottom edge or either bottom corner, likewise for right edge
+    //    bestLight.occlusionRay = abs(bestLight.lightTravel.xy/(bestLight.lightTravel.z-0.5));
+//    middleSlope = abs(lightTravel.xy/(lightTravel.z-0.5));
 
-    //This is all an absolute mess for now, avert your eyes until like probably the next commit
+    vec2[2][2] corners = {{vec2(-1,-1),vec2(-1,2)},{vec2(2,-1),vec2(2,2)}};
+
+    //corners from blocks
     for(int i=0; i<2; i++){
-        for(int j=0; j<2; j++){
-            lightVoxData relevantSample = samples[i][j];
-            bvec4 map = relevantSample.occlusionMap;
-//            if(alignment[i][j] != alignment[i][1]);
+        for (int j=0; j<2; j++){
             if(obstructions[i][j]){
-                vec2 occlPos = vec2(boundingSlopes.zx[i],boundingSlopes.wy[j]); //TODO here
-//                if(map.x)
-                samples[i][j].occlusionRay = max(samples[i][j].occlusionRay,occlPos);
-                samples[i][j].occlusionMap.w=false;
-                relevance[i][j] = true;
+                occludeCorner(corners[i][j],middleSlope,vec2(1-(i<<1),1-(j<<1)));
             }
         }
     }
 
+    //corners from samples
     for(int i=0; i<2; i++){
         for(int j=0; j<2; j++){
             if(!relevance[i][j])
                 continue;
-
-            lightVoxData relevantSample = samples[i][j];
-
-            if(!hasValidSample){
-                outRay=relevantSample.occlusionRay;
-                outMap=relevantSample.occlusionMap;
-                continue;
-            }
-            hasValidSample=true;
-
-//            continue;
-
-            vec2 ray = relevantSample.occlusionRay;
-//            bvec2 centered = bvec2(i==1,j==1);
-
-            //this part could maybe be bitwise ops, but that's the compiler's problem for now
-            bvec4 edges = and(
-                getEdges(relevantSample.occlusionMap),
-                bvec4(ray.x<=boundingSlopes.x, ray.y<=boundingSlopes.y, boundingSlopes.w<=ray.x, boundingSlopes.z<=ray.y)
-            );
-
-            outEdges = or(outEdges,edges);
-        }
+      }
     }
+
+
+    outMap = bvec4( !(corners[1][1].x<=outerSlope.x && corners[1][1].y<=outerSlope.y), !(corners[0][1].x>=innerSlope.x && corners[0][1].y<=outerSlope.y),
+                    !(corners[1][0].x<=outerSlope.x && corners[1][0].y>=innerSlope.y), !(corners[0][0].x>=innerSlope.x && corners[0][0].y>=innerSlope.y));
+
+    bvec4 edges = getOcclusionEdges(outMap);
+
+//    outMap = edges;
+
+    if(edges.x)
+        outRay.x=min(corners[1][0].x,corners[1][1].x);
+    if(edges.y)
+        outRay.y=min(corners[0][1].y,corners[1][1].y);
+    if(edges.z)
+        outRay.x=max(corners[0][0].x,corners[0][1].x);
+    if(edges.w)
+        outRay.y=max(corners[0][0].y,corners[1][0].y);
+
+    int cornerCount = int(outMap.x)+int(outMap.y)+int(outMap.z)+int(outMap.w);
+    if(cornerCount==3){//only one corner is obstructed
+        if(!outMap.x) outRay=corners[1][1];
+        if(!outMap.y) outRay=corners[0][1];
+        if(!outMap.z) outRay=corners[1][0];
+        if(!outMap.w) outRay=corners[0][0];
+    }
+
+//    outRay = abs(middleSlope);
+//    outMap = bvec2(true,false).xyyx;
+//        outRay = abs(lightTravel.xy/(lightTravel.z-0.5));
 }
 
 
@@ -250,14 +228,13 @@ void lightVoxelFace(ivec3 sectionPos, uint section,ivec3 progress,uint axisNum){
     // (the voxels further from the center of the light source do not contribute)
     lightVoxData[2][2] relevantSamples;
     bool[2][2] relevance;
-    bool[2][2] alignment;
-    bool[3][3] newObstructions;
-    vec4 boundingSlopes = getBoundingSlopes(bestLight.lightTravel,scale);
+    bvec2 alignment;
+    bool[2][2] newObstructions;
 
     pickRelevantInputSamples(bestLight, inputSamples, obstructions, scale,
         relevantSamples, relevance, alignment, newObstructions);
 
-    determineOcclusion(relevantSamples, relevance, alignment, newObstructions, boundingSlopes,
+    determineOcclusion(relevantSamples, relevance, alignment, newObstructions, bestLight.lightTravel, scale,
         bestLight.occlusionRay, bestLight.occlusionMap);
 
     //could maybe be at the top, not sure how much it'd actually help though TODO test later
@@ -269,7 +246,7 @@ void lightVoxelFace(ivec3 sectionPos, uint section,ivec3 progress,uint axisNum){
     }
 
 //    bestLight.occlusionRay = abs(bestLight.lightTravel.xy/(bestLight.lightTravel.z-0.5));
-//    bestLight.occlusionMap = bvec4(false,true,false,true);
+//    bestLight.occlusionMap = bvec2(true,false).xyyx;
 
     imageStore(lightVox,sectionPos,packLightData(bestLight));
 }
