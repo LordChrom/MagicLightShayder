@@ -44,14 +44,20 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
     #ifdef DEBUG_OCCLUSION_MAP
     if(lightSrc.emission>0 && true){
         vec2 debugQuadrant = subVoxelOffset.xy;
+
+        #ifdef UNFLIP_DEBUG_MAPS
+        if(lightSrc.lightTravel.x<0)
+            debugQuadrant.x*=-1;
+        if(lightSrc.lightTravel.y<0)
+            debugQuadrant.y*=-1;
+        #endif
+
         ivec4 intMap = ivec4(lightSrc.occlusionMap);
         int mapSum = intMap.x+intMap.y+intMap.z+intMap.w;
         if(mapSum==0)
             outColor.r=1;
         if(mapSum==4)
-            outColor.g*=1.3;
-//        if(mapSum>0 && mapSum<4)
-//            outColor.b*=1.1;
+            outColor.g*=1.5;
 
         bvec2 mapHalf = lightSrc.occlusionMap.yw;
         if(debugQuadrant.x>0)

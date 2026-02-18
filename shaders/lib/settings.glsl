@@ -1,1 +1,2 @@
 #define DEBUG_OCCLUSION_MAP
+#define UNFLIP_DEBUG_MAPS
