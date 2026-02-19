@@ -18,7 +18,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
     vec3 displacement = lightSrc.lightTravel + subVoxelOffset;
 
 //    lightStrength*=step(0,displacement.z);
-    lightStrength = displacement.x>0?lightStrength:0;
+    lightStrength = displacement.z>0?lightStrength:0;
 
     float lengthSquared = dot(displacement,displacement);
 
@@ -43,7 +43,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
     //bright red = fully unlit (should never happen)
     //blue = partially lit
     #ifdef DEBUG_OCCLUSION_MAP
-    if(lightSrc.emission>0 && true){
+    if(lightSrc.emission>0){
         vec2 debugQuadrant = subVoxelOffset.xy;
 
         #ifdef UNFLIP_DEBUG_MAPS
@@ -80,6 +80,18 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
             ){
                 outColor.r*=2;
             }
+        }
+
+        vec2 slopeDif = abs(lightSrc.occlusionRay-abs(displacement.xy/displacement.z));
+
+        float outlineWidth = DEBUG_OUTLINE_WIDTH/displacement.z;
+        if(slopeDif.x<outlineWidth || slopeDif.y<outlineWidth){
+            outColor.rgb=vec3(0.3);
+            outlineWidth*=0.5;
+            if(slopeDif.x<outlineWidth || slopeDif.y<outlineWidth){
+                outColor.rgb=vec3(0);
+            }
+
         }
 
 
