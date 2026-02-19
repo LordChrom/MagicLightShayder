@@ -1,5 +1,5 @@
 
-layout (rgba32ui) uniform restrict uimage3D lightVox;
+layout (rgba32ui) uniform restrict uimage3D lightVox; //TODO: test refactor into split readonly sampler and writeonly uimage
 layout (rgba8ui) uniform readonly restrict uimage3D worldVox;
 #include "/lib/voxel/voxelHelper.glsl"
 
@@ -117,8 +117,8 @@ void pickRelevantInputSamples(lightVoxData bestSource, lightVoxData[3][3] inputS
             lightVoxData relevantSample = inputSamples[1+a][1+b];
             //TODO: also probably check for color when translucents stuff
             bool sameSource = relevantSample.lightTravel==bestSource.lightTravel;
-            bool alignedX = (lightTravel.x+a*scale<=0);
-            bool alignedY = (lightTravel.y+b*scale<=0);
+            bool alignedX = (lightTravel.x+a*scale==0);
+            bool alignedY = (lightTravel.y+b*scale==0);
 
             relevance[i][j] = sameSource;
             relevance[i][j] = sameSource && !((alignedX&&a!=0) || (alignedY&&b!=0));
@@ -183,23 +183,31 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
             bool inInnerB = ray.y>=innerSlope.y;
 
 
+//            bool truncatedAl = false;
+//            bool truncatedAh = false;
+//            bool truncatedBl = false;
+//            bool truncatedBr = false;
             bool truncatedA = false;
             bool truncatedB = false;
             if(i==1){
                 lightVoxData tmp = samples[0][j];
                 truncatedA = (tmp.occlusionRay.x>=innerSlope.x) &&
-                            tmp.occlusionMap.y&&tmp.occlusionMap.w;
+                            tmp.occlusionMap.y&&tmp.occlusionMap.w &&
+                            !(tmp.occlusionMap.x&&tmp.occlusionMap.z);
             }
             if(j==1){
                 lightVoxData tmp = samples[i][0];
                 truncatedB = (tmp.occlusionRay.y>=innerSlope.y) &&
-                            tmp.occlusionMap.z&&tmp.occlusionMap.w;
+                            tmp.occlusionMap.z&&tmp.occlusionMap.w &&
+                            !(tmp.occlusionMap.x&&tmp.occlusionMap.y);
             }
+//            truncatedB=truncatedA=false;
 
             if(!(inOuterA && inOuterB && inInnerA && inInnerB))
                 continue;
 
             anyRelevantSamples = true;
+
 
             if((!map.x) && inInnerA && inInnerB)
                 occludeCorner(corners[1][1],vec2(ray.x,ray.y),vec2(1,1));
@@ -226,9 +234,9 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
     if(edges.x /*&&!bEdges*/)
         outRay.x=min(corners[1][0].x,corners[1][1].x);
     if(edges.y /*&&!aEdges*/)
-        outRay.y=min(corners[0][1].y,corners[1][1].y);
+        outRay.y=min(corners[1][1].y,corners[0][1].y);
     if(edges.z /*&&!bEdges*/)
-        outRay.x=max(corners[0][0].x,corners[0][1].x);
+        outRay.x=max(corners[0][1].x,corners[0][0].x);
     if(edges.w /*&&!aEdges*/)
         outRay.y=max(corners[0][0].y,corners[1][0].y);
 

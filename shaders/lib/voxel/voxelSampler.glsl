@@ -17,7 +17,8 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
     vec3 subVoxelOffset = subVoxelOffset(worldPos,1);
     vec3 displacement = lightSrc.lightTravel + subVoxelOffset;
 
-    lightStrength*=step(0,displacement.z);
+//    lightStrength*=step(0,displacement.z);
+    lightStrength = displacement.x>0?lightStrength:0;
 
     float lengthSquared = dot(displacement,displacement);
 
