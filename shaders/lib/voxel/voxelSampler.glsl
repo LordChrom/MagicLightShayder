@@ -11,29 +11,24 @@ layout (rgba8ui) uniform readonly restrict uimage3D worldVox;
 struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint emission;vec3 lightTravel;};
 #endif
 
-vec3 voxelSample(vec3 worldPos, vec3 normal){
-    worldPos+=vec3(0,0,-0.1); //TODO figure this out, probably something stupid
+vec3 getDirectedLight(ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint axis){
+    if(axis>>1==0)
+        subVoxelOffset=subVoxelOffset.yzx;
+    if(axis>>1==1)
+        subVoxelOffset=subVoxelOffset.zxy;
 
-    worldPos+=normal*0.001;
-    ivec4 sectionPos = worldPosToSection(worldPos,1);
+    if((axis&1u)==0)
+        subVoxelOffset.z*=-1;
 
-    lightVoxData lightSrc = getLightData(sectionPos,debugAxisNum);
-//    lightVoxData lightSrc = unpackLightData(imageLoad(lightVox, sectionPos));
+    lightVoxData lightSrc = getLightData(sectionPos,axis);
 
-    float lightStrength = lightSrc.emission/15.0;
-
-    vec3 subVoxelOffset = subVoxelOffset(worldPos,1);
     vec3 displacement = lightSrc.lightTravel + subVoxelOffset;
-
-//    lightStrength*=step(0,displacement.z);
-    lightStrength = displacement.z>0?lightStrength:0;
-
     float lengthSquared = dot(displacement,displacement);
 
-    lightStrength/=max(lengthSquared,0.01);
+    float lightStrength = displacement.z>0 ? lightSrc.emission : 0;
+    lightStrength*=1/(15*max(lengthSquared,0.01));
 
-
-    float lightDotN = -dot(displacement,normal);
+    float lightDotN = max(0,-dot(normalize(displacement),normal));
 
     bool receivesLight = lightDotN>=0 && lightSrc.emission>0;
     receivesLight = receivesLight && isLit(displacement,lightSrc);
@@ -42,8 +37,14 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
     vec3 outColor = vec3(0.07);
 
     if(receivesLight){
-        lightStrength=max(lightStrength,0.03); //mostly just for testing
-        outColor += lightSrc.color*(0.1+0.9*min(lightStrength,1));
+        const float minLight = 0.1;
+        #ifndef DEBUG_OCCLUSION_MAP
+        lightStrength*=lightDotN;
+        #endif
+
+//        lightStrength=min(lightStrength,0); //mostly just for testing
+        outColor += lightSrc.color*(minLight+(1-minLight)*min(lightStrength,1));
+
     }
 
     //Debug Coloring
@@ -56,24 +57,24 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
 
         #ifdef UNFLIP_DEBUG_MAPS
         if(lightSrc.lightTravel.x<0)
-            debugQuadrant.x*=-1;
+        debugQuadrant.x*=-1;
         if(lightSrc.lightTravel.y<0)
-            debugQuadrant.y*=-1;
+        debugQuadrant.y*=-1;
         #endif
 
         ivec4 intMap = ivec4(lightSrc.occlusionMap);
         int mapSum = intMap.x+intMap.y+intMap.z+intMap.w;
         if(mapSum==0)
-            outColor.r=1;
+        outColor.r=1;
         if(mapSum==4)
-            outColor.g*=1.5;
+        outColor.g*=1.5;
 
         bvec2 mapHalf = lightSrc.occlusionMap.yw;
         if(debugQuadrant.x>0)
-            mapHalf=lightSrc.occlusionMap.xz;
+        mapHalf=lightSrc.occlusionMap.xz;
         bool mapSpot = mapHalf.y;
         if(debugQuadrant.y>0)
-            mapSpot = mapHalf.x;
+        mapSpot = mapHalf.x;
 
         if(mapSum<4){
             if(!mapSpot){
@@ -81,10 +82,10 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
             }
             bvec4 edges = getOcclusionEdges(lightSrc.occlusionMap);
             if(
-                (debugQuadrant.x>0 && edges.x) ||
-                (debugQuadrant.x<0 && edges.z) ||
-                (debugQuadrant.y>0 && edges.y) ||
-                (debugQuadrant.y<0 && edges.w)
+            (debugQuadrant.x>0 && edges.x) ||
+            (debugQuadrant.x<0 && edges.z) ||
+            (debugQuadrant.y>0 && edges.y) ||
+            (debugQuadrant.y<0 && edges.w)
             ){
                 outColor.r*=2;
             }
@@ -101,10 +102,18 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
             }
 
         }
-
-//        outColor+=vec3(0.1);
     }
     #endif
-
     return outColor;
+}
+
+
+vec3 voxelSample(vec3 worldPos, vec3 normal){
+    worldPos+=vec3(0,0,-0.1); //TODO figure this out, probably something stupid
+
+    worldPos+=normal*0.001;
+    ivec4 sectionPos = worldPosToSection(worldPos,1);
+    vec3 subVoxelOffset = subVoxelOffset(worldPos,1);
+
+    return getDirectedLight(sectionPos,subVoxelOffset,normal,debugAxisNum);
 }

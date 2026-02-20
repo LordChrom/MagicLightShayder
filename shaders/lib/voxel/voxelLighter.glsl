@@ -2,7 +2,6 @@
 #define READS_LIGHT_FACE
 #define WRITES_LIGHT_FACE
 #define READS_VOX
-//layout (rgba32ui) uniform restrict uimage3D lightVox; //TODO: test refactor into split readonly sampler and writeonly uimage
 #include "/lib/voxel/voxelHelper.glsl"
 
 
@@ -13,7 +12,7 @@ int frameOffset = frameCounter%UPDATE_STRIDE;
 const ivec3 workGroups = ivec3(1,1,1);
 layout (local_size_x = SECTION_WIDTH, local_size_y = SECTION_WIDTH, local_size_z = 1) in;
 
-#if false //dummy definition because my intellij's best glsl plugin doesnt know includes exist
+#if false //dummy definition because intellij's best glsl plugin doesnt know includes exist
 struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint emission;vec3 lightTravel;};
 #endif
 
@@ -39,7 +38,6 @@ void takeSamples(ivec4 sectionPos, float scale, uint axis,
 
             bool rearObstructed = (rearVoxel.w&1u)==1;
             bool frontObstructed = (frontVoxel.w&1u)==1;
-            //            frontObstructed = frontObstructed && !(a==0&&b==0);
 
             if(rearVoxel.w==0x01){ //blocking & non emissive
                 inputSample=noLight;
@@ -85,7 +83,7 @@ lightVoxData determineBestLightSource( float scale,
 
             bool srcBlocked = (helpersOccluded && !isCenter) || selfOccluded;
 
-            srcBlocked = srcBlocked || (displ.x*a>0) || (displ.y*b>0); //will be unnecessary soon
+            srcBlocked = srcBlocked || (displ.x*a>0) || (displ.y*b>0); //will be unnecessary soontm
 
             //occlusion stuff goes here, maybe
 
@@ -127,7 +125,6 @@ void pickRelevantInputSamples(lightVoxData bestSource, lightVoxData[3][3] inputS
             bool alignedX = (lightTravel.x-a*scale==0);
             bool alignedY = (lightTravel.y-b*scale==0);
 
-//            relevance[i][j] = sameSource;
             relevance[i][j] = sameSource && !blockBlocked;
             newObstructions[i][j]=blockBlocked;
             samples[i][j] = relevantSample;
@@ -374,11 +371,12 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
     ivec3 bVec = ivec3(worldToSectionSpaceMats[axis][1]);
     ivec3 LVec = ivec3(worldToSectionSpaceMats[axis][2]);
 
+
+
     ivec4 sectionPos = ivec4(localId.x*aVec+localId.y*bVec,section); //TODO change
     if((axis&1u)==0)
-        sectionPos.xyz-=16*LVec;
+        sectionPos.xyz-=15*LVec;
     sectionPos.xyz+=1;
-    ivec3 progress = LVec;
 
     for(int i = frameOffset;i<SECTION_DEPTH;i+=UPDATE_STRIDE){
         lightVoxelFace(sectionPos+ivec4(LVec*i,0),section,axis);

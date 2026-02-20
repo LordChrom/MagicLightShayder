@@ -6,9 +6,8 @@
 
 #define PACKED_POS_MASK 0x00ffffff
 
- //TODO: test split sampler+writeonly uimage vs combined image
+//TODO: test split sampler+writeonly uimage vs combined image
 #ifdef READS_LIGHT_FACE
-//layout (rgba32ui) uniform readonly restrict uimage3D lightVox;
 uniform usampler3D lightVoxSampler;
 #endif
 
@@ -49,11 +48,11 @@ bool isVoxelInBounds(vec3 worldPos){
 
 
 const mat3[] worldToSectionSpaceMats = {
-mat3(0,0,-1, 1,0,0, 0,1,0),
-mat3(0,0,1, 1,0,0, 0,1,0),
-
-mat3(0,1,0, 0,0,-1, 1,0,0),
+mat3(0,1,0, 0,0,1, -1,0,0),
 mat3(0,1,0, 0,0,1, 1,0,0),
+
+mat3(0,0,1, 1,0,0, 0,-1,0),
+mat3(0,0,1, 1,0,0, 0,1,0),
 
 mat3(1,0,0,  0,1,0,  0,0,-1),
 mat3(1,0,0,  0,1,0,  0,0,1)

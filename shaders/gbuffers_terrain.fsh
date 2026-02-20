@@ -23,10 +23,12 @@ void main() {
 	color = texture(gtexture, texcoord) * glcolor;
 	vec4 vanillaLightingColor = texture(lightmap, lmcoord);
 
+	vec3 newNormal = normalize(normal);
+
 	//move the voxel stuff to composite/deferred actually
 	bool voxelLit = isVoxelInBounds(worldPos);
 	if(voxelLit){
-		vec3 voxelLight = voxelSample(worldPos,normal);
+		vec3 voxelLight = voxelSample(worldPos,newNormal);
 		color.rgb*=voxelLight;
 	}else{
 		color *= vanillaLightingColor;
