@@ -1,10 +1,9 @@
+#include "/lib/settings.glsl"
+
 #define SECTION_WIDTH 16
 #define SECTION_DEPTH 16
 #define UPDATE_STRIDE 2
 
-#define SLOPE_BITS 7
-
-#define PACKED_POS_MASK 0x00ffffff
 
 //TODO: test split sampler+writeonly uimage vs combined image
 #ifdef READS_LIGHT_FACE
@@ -39,8 +38,6 @@ const float lightTravelScaleInv = 16.0; //most voxels per block representable fo
 const float lightTravelScale = 1.0/lightTravelScaleInv;
 
 const lightVoxData noLight = {vec2(0),bvec4(false),vec3(0),0,vec3(0)};
-
-const int debugAxisNum = 5;
 
 bool isVoxelInBounds(vec3 worldPos){
     return worldPos.x>=0 && worldPos.y>=0 && worldPos.z>=0 && worldPos.x<16 && worldPos.y<16 && worldPos.z<16;
@@ -97,6 +94,8 @@ ivec3 sectionToFaceSpace(ivec4 sectionPos, uint axis){
         ret.z=15-ret.z;
     }
 
+    ret.z+=int(20*axis); //TODO fix overlap
+
     return ret;
 }
 
@@ -141,7 +140,7 @@ uvec4 packLightData(lightVoxData data){
 bool isLit(vec3 position, vec2 ray, bvec4 map){
     vec2 slope = abs(position.xy/position.z);
     ivec2 pos = ivec2(int(slope.x>ray.x),int(slope.y>ray.y));
-    return map[3-pos.x-(pos.y<<1)];
+    return map[3-pos.x-(pos.y<<1)] && (slope.x<=1) && (slope.y<=1);
 }
 
 bool isLit(vec3 position, lightVoxData light){

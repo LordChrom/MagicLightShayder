@@ -4,21 +4,26 @@ layout (rgba8ui) uniform readonly restrict uimage3D worldVox;
 
 #define READS_LIGHT_FACE
 
-#include "/lib/settings.glsl"
 #include "/lib/voxel/voxelHelper.glsl"
 
 #if false //dummy definition because my intellij's best glsl plugin doesnt know includes exist
 struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint emission;vec3 lightTravel;};
 #endif
 
-vec3 getDirectedLight(ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint axis){
-    if(axis>>1==0)
+vec3 getDirectedLight(ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint axis, float scale){
+    if(axis>>1==0){
         subVoxelOffset=subVoxelOffset.yzx;
-    if(axis>>1==1)
+        normal = normal.yzx;
+    }
+    if(axis>>1==1){
         subVoxelOffset=subVoxelOffset.zxy;
+        normal = normal.zxy;
+    }
 
-    if((axis&1u)==0)
+    if((axis&1u)==0){
         subVoxelOffset.z*=-1;
+        normal.z*=-1;
+    }
 
     lightVoxData lightSrc = getLightData(sectionPos,axis);
 
@@ -30,11 +35,14 @@ vec3 getDirectedLight(ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint a
 
     float lightDotN = max(0,-dot(normalize(displacement),normal));
 
+    if(displacement.z*1.99<=scale)
+        lightDotN=1;
+
     bool receivesLight = lightDotN>=0 && lightSrc.emission>0;
     receivesLight = receivesLight && isLit(displacement,lightSrc);
 
 
-    vec3 outColor = vec3(0.07);
+    vec3 outColor = vec3(0);
 
     if(receivesLight){
         const float minLight = 0.1;
@@ -112,8 +120,16 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
     worldPos+=vec3(0,0,-0.1); //TODO figure this out, probably something stupid
 
     worldPos+=normal*0.001;
-    ivec4 sectionPos = worldPosToSection(worldPos,1);
-    vec3 subVoxelOffset = subVoxelOffset(worldPos,1);
+    float scale = 1;
+    ivec4 sectionPos = worldPosToSection(worldPos,scale);
+    vec3 subVoxelOffset = subVoxelOffset(worldPos,scale);
 
-    return getDirectedLight(sectionPos,subVoxelOffset,normal,debugAxisNum);
+    vec3 color = vec3(0);
+    #if DEBUG_AXIS<0
+    for(int i=0;i<6;i++)
+        color+=getDirectedLight(sectionPos,subVoxelOffset,normal,i, scale);
+    #else
+    color = getDirectedLight(sectionPos,subVoxelOffset,normal,debugAxisNum, scale);
+    #endif
+    return max(color,0.06);
 }
