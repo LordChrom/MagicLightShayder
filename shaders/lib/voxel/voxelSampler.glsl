@@ -1,16 +1,24 @@
 
-layout (rgba32ui) uniform readonly restrict uimage3D lightVox;
+
 layout (rgba8ui) uniform readonly restrict uimage3D worldVox;
+
+#define READS_LIGHT_FACE
 
 #include "/lib/settings.glsl"
 #include "/lib/voxel/voxelHelper.glsl"
+
+#if false //dummy definition because my intellij's best glsl plugin doesnt know includes exist
+struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint emission;vec3 lightTravel;};
+#endif
 
 vec3 voxelSample(vec3 worldPos, vec3 normal){
     worldPos+=vec3(0,0,-0.1); //TODO figure this out, probably something stupid
 
     worldPos+=normal*0.001;
-    ivec3 sectionPos = worldPosToSection(worldPos,1);
-    lightVoxData lightSrc = unpackLightData(imageLoad(lightVox, sectionPos));
+    ivec4 sectionPos = worldPosToSection(worldPos,1);
+
+    lightVoxData lightSrc = getLightData(sectionPos,debugAxisNum);
+//    lightVoxData lightSrc = unpackLightData(imageLoad(lightVox, sectionPos));
 
     float lightStrength = lightSrc.emission/15.0;
 
@@ -94,7 +102,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
 
         }
 
-
+//        outColor+=vec3(0.1);
     }
     #endif
 

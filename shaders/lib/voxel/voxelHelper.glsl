@@ -6,6 +6,15 @@
 
 #define PACKED_POS_MASK 0x00ffffff
 
+ //TODO: test split sampler+writeonly uimage vs combined image
+#ifdef READS_LIGHT_FACE
+//layout (rgba32ui) uniform readonly restrict uimage3D lightVox;
+uniform usampler3D lightVoxSampler;
+#endif
+
+#ifdef WRITES_LIGHT_FACE
+layout (rgba32ui) uniform writeonly restrict uimage3D lightVox;
+#endif
 
 //axes for voxel faces are represented as a,b,L, with L being the direction light travels in, a being the axis after it,
 //and b being the one after that. all examples are xyz,xy-z, zxy, zx-y, yzx,yz-x. Handedness be damned idc.
@@ -30,18 +39,57 @@ bool isVoxelInBounds(vec3 worldPos){
 }
 
 
+const mat3[] worldToSectionSpaceMats = {
+mat3(0,0,-1, 1,0,0, 0,1,0),
+mat3(0,0,1, 1,0,0, 0,1,0),
+
+mat3(0,1,0, 0,0,-1, 1,0,0),
+mat3(0,1,0, 0,0,1, 1,0,0),
+
+mat3(1,0,0,  0,1,0,  0,0,-1),
+mat3(1,0,0,  0,1,0,  0,0,1)
+};
+
 //in order from 0 to 5, -x,+x,-y,+y,-z,+z
 //lsb is 0=neg,1=pos
 //returns 0,0,0 when axis out of range
 ivec3 axisNumToVec(uint axis){
-    uint upper = axis>>1u;
-    return ivec3(upper==0,upper==1,upper==2)*(((int(axis)&1)<<1)-1);
+//    uint upper = axis>>1u;
+//    return ivec3(upper==0,upper==1,upper==2)*(((int(axis)&1)<<1)-1);
+    return ivec3(worldToSectionSpaceMats[axis]*vec3(0,0,1));
 }
 
 
 
-ivec3 worldPosToSection(vec3 pos, float scale){
-    return ivec3(round(pos/scale+0.5)*scale);
+//xyz is section xyz
+//w is section number
+ivec4 worldPosToSection(vec3 pos, float scale){
+    return ivec4(ivec3(round(pos/scale+0.5)*scale),0);
+}
+
+ivec3 sectionToFaceSpace(ivec4 sectionPos, uint axis){
+    uint upper = axis>>1u;
+    ivec3 ret = sectionPos.xyz;
+    switch(upper){
+        case 0u:
+            ret=sectionPos.yzx;
+            break;
+        case 1u:
+            ret=sectionPos.zxy;
+            break;
+        case 2u:
+            ret=sectionPos.xyz;
+            break;
+        default:
+            ret=ivec3(0);
+            break;
+    }
+
+    if((axis&1u)==0u){
+        ret.z=15-ret.z;
+    }
+
+    return ret;
 }
 
 vec3 subVoxelOffset(vec3 pos, float scale){
@@ -80,6 +128,25 @@ uvec4 packLightData(lightVoxData data){
     return ret;
 }
 
+#ifdef READS_LIGHT_FACE
+lightVoxData getLightData(ivec3 texelCoord){
+    return unpackLightData(texelFetch(lightVoxSampler, texelCoord,0));
+}
+lightVoxData getLightData(ivec4 sectionPos, uint axis){
+    ivec3 texelCoord = sectionToFaceSpace(sectionPos,axis);
+    return getLightData(texelCoord);
+}
+#endif
+
+#ifdef WRITES_LIGHT_FACE
+void setLightData(lightVoxData light, ivec3 texelCoord){
+    imageStore(lightVox,texelCoord, packLightData(light));
+}
+void setLightData(lightVoxData light, ivec4 sectionPos, uint axis){
+    ivec3 texelCoord = sectionToFaceSpace(sectionPos,axis);
+    setLightData(light,texelCoord);
+}
+#endif
 
 bool isLit(vec3 position, vec2 ray, bvec4 map){
     vec2 slope = abs(position.xy/position.z);

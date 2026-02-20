@@ -12,11 +12,11 @@ layout (rgba8ui) uniform writeonly restrict uimage3D worldVox;
 
 
 void writeVoxelMap(vec3 worldPos, vec3 color, uint emission, bool translucent, bool opaque){
-    ivec3 worldPosi = worldPosToSection(worldPos,1);
+    ivec4 worldPosi = worldPosToSection(worldPos,1);
 
     if(!isVoxelInBounds(worldPos)) return;
 
     uint metadata = (emission<<4) + (uint(translucent)<<1) + uint(opaque);
-    imageStore(worldVox,worldPosi,uvec4(255*color,metadata));
+    imageStore(worldVox,worldPosi.xyz,uvec4(255*color,metadata));
 
 }
