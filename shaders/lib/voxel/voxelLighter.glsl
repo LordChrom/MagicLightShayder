@@ -230,7 +230,7 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
                 occludeCorner(corners[1][0],vec2(ray.x,ray.y),vec2(1,-1));
                 anyRelevantSamples=true;
             }
-            if((!map.w) && inOuterA && inOuterB  && !(truncatedA || truncatedB)){
+            if((!map.w) && inOuterA && inOuterB && (inInnerA && inInnerB) && !(truncatedA || truncatedB)){
                 occludeCorner(corners[0][0],vec2(ray.x,ray.y),vec2(-1,-1));
                 anyRelevantSamples=true;
             }
