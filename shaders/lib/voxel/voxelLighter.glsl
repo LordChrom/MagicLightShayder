@@ -153,8 +153,13 @@ void pickRelevantInputSamples(lightVoxData bestSource, lightVoxData[3][3] inputS
 
 
 //for this function only, 1,1 is top left corner, -1,-1 is bottom right corner
+void occludeCorner(inout float cornerX, inout float cornerY, vec2 occluder, vec2 whichCorner){
+    cornerX = whichCorner.x*(min(whichCorner.x*cornerX,whichCorner.x*occluder.x));
+    cornerY = whichCorner.y*(min(whichCorner.y*cornerY,whichCorner.y*occluder.y));
+}
+
 void occludeCorner(inout vec2 corner, vec2 occluder, vec2 whichCorner){
-    corner = whichCorner*(min(whichCorner*corner,whichCorner*occluder));
+    occludeCorner(corner.x,corner.y,occluder,whichCorner);
 }
 
 //i'll be calling the +b direction "top" and the +a direction "left", both of these directions are away from src
@@ -227,24 +232,37 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
 //            truncatedB=false;
 
 
-            anyRelevantSamples = anyRelevantSamples || map.x&&map.y&&map.z&&map.w;
+            anyRelevantSamples = anyRelevantSamples ||
+            (map.x&&inOuterA&&inOuterB)||
+            (map.y&&inInnerA&&inOuterB)||
+            (map.z&&inOuterA&&inInnerB)||
+            (map.w&&inInnerA&&inInnerB);
 
 
-            if((!map.x) && inInnerA && inInnerB){
-                occludeCorner(corners[1][1],vec2(ray.x,ray.y),vec2(1,1));
-                anyRelevantSamples=true;
+
+            if((!map.x) && inOuterA && inOuterB){
+                vec2 oldCorner = corners[1][1];
+                oldCorner.x=min(oldCorner.x,inInnerA?ray.x:2);
+                oldCorner.y=min(oldCorner.y,inInnerB?ray.y:2);
+                corners[1][1]=oldCorner;
             }
-            if((!map.y) && inOuterA && inInnerB && !truncatedA){
-                occludeCorner(corners[0][1],vec2(ray.x,ray.y),vec2(-1,1));
-                anyRelevantSamples=true;
+            if((!map.y) && inOuterB && inInnerA && !truncatedA){
+                vec2 oldCorner = corners[0][1];
+                oldCorner.x=max(oldCorner.x,ray.x);
+                oldCorner.y=min(oldCorner.y,inInnerB?ray.y:2);
+                corners[0][1]=oldCorner;
             }
-            if((!map.z) && inInnerA && inOuterB && !truncatedB){
-                occludeCorner(corners[1][0],vec2(ray.x,ray.y),vec2(1,-1));
-                anyRelevantSamples=true;
+            if((!map.z) && inOuterA && inInnerB && !truncatedB){
+                vec2 oldCorner = corners[1][0];
+                oldCorner.x=min(oldCorner.x,inInnerA?ray.x:2);
+                oldCorner.y=max(oldCorner.y,ray.y);
+                corners[1][0]=oldCorner;
             }
             if((!map.w) && inOuterA && inOuterB && (inInnerA && inInnerB) && !(truncatedA || truncatedB)){
-                occludeCorner(corners[0][0],vec2(ray.x,ray.y),vec2(-1,-1));
-                anyRelevantSamples=true;
+                vec2 oldCorner = corners[0][0];
+                oldCorner.x=max(oldCorner.x,ray.x);
+                oldCorner.y=max(oldCorner.y,ray.y);
+                corners[0][0]=oldCorner;
             }
 
       }
