@@ -16,6 +16,15 @@ uniform usampler3D lightVoxSampler;
 layout (rgba32ui) uniform writeonly restrict uimage3D lightVox;
 #endif
 
+#ifdef READS_VOX
+layout (rgba8ui) uniform readonly restrict uimage3D worldVox;
+#endif
+
+#ifdef WRITES_VOX
+layout (rgba8ui) uniform writeonly restrict uimage3D worldVox;
+#endif
+
+
 //axes for voxel faces are represented as a,b,L, with L being the direction light travels in, a being the axis after it,
 //and b being the one after that. all examples are xyz,xy-z, zxy, zx-y, yzx,yz-x. Handedness be damned idc.
 struct lightVoxData{
@@ -128,25 +137,7 @@ uvec4 packLightData(lightVoxData data){
     return ret;
 }
 
-#ifdef READS_LIGHT_FACE
-lightVoxData getLightData(ivec3 texelCoord){
-    return unpackLightData(texelFetch(lightVoxSampler, texelCoord,0));
-}
-lightVoxData getLightData(ivec4 sectionPos, uint axis){
-    ivec3 texelCoord = sectionToFaceSpace(sectionPos,axis);
-    return getLightData(texelCoord);
-}
-#endif
 
-#ifdef WRITES_LIGHT_FACE
-void setLightData(lightVoxData light, ivec3 texelCoord){
-    imageStore(lightVox,texelCoord, packLightData(light));
-}
-void setLightData(lightVoxData light, ivec4 sectionPos, uint axis){
-    ivec3 texelCoord = sectionToFaceSpace(sectionPos,axis);
-    setLightData(light,texelCoord);
-}
-#endif
 
 bool isLit(vec3 position, vec2 ray, bvec4 map){
     vec2 slope = abs(position.xy/position.z);
@@ -180,3 +171,37 @@ vec4 ternary(bvec4 conditions,vec4 ifTrue, vec4 ifFalse){
     ivec4 tmp = ivec4(conditions);
     return ifTrue*tmp+(1-tmp)*ifFalse;
 }
+
+
+
+#ifdef READS_LIGHT_FACE
+lightVoxData getLightData(ivec3 texelCoord){
+    return unpackLightData(texelFetch(lightVoxSampler, texelCoord,0));
+}
+lightVoxData getLightData(ivec4 sectionPos, uint axis){
+    ivec3 texelCoord = sectionToFaceSpace(sectionPos,axis);
+    return getLightData(texelCoord);
+}
+#endif
+
+#ifdef WRITES_LIGHT_FACE
+void setLightData(lightVoxData light, ivec3 texelCoord){
+    imageStore(lightVox,texelCoord, packLightData(light));
+}
+void setLightData(lightVoxData light, ivec4 sectionPos, uint axis){
+    ivec3 texelCoord = sectionToFaceSpace(sectionPos,axis);
+    setLightData(light,texelCoord);
+}
+#endif
+
+#ifdef READS_VOX
+uvec4 getVoxData(ivec3 texelCoord){
+    return imageLoad(worldVox,texelCoord);
+}
+#endif
+
+#ifdef WRITES_VOX
+void setVoxData(uvec4 voxData, ivec3 texelCoord){
+    imageStore(worldVox,texelCoord,voxData);
+}
+#endif

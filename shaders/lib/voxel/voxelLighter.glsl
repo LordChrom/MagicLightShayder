@@ -1,8 +1,8 @@
 
 #define READS_LIGHT_FACE
 #define WRITES_LIGHT_FACE
+#define READS_VOX
 //layout (rgba32ui) uniform restrict uimage3D lightVox; //TODO: test refactor into split readonly sampler and writeonly uimage
-layout (rgba8ui) uniform readonly restrict uimage3D worldVox;
 #include "/lib/voxel/voxelHelper.glsl"
 
 
@@ -29,17 +29,11 @@ void takeSamples(ivec4 sectionPos, float scale, uint axis,
     ivec3 bVec = ivec3(worldToSectionSpaceMats[axis][1]);
     ivec3 LVec = ivec3(worldToSectionSpaceMats[axis][2]);
 
-//    aVec = ivec3(1,0,0); bVec = ivec3(0,1,0); LVec = ivec3(0,0,-1);
-
-//    ivec3 LVec = axisNumToVec(axis);
     for (int a=-1;a<=1;a++){
         for (int b=-1; b<=1;b++){
-//            ivec3 localOffsetFront = ivec3(worldToSectionSpaceMats[axis]*vec3(a,b,0));
-//            ivec3 localOffsetBack = localOffsetFront - wworldToSectionSpaceMats[axis]
             ivec3 localOffset = a*aVec+b*bVec;
-            uvec4 frontVoxel = imageLoad(worldVox,sectionPos.xyz+localOffset);
-            uvec4 rearVoxel = imageLoad(worldVox,sectionPos.xyz+localOffset-LVec);
-//            lightVoxData inputSample = unpackLightData(imageLoad(lightVox, sectionPos+localOffset));
+            uvec4 frontVoxel = getVoxData(sectionPos.xyz+localOffset);
+            uvec4 rearVoxel = getVoxData(sectionPos.xyz+localOffset-LVec);
             lightVoxData inputSample = getLightData(faceSpacePos+ivec3(a,b,-1));
             inputSample.lightTravel+=vec3(-a,-b,1)*scale;
 
@@ -383,6 +377,7 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
     ivec4 sectionPos = ivec4(localId.x*aVec+localId.y*bVec,section); //TODO change
     if((axis&1u)==0)
         sectionPos.xyz-=16*LVec;
+    sectionPos.xyz+=1;
     ivec3 progress = LVec;
 
     for(int i = frameOffset;i<SECTION_DEPTH;i+=UPDATE_STRIDE){

@@ -1,4 +1,5 @@
 
+#define WRITES_VOX
 #include "/lib/voxel/voxelHelper.glsl"
 
 //block info, RGB are color,
@@ -8,7 +9,6 @@
 // a bit that's 1 for translucent blocks like stained glass
 // a bit that's 1 for surfaces that block light
 
-layout (rgba8ui) uniform writeonly restrict uimage3D worldVox;
 
 
 void writeVoxelMap(vec3 worldPos, vec3 color, uint emission, bool translucent, bool opaque){
@@ -17,6 +17,6 @@ void writeVoxelMap(vec3 worldPos, vec3 color, uint emission, bool translucent, b
     if(!isVoxelInBounds(worldPos)) return;
 
     uint metadata = (emission<<4) + (uint(translucent)<<1) + uint(opaque);
-    imageStore(worldVox,worldPosi.xyz,uvec4(255*color,metadata));
+    setVoxData(uvec4(255*color,metadata),worldPosi.xyz);
 
 }
