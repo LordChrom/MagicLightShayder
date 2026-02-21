@@ -87,14 +87,14 @@ lightVoxData[VOX_LAYERS] determineBestLightSources( float scale,
             //if corner, its neighbors. If edge, itself and center. If center, itself twice
             //in any case, these both being blocked means no light from this input voxel
             bool helpersOccluded = (obstructions[a+1][1]) && (obstructions[1][b+1]);
-            bool srcBlocked = (helpersOccluded && !isCenter) || selfOccluded;
+            bool outerSrcBlocked = (helpersOccluded && !isCenter) || selfOccluded;
 
             for(int layer = 0; layer<VOX_LAYERS; layer++){
 
                 lightVoxData lightSrc = inputSamples[a+1][b+1][layer];
 
                 if (lightSrc.emission==0)
-                continue;
+                    continue;
 
                 vec3 displ = lightSrc.lightTravel;
                 float lenSquared = dot(displ, displ);
@@ -102,7 +102,7 @@ lightVoxData[VOX_LAYERS] determineBestLightSources( float scale,
                 displ.xy+=vec2(a, b)*scale;
 
 
-                srcBlocked = srcBlocked || (displ.x*a>0) || (displ.y*b>0);//will be unnecessary soontm
+                bool srcBlocked = outerSrcBlocked || (displ.x*a>0) || (displ.y*b>0);//will be unnecessary soontm
 
                 //occlusion stuff goes here, maybe
 
@@ -117,6 +117,7 @@ lightVoxData[VOX_LAYERS] determineBestLightSources( float scale,
                     if(tmpSrc.lightTravel==lightSrc.lightTravel &&
                         tmpSrc.color == lightSrc.color){
                         rank=VOX_LAYERS;
+                        continue;
                     }
                     if (strength>bestStrengths[rank]){
                         float tmpStr = bestStrengths[rank];

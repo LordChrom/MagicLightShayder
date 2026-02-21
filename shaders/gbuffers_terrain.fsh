@@ -16,23 +16,17 @@ in vec4 glcolor;
 in vec3 worldPos;
 in vec3 normal;
 
-/* RENDERTARGETS: 0 */
+/* RENDERTARGETS: 0,4,5 */
 layout(location = 0) out vec4 color;
+layout(location = 1) out vec4 normalOut;
+layout(location = 2) out vec4 vanillaLighting;
 
 void main() {
 	color = texture(gtexture, texcoord) * glcolor;
-	vec4 vanillaLightingColor = texture(lightmap, lmcoord);
+	vanillaLighting = texture(lightmap, lmcoord);
 
-	vec3 newNormal = normalize(normal);
+	normalOut = vec4((normal+1)*0.5,0);
 
-	//move the voxel stuff to composite/deferred actually
-	bool voxelLit = isVoxelInBounds(worldPos);
-	if(voxelLit){
-		vec3 voxelLight = voxelSample(worldPos,newNormal);
-		color.rgb*=voxelLight;
-	}else{
-		color *= vanillaLightingColor;
-	}
 	if (color.a < alphaTestRef) {
 		discard;
 	}

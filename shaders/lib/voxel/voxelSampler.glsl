@@ -33,10 +33,13 @@ vec3 getDirectedLight(ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint a
     float lightStrength = displacement.z>0 ? lightSrc.emission : 0;
     lightStrength*=1/(15*max(lengthSquared,0.01));
 
-    float lightDotN = max(0,-dot(normalize(displacement),normal));
+    float lightDotN = -dot(normalize(displacement),normal);
 
-    if(displacement.z*1.99<=scale)
+    bool emissiveVoxel = displacement.z<=scale*0.51;
+    if(emissiveVoxel && lightDotN<0)
         lightDotN=1;
+
+    lightDotN=max(lightDotN,0);
 
     bool receivesLight = lightDotN>=0 && lightSrc.emission>0;
     receivesLight = receivesLight && isLit(displacement,lightSrc);
@@ -117,9 +120,9 @@ vec3 getDirectedLight(ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint a
 
 
 vec3 voxelSample(vec3 worldPos, vec3 normal){
-    worldPos+=vec3(0,0,-0.1); //TODO figure this out, probably something stupid
+//    worldPos+=vec3(0,0,-0.1); //TODO figure this out, probably something stupid
 
-    worldPos+=normal*0.001;
+//    worldPos+=normal*0.001;
     float scale = 1;
     ivec4 sectionPos = worldPosToSection(worldPos,scale);
     vec3 subVoxelOffset = subVoxelOffset(worldPos,scale);
