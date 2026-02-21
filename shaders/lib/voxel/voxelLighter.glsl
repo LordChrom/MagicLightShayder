@@ -8,17 +8,10 @@
 uniform int frameCounter;
 int frameOffset = frameCounter%UPDATE_STRIDE;
 
-const int groupCountXY = 1;
-
-#if DEBUG_AXIS<0
-const int groupCountZ = groupCountXY*6;
-#else
-const int groupCountZ = groupCountXY;
-#endif
-
 //const ivec3 workGroups = ivec3(groupCountXY,groupCountXY,groupCountZ);
-const ivec3 workGroups = ivec3(1,1,6);
-layout (local_size_x = SECTION_WIDTH, local_size_y = SECTION_WIDTH, local_size_z = 1) in;
+const ivec3 workGroups = ivec3(SECTIONS_PER_ZONE,1,6);
+//const ivec3 workGroups = ivec3(1,1,6);
+layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z = 1) in;
 
 #if false //dummy definition because intellij's best glsl plugin doesnt know includes exist
 struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint emission;vec3 lightTravel;};
@@ -357,7 +350,7 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
 
 //for one voxel face, determines the light entering that voxel face
 //based on the 9 adjacent voxel faces in the previous plane & the nearby terrain voxels
-void lightVoxelFace(ivec4 sectionPos, uint section,uint axis){
+void lightVoxelFace(ivec4 sectionPos, uint zone,uint axis){
     float scale = 1;
 
     lightVoxData[3][3][VOX_LAYERS] inputSamples;
@@ -414,7 +407,11 @@ void lightVoxelFace(ivec4 sectionPos, uint section,uint axis){
 }
 
 void lightVoxelFaces(uvec3 groupId, uvec3 localId){
-    uint section = 0;
+    uint zoneOffset = groupId.x;
+    uint zoneNum = groupId.y;
+    ivec3 sectionBasePos = (ivec3(zoneOffset>>(ZONE_WIDTH_SECTIONS_SHIFT+ZONE_WIDTH_SECTIONS_SHIFT),
+        zoneOffset>>ZONE_WIDTH_SECTIONS_SHIFT,
+        zoneOffset)&(ZONE_WIDTH_SECTIONS-1))*SECTION_SIZE;
 
     #if DEBUG_AXIS<0
     uint axis = groupId.z;
@@ -428,13 +425,14 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 
 
 
-    ivec4 sectionPos = ivec4(localId.x*aVec+localId.y*bVec,section); //TODO change
+    ivec4 sectionPos = ivec4(localId.x*aVec+localId.y*bVec,zoneNum); //TODO change
     if((axis&1u)==0)
         sectionPos.xyz-=15*LVec;
     sectionPos.xyz+=1;
+    sectionPos.xyz+=sectionBasePos;
 
-    for(int i = frameOffset;i<SECTION_DEPTH;i+=UPDATE_STRIDE){
-        lightVoxelFace(sectionPos+ivec4(LVec*i,0),section,axis);
+    for(int i = frameOffset;i<SECTION_SIZE;i+=UPDATE_STRIDE){
+        lightVoxelFace(sectionPos+ivec4(LVec*i,0),zoneNum,axis);
     }
 }
 

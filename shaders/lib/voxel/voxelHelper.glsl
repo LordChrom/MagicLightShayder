@@ -1,8 +1,5 @@
 #include "/lib/settings.glsl"
 
-#define SECTION_WIDTH 16
-#define SECTION_DEPTH 16
-#define UPDATE_STRIDE 2
 
 
 //TODO: test split sampler+writeonly uimage vs combined image
@@ -40,7 +37,8 @@ const float lightTravelScale = 1.0/lightTravelScaleInv;
 const lightVoxData noLight = {vec2(0),bvec4(false),vec3(0),0,vec3(0)};
 
 bool isVoxelInBounds(vec3 worldPos){
-    return worldPos.x>=0 && worldPos.y>=0 && worldPos.z>=0 && worldPos.x<16 && worldPos.y<16 && worldPos.z<16;
+    worldPos-=voxOriginOffset;
+    return worldPos.x>=0 && worldPos.y>=0 && worldPos.z>=0 && worldPos.x<voxWorldSize.x && worldPos.y<voxWorldSize.y && worldPos.z<voxWorldSize.z;
 }
 
 
@@ -69,7 +67,12 @@ ivec3 axisNumToVec(uint axis){
 //xyz is section xyz
 //w is section number
 ivec4 worldPosToSection(vec3 pos, float scale){
-    return ivec4(ivec3(round(pos/scale+0.5)*scale),0);
+    pos-=voxOriginOffset;
+    ivec3 sectionID = ivec3(floor(pos/ZONE_SIZE));
+    pos-=ZONE_SIZE*sectionID;
+    int zoneNum = (sectionID.x<<(ZONE_SHIFT+ZONE_SHIFT)) + (sectionID.y<<ZONE_SHIFT) + sectionID.z;
+
+    return ivec4(ivec3(round(pos/scale+0.5)*scale),zoneNum);
 }
 
 ivec3 sectionToFaceSpace(ivec4 sectionPos, uint axis, uint layer){
@@ -91,10 +94,10 @@ ivec3 sectionToFaceSpace(ivec4 sectionPos, uint axis, uint layer){
     }
 
     if((axis&1u)==0u){
-        ret.z=15-ret.z;
+        ret.z=(ZONE_SIZE-1)-ret.z;
     }
 
-    ret.z+=int(20*(axis+6*layer)); //TODO fix overlap
+    ret.z+=int((ZONE_SIZE+10)*(VOX_LAYERS*axis+layer)); //TODO fix overlap better
 
     return ret;
 }
