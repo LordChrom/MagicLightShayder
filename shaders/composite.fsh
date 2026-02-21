@@ -44,6 +44,8 @@ void main() {
 	}else{
 		light=texture(colortex5,texcoord).xyz;
 	}
+	if(light==vec3(0))
+		light=vec3(1);
 
 
 	albedo.xyz*=light;
