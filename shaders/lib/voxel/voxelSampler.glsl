@@ -10,7 +10,7 @@ layout (rgba8ui) uniform readonly restrict uimage3D worldVox;
 struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint emission;vec3 lightTravel;};
 #endif
 
-vec3 getDirectedLight(ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint axis, float scale){
+vec3 getDirectedLight(ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint axis, uint layer, float scale){
     if(axis>>1==0){
         subVoxelOffset=subVoxelOffset.yzx;
         normal = normal.yzx;
@@ -25,7 +25,7 @@ vec3 getDirectedLight(ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint a
         normal.z*=-1;
     }
 
-    lightVoxData lightSrc = getLightData(sectionPos,axis);
+    lightVoxData lightSrc = getLightData(sectionPos,axis,layer);
 
     vec3 displacement = lightSrc.lightTravel + subVoxelOffset;
     float lengthSquared = dot(displacement,displacement);
@@ -125,11 +125,15 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
     vec3 subVoxelOffset = subVoxelOffset(worldPos,scale);
 
     vec3 color = vec3(0);
-    #if DEBUG_AXIS<0
-    for(int i=0;i<6;i++)
-        color+=getDirectedLight(sectionPos,subVoxelOffset,normal,i, scale);
+    for(int layer = 0; layer<VOX_LAYERS; layer++){
+
+    #if DEBUG_AXIS>=0
+        uint axis = debugAxisNum;
     #else
-    color = getDirectedLight(sectionPos,subVoxelOffset,normal,debugAxisNum, scale);
+        for (int axis=0;axis<6;axis++)
     #endif
+            color+=getDirectedLight(sectionPos, subVoxelOffset, normal, axis, layer, scale);
+
+    }
     return max(color,0.06);
 }

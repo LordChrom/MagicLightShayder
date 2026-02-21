@@ -29,9 +29,9 @@ struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint emissio
 
 
 void takeSamples(ivec4 sectionPos, float scale, uint axis,
-    out lightVoxData [3][3] inputSamples, out uvec4 [3][3] frontVoxels, out uvec4 [3][3] rearVoxels, out bool [3][3] obstructions
+    out lightVoxData[3][3][VOX_LAYERS] inputSamples, out uvec4[3][3] frontVoxels, out uvec4[3][3] rearVoxels, out bool[3][3] obstructions
 ){
-    ivec3 faceSpacePos = sectionToFaceSpace(sectionPos,axis);
+
     ivec3 aVec = ivec3(worldToSectionSpaceMats[axis][0]);
     ivec3 bVec = ivec3(worldToSectionSpaceMats[axis][1]);
     ivec3 LVec = ivec3(worldToSectionSpaceMats[axis][2]);
@@ -41,39 +41,44 @@ void takeSamples(ivec4 sectionPos, float scale, uint axis,
             ivec3 localOffset = a*aVec+b*bVec;
             uvec4 frontVoxel = getVoxData(sectionPos.xyz+localOffset);
             uvec4 rearVoxel = getVoxData(sectionPos.xyz+localOffset-LVec);
-            lightVoxData inputSample = getLightData(faceSpacePos+ivec3(a,b,-1));
-            inputSample.lightTravel+=vec3(-a,-b,1)*scale;
 
             bool rearObstructed = (rearVoxel.w&1u)==1;
             bool frontObstructed = (frontVoxel.w&1u)==1;
 
-            if(rearVoxel.w==0x01){ //blocking & non emissive
-                inputSample=noLight;
+            for(int layer = 0; layer<VOX_LAYERS; layer++){
+                ivec3 faceSpacePos = sectionToFaceSpace(sectionPos, axis, layer);
+
+                lightVoxData inputSample = getLightData(faceSpacePos+ivec3(a, b, -1));
+                inputSample.lightTravel+=vec3(-a, -b, 1)*scale;
+                if(rearObstructed)
+                    inputSample=noLight;
+                inputSamples[a+1][b+1][layer] = inputSample;
             }
 
-
-            obstructions[a+1][b+1]= rearObstructed || frontObstructed; //TODO make better
+            obstructions[a+1][b+1] = rearObstructed || frontObstructed;//TODO make better
             frontVoxels[a+1][b+1] = frontVoxel;
             rearVoxels[a+1][b+1] = rearVoxel;
-            inputSamples[a+1][b+1] = inputSample;
         }
     }
 }
 
 
 
-lightVoxData determineBestLightSource( float scale,
-    lightVoxData[3][3] inputSamples, uvec4 [3][3] frontVoxels, uvec4 [3][3] rearVoxels, bool [3][3] obstructions
+lightVoxData[VOX_LAYERS] determineBestLightSources( float scale,
+    lightVoxData[3][3][VOX_LAYERS] inputSamples, uvec4 [3][3] frontVoxels, uvec4 [3][3] rearVoxels, bool [3][3] obstructions
 ){
-    lightVoxData bestLight = noLight;
-    float bestStrength = 0;
+    lightVoxData[VOX_LAYERS] bestLights;
+    float[VOX_LAYERS] bestStrengths;
+    for(int layer = 0; layer<VOX_LAYERS; layer++){
+        bestLights[layer] = noLight;
+        bestStrengths[layer] = 0;
+    }
+
+//    uint layer = 0;
 
     for (int a=-1;a<=1;a++){
         for (int b=-1; b<=1;b++){
-            lightVoxData lightSrc = inputSamples[a+1][b+1];
 
-            if(lightSrc.emission==0)
-                continue;
 
             bool isCenter = (a|b)==0;
 
@@ -82,30 +87,53 @@ lightVoxData determineBestLightSource( float scale,
             //if corner, its neighbors. If edge, itself and center. If center, itself twice
             //in any case, these both being blocked means no light from this input voxel
             bool helpersOccluded = (obstructions[a+1][1]) && (obstructions[1][b+1]);
-
-
-            vec3 displ = lightSrc.lightTravel;
-            float lenSquared = dot(displ, displ);
-            float strength = float(lightSrc.emission)/max(0.1, lenSquared);
-            displ.xy+=vec2(a,b)*scale;
-
             bool srcBlocked = (helpersOccluded && !isCenter) || selfOccluded;
 
-            srcBlocked = srcBlocked || (displ.x*a>0) || (displ.y*b>0); //will be unnecessary soontm
+            for(int layer = 0; layer<VOX_LAYERS; layer++){
 
-            //occlusion stuff goes here, maybe
+                lightVoxData lightSrc = inputSamples[a+1][b+1][layer];
 
-            if(srcBlocked)
-                inputSamples[a+1][b+1].emission=0;
+                if (lightSrc.emission==0)
+                continue;
 
-            if (strength>bestStrength && !srcBlocked){
-                bestLight=lightSrc;
-                bestStrength=strength;
+                vec3 displ = lightSrc.lightTravel;
+                float lenSquared = dot(displ, displ);
+                float strength = float(lightSrc.emission)/max(0.1, lenSquared);
+                displ.xy+=vec2(a, b)*scale;
+
+
+                srcBlocked = srcBlocked || (displ.x*a>0) || (displ.y*b>0);//will be unnecessary soontm
+
+                //occlusion stuff goes here, maybe
+
+                if (srcBlocked){
+                    inputSamples[a+1][b+1][layer].emission=0;
+                    continue;
+                }
+
+                //make this sort more efficient than insertion sort if scaling layer count
+                for(int rank = 0; rank<VOX_LAYERS; rank++){
+                    lightVoxData tmpSrc = bestLights[rank];
+                    if(tmpSrc.lightTravel==lightSrc.lightTravel &&
+                        tmpSrc.color == lightSrc.color){
+                        rank=VOX_LAYERS;
+                    }
+                    if (strength>bestStrengths[rank]){
+                        float tmpStr = bestStrengths[rank];
+
+                        bestLights[rank]=lightSrc;
+                        bestStrengths[rank]=strength;
+
+                        lightSrc=tmpSrc;
+                        strength=tmpStr;
+                    }
+
+                }
             }
         }
     }
 
-    return bestLight;
+    return bestLights;
 }
 
 
@@ -113,7 +141,7 @@ lightVoxData determineBestLightSource( float scale,
 //out of 9 input samples, only up to 4 can have any light flowing between the source and the output
 //for all 2x2 selected sample arrays, corner closest to source at [0][0], output sample at [1][1]
 //newObstructions is flipped to match this, with [2][2] being the firthest corner from source
-void pickRelevantInputSamples(lightVoxData bestSource, lightVoxData[3][3] inputSamples, bool[3][3] obstructions, float scale,
+void pickRelevantInputSamples(lightVoxData bestSource, lightVoxData[3][3][VOX_LAYERS] inputSamples, bool[3][3] obstructions, float scale,
     out lightVoxData[2][2] samples, out bool[2][2] relevance, out bvec2 alignment, out bool[2][2] newObstructions){
 
     vec3 lightTravel = bestSource.lightTravel;
@@ -121,25 +149,33 @@ void pickRelevantInputSamples(lightVoxData bestSource, lightVoxData[3][3] inputS
     int bSignSrc = int(sign(lightTravel.y));
     alignment = bvec2(bSignSrc==0,aSignSrc==0);
 
-
     for(int i=0; i<2; i++){
         int a = (i-1)*aSignSrc;
         for(int j=0; j<2; j++){
             int b = (j-1)*bSignSrc;
             bool blockBlocked = obstructions[1+a][1+b];
-            lightVoxData relevantSample = inputSamples[1+a][1+b];
-            //TODO: also probably check for color when translucents stuff
-            bool sameSource = (relevantSample.lightTravel==bestSource.lightTravel) && relevantSample.emission == bestSource.emission;
+            newObstructions[i][j]=blockBlocked;
             bool alignedX = (lightTravel.x-a*scale==0);
             bool alignedY = (lightTravel.y-b*scale==0);
 
-            relevance[i][j] = sameSource && !blockBlocked;
-            newObstructions[i][j]=blockBlocked;
-            samples[i][j] = relevantSample;
-            if(((alignment.x&&j==0)||(alignment.y&&i==0))){
+            if((alignment.x&&j==0)||(alignment.y&&i==0)||(blockBlocked)){
                 samples[i][j]=noLight;
                 relevance[i][j]=false;
+                continue;
             }
+
+            for(int layer = 0; layer<VOX_LAYERS; layer++){
+                lightVoxData relevantSample = inputSamples[1+a][1+b][layer];
+                bool sameSource = (relevantSample.lightTravel==bestSource.lightTravel)
+                && relevantSample.emission == bestSource.emission
+                && relevantSample.color == bestSource.color;
+
+                if (sameSource){
+                    relevance[i][j] = true;
+                    samples[i][j] = relevantSample;
+                }
+            }
+
         }
     }
 
@@ -323,7 +359,7 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
 void lightVoxelFace(ivec4 sectionPos, uint section,uint axis){
     float scale = 1;
 
-    lightVoxData[3][3] inputSamples;
+    lightVoxData[3][3][VOX_LAYERS] inputSamples;
     uvec4[3][3] frontVoxels;
     uvec4[3][3] rearVoxels;
     bool[3][3] obstructions;
@@ -335,40 +371,45 @@ void lightVoxelFace(ivec4 sectionPos, uint section,uint axis){
 
 
     //determine best light source first
-    lightVoxData bestLight = determineBestLightSource(
+    lightVoxData[VOX_LAYERS] bestLights = determineBestLightSources(
         scale, inputSamples, frontVoxels, rearVoxels, obstructions
     );
 
 
-    // then pick the 4 relevant input samples
-    // (the voxels further from the center of the light source do not contribute)
-    lightVoxData[2][2] relevantSamples;
-    bool[2][2] relevance;
-    bvec2 alignment;
-    bool[2][2] newObstructions;
+    for(int layer = 0; layer<VOX_LAYERS; layer++){
+        lightVoxData bestLight = bestLights[layer];
 
-    pickRelevantInputSamples(bestLight, inputSamples, obstructions, scale,
+        // then pick the 4 relevant input samples
+        // (the voxels further from the center of the light source do not contribute)
+        lightVoxData[2][2] relevantSamples;
+        bool[2][2] relevance;
+        bvec2 alignment;
+        bool[2][2] newObstructions;
+
+
+        pickRelevantInputSamples(bestLight, inputSamples, obstructions, scale,
         relevantSamples, relevance, alignment, newObstructions);
 
-    determineOcclusion(relevantSamples, relevance, alignment, newObstructions, bestLight.lightTravel, scale,
+        determineOcclusion(relevantSamples, relevance, alignment, newObstructions, bestLight.lightTravel, scale,
         bestLight.occlusionRay, bestLight.occlusionMap);
+
+        if (bestLight.emission==0 || !(bestLight.occlusionMap.x||bestLight.occlusionMap.y||bestLight.occlusionMap.z||bestLight.occlusionMap.w)){
+            bestLight=noLight;//TODO just be aware of
+        }
+        bestLights[layer]=bestLight;
+    }
 
     //could maybe be at the top, not sure how much it'd actually help though TODO test later
     if (frontVoxels[1][1].w>0xf){
-        bestLight.lightTravel = vec3(0);
-        bestLight.color = frontVoxels[1][1].rgb*(1.0/255.0);
-        bestLight.emission = frontVoxels[1][1].w>>4;
-        bestLight.occlusionMap=bvec4(true);
+        bestLights[VOX_LAYERS-1].lightTravel = vec3(0);
+        bestLights[VOX_LAYERS-1].color = frontVoxels[1][1].rgb*(1.0/255.0);
+        bestLights[VOX_LAYERS-1].emission = frontVoxels[1][1].w>>4;
+        bestLights[VOX_LAYERS-1].occlusionMap=bvec4(true);
     }
 
-//    bestLight.occlusionRay = abs(bestLight.lightTravel.xy/(bestLight.lightTravel.z-0.5));
-//    bestLight.occlusionMap = bvec2(true,false).xyyx;
-
-    if(bestLight.emission==0 || !(bestLight.occlusionMap.x||bestLight.occlusionMap.y||bestLight.occlusionMap.z||bestLight.occlusionMap.w)){
-        bestLight=noLight; //TODO just be aware of
+    for(int layer = 0; layer<VOX_LAYERS; layer++){
+        setLightData(bestLights[layer], sectionPos, axis, layer);
     }
-
-    setLightData(bestLight,sectionPos,axis);
 }
 
 void lightVoxelFaces(uvec3 groupId, uvec3 localId){

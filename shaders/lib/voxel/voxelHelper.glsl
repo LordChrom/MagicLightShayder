@@ -72,7 +72,7 @@ ivec4 worldPosToSection(vec3 pos, float scale){
     return ivec4(ivec3(round(pos/scale+0.5)*scale),0);
 }
 
-ivec3 sectionToFaceSpace(ivec4 sectionPos, uint axis){
+ivec3 sectionToFaceSpace(ivec4 sectionPos, uint axis, uint layer){
     uint upper = axis>>1u;
     ivec3 ret = sectionPos.xyz;
     switch(upper){
@@ -94,7 +94,7 @@ ivec3 sectionToFaceSpace(ivec4 sectionPos, uint axis){
         ret.z=15-ret.z;
     }
 
-    ret.z+=int(20*axis); //TODO fix overlap
+    ret.z+=int(20*(axis+6*layer)); //TODO fix overlap
 
     return ret;
 }
@@ -176,8 +176,9 @@ vec4 ternary(bvec4 conditions,vec4 ifTrue, vec4 ifFalse){
 lightVoxData getLightData(ivec3 texelCoord){
     return unpackLightData(texelFetch(lightVoxSampler, texelCoord,0));
 }
-lightVoxData getLightData(ivec4 sectionPos, uint axis){
-    ivec3 texelCoord = sectionToFaceSpace(sectionPos,axis);
+
+lightVoxData getLightData(ivec4 sectionPos, uint axis, uint layer){
+    ivec3 texelCoord = sectionToFaceSpace(sectionPos,axis,layer);
     return getLightData(texelCoord);
 }
 #endif
@@ -186,8 +187,8 @@ lightVoxData getLightData(ivec4 sectionPos, uint axis){
 void setLightData(lightVoxData light, ivec3 texelCoord){
     imageStore(lightVox,texelCoord, packLightData(light));
 }
-void setLightData(lightVoxData light, ivec4 sectionPos, uint axis){
-    ivec3 texelCoord = sectionToFaceSpace(sectionPos,axis);
+void setLightData(lightVoxData light, ivec4 sectionPos, uint axis,uint layer){
+    ivec3 texelCoord = sectionToFaceSpace(sectionPos,axis,layer);
     setLightData(light,texelCoord);
 }
 #endif
