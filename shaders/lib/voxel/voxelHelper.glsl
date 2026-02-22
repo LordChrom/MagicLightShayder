@@ -28,13 +28,14 @@ struct lightVoxData{
     vec3 color;
     uint emission;//blocklight strength. Potentially redundant w/ color.
     vec3 lightTravel;//the displacement from the light source voxel center to the sample's voxel center
+    float columnation;
 };
 
 
 const float lightTravelScaleInv = 16.0; //most voxels per block representable for lightTravel
 const float lightTravelScale = 1.0/lightTravelScaleInv;
 
-const lightVoxData noLight = {vec2(0),bvec4(false),vec3(0),0,vec3(0)};
+const lightVoxData noLight = {vec2(0),bvec4(false),vec3(0),0,vec3(0),0};
 
 bool isVoxelInBounds(vec3 worldPos){
     worldPos-=voxOriginOffset;
@@ -113,14 +114,16 @@ vec3 subVoxelOffset(vec3 pos, float scale){
 //bit layout of the packing
 //x is 2x16 a,b of travel
 //y is 2x8 occlusion (b then a), 1x16 z of travel
-//z is 3x8 color, 1x4 occlusion map, 1x4 emissive strength,
-//w is all free! Yay! Could save memory but will likely use for more more features later
+//z is 3x8 color, 1x8 columnation
+//w is 24 free, 1x4 occlusion map, 1x4 emissive strength,
 lightVoxData unpackLightData(uvec4 packedData){
     lightVoxData ret;
     ret.lightTravel = vec3(ivec3(packedData.x,packedData.x<<16,packedData.y<<16)>>16)*lightTravelScale;
-    ret.emission = packedData.z&0xfu;
-    ret.occlusionMap = bvec4(packedData.z&0x80u,packedData.z&0x40u,packedData.z&0x20u,packedData.z&0x10u);
-    ret.color=unpackUnorm4x8(packedData.z).yzw;
+    vec4 colorAndColumnation = unpackUnorm4x8(packedData.z);
+    ret.color=colorAndColumnation.xyz;
+    ret.columnation=colorAndColumnation.w;
+    ret.emission = packedData.w&0xfu;
+    ret.occlusionMap = bvec4(packedData.w&0x80u,packedData.w&0x40u,packedData.w&0x20u,packedData.w&0x10u);
     ret.occlusionRay=unpackUnorm4x8(packedData.y).zw; //higher bits are later vec elements
     return ret;
 }
@@ -132,9 +135,8 @@ uvec4 packLightData(lightVoxData data){
 
     ret.x = (intTravel.x<<16) | (0xffffu&intTravel.y);
     ret.y = intTravel.z | (packUnorm4x8(vec4(0,0,data.occlusionRay))&0xffff0000u);
-    ret.z = (0xffffff00u&packUnorm4x8(vec4(0,data.color))) | (data.emission&0xfu)
-            | (0xf0u&((intOcclMap.x|intOcclMap.y)|(intOcclMap.z|intOcclMap.w)));
-    ret.w = 0;
+    ret.z = packUnorm4x8(vec4(data.color,data.columnation));
+    ret.w = (data.emission&0xfu) | (0xf0u&((intOcclMap.x|intOcclMap.y)|(intOcclMap.z|intOcclMap.w)));
     return ret;
 }
 

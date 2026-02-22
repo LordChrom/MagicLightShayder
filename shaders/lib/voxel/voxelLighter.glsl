@@ -14,7 +14,7 @@ const ivec3 workGroups = ivec3(SECTIONS_PER_ZONE,1,6);
 layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z = 1) in;
 
 #if false //dummy definition because intellij's best glsl plugin doesnt know includes exist
-struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint emission;vec3 lightTravel;};
+struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint emission;vec3 lightTravel;float columnation;};
 #endif
 
 
@@ -399,6 +399,7 @@ void lightVoxelFace(ivec4 sectionPos, uint zone,uint axis){
         bestLights[VOX_LAYERS-1].color = frontVoxels[1][1].rgb*(1.0/255.0);
         bestLights[VOX_LAYERS-1].emission = frontVoxels[1][1].w>>4;
         bestLights[VOX_LAYERS-1].occlusionMap=bvec4(true);
+        bestLights[VOX_LAYERS-1].columnation=0.2;
     }
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){

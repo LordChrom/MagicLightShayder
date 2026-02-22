@@ -14,13 +14,15 @@ const ivec3 workGroups = ivec3(ZONE_WIDTH_SECTIONS,ZONE_WIDTH_SECTIONS,1);
 layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z = 1) in;
 
 #if false //dummy definition because intellij's best glsl plugin doesnt know includes exist
-struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint emission;vec3 lightTravel;};
+struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint emission;vec3 lightTravel;float columnation;};
 #endif
+
+const vec3 sunolor = normalize(vec3(0.62,0.61,0.6))*0.825;
 
 void sunlight(uvec3 texelPos){
 
     //    uint zoneNum = workGroupID.x;
-    lightVoxData sunLight = {vec2(0,0),bvec4(true),vec3(1,1,1),15,vec3(0)};
+    lightVoxData sunLight = {vec2(0,0),bvec4(true),sunolor,15,vec3(0),1};
     setLightData(sunLight, ivec3(texelPos));
 
 }

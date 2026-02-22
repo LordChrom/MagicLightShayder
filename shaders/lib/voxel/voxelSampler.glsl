@@ -7,7 +7,7 @@ layout (rgba8ui) uniform readonly restrict uimage3D worldVox;
 #include "/lib/voxel/voxelHelper.glsl"
 
 #if false //dummy definition because my intellij's best glsl plugin doesnt know includes exist
-struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint emission;vec3 lightTravel;};
+struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint emission;vec3 lightTravel;float columnation;};
 #endif
 
 vec3 getDirectedLight(ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint axis, uint layer, float scale){
@@ -30,8 +30,11 @@ vec3 getDirectedLight(ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint a
     vec3 displacement = lightSrc.lightTravel + subVoxelOffset;
     float lengthSquared = dot(displacement,displacement);
 
+    float columnation = lightSrc.columnation;
+    lengthSquared = lengthSquared*(1-columnation)+columnation;
+
     float lightStrength = displacement.z>0 ? lightSrc.emission : 0;
-    lightStrength*=1/(15*max(lengthSquared,0.01));
+    lightStrength*=0.5/(max(lengthSquared,0.001));
 
     float lightDotN = -dot(normalize(displacement),normal);
 
@@ -48,7 +51,7 @@ vec3 getDirectedLight(ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint a
     vec3 outColor = vec3(0);
 
     if(receivesLight){
-        const float minLight = 0.1;
+        const float minLight = 0.01;
         #ifndef DEBUG_OCCLUSION_MAP
         lightStrength*=lightDotN;
         #endif
