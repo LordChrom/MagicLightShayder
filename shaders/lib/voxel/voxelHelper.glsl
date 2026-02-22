@@ -64,8 +64,8 @@ ivec3 axisNumToVec(uint axis){
 
 
 
-//xyz is section xyz
-//w is section number
+//xyz is zone xyz
+//w is zone number
 ivec4 worldPosToSection(vec3 pos, float scale){
     pos-=voxOriginOffset;
     ivec3 sectionID = ivec3(floor(pos/ZONE_SIZE));

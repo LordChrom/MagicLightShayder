@@ -34,15 +34,12 @@ void main() {
 
 	worldPos+=normal*0.005;
 
-	vec3 light;
+	vec3 light = texture(colortex5,texcoord).xyz;
 
-	bool voxelLit = isVoxelInBounds(worldPos);
-//	voxelLit = true;
+	bool voxelLit = isVoxelInBounds(worldPos) && light!=vec3(1);
 	if(voxelLit){
 		vec3 voxelLight = voxelSample(worldPos,normal);
 		light=voxelLight;
-	}else{
-		light=texture(colortex5,texcoord).xyz;
 	}
 	if(light==vec3(0))
 		light=vec3(1);

@@ -407,6 +407,8 @@ void lightVoxelFace(ivec4 sectionPos, uint zone,uint axis){
 }
 
 void lightVoxelFaces(uvec3 groupId, uvec3 localId){
+//    if(((frameCounter>>4)&0xff)>0x80)
+//        return;
     uint zoneOffset = groupId.x;
     uint zoneNum = groupId.y;
     ivec3 sectionBasePos = (ivec3(zoneOffset>>(ZONE_WIDTH_SECTIONS_SHIFT+ZONE_WIDTH_SECTIONS_SHIFT),

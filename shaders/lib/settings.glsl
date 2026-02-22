@@ -24,7 +24,7 @@
 #define VOX_SIZE 66
 #define VOX_SIZE_BIG 840
 
-const vec3 voxOriginOffset = vec3(-10,60,-10);
+const vec3 voxOriginOffset = vec3(-16,48,-16);
 const vec3 voxWorldSize = vec3(64);
 const vec3 sectionCount = vec3(2);
 
