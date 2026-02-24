@@ -11,18 +11,17 @@
 
 #define SECTION_SIZE 16
 #define UPDATE_STRIDE 16
+#define SECTIONS_PER_ZONE 64
 
-#define VOX_SIZE 18
-#define VOX_ZONE_OFFSET 70
+const int ZONE_WIDTH_SECTIONS = int(pow(SECTIONS_PER_ZONE,0.334));
+const int ZONE_SIZE =  ZONE_WIDTH_SECTIONS*SECTION_SIZE;
+//const int SECTIONS_PER_ZONE = ZONE_WIDTH_SECTIONS*ZONE_WIDTH_SECTIONS*ZONE_WIDTH_SECTIONS;
+const int ZONE_WIDTH_SECTIONS_SHIFT = int(log2(ZONE_WIDTH_SECTIONS));
+const int ZONE_SHIFT = 3*ZONE_WIDTH_SECTIONS_SHIFT;
 
-#define ZONE_SHIFT 6
-#define ZONE_SIZE 64
-#define SECTIONS_PER_ZONE 64 //sect
-#define ZONE_WIDTH_SECTIONS 4
-#define ZONE_WIDTH_SECTIONS_SHIFT 2
 
-#define VOX_SIZE 66
-#define VOX_SIZE_BIG 840
+//#define VOX_SIZE 66
+//#define VOX_SIZE_BIG 840
 
 const vec3 voxOriginOffset = vec3(-16,48,-16);
 const vec3 voxWorldSize = vec3(64);
@@ -35,3 +34,10 @@ const vec3 sectionCount = vec3(2);
 const uint debugAxisNum = DEBUG_AXIS;
 #endif
 
+
+const float voxelDistance = 160.0;
+const float shadowDistance = 160.0;
+const int shadowMapResolution = 1;
+
+#define LIGHT_SAMPLES_IMAGE
+//if false its stored in an SSBO

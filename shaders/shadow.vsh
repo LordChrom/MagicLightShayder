@@ -10,7 +10,7 @@ void main() {
     int emission = int(at_midBlock.w);
 
     vec3 worldPos = gl_Vertex.xyz-gl_ProjectionMatrix[3].xyz+cameraPosition;
-    worldPos+= at_midBlock.xyz/64.0;
+    worldPos+= 0.5* at_midBlock.xyz/64.0;
     int blockId = int(mc_Entity.x);
-    writeVoxelMap(worldPos,blockId,emission, false, emission==0);
+    writeVoxelMap(worldPos,blockId,emission);
 }

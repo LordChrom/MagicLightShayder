@@ -2,7 +2,7 @@
 
 layout (rgba8ui) uniform readonly restrict uimage3D worldVox;
 
-#define READS_LIGHT_FACE
+#define SAMPLES_LIGHT_FACE
 
 #include "/lib/voxel/voxelHelper.glsl"
 
@@ -130,7 +130,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
     ivec4 sectionPos = worldPosToSection(worldPos,scale);
     vec3 subVoxelOffset = subVoxelOffset(worldPos,scale);
 
-    vec3 color = vec3(0);
+    vec3 color = vec3(0.2);
     for(int layer = 0; layer<VOX_LAYERS; layer++){
 
     #if DEBUG_AXIS>=0

@@ -6,7 +6,7 @@ uniform sampler2D colortex0;
 uniform sampler2D colortex4; //normal
 uniform sampler2D colortex5; //color
 uniform sampler2D depthtex0;
-//uniform sampler2D depthtex1;
+uniform sampler2D depthtex2;
 
 uniform float viewWidth;
 uniform float viewHeight;
@@ -23,7 +23,9 @@ layout(location = 0) out vec4 color;
 
 void main() {
 	float depth = texture(depthtex0,texcoord).x;
-	vec3 screenPos = vec3(texcoord,depth); //TODO fix hand
+	float solidDepth = texture(depthtex2,texcoord).x;
+
+	vec3 screenPos = vec3(texcoord,solidDepth); //TODO fix hand
 	vec4 viewPos = gbufferProjectionInverse*vec4(screenPos*2-1,1);
 	viewPos/=viewPos.w;
 	vec3 worldPos = (gbufferModelViewInverse*viewPos).xyz+cameraPosition;
@@ -38,6 +40,8 @@ void main() {
 	vec3 light = texture(colortex5,texcoord).xyz;
 
 	bool voxelLit = isVoxelInBounds(worldPos) && light!=vec3(1);
+	if(depth<0.56)
+		voxelLit=false;
 	if(voxelLit){
 		vec3 voxelLight = voxelSample(worldPos,normal);
 		light=voxelLight;

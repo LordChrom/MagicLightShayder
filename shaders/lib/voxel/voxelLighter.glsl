@@ -1,7 +1,7 @@
 
-#define READS_LIGHT_FACE
+#define SAMPLES_LIGHT_FACE
 #define WRITES_LIGHT_FACE
-#define READS_VOX
+#define SAMPLES_VOX
 #include "/lib/voxel/voxelHelper.glsl"
 
 
@@ -9,6 +9,7 @@ uniform int frameCounter;
 int frameOffset = frameCounter%UPDATE_STRIDE;
 
 //const ivec3 workGroups = ivec3(groupCountXY,groupCountXY,groupCountZ);
+//const ivec3 workGroups = ivec3(64,1,6);
 const ivec3 workGroups = ivec3(SECTIONS_PER_ZONE,1,6);
 //const ivec3 workGroups = ivec3(1,1,6);
 layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z = 1) in;
@@ -22,8 +23,10 @@ struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint emissio
 
 
 void takeSamples(ivec4 sectionPos, float scale, uint axis,
-    out lightVoxData[3][3][VOX_LAYERS] inputSamples, out uvec4[3][3] frontVoxels, out uvec4[3][3] rearVoxels, out bool[3][3] obstructions
+    out lightVoxData[3][3][VOX_LAYERS] inputSamples, out uvec4[3][3] frontVoxels, out uvec4[3][3] rearVoxels, out bool[3][3] obstructions, out bool translucentsPresent
 ){
+
+    translucentsPresent = false;
 
     ivec3 aVec = ivec3(worldToSectionSpaceMats[axis][0]);
     ivec3 bVec = ivec3(worldToSectionSpaceMats[axis][1]);
@@ -35,8 +38,10 @@ void takeSamples(ivec4 sectionPos, float scale, uint axis,
             uvec4 frontVoxel = getVoxData(sectionPos.xyz+localOffset);
             uvec4 rearVoxel = getVoxData(sectionPos.xyz+localOffset-LVec);
 
-            bool rearObstructed = (rearVoxel.w&1u)==1;
-            bool frontObstructed = (frontVoxel.w&1u)==1;
+            bool rearObstructed = (rearVoxel.w&3u)>0;
+            bool frontObstructed = (frontVoxel.w&3u)>0;
+
+            translucentsPresent = translucentsPresent || ((rearVoxel.w&3u)==2) || ((frontVoxel.w&3u)==2);
 
             for(int layer = 0; layer<VOX_LAYERS; layer++){
                 ivec3 faceSpacePos = sectionToFaceSpace(sectionPos, axis, layer);
@@ -49,6 +54,7 @@ void takeSamples(ivec4 sectionPos, float scale, uint axis,
             }
 
             obstructions[a+1][b+1] = rearObstructed || frontObstructed;//TODO make better
+//            obstructions[a+1][b+1] = rearObstructed;//TODO make better
             frontVoxels[a+1][b+1] = frontVoxel;
             rearVoxels[a+1][b+1] = rearVoxel;
         }
@@ -58,7 +64,7 @@ void takeSamples(ivec4 sectionPos, float scale, uint axis,
 
 
 lightVoxData[VOX_LAYERS] determineBestLightSources( float scale,
-    lightVoxData[3][3][VOX_LAYERS] inputSamples, uvec4 [3][3] frontVoxels, uvec4 [3][3] rearVoxels, bool [3][3] obstructions
+    lightVoxData[3][3][VOX_LAYERS] inputSamples, bool [3][3] obstructions
 ){
     lightVoxData[VOX_LAYERS] bestLights;
     float[VOX_LAYERS] bestStrengths;
@@ -66,8 +72,6 @@ lightVoxData[VOX_LAYERS] determineBestLightSources( float scale,
         bestLights[layer] = noLight;
         bestStrengths[layer] = 0;
     }
-
-//    uint layer = 0;
 
     for (int a=-1;a<=1;a++){
         for (int b=-1; b<=1;b++){
@@ -346,6 +350,25 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
 
 
 
+//
+lightVoxData doLightPassage(inout lightVoxData bestLight, lightVoxData[3][3][VOX_LAYERS] inputSamples, bool[3][3] obstructions, float scale){
+    lightVoxData[2][2] relevantSamples;
+    bool[2][2] relevance;
+    bvec2 alignment;
+    bool[2][2] newObstructions;
+
+
+    pickRelevantInputSamples(bestLight, inputSamples, obstructions, scale,
+    relevantSamples, relevance, alignment, newObstructions);
+
+    determineOcclusion(relevantSamples, relevance, alignment, newObstructions, bestLight.lightTravel, scale,
+    bestLight.occlusionRay, bestLight.occlusionMap);
+
+    if (bestLight.emission==0 || !(bestLight.occlusionMap.x||bestLight.occlusionMap.y||bestLight.occlusionMap.z||bestLight.occlusionMap.w)){
+        bestLight=noLight;//TODO just be aware of
+    }
+    return bestLight;
+}
 
 
 //for one voxel face, determines the light entering that voxel face
@@ -357,40 +380,67 @@ void lightVoxelFace(ivec4 sectionPos, uint zone,uint axis){
     uvec4[3][3] frontVoxels;
     uvec4[3][3] rearVoxels;
     bool[3][3] obstructions;
+    bool translucentsPresent;
 
     //all the relevant memory accesses
     takeSamples(sectionPos,scale, axis,
-        inputSamples, frontVoxels, rearVoxels, obstructions
+        inputSamples, frontVoxels, rearVoxels, obstructions, translucentsPresent
     );
 
 
     //determine best light source first
     lightVoxData[VOX_LAYERS] bestLights = determineBestLightSources(
-        scale, inputSamples, frontVoxels, rearVoxels, obstructions
+        scale, inputSamples, obstructions
     );
 
 
+    lightVoxData transucentPassage = bestLights[0];
+//        transucentPassage = inputSamples[1][1][0];
+
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-        lightVoxData bestLight = bestLights[layer];
+        doLightPassage(bestLights[layer],inputSamples,obstructions,scale);
+    }
 
-        // then pick the 4 relevant input samples
-        // (the voxels further from the center of the light source do not contribute)
-        lightVoxData[2][2] relevantSamples;
-        bool[2][2] relevance;
-        bvec2 alignment;
-        bool[2][2] newObstructions;
+    //actual coherent branch
+    if(translucentsPresent){
+        bool[3][3] translucentsMap;
+        for(int i=0; i<2; i++){
+            for(int j=0; j<2; j++){
+                uint frontw = frontVoxels[i][j].w;
+                uint rearw = rearVoxels[i][j].w;
 
-
-        pickRelevantInputSamples(bestLight, inputSamples, obstructions, scale,
-        relevantSamples, relevance, alignment, newObstructions);
-
-        determineOcclusion(relevantSamples, relevance, alignment, newObstructions, bestLight.lightTravel, scale,
-        bestLight.occlusionRay, bestLight.occlusionMap);
-
-        if (bestLight.emission==0 || !(bestLight.occlusionMap.x||bestLight.occlusionMap.y||bestLight.occlusionMap.z||bestLight.occlusionMap.w)){
-            bestLight=noLight;//TODO just be aware of
+                //TODO this is trash
+                translucentsMap[i][j]= !(((rearw&3u)==2) || ((frontw&3u)==2)) ||
+                    ((rearw&3u)==1) || ((frontw&3u)==1);
+            }
         }
-        bestLights[layer]=bestLight;
+
+        ivec2 travelDirSign = ivec2(sign(transucentPassage.lightTravel.xy));
+
+        int translucentBlocksInSample = 0;
+        vec3 color = vec3(0);
+        for(int i=0; i<2; i++){
+            int a = (i-1)*travelDirSign.x;
+            for (int j=0; j<2; j++){
+                int b = (j-1)*travelDirSign.y;
+                bool frontTrans = (frontVoxels[a][b].w&3u)==2;
+                bool rearTrans = (rearVoxels[a][b].w&3u)==2;
+                translucentBlocksInSample += int(frontTrans) + int(rearTrans);
+                if(frontTrans)
+                    color+=vec3(frontVoxels[a][b].xyz)/255;
+                if(rearTrans)
+                    color+=vec3(rearVoxels[a][b].xyz)/255;
+            }
+        }
+
+        if(translucentBlocksInSample>0){
+            color/=translucentBlocksInSample;
+
+            doLightPassage(transucentPassage, inputSamples, translucentsMap, scale);
+            transucentPassage.color*=color;
+
+            bestLights[VOX_LAYERS-1]=transucentPassage; //TODO better insert
+        }
     }
 
     //could maybe be at the top, not sure how much it'd actually help though TODO test later
