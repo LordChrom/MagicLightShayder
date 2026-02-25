@@ -2,9 +2,6 @@
 
 
 
-//TODO: test split sampler+writeonly uimage vs combined image
-
-#ifdef LIGHT_SAMPLES_IMAGE
 #ifdef SAMPLES_LIGHT_FACE
 uniform usampler3D lightVoxSampler;
 #endif
@@ -15,14 +12,6 @@ uniform usampler3D lightVoxSampler;
 layout (rgba32ui) uniform writeonly restrict uimage3D lightVox;
 #endif
 
-#else
-
-#if defined SAMPLES_LIGHT_FACE || defined WRITES_LIGHT_FACE
-layout(std430, binding = 0) restrict buffer lightFaces {
-    //axis L a b
-    uvec4[1000][66][66] lightSamples;
-} lightFacesAccess;
-#endif
 
 #endif
 
@@ -195,13 +184,7 @@ vec4 ternary(bvec4 conditions,vec4 ifTrue, vec4 ifFalse){
 
 #ifdef SAMPLES_LIGHT_FACE
 lightVoxData getLightData(ivec3 texelCoord){
-
-    #ifdef LIGHT_SAMPLES_IMAGE
-        uvec4 packedData = texelFetch(lightVoxSampler, texelCoord,0);
-    #else
-        uvec4 packedData = lightFacesAccess.lightSamples[texelCoord.z][texelCoord.x][texelCoord.y];
-    #endif
-
+    uvec4 packedData = texelFetch(lightVoxSampler, texelCoord,0);
     return unpackLightData(packedData);
 }
 
@@ -214,12 +197,7 @@ lightVoxData getLightData(ivec4 sectionPos, uint axis, uint layer){
 #ifdef WRITES_LIGHT_FACE
 void setLightData(lightVoxData light, ivec3 texelCoord){
     uvec4 packedData = packLightData(light);
-
-    #ifdef LIGHT_SAMPLES_IMAGE
-        imageStore(lightVox,texelCoord, packedData);
-    #else
-        lightFacesAccess.lightSamples[texelCoord.z][texelCoord.x][texelCoord.y] = packedData;
-    #endif
+    imageStore(lightVox,texelCoord, packedData);
 }
 void setLightData(lightVoxData light, ivec4 sectionPos, uint axis,uint layer){
     ivec3 texelCoord = sectionToFaceSpace(sectionPos,axis,layer);

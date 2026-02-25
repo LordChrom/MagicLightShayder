@@ -27,7 +27,8 @@ struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint emissio
 
 
 void takeSamples(ivec4 sectionPos, float scale, uint axis,
-    out lightVoxData[3][3][VOX_LAYERS] inputSamples, out uvec4[3][3] frontVoxels, out uvec4[3][3] rearVoxels, out bool[3][3] obstructions, out bool translucentsPresent
+    out lightVoxData[3][3][VOX_LAYERS] inputSamples, out uvec4[3][3] frontVoxels, out uvec4[3][3] rearVoxels,
+out bool[3][3] obstructions, out bool[3][3] translucents, out bool translucentsPresent
 ){
 
     translucentsPresent = false;
@@ -42,25 +43,34 @@ void takeSamples(ivec4 sectionPos, float scale, uint axis,
             uvec4 frontVoxel = getVoxData(sectionPos.xyz+localOffset);
             uvec4 rearVoxel = getVoxData(sectionPos.xyz+localOffset-LVec);
 
-            bool rearObstructed = (rearVoxel.w&3u)>0;
-            bool frontObstructed = (frontVoxel.w&3u)>0;
+            obstructions[a+1][b+1] = ((rearVoxel.w&3u)==1) || ((frontVoxel.w&3u)==1);//TODO make better
 
-            translucentsPresent = translucentsPresent || ((rearVoxel.w&3u)==2) || ((frontVoxel.w&3u)==2);
+
+            translucentsPresent = translucentsPresent || (((rearVoxel.w&3u)==2) || ((frontVoxel.w&3u)==2)) && !obstructions[a+1][b+1];
+
+            frontVoxels[a+1][b+1] = frontVoxel;
+            rearVoxels[a+1][b+1] = rearVoxel;
+        }
+    }
+
+    for (int a=-1;a<=1;a++){
+        for (int b=-1; b<=1;b++){
+            uvec4 frontVoxel=frontVoxels[a+1][b+1];
+            uvec4 rearVoxel =rearVoxels[a+1][b+1];
+
+
 
             for(int layer = 0; layer<VOX_LAYERS; layer++){
                 ivec3 faceSpacePos = sectionToFaceSpace(sectionPos, axis, layer);
 
                 lightVoxData inputSample = getLightData(faceSpacePos+ivec3(a, b, -1));
                 inputSample.lightTravel+=vec3(-a, -b, 1)*scale;
-                if(rearObstructed)
+                if((rearVoxel.w&3u)==1)
                     inputSample=noLight;
                 inputSamples[a+1][b+1][layer] = inputSample;
             }
 
-            obstructions[a+1][b+1] = rearObstructed || frontObstructed;//TODO make better
-//            obstructions[a+1][b+1] = rearObstructed;//TODO make better
-            frontVoxels[a+1][b+1] = frontVoxel;
-            rearVoxels[a+1][b+1] = rearVoxel;
+            translucents[a+1][b+1] = ((rearVoxel.w&3u)==2) || ((frontVoxel.w&3u)==2) && !obstructions[a+1][b+1];
         }
     }
 }
@@ -384,11 +394,12 @@ void lightVoxelFace(ivec4 sectionPos, uint zone,uint axis){
     uvec4[3][3] frontVoxels;
     uvec4[3][3] rearVoxels;
     bool[3][3] obstructions;
+    bool[3][3] translucents;
     bool translucentsPresent;
 
     //all the relevant memory accesses
     takeSamples(sectionPos,scale, axis,
-        inputSamples, frontVoxels, rearVoxels, obstructions, translucentsPresent
+        inputSamples, frontVoxels, rearVoxels, obstructions, translucents, translucentsPresent
     );
 
 
@@ -400,6 +411,13 @@ void lightVoxelFace(ivec4 sectionPos, uint zone,uint axis){
 
     lightVoxData transucentPassage = bestLights[0];
 //        transucentPassage = inputSamples[1][1][0];
+
+
+    for (int i=0;i<3;i++){
+        for (int j=0; j<3;j++){
+            obstructions[i][j] = obstructions[i][j] || translucents[i][j];
+        }
+    }
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         doLightPassage(bestLights[layer],inputSamples,obstructions,scale);

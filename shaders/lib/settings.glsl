@@ -43,6 +43,3 @@ const uint debugAxisNum = DEBUG_AXIS;
 const float voxelDistance = 160.0;
 const float shadowDistance = 160.0;
 const int shadowMapResolution = 1;
-
-#define LIGHT_SAMPLES_IMAGE
-//if false its stored in an SSBO
