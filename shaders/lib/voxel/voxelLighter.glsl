@@ -83,7 +83,7 @@ out bool[3][3] obstructions, out bool[3][3] translucents, out bool translucentsP
     }
 }
 
-
+const uint shortListLen = 2*VOX_LAYERS;
 
 lightVoxData[VOX_LAYERS] determineBestLightSources( float scale,
     lightVoxData[3][3][VOX_LAYERS] inputSamples, bool [3][3] obstructions
@@ -95,79 +95,106 @@ lightVoxData[VOX_LAYERS] determineBestLightSources( float scale,
         bestStrengths[layer] = 0;
     }
 
-    for (int a=-1;a<=1;a++){
+    float halfScale = 0.5*scale;
+
+#ifdef SHORTLISTED_COMPARISON
+    lightVoxData[shortListLen] shortList;
+    float[shortListLen] shortListStr;
+
+    for(int i = 0; i<VOX_LAYERS; i++){
+        shortListStr[i]=0;
+        bestLights[i] = noLight;
+    }
+    int shortListOccupation=0;
+#else
+    #define shortListStr bestStrengths
+    #define shortList bestLights
+    #define shortListOccupation VOX_LAYERS
+#endif
+
+
+    for (int a=-1; a<=1;a++){
         for (int b=-1; b<=1;b++){
+            if(obstructions[a+1][b+1] || //block in front
+                ( (obstructions[a+1][1]) && (obstructions[1][b+1]) && ((a|b)!=0))){ //neighboring blocks between src and center
+                continue;
+            }
 
-
-            bool isCenter = (a|b)==0;
-
-            bool selfOccluded = obstructions[a+1][b+1];
-
-            //if corner, its neighbors. If edge, itself and center. If center, itself twice
-            //in any case, these both being blocked means no light from this input voxel
-            bool helpersOccluded = (obstructions[a+1][1]) && (obstructions[1][b+1]);
-            bool outerSrcBlocked = (helpersOccluded && !isCenter) || selfOccluded;
-
-            //TODO probably do a pre-pas just to reduce the heavy work
             for(int layer = 0; layer<VOX_LAYERS; layer++){
-
                 lightVoxData lightSrc = inputSamples[a+1][b+1][layer];
 
-                if (lightSrc.emission==0)
+                if((lightSrc.emission==0) || (lightSrc.lightTravel.x*a>0) || (lightSrc.lightTravel.y*b>0))
                     continue;
 
-                vec3 displ = lightSrc.lightTravel;
-                float lenSquared = dot(displ, displ);
-                float strength = length(lightSrc.color)*float(lightSrc.emission)/max(0.1, lenSquared);
-                displ.xy+=vec2(a, b)*scale;
-
-
-                bool srcBlocked = outerSrcBlocked || (displ.x*a>0) || (displ.y*b>0);
-
-                #if false
-                {//TODO okay so this works but it's late so i didnt even bother making it efficient, it's actually horrible and runs 18 times per sample per direction
-                    vec3 lightTravel = lightSrc.lightTravel;
-                    lightTravel.xy=abs(lightTravel.xy);
-                    float halfScale = 0.5*scale;
-                    float slopeScaleNear = abs(scale/(lightTravel.z-halfScale));
-                    float slopeScaleFar  = abs(scale/(lightTravel.z+halfScale));
-                    vec2 outerSlope  = (lightTravel.xy+halfScale)*slopeScaleNear;  //anything more than this will not be visible
-//                    vec2 middleSlope = (lightTravel.xy-halfScale)*slopeScaleNear;  //ray going to the center corner of the 4 relevant samples
-                    vec2 innerSlope  = (lightTravel.xy-halfScale)*slopeScaleFar;
-
-                    srcBlocked = srcBlocked || !canIlluminateInBounds(vec4(outerSlope,innerSlope),lightSrc.occlusionRay,lightSrc.occlusionMap);
+                bool newItem = true;
+                for (int i = 0; i<shortListOccupation; i++){ //can maybe make it ordered to allow binary search
+                    newItem=newItem && !(lightSrc.lightTravel==shortList[i].lightTravel && lightSrc.color==shortList[i].color);//also check direction here
                 }
-                #endif
-
-                if (srcBlocked){
-                    inputSamples[a+1][b+1][layer].emission=0;
+                //even in the non-shortlisted version, this branch is coherent enough to be worth the overhead
+                if((!newItem))
                     continue;
+
+                float lenSquared = dot(lightSrc.lightTravel, lightSrc.lightTravel);
+                lenSquared = lenSquared*(1-lightSrc.columnation)+lightSrc.columnation;
+                float strength = length(lightSrc.color)/max(0.1, lenSquared);
+
+#ifdef SHORTLISTED_COMPARISON
+                uint indexToUse = -1;
+                if (shortListOccupation<shortListLen){
+                    indexToUse=shortListOccupation;
+                    shortListOccupation++;
+                }else{
+                    //TODO handle this case
                 }
 
-                //make this sort more efficient than insertion sort if scaling layer count
-                for(int rank = 0; rank<VOX_LAYERS; rank++){
-                    lightVoxData tmpSrc = bestLights[rank];
-                    if(tmpSrc.lightTravel==lightSrc.lightTravel
-                        && tmpSrc.color == lightSrc.color
-                    ){
-                        rank=VOX_LAYERS;
-                        continue;
-                    }
-                    if (strength>bestStrengths[rank]){
-                        float tmpStr = bestStrengths[rank];
-
-                        bestLights[rank]=lightSrc;
-                        bestStrengths[rank]=strength;
-
-                        lightSrc=tmpSrc;
-                        strength=tmpStr;
-                    }
-
-                }
+                shortList[indexToUse]=lightSrc;
+                shortListStr[indexToUse]=strength;
             }
         }
     }
 
+    for(int i=0;i<shortListOccupation;i++){
+
+        lightVoxData lightSrc = shortList[i];
+        float strength = shortListStr[i];
+#endif
+
+        //Okay so this is a little wacky but basically, if shortlisted comparisons is on, this loop and the previous for loops are separate
+        //if its false, the following code is nested within the previous loop instead of the section starting with indexToUse
+        //its a little messy, but the alternative is just 95% duplicated code and would be hard to keep synced
+        //I could also easily remove all this later
+
+
+
+        //TODO okay so this works but it's late so i didnt even bother making it efficient, it's actually horrible and runs 18 times per sample per direction
+        vec3 lightTravel = lightSrc.lightTravel;
+        vec2 xy = abs(lightTravel.xy);
+        vec2 outerSlope  = (xy+halfScale)* abs(scale/(lightTravel.z-halfScale));  //anything more than this will not be visible
+        vec2 innerSlope  = (xy-halfScale)*abs(scale/(lightTravel.z+halfScale));
+
+        if(!canIlluminateInBounds(vec4(outerSlope,innerSlope),lightSrc.occlusionRay,lightSrc.occlusionMap))
+            continue;
+
+
+        for(int rank = 0; rank<VOX_LAYERS; rank++){
+            if (strength>bestStrengths[rank]){
+                float tmpStr = bestStrengths[rank];
+                lightVoxData tmpSrc = bestLights[rank];
+
+                bestLights[rank]=lightSrc;
+                bestStrengths[rank]=strength;
+
+                lightSrc=tmpSrc;
+                strength=tmpStr;
+            }
+        }
+    }
+    #if 0
+        {{ //for the IDE not to be confused
+    #endif
+    #ifndef SHORTLISTED_COMPARISON
+        }} //to terminate the a and b loops when not shortlisted
+    #endif
     return bestLights;
 }
 
