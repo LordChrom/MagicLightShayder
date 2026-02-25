@@ -7,11 +7,12 @@
 
 #define VOX_LAYERS 2 //[1 2]
 
+#define COLORED_TRANSLUCENTS
 //#define PRIDE_LIGHTING
 
 
 #define SECTION_SIZE 16
-#define UPDATE_STRIDE SECTION_SIZE
+#define UPDATE_STRIDE 8
 #define ZONE_WIDTH_SECTIONS 4
 const uvec3 ZONES = ivec3(1,1,1);
 

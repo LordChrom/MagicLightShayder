@@ -147,32 +147,38 @@ uvec4 packLightData(lightVoxData data){
 
 
 
-bool isLit(vec3 position, vec2 ray, bvec4 map){
-    vec2 slope = abs(position.xy/position.z);
+bvec4 and(bvec4 a, bvec4 b){return bvec4(a.x&&b.x,a.y&&b.y,a.z&&b.z,a.w&&b.w);}
+bvec4 or(bvec4 a, bvec4 b){return bvec4(a.x||b.x,a.y||b.y,a.z||b.z,a.w||b.w);}
+bvec4 not(bvec4 a){return bvec4(!a.x,!a.y,!a.z,!a.w);}
+
+bool isLit(vec2 slope, vec2 ray, bvec4 map){
     ivec2 pos = ivec2(int(slope.x>ray.x),int(slope.y>ray.y));
     return map[3-pos.x-(pos.y<<1)] && (slope.x<=1) && (slope.y<=1);
+}
+
+bool isLit(vec3 position, vec2 ray, bvec4 map){
+    vec2 slope = abs(position.xy/position.z);
+//    ivec2 pos = ivec2(int(slope.x>ray.x),int(slope.y>ray.y));
+//    return map[3-pos.x-(pos.y<<1)] && (slope.x<=1) && (slope.y<=1);
+    return isLit(slope,ray,map);
 }
 
 bool isLit(vec3 position, lightVoxData light){
     return isLit(position,light.occlusionRay,light.occlusionMap);
 }
 
-bvec4 and(bvec4 a, bvec4 b){return bvec4(a.x&&b.x,a.y&&b.y,a.z&&b.z,a.w&&b.w);}
-bvec4 or(bvec4 a, bvec4 b){return bvec4(a.x||b.x,a.y||b.y,a.z||b.z,a.w||b.w);}
-bvec4 not(bvec4 a){return bvec4(!a.x,!a.y,!a.z,!a.w);}
-
 //left, top, right, bottom
 bvec4 getOcclusionEdges(bvec4 occlusionMap){
     return not(or(occlusionMap.zxyw,occlusionMap.xywz));
 }
 
-vec4 conditional(vec4 vec, bvec4 conditions){
-    return vec4(
-        vec.x*int(conditions.x),
-        vec.y*int(conditions.y),
-        vec.z*int(conditions.z),
-        vec.w*int(conditions.w)
-    );
+bool canIlluminateInBounds(vec4 edges, vec2 ray, bvec4 occlusionMap){
+    //TODO this can clearly be done better but it's late rn
+    return
+    isLit(edges.xy,ray,occlusionMap) ||
+    isLit(edges.xw,ray,occlusionMap) ||
+    isLit(edges.zy,ray,occlusionMap) ||
+    isLit(edges.zw,ray,occlusionMap);
 }
 
 vec4 ternary(bvec4 conditions,vec4 ifTrue, vec4 ifFalse){

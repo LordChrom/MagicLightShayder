@@ -43,34 +43,42 @@ out bool[3][3] obstructions, out bool[3][3] translucents, out bool translucentsP
             uvec4 frontVoxel = getVoxData(sectionPos.xyz+localOffset);
             uvec4 rearVoxel = getVoxData(sectionPos.xyz+localOffset-LVec);
 
-            obstructions[a+1][b+1] = ((rearVoxel.w&3u)==1) || ((frontVoxel.w&3u)==1);//TODO make better
+            bool obstructedOpaque =  ((rearVoxel.w&3u)==1) || ((frontVoxel.w&3u)==1);
+            obstructions[a+1][b+1] = obstructedOpaque;
 
-
-            translucentsPresent = translucentsPresent || (((rearVoxel.w&3u)==2) || ((frontVoxel.w&3u)==2)) && !obstructions[a+1][b+1];
+            #ifdef COLORED_TRANSLUCENTS
+            bool obstructedTranslucent = ((rearVoxel.w&3u)==2) || ((frontVoxel.w&3u)==2) && !obstructedOpaque;
+            translucents[a+1][b+1] = obstructedTranslucent;
+            translucentsPresent = translucentsPresent || obstructedTranslucent;
+            #endif
 
             frontVoxels[a+1][b+1] = frontVoxel;
             rearVoxels[a+1][b+1] = rearVoxel;
         }
     }
 
+
+    ivec3 faceBase[VOX_LAYERS];
+    for(int layer = 0; layer<VOX_LAYERS; layer++)
+        faceBase[layer]=sectionToFaceSpace(sectionPos, axis, layer);
+
     for (int a=-1;a<=1;a++){
         for (int b=-1; b<=1;b++){
             uvec4 frontVoxel=frontVoxels[a+1][b+1];
             uvec4 rearVoxel =rearVoxels[a+1][b+1];
 
-
-
             for(int layer = 0; layer<VOX_LAYERS; layer++){
-                ivec3 faceSpacePos = sectionToFaceSpace(sectionPos, axis, layer);
 
-                lightVoxData inputSample = getLightData(faceSpacePos+ivec3(a, b, -1));
+                lightVoxData inputSample = getLightData(faceBase[layer]+ivec3(a, b, -1));
                 inputSample.lightTravel+=vec3(-a, -b, 1)*scale;
-                if((rearVoxel.w&3u)==1)
+                if((rearVoxel.w&3u)==1){
                     inputSample=noLight;
+                }
+//                else if((rearVoxel.w&3u)==2)
+//                    inputSample.color*=rearVoxel.xyz/255.0;
                 inputSamples[a+1][b+1][layer] = inputSample;
             }
 
-            translucents[a+1][b+1] = ((rearVoxel.w&3u)==2) || ((frontVoxel.w&3u)==2) && !obstructions[a+1][b+1];
         }
     }
 }
@@ -100,6 +108,7 @@ lightVoxData[VOX_LAYERS] determineBestLightSources( float scale,
             bool helpersOccluded = (obstructions[a+1][1]) && (obstructions[1][b+1]);
             bool outerSrcBlocked = (helpersOccluded && !isCenter) || selfOccluded;
 
+            //TODO probably do a pre-pas just to reduce the heavy work
             for(int layer = 0; layer<VOX_LAYERS; layer++){
 
                 lightVoxData lightSrc = inputSamples[a+1][b+1][layer];
@@ -109,13 +118,26 @@ lightVoxData[VOX_LAYERS] determineBestLightSources( float scale,
 
                 vec3 displ = lightSrc.lightTravel;
                 float lenSquared = dot(displ, displ);
-                float strength = float(lightSrc.emission)/max(0.1, lenSquared);
+                float strength = length(lightSrc.color)*float(lightSrc.emission)/max(0.1, lenSquared);
                 displ.xy+=vec2(a, b)*scale;
 
 
-                bool srcBlocked = outerSrcBlocked || (displ.x*a>0) || (displ.y*b>0);//will be unnecessary soontm
+                bool srcBlocked = outerSrcBlocked || (displ.x*a>0) || (displ.y*b>0);
 
-                //occlusion stuff goes here, maybe
+                #if false
+                {//TODO okay so this works but it's late so i didnt even bother making it efficient, it's actually horrible and runs 18 times per sample per direction
+                    vec3 lightTravel = lightSrc.lightTravel;
+                    lightTravel.xy=abs(lightTravel.xy);
+                    float halfScale = 0.5*scale;
+                    float slopeScaleNear = abs(scale/(lightTravel.z-halfScale));
+                    float slopeScaleFar  = abs(scale/(lightTravel.z+halfScale));
+                    vec2 outerSlope  = (lightTravel.xy+halfScale)*slopeScaleNear;  //anything more than this will not be visible
+//                    vec2 middleSlope = (lightTravel.xy-halfScale)*slopeScaleNear;  //ray going to the center corner of the 4 relevant samples
+                    vec2 innerSlope  = (lightTravel.xy-halfScale)*slopeScaleFar;
+
+                    srcBlocked = srcBlocked || !canIlluminateInBounds(vec4(outerSlope,innerSlope),lightSrc.occlusionRay,lightSrc.occlusionMap);
+                }
+                #endif
 
                 if (srcBlocked){
                     inputSamples[a+1][b+1][layer].emission=0;
@@ -125,8 +147,9 @@ lightVoxData[VOX_LAYERS] determineBestLightSources( float scale,
                 //make this sort more efficient than insertion sort if scaling layer count
                 for(int rank = 0; rank<VOX_LAYERS; rank++){
                     lightVoxData tmpSrc = bestLights[rank];
-                    if(tmpSrc.lightTravel==lightSrc.lightTravel &&
-                        tmpSrc.color == lightSrc.color){
+                    if(tmpSrc.lightTravel==lightSrc.lightTravel
+                        && tmpSrc.color == lightSrc.color
+                    ){
                         rank=VOX_LAYERS;
                         continue;
                     }
@@ -408,9 +431,10 @@ void lightVoxelFace(ivec4 sectionPos, uint zone,uint axis){
         scale, inputSamples, obstructions
     );
 
-
+    #ifdef COLORED_TRANSLUCENTS
     lightVoxData transucentPassage = bestLights[0];
 //        transucentPassage = inputSamples[1][1][0];
+    #endif
 
 
     for (int i=0;i<3;i++){
@@ -424,16 +448,18 @@ void lightVoxelFace(ivec4 sectionPos, uint zone,uint axis){
     }
 
     //actual coherent branch
+    #ifdef COLORED_TRANSLUCENTS
     if(translucentsPresent){
-        bool[3][3] translucentsMap;
-        for(int i=0; i<2; i++){
-            for(int j=0; j<2; j++){
-                uint frontw = frontVoxels[i][j].w;
-                uint rearw = rearVoxels[i][j].w;
+        for(int i=0; i<3; i++){
+            for(int j=0; j<3; j++){
+                uint frontw = frontVoxels[i][j].w&3u;
+                uint rearw = rearVoxels[i][j].w&3u;
 
                 //TODO this is trash
-                translucentsMap[i][j]= !(((rearw&3u)==2) || ((frontw&3u)==2)) ||
-                    ((rearw&3u)==1) || ((frontw&3u)==1);
+                obstructions[i][j]= (rearw==1) || (frontw==1) ||
+                (true&&(rearw==0 || frontw == 0));
+
+                obstructions[i][j] = !((frontw==2 || rearw==2 )&& !((rearw==1) || (frontw==1)));
             }
         }
 
@@ -441,29 +467,33 @@ void lightVoxelFace(ivec4 sectionPos, uint zone,uint axis){
 
         int translucentBlocksInSample = 0;
         vec3 color = vec3(0);
+
         for(int i=0; i<2; i++){
             int a = (i-1)*travelDirSign.x;
             for (int j=0; j<2; j++){
                 int b = (j-1)*travelDirSign.y;
-                bool frontTrans = (frontVoxels[a][b].w&3u)==2;
-                bool rearTrans = (rearVoxels[a][b].w&3u)==2;
+                bool frontTrans = (frontVoxels[a+1][b+1].w&3u)==2;
+                bool rearTrans = (rearVoxels[a+1][b+1].w&3u)==2;
+                rearTrans=false;
                 translucentBlocksInSample += int(frontTrans) + int(rearTrans);
                 if(frontTrans)
-                    color+=vec3(frontVoxels[a][b].xyz)/255;
+                    color+=vec3(frontVoxels[a+1][b+1].xyz)/255;
                 if(rearTrans)
-                    color+=vec3(rearVoxels[a][b].xyz)/255;
+                    color+=vec3(rearVoxels[a+1][b+1].xyz)/255;
             }
         }
+
 
         if(translucentBlocksInSample>0){
             color/=translucentBlocksInSample;
 
-            doLightPassage(transucentPassage, inputSamples, translucentsMap, scale);
+            doLightPassage(transucentPassage, inputSamples, obstructions, scale);
             transucentPassage.color*=color;
 
             bestLights[VOX_LAYERS-1]=transucentPassage; //TODO better insert
         }
     }
+    #endif
 
     //could maybe be at the top, not sure how much it'd actually help though TODO test later
     if (frontVoxels[1][1].w>0xf){
