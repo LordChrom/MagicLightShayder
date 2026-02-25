@@ -7,6 +7,7 @@
 
 #define VOX_LAYERS 2 //[1 2]
 
+//#define PRIDE_LIGHTING
 
 
 #define SECTION_SIZE 16

@@ -56,6 +56,46 @@ vec3 getDirectedLight(ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint a
         lightStrength*=lightDotN;
         #endif
 
+
+        #ifdef PRIDE_LIGHTING
+
+        float len = sqrt(lengthSquared);
+
+        if(length(lightSrc.color-(vec3(8,7,4)/8))<0.1){
+
+            if(2<=len && len<=2.5){
+                lightSrc.color=vec3(1);
+            }else if(1.5<=len && len<=3){
+                lightSrc.color=vec3(1,0.5,0.8);
+            }else{
+                lightSrc.color=vec3(0.3,0.3,1);
+                if(len>3)
+                    lightStrength*=2;
+            }
+        }else if(length(lightSrc.color-(vec3(9,8,4)/8))<0.15){
+            switch(int(floor(len*2-1))){
+                case 0:
+                    lightSrc.color=vec3(1,0,0);
+                    break;
+                case 1:
+                    lightSrc.color=vec3(1,0.5,0);
+                    break;
+                case 2:
+                    lightSrc.color=vec3(1,1,0);
+                    break;
+                case 3:
+                    lightSrc.color=vec3(0,1,0);
+                    break;
+                case 4:
+                    lightSrc.color=vec3(0,0,1);
+                    break;
+                default:
+                    lightSrc.color=vec3(1.3,0,1.3);
+
+            }
+        }
+        #endif
+
 //        lightStrength=min(lightStrength,0); //mostly just for testing
         outColor += lightSrc.color*(minLight+(1-minLight)*min(lightStrength,1));
 
