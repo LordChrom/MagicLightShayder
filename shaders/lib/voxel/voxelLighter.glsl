@@ -8,11 +8,15 @@
 uniform int frameCounter;
 int frameOffset = frameCounter%UPDATE_STRIDE;
 
-//const ivec3 workGroups = ivec3(groupCountXY,groupCountXY,groupCountZ);
-//const ivec3 workGroups = ivec3(64,1,6);
-const ivec3 workGroups = ivec3(SECTIONS_PER_ZONE,1,1);
-//const ivec3 workGroups = ivec3(1,1,6);
+layout(std430, binding = 1) restrict buffer indirectDispatches {
+    uvec3 dispatches;
+} indirectDispatchesAccess;
+
+const ivec3 workGroups = ivec3(SECTIONS_PER_ZONE,NUM_ZONES,1);
+
 layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z = 1) in;
+
+
 
 #if false //dummy definition because intellij's best glsl plugin doesnt know includes exist
 struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint emission;vec3 lightTravel;float columnation;};
