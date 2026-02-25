@@ -10,7 +10,7 @@ int frameOffset = frameCounter%UPDATE_STRIDE;
 
 //const ivec3 workGroups = ivec3(groupCountXY,groupCountXY,groupCountZ);
 //const ivec3 workGroups = ivec3(64,1,6);
-const ivec3 workGroups = ivec3(SECTIONS_PER_ZONE,1,6);
+const ivec3 workGroups = ivec3(SECTIONS_PER_ZONE,1,1);
 //const ivec3 workGroups = ivec3(1,1,6);
 layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z = 1) in;
 
@@ -302,8 +302,8 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
     }
 
 
-    outMap = bvec4( !(corners[1][1].x<=outerSlope.x && corners[1][1].y<=outerSlope.y), !(corners[0][1].x>=innerSlope.x && corners[0][1].y<=outerSlope.y),
-                    !(corners[1][0].x<=outerSlope.x && corners[1][0].y>=innerSlope.y), !(corners[0][0].x>=innerSlope.x && corners[0][0].y>=innerSlope.y));
+    outMap = bvec4( !(corners[1][1].x<outerSlope.x && corners[1][1].y<outerSlope.y), !(corners[0][1].x>innerSlope.x && corners[0][1].y<outerSlope.y),
+                    !(corners[1][0].x<outerSlope.x && corners[1][0].y>innerSlope.y), !(corners[0][0].x>innerSlope.x && corners[0][0].y>innerSlope.y));
 
 
 
@@ -460,6 +460,7 @@ void lightVoxelFace(ivec4 sectionPos, uint zone,uint axis){
 void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 //    if(((frameCounter>>4)&0xff)>0x80)
 //        return;
+
     uint zoneOffset = groupId.x;
     uint zoneNum = groupId.y;
     ivec3 sectionBasePos = (ivec3(zoneOffset>>(ZONE_WIDTH_SECTIONS_SHIFT+ZONE_WIDTH_SECTIONS_SHIFT),
@@ -467,25 +468,28 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
         zoneOffset)&(ZONE_WIDTH_SECTIONS-1))*SECTION_SIZE;
 
     #if DEBUG_AXIS<0
-    uint axis = groupId.z;
+    for(uint axis=0;axis<6;axis++){
     #else
-    uint axis = debugAxisNum;
+    uint axis = debugAxisNum;{
     #endif
 
-    ivec3 aVec = ivec3(worldToSectionSpaceMats[axis][0]);
-    ivec3 bVec = ivec3(worldToSectionSpaceMats[axis][1]);
-    ivec3 LVec = ivec3(worldToSectionSpaceMats[axis][2]);
+        ivec3 aVec = ivec3(worldToSectionSpaceMats[axis][0]);
+        ivec3 bVec = ivec3(worldToSectionSpaceMats[axis][1]);
+        ivec3 LVec = ivec3(worldToSectionSpaceMats[axis][2]);
 
-
-
-    ivec4 sectionPos = ivec4(localId.x*aVec+localId.y*bVec,zoneNum); //TODO change
-    if((axis&1u)==0)
+        ivec4 sectionPos = ivec4(localId.x*aVec+localId.y*bVec, zoneNum);//TODO change
+        if ((axis&1u)==0)
         sectionPos.xyz-=15*LVec;
-    sectionPos.xyz+=1;
-    sectionPos.xyz+=sectionBasePos;
+        sectionPos.xyz+=1;
+        sectionPos.xyz+=sectionBasePos;
 
-    for(int i = frameOffset;i<SECTION_SIZE;i+=UPDATE_STRIDE){
-        lightVoxelFace(sectionPos+ivec4(LVec*i,0),zoneNum,axis);
+        #if SECTION_SIZE==UPDATE_STRIDE
+            lightVoxelFace(sectionPos+ivec4(LVec*frameOffset, 0), zoneNum, axis);
+        #else
+        for (int i = frameOffset;i<SECTION_SIZE;i+=UPDATE_STRIDE){
+            lightVoxelFace(sectionPos+ivec4(LVec*i, 0), zoneNum, axis);
+        }
+        #endif
     }
 }
 

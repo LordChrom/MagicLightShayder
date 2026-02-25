@@ -6,13 +6,13 @@
 
 #ifdef LIGHT_SAMPLES_IMAGE
 #ifdef SAMPLES_LIGHT_FACE
-uniform precise usampler3D lightVoxSampler;
+uniform usampler3D lightVoxSampler;
 #endif
 
 //layout (rgba32ui) uniform restrict uimage3D lightVox;
 
 #ifdef WRITES_LIGHT_FACE
-layout (rgba32ui) uniform precise writeonly restrict uimage3D lightVox;
+layout (rgba32ui) uniform writeonly restrict uimage3D lightVox;
 #endif
 
 #else
@@ -114,7 +114,7 @@ ivec3 sectionToFaceSpace(ivec4 sectionPos, uint axis, uint layer){
         ret.z=(ZONE_SIZE-1)-ret.z;
     }
 
-    ret.z+=int((ZONE_SIZE+10)*(VOX_LAYERS*axis+layer)); //TODO fix overlap better
+    ret.z+=int((ZONE_OFFSET)*(VOX_LAYERS*axis+layer)); //TODO fix overlap better
 
     return ret;
 }

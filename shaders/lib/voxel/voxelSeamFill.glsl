@@ -22,8 +22,6 @@ const vec3 sunColor = normalize(vec3(0.61,0.61,0.6))*1.3;
 vec3 sunPos = vec3(0,0,1000);
 
 void sunlight(uvec3 texelPos){
-
-    //    uint zoneNum = workGroupID.x;
     vec3 lightTravel = sunPos;
     lightTravel.xy+=texelPos.xy;
     lightVoxData sunLight = {vec2(0,0),bvec4(true),sunColor,15,lightTravel,1};
@@ -33,19 +31,14 @@ void sunlight(uvec3 texelPos){
 
 void fillSeams(uvec3 workGroupID, uvec3 localID){
     uint zoneNum = 0;
-    int layerCount = VOX_LAYERS;
-    for(int layer = 0; layer<layerCount;layer++){
-        uint axis = 2;
 
-        //        texelPos.xy = localID.xy + 1 + SECTION_SIZE*workGroupID.xy;
-        ivec4 sectionPos = ivec4(0,ZONE_SIZE-1,0,zoneNum);
-        sectionPos.xz = ivec2(localID.xy + SECTION_SIZE*workGroupID.xy);
-        uvec3 texelPos = sectionToFaceSpace(sectionPos,axis,layer).xyz;
-//        texelPos.xy = localID.xy + 1 + SECTION_SIZE*workGroupID.xy;
-//        texelPos.z=(ZONE_SIZE-1);
+    int layer = 1;
+    uint axis = 2;
 
-//        texelPos.z+=int((ZONE_SIZE+10)*(VOX_LAYERS*axis+layer)); //TODO fix overlap better
-        sunlight(texelPos);
-    }
+    ivec4 sectionPos = ivec4(0,ZONE_SIZE,0,zoneNum);
+    sectionPos.xz = ivec2(localID.xy + (workGroupID.xy*SECTION_SIZE));
+    uvec3 texelPos = sectionToFaceSpace(sectionPos,axis,layer).xyz;
+    sunlight(texelPos);
+
 
 }

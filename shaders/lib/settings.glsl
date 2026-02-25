@@ -18,13 +18,14 @@ const int ZONE_SIZE =  ZONE_WIDTH_SECTIONS*SECTION_SIZE;
 //const int SECTIONS_PER_ZONE = ZONE_WIDTH_SECTIONS*ZONE_WIDTH_SECTIONS*ZONE_WIDTH_SECTIONS;
 const int ZONE_WIDTH_SECTIONS_SHIFT = int(log2(ZONE_WIDTH_SECTIONS));
 const int ZONE_SHIFT = 3*ZONE_WIDTH_SECTIONS_SHIFT;
+const int ZONE_OFFSET = ZONE_SIZE+4;
 
 
 //#define VOX_SIZE 66
 //#define VOX_SIZE_BIG 840
 
 const vec3 voxOriginOffset = vec3(-16,48,-16);
-const vec3 voxWorldSize = vec3(64);
+const vec3 voxWorldSize = vec3(ZONE_SIZE);
 const vec3 sectionCount = vec3(2);
 
 //a section is 16x16x16 voxels
