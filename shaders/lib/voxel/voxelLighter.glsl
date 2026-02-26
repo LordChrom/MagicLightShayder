@@ -124,12 +124,7 @@ void takeSamples(){
         saveSharedSample(A2offset,B2offset);
     }
 
-    //groupMemoryBarrier works here on AMD, and according to the spec seems like it should work,
-    //but NVIDIA wants a full barrier(). Oh well
-    groupMemoryBarrier();
     barrier();
-
-
 #else
 
 
