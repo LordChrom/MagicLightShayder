@@ -193,6 +193,10 @@ vec4 ternary(bvec4 conditions,vec4 ifTrue, vec4 ifFalse){
 
 
 #ifdef SAMPLES_LIGHT_FACE
+uvec4 getRawLightData(ivec3 texelCoord){
+    return texelFetch(lightVoxSampler, texelCoord,0);
+}
+
 lightVoxData getLightData(ivec3 texelCoord){
     uvec4 packedData = texelFetch(lightVoxSampler, texelCoord,0);
     return unpackLightData(packedData);
