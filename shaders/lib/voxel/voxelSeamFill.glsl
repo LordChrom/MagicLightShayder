@@ -9,7 +9,7 @@ uniform int frameCounter;
 int frameOffset = frameCounter%UPDATE_STRIDE;
 
 //const ivec3 workGroups = ivec3(groupCountXY,groupCountXY,groupCountZ);
-const ivec3 workGroups = ivec3(ZONE_WIDTH_SECTIONS,ZONE_WIDTH_SECTIONS,1);
+const ivec3 workGroups = ivec3(AREA_WIDTH_SECTIONS,AREA_WIDTH_SECTIONS,1);
 //const ivec3 workGroups = ivec3(1,1,6);
 layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z = 1) in;
 
@@ -35,9 +35,9 @@ void fillSeams(uvec3 workGroupID, uvec3 localID){
     int layer = 1;
     uint axis = 2;
 
-    ivec4 sectionPos = ivec4(0,ZONE_SIZE,0,zoneNum);
+    ivec4 sectionPos = ivec4(0,AREA_SIZE,0,zoneNum);
     sectionPos.xz = ivec2(localID.xy + (workGroupID.xy*SECTION_SIZE));
-    uvec3 texelPos = sectionToFaceSpace(sectionPos,axis,layer).xyz;
+    uvec3 texelPos = areaToZoneSpace(sectionPos,axis,layer).xyz;
     sunlight(texelPos);
 
 

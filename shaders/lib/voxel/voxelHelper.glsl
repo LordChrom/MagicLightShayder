@@ -48,7 +48,7 @@ bool isVoxelInBounds(vec3 worldPos){
 }
 
 
-const mat3[] worldToSectionSpaceMats = {
+const mat3[] areaToZoneSpaceMats = {
 mat3(0,1,0, 0,0,1, -1,0,0),
 mat3(0,1,0, 0,0,1, 1,0,0),
 
@@ -65,34 +65,34 @@ mat3(1,0,0,  0,1,0,  0,0,1)
 ivec3 axisNumToVec(uint axis){
 //    uint upper = axis>>1u;
 //    return ivec3(upper==0,upper==1,upper==2)*(((int(axis)&1)<<1)-1);
-    return ivec3(worldToSectionSpaceMats[axis]*vec3(0,0,1));
+    return ivec3(areaToZoneSpaceMats[axis]*vec3(0,0,1));
 }
 
 
 
-//xyz is zone xyz
-//w is zone number
-ivec4 worldPosToSection(vec3 pos, float scale){
+//output.xyz is area xyz
+//output.w is area number
+ivec4 worldPosToArea(vec3 pos, float scale){
     pos-=voxOriginOffset;
-    ivec3 sectionID = ivec3(floor(pos/ZONE_SIZE));
-    pos-=ZONE_SIZE*sectionID;
-    int zoneNum = (sectionID.x<<(ZONE_SHIFT+ZONE_SHIFT)) + (sectionID.y<<ZONE_SHIFT) + sectionID.z;
+    ivec3 sectionID = ivec3(floor(pos/AREA_SIZE));
+    pos-=AREA_SIZE*sectionID;
+    int areaNum = (sectionID.x<<(AREA_SHIFT+AREA_SHIFT)) + (sectionID.y<<AREA_SHIFT) + sectionID.z;
 
-    return ivec4(ivec3(round(pos/scale+0.5)*scale),zoneNum);
+    return ivec4(ivec3(round(pos/scale+0.5)*scale),areaNum);
 }
 
-ivec3 sectionToFaceSpace(ivec4 sectionPos, uint axis, uint layer){
+ivec3 areaToZoneSpace(ivec4 areaPos, uint axis, uint layer){
     uint upper = axis>>1u;
-    ivec3 ret = sectionPos.xyz;
+    ivec3 ret = areaPos.xyz;
     switch(upper){
         case 0u:
-            ret=sectionPos.yzx;
+            ret=areaPos.yzx;
             break;
         case 1u:
-            ret=sectionPos.zxy;
+            ret=areaPos.zxy;
             break;
         case 2u:
-            ret=sectionPos.xyz;
+            ret=areaPos.xyz;
             break;
         default:
             ret=ivec3(0);
@@ -100,7 +100,7 @@ ivec3 sectionToFaceSpace(ivec4 sectionPos, uint axis, uint layer){
     }
 
     if((axis&1u)==0u){
-        ret.z=(ZONE_SIZE-1)-ret.z;
+        ret.z=(AREA_SIZE-1)-ret.z;
     }
 
     ret.z+=int((ZONE_OFFSET)*(VOX_LAYERS*axis+layer)); //TODO fix overlap better
@@ -195,7 +195,7 @@ lightVoxData getLightData(ivec3 texelCoord){
 }
 
 lightVoxData getLightData(ivec4 sectionPos, uint axis, uint layer){
-    ivec3 texelCoord = sectionToFaceSpace(sectionPos,axis,layer);
+    ivec3 texelCoord = areaToZoneSpace(sectionPos,axis,layer);
     return getLightData(texelCoord);
 }
 #endif
@@ -206,7 +206,7 @@ void setLightData(lightVoxData light, ivec3 texelCoord){
     imageStore(lightVox,texelCoord, packedData);
 }
 void setLightData(lightVoxData light, ivec4 sectionPos, uint axis,uint layer){
-    ivec3 texelCoord = sectionToFaceSpace(sectionPos,axis,layer);
+    ivec3 texelCoord = areaToZoneSpace(sectionPos,axis,layer);
     setLightData(light,texelCoord);
 }
 #endif

@@ -167,7 +167,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
 
 //    worldPos+=normal*0.001;
     float scale = 1;
-    ivec4 sectionPos = worldPosToSection(worldPos,scale);
+    ivec4 sectionPos = worldPosToArea(worldPos,scale);
     vec3 subVoxelOffset = subVoxelOffset(worldPos,scale);
 
     vec3 color = vec3(0.2);

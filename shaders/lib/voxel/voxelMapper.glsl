@@ -34,7 +34,7 @@ void writeVoxelMap(vec3 worldPos, int blockID, uint emission){
 
     }
 //    color=normalize(color);
-    ivec4 worldPosi = worldPosToSection(worldPos,1);
+    ivec4 worldPosi = worldPosToArea(worldPos,1);
 
     if(!isVoxelInBounds(worldPos)) return;
 

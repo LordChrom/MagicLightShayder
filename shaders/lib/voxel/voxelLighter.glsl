@@ -12,13 +12,13 @@ layout(std430, binding = 1) restrict buffer indirectDispatches {
     uvec3 dispatches;
 } indirectDispatchesAccess;
 
-//const ivec3 workGroups = ivec3(SECTIONS_PER_ZONE,NUM_ZONES,1);
+//const ivec3 workGroups = ivec3(SECTIONS_PER_ZONE,NUM_AREAS,1);
 
 layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z = 1) in;
 
 
 
-#if false //dummy definition because intellij's best glsl plugin doesnt know includes exist
+#if 0 //dummy definition because intellij's best glsl plugin doesnt know includes exist
 struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint emission;vec3 lightTravel;float columnation;};
 #endif
 
@@ -33,10 +33,12 @@ shared uvec4[SECTION_SIZE+2][SECTION_SIZE+2] sharedRearVoxels;
 lightVoxData[3][3][VOX_LAYERS] inputSamples;
 uvec4[3][3] frontVoxels, rearVoxels;
 bool[3][3] obstructions, translucents;
-ivec4 zonePos;
-uvec3 sectionPos;
+ivec3[VOX_LAYERS] zonePos;
+ivec4 areaPos;       //xyz in area mem space, w is area num
+ivec3 sectionOffset; //0 to SECTION_SIZE-1
 float scale,halfScale;
 uint axis;
+uint A,B; //1 to SECTION_SIZE
 bool translucentsPresent;
 
 
@@ -45,15 +47,15 @@ void takeSamples(){
 
     translucentsPresent = false;
 
-    ivec3 aVec = ivec3(worldToSectionSpaceMats[axis][0]);
-    ivec3 bVec = ivec3(worldToSectionSpaceMats[axis][1]);
-    ivec3 LVec = ivec3(worldToSectionSpaceMats[axis][2]);
+    ivec3 aVec = ivec3(areaToZoneSpaceMats[axis][0]);
+    ivec3 bVec = ivec3(areaToZoneSpaceMats[axis][1]);
+    ivec3 LVec = ivec3(areaToZoneSpaceMats[axis][2]);
 
     for (int a=-1;a<=1;a++){
         for (int b=-1; b<=1;b++){
             ivec3 localOffset = a*aVec+b*bVec;
-            uvec4 frontVoxel = getVoxData(zonePos.xyz+localOffset);
-            uvec4 rearVoxel = getVoxData(zonePos.xyz+localOffset-LVec);
+            uvec4 frontVoxel = getVoxData(areaPos.xyz+localOffset);
+            uvec4 rearVoxel = getVoxData(areaPos.xyz+localOffset-LVec);
 
             bool obstructedOpaque =  ((rearVoxel.w&3u)==1) || ((frontVoxel.w&3u)==1);
             obstructions[a+1][b+1] = obstructedOpaque;
@@ -70,9 +72,27 @@ void takeSamples(){
     }
 
 
-    ivec3 faceBase[VOX_LAYERS];
-    for(int layer = 0; layer<VOX_LAYERS; layer++)
-        faceBase[layer]=sectionToFaceSpace(zonePos, axis, layer);
+    #ifdef PARALLEL_UNPACK
+    uint bonusA=A;
+    uint bonusB=B;
+    if(A==1 || A==SECTION_SIZE){
+        bonusA = A==1?0:SECTION_SIZE+1;
+    }else if(A==2 || A==SECTION_SIZE-1){
+        bonusA=B;
+        bonusB=A==1?0:SECTION_SIZE+1;
+    }else if(A==3 && B<=4){
+        bonusA=B<=2?1:SECTION_SIZE+1;
+        bonusB=((B&1u)==0)?1:SECTION_SIZE+1;
+    }
+
+    for(int layer = 0; layer<VOX_LAYERS; layer++){
+        sharedSamples[A][B][layer] = getLightData(zonePos[layer]+ivec3(A-1, B-1, -1));
+        if ((bonusA!=A) || bonusB!=B)
+        sharedSamples[bonusA][bonusB][layer] = getLightData(zonePos[layer]+ivec3(bonusA-1, bonusB-1, -1));
+    }
+
+    memoryBarrierShared();
+    #endif
 
     for (int a=-1;a<=1;a++){
         for (int b=-1; b<=1;b++){
@@ -80,14 +100,14 @@ void takeSamples(){
             uvec4 rearVoxel =rearVoxels[a+1][b+1];
 
             for(int layer = 0; layer<VOX_LAYERS; layer++){
-
-                lightVoxData inputSample = getLightData(faceBase[layer]+ivec3(a, b, -1));
-                inputSample.lightTravel+=vec3(-a, -b, 1)*scale;
+                #ifdef PARALLEL_UNPACK
+                lightVoxData inputSample = sharedSamples[A+a][B+b][layer];
+                #else
+                lightVoxData inputSample = getLightData(zonePos[layer]+ivec3(a,b, -1));
+                #endif
                 if((rearVoxel.w&3u)==1){
                     inputSample=noLight;
                 }
-//                else if((rearVoxel.w&3u)==2)
-//                    inputSample.color*=rearVoxel.xyz/255.0;
                 inputSamples[a+1][b+1][layer] = inputSample;
             }
         }
@@ -133,6 +153,7 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
 
             for(int layer = 0; layer<VOX_LAYERS; layer++){
                 lightVoxData lightSrc = inputSamples[a+1][b+1][layer];
+                lightSrc.lightTravel+=vec3(-a, -b, 1)*scale;
 
                 if((lightSrc.emission==0) || (lightSrc.lightTravel.x*a>0) || (lightSrc.lightTravel.y*b>0))
                     continue;
@@ -233,6 +254,8 @@ void pickRelevantInputSamples(lightVoxData bestSource,
 
             for(int layer = 0; layer<VOX_LAYERS; layer++){
                 lightVoxData relevantSample = inputSamples[1+a][1+b][layer];
+                relevantSample.lightTravel+=vec3(-a, -b, 1)*scale;
+
                 bool sameSource = (relevantSample.lightTravel==bestSource.lightTravel)
                 && relevantSample.emission == bestSource.emission
                 && relevantSample.color == bestSource.color;
@@ -524,7 +547,7 @@ void lightVoxelFace(){
     }
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-        setLightData(bestLights[layer], zonePos, axis, layer);
+        setLightData(bestLights[layer], areaPos, axis, layer);
     }
 }
 
@@ -532,44 +555,61 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 //    if(((frameCounter>>4)&0xff)>0x80)
 //        return;
 
-    uint zoneOffset = groupId.x;
-    ivec3 sectionBasePos = (ivec3(zoneOffset>>(ZONE_WIDTH_SECTIONS_SHIFT+ZONE_WIDTH_SECTIONS_SHIFT),
-        zoneOffset>>ZONE_WIDTH_SECTIONS_SHIFT,
-        zoneOffset)&(ZONE_WIDTH_SECTIONS-1))*SECTION_SIZE;
+    A = localId.x+1;
+    B = localId.y+1;
 
-    zonePos.w= int(groupId.y);
+    uint zoneOffset = groupId.x;
+    ivec3 sectionBasePos = (ivec3(zoneOffset>>(AREA_WIDTH_SECTIONS_SHIFT+AREA_WIDTH_SECTIONS_SHIFT),
+        zoneOffset>>AREA_WIDTH_SECTIONS_SHIFT,
+        zoneOffset)&(AREA_WIDTH_SECTIONS-1))*SECTION_SIZE;
+    sectionBasePos+=1;
+
+    areaPos.w = int(groupId.y);
+
 
     scale = 1;
     halfScale=0.5*scale;
 
-#if DEBUG_AXIS<0
-  #ifdef AXES_INORDER
-    for(axis=0;axis<6;axis++){
-  #else
-    axis = groupId.z;{
-  #endif
+
+
+
+#if DEBUG_AXIS>=0
+    axis = debugAxisNum;
+#else ifndef AXES_INORDER
+    axis = groupId.z;
 #else
-    axis = debugAxisNum;{
+    for(axis=0;axis<6;axis++)
 #endif
+    {
 
-        ivec3 aVec = ivec3(worldToSectionSpaceMats[axis][0]);
-        ivec3 bVec = ivec3(worldToSectionSpaceMats[axis][1]);
-        ivec3 LVec = ivec3(worldToSectionSpaceMats[axis][2]);
+        ivec3 aVec = ivec3(areaToZoneSpaceMats[axis][0]);
+        ivec3 bVec = ivec3(areaToZoneSpaceMats[axis][1]);
+        ivec3 LVec = ivec3(areaToZoneSpaceMats[axis][2]);
 
-        uvec3 sectionPosInitial = localId.x*aVec+localId.y*bVec;
-        if ((axis&1u)==0)
-            sectionPosInitial.xyz-=15*LVec;
+//        ivec3 sectionOffsetInitial = ivec3(localId.x*aVec+localId.y*bVec);
+//        if ((axis&1u)==0)
+//            sectionPosInitial.xyz-=15*LVec;
+
 
 
 #if SECTION_SIZE==UPDATE_STRIDE
-        uint offset = frameOffset;{
+        uint offset = frameOffset;
 #else
-        for (int offset = frameOffset;offset<SECTION_SIZE;offset+=UPDATE_STRIDE){
+        for (int offset = frameOffset;offset<SECTION_SIZE;offset+=UPDATE_STRIDE)
 #endif
-            uvec3 sectionPos = sectionPosInitial+LVec*offset;
-            zonePos.xyz = ivec3(sectionPos+sectionBasePos+1);
+        {
+
+            int L = ((axis&1u)==0)? offset-(SECTION_SIZE-1):offset;
+
+            sectionOffset = ivec3(localId.x*aVec+localId.y*bVec) + L*LVec;
+            areaPos.xyz = ivec3(sectionOffset+sectionBasePos);
+
+            for(int layer = 0; layer<VOX_LAYERS; layer++)
+                zonePos[layer]=areaToZoneSpace(areaPos,axis,layer);
+
             lightVoxelFace();
         }
     }
+
 }
 
