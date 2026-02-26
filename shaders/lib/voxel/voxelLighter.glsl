@@ -12,7 +12,7 @@ layout(std430, binding = 1) restrict buffer indirectDispatches {
     uvec3 dispatches;
 } indirectDispatchesAccess;
 
-const ivec3 workGroups = ivec3(SECTIONS_PER_ZONE,NUM_ZONES,1);
+//const ivec3 workGroups = ivec3(SECTIONS_PER_ZONE,NUM_ZONES,1);
 
 layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z = 1) in;
 
@@ -23,13 +23,25 @@ struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint emissio
 #endif
 
 
+#ifdef PARALLEL_UNPACK
+shared lightVoxData[SECTION_SIZE+2][SECTION_SIZE+2][VOX_LAYERS] sharedSamples;
+shared uvec4[SECTION_SIZE+2][SECTION_SIZE+2] sharedFrontVoxels;
+shared uvec4[SECTION_SIZE+2][SECTION_SIZE+2] sharedRearVoxels;
+#endif
+
+
+lightVoxData[3][3][VOX_LAYERS] inputSamples;
+uvec4[3][3] frontVoxels, rearVoxels;
+bool[3][3] obstructions, translucents;
+ivec4 zonePos;
+uvec3 sectionPos;
+float scale,halfScale;
+uint axis;
+bool translucentsPresent;
 
 
 
-void takeSamples(ivec4 sectionPos, float scale, uint axis,
-    out lightVoxData[3][3][VOX_LAYERS] inputSamples, out uvec4[3][3] frontVoxels, out uvec4[3][3] rearVoxels,
-out bool[3][3] obstructions, out bool[3][3] translucents, out bool translucentsPresent
-){
+void takeSamples(){
 
     translucentsPresent = false;
 
@@ -40,8 +52,8 @@ out bool[3][3] obstructions, out bool[3][3] translucents, out bool translucentsP
     for (int a=-1;a<=1;a++){
         for (int b=-1; b<=1;b++){
             ivec3 localOffset = a*aVec+b*bVec;
-            uvec4 frontVoxel = getVoxData(sectionPos.xyz+localOffset);
-            uvec4 rearVoxel = getVoxData(sectionPos.xyz+localOffset-LVec);
+            uvec4 frontVoxel = getVoxData(zonePos.xyz+localOffset);
+            uvec4 rearVoxel = getVoxData(zonePos.xyz+localOffset-LVec);
 
             bool obstructedOpaque =  ((rearVoxel.w&3u)==1) || ((frontVoxel.w&3u)==1);
             obstructions[a+1][b+1] = obstructedOpaque;
@@ -60,7 +72,7 @@ out bool[3][3] obstructions, out bool[3][3] translucents, out bool translucentsP
 
     ivec3 faceBase[VOX_LAYERS];
     for(int layer = 0; layer<VOX_LAYERS; layer++)
-        faceBase[layer]=sectionToFaceSpace(sectionPos, axis, layer);
+        faceBase[layer]=sectionToFaceSpace(zonePos, axis, layer);
 
     for (int a=-1;a<=1;a++){
         for (int b=-1; b<=1;b++){
@@ -78,16 +90,15 @@ out bool[3][3] obstructions, out bool[3][3] translucents, out bool translucentsP
 //                    inputSample.color*=rearVoxel.xyz/255.0;
                 inputSamples[a+1][b+1][layer] = inputSample;
             }
-
         }
     }
 }
 
+
+
 const uint shortListLen = 2*VOX_LAYERS;
 
-lightVoxData[VOX_LAYERS] determineBestLightSources( float scale,
-    lightVoxData[3][3][VOX_LAYERS] inputSamples, bool [3][3] obstructions
-){
+lightVoxData[VOX_LAYERS] determineBestLightSources(){
     lightVoxData[VOX_LAYERS] bestLights;
     float[VOX_LAYERS] bestStrengths;
     for(int layer = 0; layer<VOX_LAYERS; layer++){
@@ -144,7 +155,7 @@ lightVoxData[VOX_LAYERS] determineBestLightSources( float scale,
                     indexToUse=shortListOccupation;
                     shortListOccupation++;
                 }else{
-                    //TODO handle this case
+                    //TODO handle this case.
                 }
 
                 shortList[indexToUse]=lightSrc;
@@ -153,48 +164,42 @@ lightVoxData[VOX_LAYERS] determineBestLightSources( float scale,
         }
     }
 
-    for(int i=0;i<shortListOccupation;i++){
 
-        lightVoxData lightSrc = shortList[i];
-        float strength = shortListStr[i];
+    for(int i=0;i<shortListOccupation;i++){ { {
+                lightVoxData lightSrc = shortList[i];
+                float strength = shortListStr[i];
+
 #endif
 
         //Okay so this is a little wacky but basically, if shortlisted comparisons is on, this loop and the previous for loops are separate
         //if its false, the following code is nested within the previous loop instead of the section starting with indexToUse
         //its a little messy, but the alternative is just 95% duplicated code and would be hard to keep synced
         //I could also easily remove all this later
+                vec3 lightTravel = lightSrc.lightTravel;
+                vec2 xy = abs(lightTravel.xy);
+                vec2 outerSlope  = (xy+halfScale)* abs(scale/(lightTravel.z-halfScale));  //anything more than this will not be visible
+                vec2 innerSlope  = (xy-halfScale)*abs(scale/(lightTravel.z+halfScale));
+
+                if(!canIlluminateInBounds(vec4(outerSlope,innerSlope),lightSrc.occlusionRay,lightSrc.occlusionMap))
+                    continue;
 
 
+                for(int rank = 0; rank<VOX_LAYERS; rank++){
+                    if (strength>bestStrengths[rank]){
+                        float tmpStr = bestStrengths[rank];
+                        lightVoxData tmpSrc = bestLights[rank];
 
-        //TODO okay so this works but it's late so i didnt even bother making it efficient, it's actually horrible and runs 18 times per sample per direction
-        vec3 lightTravel = lightSrc.lightTravel;
-        vec2 xy = abs(lightTravel.xy);
-        vec2 outerSlope  = (xy+halfScale)* abs(scale/(lightTravel.z-halfScale));  //anything more than this will not be visible
-        vec2 innerSlope  = (xy-halfScale)*abs(scale/(lightTravel.z+halfScale));
+                        bestLights[rank]=lightSrc;
+                        bestStrengths[rank]=strength;
 
-        if(!canIlluminateInBounds(vec4(outerSlope,innerSlope),lightSrc.occlusionRay,lightSrc.occlusionMap))
-            continue;
-
-
-        for(int rank = 0; rank<VOX_LAYERS; rank++){
-            if (strength>bestStrengths[rank]){
-                float tmpStr = bestStrengths[rank];
-                lightVoxData tmpSrc = bestLights[rank];
-
-                bestLights[rank]=lightSrc;
-                bestStrengths[rank]=strength;
-
-                lightSrc=tmpSrc;
-                strength=tmpStr;
+                        lightSrc=tmpSrc;
+                        strength=tmpStr;
+                    }
+                }
             }
         }
     }
-    #if 0
-        {{ //for the IDE not to be confused
-    #endif
-    #ifndef SHORTLISTED_COMPARISON
-        }} //to terminate the a and b loops when not shortlisted
-    #endif
+
     return bestLights;
 }
 
@@ -203,7 +208,7 @@ lightVoxData[VOX_LAYERS] determineBestLightSources( float scale,
 //out of 9 input samples, only up to 4 can have any light flowing between the source and the output
 //for all 2x2 selected sample arrays, corner closest to source at [0][0], output sample at [1][1]
 //newObstructions is flipped to match this, with [2][2] being the firthest corner from source
-void pickRelevantInputSamples(lightVoxData bestSource, lightVoxData[3][3][VOX_LAYERS] inputSamples, bool[3][3] obstructions, float scale,
+void pickRelevantInputSamples(lightVoxData bestSource,
     out lightVoxData[2][2] samples, out bool[2][2] relevance, out bvec2 alignment, out bool[2][2] newObstructions){
 
     vec3 lightTravel = bestSource.lightTravel;
@@ -261,10 +266,9 @@ void occludeCorner(inout vec2 corner, vec2 occluder, vec2 whichCorner){
 
 //i'll be calling the +b direction "top" and the +a direction "left", both of these directions are away from src
 //as though you're looking along the +z direction and the light is going +x+y
-void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignment, bool[2][2] obstructions, vec3 lightTravel, float scale,
+void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignment, bool[2][2] relevantObstructions, vec3 lightTravel,
     out vec2 outRay, out bvec4 outMap
 ){
-    float halfScale = 0.5*scale;
 
     lightTravel.xy=abs(lightTravel.xy);
     float slopeScaleNear = abs(scale/(lightTravel.z-halfScale));
@@ -281,7 +285,7 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
     //corners from blocks
     for(int i=0; i<2; i++){
         for (int j=0; j<2; j++){
-            if(obstructions[i][j]){
+            if(relevantObstructions[i][j]){
                 occludeCorner(corners[i][j],middleSlope,vec2((i<<1)-1,(j<<1)-1));
             }
         }
@@ -415,17 +419,17 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
 
 
 //
-lightVoxData doLightPassage(inout lightVoxData bestLight, lightVoxData[3][3][VOX_LAYERS] inputSamples, bool[3][3] obstructions, float scale){
+lightVoxData doLightPassage(inout lightVoxData bestLight){
     lightVoxData[2][2] relevantSamples;
     bool[2][2] relevance;
     bvec2 alignment;
     bool[2][2] newObstructions;
 
 
-    pickRelevantInputSamples(bestLight, inputSamples, obstructions, scale,
+    pickRelevantInputSamples(bestLight,
     relevantSamples, relevance, alignment, newObstructions);
 
-    determineOcclusion(relevantSamples, relevance, alignment, newObstructions, bestLight.lightTravel, scale,
+    determineOcclusion(relevantSamples, relevance, alignment, newObstructions, bestLight.lightTravel,
     bestLight.occlusionRay, bestLight.occlusionMap);
 
     if (bestLight.emission==0 || !(bestLight.occlusionMap.x||bestLight.occlusionMap.y||bestLight.occlusionMap.z||bestLight.occlusionMap.w)){
@@ -437,26 +441,14 @@ lightVoxData doLightPassage(inout lightVoxData bestLight, lightVoxData[3][3][VOX
 
 //for one voxel face, determines the light entering that voxel face
 //based on the 9 adjacent voxel faces in the previous plane & the nearby terrain voxels
-void lightVoxelFace(ivec4 sectionPos, uint zone,uint axis){
-    float scale = 1;
-
-    lightVoxData[3][3][VOX_LAYERS] inputSamples;
-    uvec4[3][3] frontVoxels;
-    uvec4[3][3] rearVoxels;
-    bool[3][3] obstructions;
-    bool[3][3] translucents;
-    bool translucentsPresent;
+void lightVoxelFace(){
 
     //all the relevant memory accesses
-    takeSamples(sectionPos,scale, axis,
-        inputSamples, frontVoxels, rearVoxels, obstructions, translucents, translucentsPresent
-    );
+    takeSamples();
 
 
     //determine best light source first
-    lightVoxData[VOX_LAYERS] bestLights = determineBestLightSources(
-        scale, inputSamples, obstructions
-    );
+    lightVoxData[VOX_LAYERS] bestLights = determineBestLightSources();
 
     #ifdef COLORED_TRANSLUCENTS
     lightVoxData transucentPassage = bestLights[0];
@@ -471,7 +463,7 @@ void lightVoxelFace(ivec4 sectionPos, uint zone,uint axis){
     }
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-        doLightPassage(bestLights[layer],inputSamples,obstructions,scale);
+        doLightPassage(bestLights[layer]);
     }
 
     //actual coherent branch
@@ -514,7 +506,7 @@ void lightVoxelFace(ivec4 sectionPos, uint zone,uint axis){
         if(translucentBlocksInSample>0){
             color/=translucentBlocksInSample;
 
-            doLightPassage(transucentPassage, inputSamples, obstructions, scale);
+            doLightPassage(transucentPassage);
             transucentPassage.color*=color;
 
             bestLights[VOX_LAYERS-1]=transucentPassage; //TODO better insert
@@ -532,7 +524,7 @@ void lightVoxelFace(ivec4 sectionPos, uint zone,uint axis){
     }
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-        setLightData(bestLights[layer], sectionPos, axis, layer);
+        setLightData(bestLights[layer], zonePos, axis, layer);
     }
 }
 
@@ -541,34 +533,43 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 //        return;
 
     uint zoneOffset = groupId.x;
-    uint zoneNum = groupId.y;
     ivec3 sectionBasePos = (ivec3(zoneOffset>>(ZONE_WIDTH_SECTIONS_SHIFT+ZONE_WIDTH_SECTIONS_SHIFT),
         zoneOffset>>ZONE_WIDTH_SECTIONS_SHIFT,
         zoneOffset)&(ZONE_WIDTH_SECTIONS-1))*SECTION_SIZE;
 
-    #if DEBUG_AXIS<0
-    for(uint axis=0;axis<6;axis++){
-    #else
-    uint axis = debugAxisNum;{
-    #endif
+    zonePos.w= int(groupId.y);
+
+    scale = 1;
+    halfScale=0.5*scale;
+
+#if DEBUG_AXIS<0
+  #ifdef AXES_INORDER
+    for(axis=0;axis<6;axis++){
+  #else
+    axis = groupId.z;{
+  #endif
+#else
+    axis = debugAxisNum;{
+#endif
 
         ivec3 aVec = ivec3(worldToSectionSpaceMats[axis][0]);
         ivec3 bVec = ivec3(worldToSectionSpaceMats[axis][1]);
         ivec3 LVec = ivec3(worldToSectionSpaceMats[axis][2]);
 
-        ivec4 sectionPos = ivec4(localId.x*aVec+localId.y*bVec, zoneNum);//TODO change
+        uvec3 sectionPosInitial = localId.x*aVec+localId.y*bVec;
         if ((axis&1u)==0)
-        sectionPos.xyz-=15*LVec;
-        sectionPos.xyz+=1;
-        sectionPos.xyz+=sectionBasePos;
+            sectionPosInitial.xyz-=15*LVec;
 
-        #if SECTION_SIZE==UPDATE_STRIDE
-            lightVoxelFace(sectionPos+ivec4(LVec*frameOffset, 0), zoneNum, axis);
-        #else
-        for (int i = frameOffset;i<SECTION_SIZE;i+=UPDATE_STRIDE){
-            lightVoxelFace(sectionPos+ivec4(LVec*i, 0), zoneNum, axis);
+
+#if SECTION_SIZE==UPDATE_STRIDE
+        uint offset = frameOffset;{
+#else
+        for (int offset = frameOffset;offset<SECTION_SIZE;offset+=UPDATE_STRIDE){
+#endif
+            uvec3 sectionPos = sectionPosInitial+LVec*offset;
+            zonePos.xyz = ivec3(sectionPos+sectionBasePos+1);
+            lightVoxelFace();
         }
-        #endif
     }
 }
 

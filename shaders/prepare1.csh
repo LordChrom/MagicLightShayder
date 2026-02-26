@@ -7,15 +7,23 @@ in uvec3 gl_LocalInvocationID;
 in uint  gl_LocalInvocationIndex;
 */
 
-//uniform int frameCounter;
+
+
+#ifdef AXES_INORDER
+const int workGroupZ = 1;
+#else
+const int workGroupZ = 6;
+#endif
 
 
 layout(std430, binding = 1) restrict buffer indirectDispatches {
     uvec3 dispatches;
 } indirectDispatchesAccess;
 
+
+
 void main(){
-    if(frameCounter<10)
-        indirectDispatchesAccess.dispatches=ivec3(SECTIONS_PER_ZONE,NUM_ZONES,1);
+//    if(frameCounter<10)
+        indirectDispatchesAccess.dispatches=uvec3(SECTIONS_PER_ZONE,NUM_ZONES,workGroupZ);
     fillSeams(gl_WorkGroupID,gl_LocalInvocationID);
 }
