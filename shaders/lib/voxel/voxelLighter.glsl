@@ -72,26 +72,42 @@ void takeSamples(){
     }
 
 
+
     #ifdef PARALLEL_UNPACK
-    uint bonusA=A;
-    uint bonusB=B;
-    if(A==1 || A==SECTION_SIZE){
-        bonusA = A==1?0:SECTION_SIZE+1;
-    }else if(A==2 || A==SECTION_SIZE-1){
-        bonusA=B;
-        bonusB=A==1?0:SECTION_SIZE+1;
-    }else if(A==3 && B<=4){
-        bonusA=B<=2?1:SECTION_SIZE+1;
-        bonusB=((B&1u)==0)?1:SECTION_SIZE+1;
+    const int halfwayL = SECTION_SIZE / 2;
+    const int halfwayH = halfwayL+1;
+
+    uint A2offset=0;
+    uint B2offset=0;
+
+    // ↙←     i need samples adjacent to the main region, because an N wide square needs input of width N+2
+    // ↙      this shows the direction of the offset for each square inside the corner region, shown for width 8
+    // ↙  ↓
+    // ↙↙↙↙   (And yes I went out of my way to copypaste these arrows)
+    if(A==1 || A==SECTION_SIZE || B==1 || B==SECTION_SIZE){
+        A2offset = A<=halfwayL?-1:1;
+        B2offset = B<=halfwayL?-1:1;
+    }else if((A==halfwayL || A==halfwayH) && (B==2 || B==(SECTION_SIZE-1))){
+        B2offset = B<=halfwayL?-2:2;
+    }else if((B==halfwayL || B==halfwayH) && (A==2 || A==(SECTION_SIZE-1))){
+        A2offset = A<=halfwayL?-2:2;
     }
+
+//    sharedFrontVoxels[A][B] = getVoxData(areaPos.xyz);
+//    sharedRearVoxels[A][B] = getVoxData(areaPos.xyz-LVec);
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-        sharedSamples[A][B][layer] = getLightData(zonePos[layer]+ivec3(A-1, B-1, -1));
-        if ((bonusA!=A) || bonusB!=B)
-        sharedSamples[bonusA][bonusB][layer] = getLightData(zonePos[layer]+ivec3(bonusA-1, bonusB-1, -1));
+        ivec3 tmp = zonePos[layer];
+        tmp.z--;
+        sharedSamples[A][B][layer] = getLightData(tmp);
+        if ((A2offset|B2offset) !=0){
+            tmp.xy+=ivec2(A2offset,B2offset);
+            sharedSamples[A+A2offset][B+B2offset][layer] = getLightData(tmp);
+        }
     }
 
-    memoryBarrierShared();
+//    memoryBarrierShared();
+    groupMemoryBarrier();
     #endif
 
     for (int a=-1;a<=1;a++){
@@ -100,11 +116,15 @@ void takeSamples(){
             uvec4 rearVoxel =rearVoxels[a+1][b+1];
 
             for(int layer = 0; layer<VOX_LAYERS; layer++){
-                #ifdef PARALLEL_UNPACK
-                lightVoxData inputSample = sharedSamples[A+a][B+b][layer];
+                lightVoxData inputSample;
+                #if defined PARALLEL_UNPACK
+                inputSample = sharedSamples[A+a][B+b][layer];
                 #else
-                lightVoxData inputSample = getLightData(zonePos[layer]+ivec3(a,b, -1));
+                inputSample = getLightData(zonePos[layer]+ivec3(a,b, -1));
                 #endif
+
+            
+
                 if((rearVoxel.w&3u)==1){
                     inputSample=noLight;
                 }

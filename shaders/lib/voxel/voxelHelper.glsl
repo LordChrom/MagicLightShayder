@@ -81,6 +81,10 @@ ivec4 worldPosToArea(vec3 pos, float scale){
     return ivec4(ivec3(round(pos/scale+0.5)*scale),areaNum);
 }
 
+uint zoneOffset(uint axis, uint layer){
+    return int((ZONE_OFFSET)*(VOX_LAYERS*axis+layer));
+}
+
 ivec3 areaToZoneSpace(ivec4 areaPos, uint axis, uint layer){
     uint upper = axis>>1u;
     ivec3 ret = areaPos.xyz;
@@ -103,7 +107,7 @@ ivec3 areaToZoneSpace(ivec4 areaPos, uint axis, uint layer){
         ret.z=(AREA_SIZE-1)-ret.z;
     }
 
-    ret.z+=int((ZONE_OFFSET)*(VOX_LAYERS*axis+layer)); //TODO fix overlap better
+    ret.z+=int(zoneOffset(axis,layer)); //TODO fix overlap better
 
     return ret;
 }
