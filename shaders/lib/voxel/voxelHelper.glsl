@@ -149,6 +149,13 @@ uvec4 packLightData(lightVoxData data){
     return ret;
 }
 
+uvec4 unpackBytes(uint packedData){
+    return uvec4(packedData>>24,packedData>>16,packedData>>8,packedData)&0xffu;
+}
+
+uint packBytes(uvec4 data){
+    return ((data.x<<24)|(data.y<<16))|((data.z<<8)|(data.w));
+}
 
 
 bvec4 and(bvec4 a, bvec4 b){return bvec4(a.x&&b.x,a.y&&b.y,a.z&&b.z,a.w&&b.w);}

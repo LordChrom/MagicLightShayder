@@ -26,13 +26,13 @@ struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint emissio
 #ifdef PARALLEL_UNPACK
 //shared lightVoxData[SECTION_SIZE+2][SECTION_SIZE+2][VOX_LAYERS] sharedSamples;
 shared uvec4[SECTION_SIZE+2][SECTION_SIZE+2][VOX_LAYERS] sharedPackedSamples;
+shared uint[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedFrontVoxels;
+shared uint[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedRearVoxels;
 
-shared uvec4[SECTION_SIZE+2][SECTION_SIZE+2] sharedFrontVoxels;
-shared uvec4[SECTION_SIZE+2][SECTION_SIZE+2] sharedRearVoxels;
 shared bool[SECTION_SIZE+2][SECTION_SIZE+2] sharedObstructions;
 shared bool[SECTION_SIZE+2][SECTION_SIZE+2] sharedTranslucents;
 #else
-lightVoxData[3][3][VOX_LAYERS] inputSamples;
+uvec4[3][3][VOX_LAYERS] packedInputSamples;
 uvec4[3][3] frontVoxels, rearVoxels;
 bool[3][3] obstructions, translucents;
 #endif
@@ -49,12 +49,14 @@ uint A,B; //1 to SECTION_SIZE
 
 #ifdef PARALLEL_UNPACK
 lightVoxData getRawSample(int a, int b, uint layer){  return unpackLightData(sharedPackedSamples[A+a][B+b][layer]); }
-uvec4 getRawFrontVoxel(int a, int b){  return sharedFrontVoxels[A+a][B+b]; }
-uvec4 getRawRearVoxel(int a, int b){  return sharedRearVoxels[A+a][B+b]; }
+//uvec4 getRawFrontVoxel(int a, int b){  return sharedFrontVoxels[A+a][B+b]; }
+//uvec4 getRawRearVoxel(int a, int b){  return sharedRearVoxels[A+a][B+b]; }
+uint getRawFrontVoxel(int a, int b){  return sharedPackedFrontVoxels[A+a][B+b]; }
+uint getRawRearVoxel(int a, int b){  return sharedPackedRearVoxels[A+a][B+b]; }
 bool getRawObstructions(int a, int b){  return sharedObstructions[A+a][B+b]; }
 bool getRawTranslucents(int a, int b){  return sharedTranslucents[A+a][B+b]; }
 #else
-lightVoxData getRawSample(int a, int b, uint layer){  return inputSamples[a+1][b+1][layer]; }
+lightVoxData getRawSample(int a, int b, uint layer){  return unpackLightData(packedInputSamples[a+1][b+1][layer]); }
 uvec4 getRawFrontVoxel(int a, int b){  return frontVoxels[a+1][b+1]; }
 uvec4 getRawRearVoxel(int a, int b){  return rearVoxels[a+1][b+1]; }
 bool getRawObstructions(int a, int b){  return obstructions[a+1][b+1]; }
@@ -80,8 +82,10 @@ void saveSharedSample(int a, int b){
     uvec4 frontVoxel,rearVoxel;
     uvec4[VOX_LAYERS] packedLightSamples;
     takeSingleSample(a,b,frontVoxel,rearVoxel,packedLightSamples);
-    sharedFrontVoxels[A+a][B+b] = frontVoxel;
-    sharedRearVoxels[A+a][B+b] = rearVoxel;
+//    sharedFrontVoxels[A+a][B+b] = frontVoxel;
+//    sharedRearVoxels[A+a][B+b] = rearVoxel;
+    sharedPackedFrontVoxels[A+a][B+b] = packBytes(frontVoxel);
+    sharedPackedRearVoxels[A+a][B+b] = packBytes(rearVoxel);
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         sharedPackedSamples[A+a][B+b][layer]=packedLightSamples[layer];
     }
@@ -150,7 +154,7 @@ void takeSamples(){
 
             for(int layer = 0; layer<VOX_LAYERS; layer++){
                 lightVoxData inputSample = getLightData(zonePos[layer]+ivec3(a,b, -1));
-                inputSamples[a+1][b+1][layer] = unpackLightData(packedLightSamples[layer]);
+                packedInputSamples[a+1][b+1][layer] = packedLightSamples[layer];
             }
         }
     }
@@ -221,11 +225,21 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
                     indexToUse=shortListOccupation;
                     shortListOccupation++;
                 }else{
-                    //TODO handle this case.
+                    //This case should be pretty rare, as it requires several unique light sources converging on one block
+                    float min = strength;
+                    for (int i = 0; i<shortListLen; i++){
+                        float testStr = shortListStr[i];
+                        if(testStr<min){
+                            indexToUse=i;
+                            min=shortListStr[i];
+                        }
+                    }
                 }
 
-                shortList[indexToUse]=lightSrc;
-                shortListStr[indexToUse]=strength;
+                if(indexToUse>=0){
+                    shortList[indexToUse]=lightSrc;
+                    shortListStr[indexToUse]=strength;
+                }
             }
         }
     }
@@ -501,7 +515,7 @@ lightVoxData doLightPassage(inout lightVoxData bestLight, bool translucentTerrai
     bestLight.occlusionRay, bestLight.occlusionMap);
 
     if (bestLight.emission==0 || !(bestLight.occlusionMap.x||bestLight.occlusionMap.y||bestLight.occlusionMap.z||bestLight.occlusionMap.w)){
-        bestLight=noLight;//TODO just be aware of
+        bestLight=noLight;
     }
     return bestLight;
 }
@@ -541,17 +555,17 @@ void lightVoxelFace(){
             for (int j=0; j<2; j++){
                 int b = (j-1)*travelDirSign.y;
 
-                uvec4 front = getRawFrontVoxel(a,b);
-                uvec4 rear = getRawRearVoxel(a,b);
+                uint front = getRawFrontVoxel(a,b);
+                uint rear = getRawRearVoxel(a,b);
 
-                bool frontTrans = (front.w&3u)==2;
-                bool rearTrans = (rear.w&3u)==2;
+                bool frontTrans = (front&3u)==2;
+                bool rearTrans = (rear&3u)==2;
                 rearTrans=false;
                 translucentBlocksInSample += int(frontTrans) + int(rearTrans);
                 if(frontTrans)
-                color+=vec3(front.xyz)/255;
+                    color+=unpackUnorm4x8(front).wzy;
                 if(rearTrans)
-                color+=vec3(rear.xyz)/255;
+                    color+=unpackUnorm4x8(rear).wzy;
             }
         }
 
@@ -562,16 +576,16 @@ void lightVoxelFace(){
             doLightPassage(transucentPassage,true);
             transucentPassage.color*=color;
 
-            bestLights[VOX_LAYERS-1]=transucentPassage; //TODO better insert
+            bestLights[VOX_LAYERS-1]=transucentPassage; //consider better insert
         }
     #endif
 
     //could maybe be at the top, not sure how much it'd actually help though TODO test later
-    uvec4 front = getRawFrontVoxel(0,0);
-    if (front.w>0xf){
+    uint front = getRawFrontVoxel(0,0);
+    if ((front&0xffu)>0xf){
         bestLights[VOX_LAYERS-1].lightTravel = vec3(0);
-        bestLights[VOX_LAYERS-1].color = front.rgb*(1.0/255.0);
-        bestLights[VOX_LAYERS-1].emission = front.w>>4;
+        bestLights[VOX_LAYERS-1].color = unpackUnorm4x8(front).wzy;
+        bestLights[VOX_LAYERS-1].emission = (front>>4)&0xfu;
         bestLights[VOX_LAYERS-1].occlusionMap=bvec4(true);
         bestLights[VOX_LAYERS-1].columnation=0.2;
     }
