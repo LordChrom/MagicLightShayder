@@ -12,9 +12,9 @@ layout(std430, binding = 1) restrict buffer indirectDispatches {
     uvec3 dispatches;
 } indirectDispatchesAccess;
 
-//const ivec3 workGroups = ivec3(SECTIONS_PER_ZONE,NUM_AREAS,1);
+//const ivec3 workGroups = ivec3(SECTIONS_PER_AREA,NUM_AREAS,1);
 
-layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z = 1) in;
+layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z = LOCAL_SIZE_Z) in;
 
 
 
@@ -33,7 +33,7 @@ shared bool[SECTION_SIZE+2][SECTION_SIZE+2] sharedObstructions;
 shared bool[SECTION_SIZE+2][SECTION_SIZE+2] sharedTranslucents;
 #else
 uvec4[3][3][VOX_LAYERS] packedInputSamples;
-uvec4[3][3] frontVoxels, rearVoxels;
+uint[3][3] frontVoxels, rearVoxels;
 bool[3][3] obstructions, translucents;
 #endif
 
@@ -49,16 +49,14 @@ uint A,B; //1 to SECTION_SIZE
 
 #ifdef PARALLEL_UNPACK
 lightVoxData getRawSample(int a, int b, uint layer){  return unpackLightData(sharedPackedSamples[A+a][B+b][layer]); }
-//uvec4 getRawFrontVoxel(int a, int b){  return sharedFrontVoxels[A+a][B+b]; }
-//uvec4 getRawRearVoxel(int a, int b){  return sharedRearVoxels[A+a][B+b]; }
 uint getRawFrontVoxel(int a, int b){  return sharedPackedFrontVoxels[A+a][B+b]; }
 uint getRawRearVoxel(int a, int b){  return sharedPackedRearVoxels[A+a][B+b]; }
 bool getRawObstructions(int a, int b){  return sharedObstructions[A+a][B+b]; }
 bool getRawTranslucents(int a, int b){  return sharedTranslucents[A+a][B+b]; }
 #else
 lightVoxData getRawSample(int a, int b, uint layer){  return unpackLightData(packedInputSamples[a+1][b+1][layer]); }
-uvec4 getRawFrontVoxel(int a, int b){  return frontVoxels[a+1][b+1]; }
-uvec4 getRawRearVoxel(int a, int b){  return rearVoxels[a+1][b+1]; }
+uint getRawFrontVoxel(int a, int b){  return frontVoxels[a+1][b+1]; }
+uint getRawRearVoxel(int a, int b){  return rearVoxels[a+1][b+1]; }
 bool getRawObstructions(int a, int b){  return obstructions[a+1][b+1]; }
 bool getRawTranslucents(int a, int b){  return translucents[a+1][b+1]; }
 #endif
@@ -82,26 +80,26 @@ void saveSharedSample(int a, int b){
     uvec4 frontVoxel,rearVoxel;
     uvec4[VOX_LAYERS] packedLightSamples;
     takeSingleSample(a,b,frontVoxel,rearVoxel,packedLightSamples);
-//    sharedFrontVoxels[A+a][B+b] = frontVoxel;
-//    sharedRearVoxels[A+a][B+b] = rearVoxel;
+
     sharedPackedFrontVoxels[A+a][B+b] = packBytes(frontVoxel);
     sharedPackedRearVoxels[A+a][B+b] = packBytes(rearVoxel);
-    for(int layer = 0; layer<VOX_LAYERS; layer++){
+
+    for(uint layer = 0; layer<VOX_LAYERS; layer++){
         sharedPackedSamples[A+a][B+b][layer]=packedLightSamples[layer];
     }
 
     bool obstructedOpaque =  ((rearVoxel.w&3u)==1) || ((frontVoxel.w&3u)==1);
     sharedObstructions[A+a][B+b] = obstructedOpaque;
 
-    #ifdef COLORED_TRANSLUCENTS
+#ifdef COLORED_TRANSLUCENTS
     sharedTranslucents[A+a][B+b] = ((rearVoxel.w&3u)==2) || ((frontVoxel.w&3u)==2) && !obstructedOpaque;
-    #endif
+#endif
 }
 #endif
 
 void takeSamples(){
 
-    #ifdef PARALLEL_UNPACK
+#ifdef PARALLEL_UNPACK
     const int halfwayL = SECTION_SIZE / 2;
     const int halfwayH = halfwayL+1;
 
@@ -128,11 +126,11 @@ void takeSamples(){
 
     //groupMemoryBarrier works here on AMD, and according to the spec seems like it should work,
     //but NVIDIA wants a full barrier(). Oh well
-//    groupMemoryBarrier();
+    groupMemoryBarrier();
     barrier();
 
 
-    #else
+#else
 
 
     for (int a=-1;a<=1;a++){
@@ -145,21 +143,20 @@ void takeSamples(){
             bool obstructedOpaque =  ((rearVoxel.w&3u)==1) || ((frontVoxel.w&3u)==1);
             obstructions[a+1][b+1] = obstructedOpaque;
 
-            #ifdef COLORED_TRANSLUCENTS
+    #ifdef COLORED_TRANSLUCENTS
             translucents[a+1][b+1] = ((rearVoxel.w&3u)==2) || ((frontVoxel.w&3u)==2) && !obstructedOpaque;
-            #endif
+    #endif
 
-            frontVoxels[a+1][b+1] = frontVoxel;
-            rearVoxels[a+1][b+1] = rearVoxel;
+            frontVoxels[a+1][b+1] = packBytes(frontVoxel);
+            rearVoxels[a+1][b+1] = packBytes(rearVoxel);
 
-            for(int layer = 0; layer<VOX_LAYERS; layer++){
+            for(uint layer = 0; layer<VOX_LAYERS; layer++){
                 lightVoxData inputSample = getLightData(zonePos[layer]+ivec3(a,b, -1));
                 packedInputSamples[a+1][b+1][layer] = packedLightSamples[layer];
             }
         }
     }
-    #endif
-
+#endif
 
 }
 
@@ -532,10 +529,10 @@ void lightVoxelFace(){
     //determine best light source first
     lightVoxData[VOX_LAYERS] bestLights = determineBestLightSources();
 
-    #ifdef COLORED_TRANSLUCENTS
+#ifdef COLORED_TRANSLUCENTS
     lightVoxData transucentPassage = bestLights[0];
 //        transucentPassage = inputSamples[1][1][0];
-    #endif
+#endif
 
 
 
@@ -543,42 +540,40 @@ void lightVoxelFace(){
         doLightPassage(bestLights[layer],false);
     }
 
-    //actual coherent branch
-    #ifdef COLORED_TRANSLUCENTS
-        ivec2 travelDirSign = ivec2(sign(transucentPassage.lightTravel.xy));
+#ifdef COLORED_TRANSLUCENTS
+    ivec2 travelDirSign = ivec2(sign(transucentPassage.lightTravel.xy));
 
-        int translucentBlocksInSample = 0;
-        vec3 color = vec3(0);
+    int translucentBlocksInSample = 0;
+    vec3 color = vec3(0);
 
-        for(int i=0; i<2; i++){
-            int a = (i-1)*travelDirSign.x;
-            for (int j=0; j<2; j++){
-                int b = (j-1)*travelDirSign.y;
+    for(int i=0; i<2; i++){
+        int a = (i-1)*travelDirSign.x;
+        for (int j=0; j<2; j++){
+            int b = (j-1)*travelDirSign.y;
 
-                uint front = getRawFrontVoxel(a,b);
-                uint rear = getRawRearVoxel(a,b);
+            uint front = getRawFrontVoxel(a,b);
+            uint rear = getRawRearVoxel(a,b);
 
-                bool frontTrans = (front&3u)==2;
-                bool rearTrans = (rear&3u)==2;
-                rearTrans=false;
-                translucentBlocksInSample += int(frontTrans) + int(rearTrans);
-                if(frontTrans)
-                    color+=unpackUnorm4x8(front).wzy;
-                if(rearTrans)
-                    color+=unpackUnorm4x8(rear).wzy;
-            }
+            bool frontTrans = (front&3u)==2;
+            bool rearTrans = (rear&3u)==2;
+            rearTrans=false;
+            translucentBlocksInSample += int(frontTrans) + int(rearTrans);
+            if(frontTrans)
+                color+=unpackUnorm4x8(front).wzy;
+            if(rearTrans)
+                color+=unpackUnorm4x8(rear).wzy;
         }
+    }
 
+    if(translucentBlocksInSample>0){
+        color/=translucentBlocksInSample;
 
-        if(translucentBlocksInSample>0){
-            color/=translucentBlocksInSample;
+        doLightPassage(transucentPassage,true);
+        transucentPassage.color*=color;
 
-            doLightPassage(transucentPassage,true);
-            transucentPassage.color*=color;
-
-            bestLights[VOX_LAYERS-1]=transucentPassage; //consider better insert
-        }
-    #endif
+        bestLights[VOX_LAYERS-1]=transucentPassage;
+    }
+#endif
 
     //could maybe be at the top, not sure how much it'd actually help though TODO test later
     uint front = getRawFrontVoxel(0,0);
@@ -629,7 +624,7 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 
 
 #if SECTION_SIZE==UPDATE_STRIDE
-        uint offset = frameOffset;
+        int offset = frameOffset;
 #else
         for (int offset = frameOffset;offset<SECTION_SIZE;offset+=UPDATE_STRIDE)
 #endif

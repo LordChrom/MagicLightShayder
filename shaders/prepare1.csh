@@ -24,6 +24,6 @@ layout(std430, binding = 1) restrict buffer indirectDispatches {
 
 void main(){
 //    if(frameCounter<10)
-        indirectDispatchesAccess.dispatches=uvec3(SECTIONS_PER_ZONE,NUM_AREAS,workGroupZ);
+        indirectDispatchesAccess.dispatches=uvec3(SECTIONS_PER_AREA,NUM_AREAS,workGroupZ);
     fillSeams(gl_WorkGroupID,gl_LocalInvocationID);
 }
