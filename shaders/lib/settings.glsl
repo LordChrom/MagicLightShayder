@@ -5,6 +5,9 @@
 #define DEBUG_SCALE 1.0 //[1.0 0.5 0.25]
 
 
+#define BLOCK_LIGHT_STRENGTH 2
+#define SUNLIGHT_STRENGTH 1.3
+
 #define VOX_LAYERS 2 //[1 2]
 
 #define COLORED_TRANSLUCENTS
@@ -15,7 +18,7 @@
 
 
 #define SECTION_SIZE 16
-#define UPDATE_STRIDE 8
+#define UPDATE_STRIDE 16
 #define AREA_WIDTH_SECTIONS 4
 const uvec3 AREAS = ivec3(1,1,1);
 

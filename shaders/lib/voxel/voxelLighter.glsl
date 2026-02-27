@@ -19,7 +19,7 @@ layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z =
 
 
 #if 0 //dummy definition because intellij's best glsl plugin doesnt know includes exist
-struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint emission;vec3 lightTravel;float columnation;};
+struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint type;vec3 lightTravel;float columnation;};
 #endif
 
 
@@ -125,8 +125,8 @@ void takeSamples(){
     }
 
     barrier();
-#else
 
+#else
 
     for (int a=-1;a<=1;a++){
         for (int b=-1; b<=1;b++){
@@ -137,13 +137,11 @@ void takeSamples(){
 
             bool obstructedOpaque =  ((rearVoxel.w&3u)==1) || ((frontVoxel.w&3u)==1);
             obstructions[a+1][b+1] = obstructedOpaque;
-
+            frontVoxels[a+1][b+1] = packBytes(frontVoxel);
+            rearVoxels[a+1][b+1] = packBytes(rearVoxel);
     #ifdef COLORED_TRANSLUCENTS
             translucents[a+1][b+1] = ((rearVoxel.w&3u)==2) || ((frontVoxel.w&3u)==2) && !obstructedOpaque;
     #endif
-
-            frontVoxels[a+1][b+1] = packBytes(frontVoxel);
-            rearVoxels[a+1][b+1] = packBytes(rearVoxel);
 
             for(uint layer = 0; layer<VOX_LAYERS; layer++){
                 lightVoxData inputSample = getLightData(zonePos[layer]+ivec3(a,b, -1));
@@ -163,7 +161,7 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
     lightVoxData[VOX_LAYERS] bestLights;
     float[VOX_LAYERS] bestStrengths;
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-        bestLights[layer] = noLight;
+        bestLights[layer].type=0;
         bestStrengths[layer] = 0;
     }
 
@@ -174,8 +172,8 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
     float[shortListLen] shortListStr;
 
     for(int i = 0; i<VOX_LAYERS; i++){
+        bestLights[i].type=0;
         shortListStr[i]=0;
-        bestLights[i] = noLight;
     }
     int shortListOccupation=0;
 #else
@@ -196,7 +194,7 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
                 lightVoxData lightSrc = getRawSample(a,b,layer);
                 lightSrc.lightTravel+=vec3(-a, -b, 1)*scale;
 
-                if((lightSrc.emission==0) || (lightSrc.lightTravel.x*a>0) || (lightSrc.lightTravel.y*b>0))
+                if((lightSrc.type==0) || (lightSrc.lightTravel.x*a>0) || (lightSrc.lightTravel.y*b>0))
                     continue;
 
                 bool newItem = true;
@@ -249,7 +247,7 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
         //I could also easily remove all this later
                 vec3 lightTravel = lightSrc.lightTravel;
                 vec2 xy = abs(lightTravel.xy);
-                vec2 outerSlope  = (xy+halfScale)* abs(scale/(lightTravel.z-halfScale));  //anything more than this will not be visible
+                vec2 outerSlope  = (xy+halfScale)* abs(scale/(lightTravel.z-halfScale));
                 vec2 innerSlope  = (xy-halfScale)*abs(scale/(lightTravel.z+halfScale));
 
                 if(!canIlluminateInBounds(vec4(outerSlope,innerSlope),lightSrc.occlusionRay,lightSrc.occlusionMap))
@@ -298,7 +296,7 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
             bool alignedY = (lightTravel.y-b*scale==0);
 
             if((alignment.x&&j==0)||(alignment.y&&i==0)||(blockBlocked)){
-                samples[i][j]=noLight;
+                samples[i][j].type=0;
                 relevance[i][j]=false;
                 continue;
             }
@@ -308,7 +306,7 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
                 relevantSample.lightTravel+=vec3(-a, -b, 1)*scale;
 
                 bool sameSource = (relevantSample.lightTravel==bestSource.lightTravel)
-                && relevantSample.emission == bestSource.emission
+                && relevantSample.type == bestSource.type
                 && relevantSample.color == bestSource.color;
 
                 if (sameSource){
@@ -506,8 +504,8 @@ lightVoxData doLightPassage(inout lightVoxData bestLight, bool translucentTerrai
     determineOcclusion(relevantSamples, relevance, alignment, newObstructions, bestLight.lightTravel,
     bestLight.occlusionRay, bestLight.occlusionMap);
 
-    if (bestLight.emission==0 || !(bestLight.occlusionMap.x||bestLight.occlusionMap.y||bestLight.occlusionMap.z||bestLight.occlusionMap.w)){
-        bestLight=noLight;
+    if ( !(bestLight.occlusionMap.x||bestLight.occlusionMap.y||bestLight.occlusionMap.z||bestLight.occlusionMap.w)){
+        bestLight.type=0;
     }
     return bestLight;
 }
@@ -516,26 +514,13 @@ lightVoxData doLightPassage(inout lightVoxData bestLight, bool translucentTerrai
 //for one voxel face, determines the light entering that voxel face
 //based on the 9 adjacent voxel faces in the previous plane & the nearby terrain voxels
 void lightVoxelFace(){
-
-    //all the relevant memory accesses
     takeSamples();
-
-
-    //determine best light source first
     lightVoxData[VOX_LAYERS] bestLights = determineBestLightSources();
+
 
 #ifdef COLORED_TRANSLUCENTS
     lightVoxData transucentPassage = bestLights[0];
-//        transucentPassage = inputSamples[1][1][0];
-#endif
 
-
-
-    for(int layer = 0; layer<VOX_LAYERS; layer++){
-        doLightPassage(bestLights[layer],false);
-    }
-
-#ifdef COLORED_TRANSLUCENTS
     ivec2 travelDirSign = ivec2(sign(transucentPassage.lightTravel.xy));
 
     int translucentBlocksInSample = 0;
@@ -549,8 +534,8 @@ void lightVoxelFace(){
             uint front = getRawFrontVoxel(a,b);
             uint rear = getRawRearVoxel(a,b);
 
-            bool frontTrans = (front&3u)==2;
-            bool rearTrans = (rear&3u)==2;
+            bool frontTrans = bool(front&2u);
+            bool rearTrans = bool(rear&2u);
             rearTrans=false;
             translucentBlocksInSample += int(frontTrans) + int(rearTrans);
             if(frontTrans)
@@ -559,6 +544,9 @@ void lightVoxelFace(){
                 color+=unpackUnorm4x8(rear).wzy;
         }
     }
+
+//    translucentBlocksInSample=1;
+//    color=vec3(1,0,0);
 
     if(translucentBlocksInSample>0){
         color/=translucentBlocksInSample;
@@ -570,12 +558,18 @@ void lightVoxelFace(){
     }
 #endif
 
+    for(int layer = 0; layer<VOX_LAYERS; layer++){
+        if(translucentBlocksInSample>0 && layer==VOX_LAYERS-1)
+            break;
+        doLightPassage(bestLights[layer],false);
+    }
+
     //could maybe be at the top, not sure how much it'd actually help though TODO test later
     uint front = getRawFrontVoxel(0,0);
-    if ((front&0xffu)>0xf){
+    if (bool(front&4u)){
         bestLights[VOX_LAYERS-1].lightTravel = vec3(0);
         bestLights[VOX_LAYERS-1].color = unpackUnorm4x8(front).wzy;
-        bestLights[VOX_LAYERS-1].emission = (front>>4)&0xfu;
+        bestLights[VOX_LAYERS-1].type = (front>>4)&0xfu;
         bestLights[VOX_LAYERS-1].occlusionMap=bvec4(true);
         bestLights[VOX_LAYERS-1].columnation=0.2;
     }
@@ -606,10 +600,12 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 
 #if DEBUG_AXIS>=0
     axis = debugAxisNum;
-#else ifndef AXES_INORDER
-    axis = groupId.z;
 #else
-    for(axis=0;axis<6;axis++)
+    #ifndef AXES_INORDER
+        axis = groupId.z;
+    #else
+        for(axis=0;axis<6;axis++)
+    #endif
 #endif
     {
 

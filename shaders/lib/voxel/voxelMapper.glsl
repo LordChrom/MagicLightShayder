@@ -4,9 +4,8 @@
 
 //block info, RGB are color,
 //A is, from MSB to LSB,
-// 4 bit emissive strength,
-// 2 unused bits
-// a bit that's 1 for emissive blocks
+// 4 bits emission type
+// 2 bits free
 // a bit that's 1 for translucent blocks like stained glass
 // a bit that's 1 for surfaces that block light
 
@@ -20,24 +19,24 @@ void writeVoxelMap(vec3 worldPos, int blockID, uint emission){
         color.r=(blockID/100)%10;
         color.g=(blockID/10)%10;
         color.b=(blockID)%10;
-        color/=8;
-        //color*=emission/32;
-        metadata = (emission<<4) + ((blockID/1000)%10);
-        if(emission>0)
+        color/=9;
+
+
+        metadata = ((blockID/1000u)%10u);
+        if(emission>0){
+            color*=float(emission)*0.06666; //1/(15*9)
             metadata&=0xfeu;
-//        metadata = (emission<<4) + (uint(translucent)<<1) + uint(opaque);
+            metadata |= ((blockID/10000u)%10u)<<4;
+        }
 
     }else{
-//        color=vec3(1,0.95,0.85);
         color=vec3(1,0,0);
         metadata=1;
-
     }
-//    color=normalize(color);
+
     ivec4 worldPosi = worldPosToArea(worldPos,1);
 
     if(!isVoxelInBounds(worldPos)) return;
 
-//    uint metadata = (emission<<4) + (uint(translucent)<<1) + uint(opaque);
     setVoxData(uvec4(255*color,metadata),worldPosi.xyz);
 }

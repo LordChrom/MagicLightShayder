@@ -14,17 +14,17 @@ const ivec3 workGroups = ivec3(1,AREA_SIZE_MEM,12);
 layout (local_size_x = AREA_SIZE_MEM, local_size_y = 1, local_size_z = 1) in;
 
 #if false //dummy definition because intellij's best glsl plugin doesnt know includes exist
-struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint emission;vec3 lightTravel;float columnation;};
+struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint type;vec3 lightTravel;float columnation;};
 #endif
 
-const vec3 sunColor = normalize(vec3(0.61,0.61,0.6))*1.3;
+const vec3 sunColor = normalize(vec3(0.61,0.61,0.6))*SUNLIGHT_STRENGTH;
 
 vec3 sunPos = vec3(0,0,1000);
 
 void sunlight(uvec3 texelPos){
     vec3 lightTravel = sunPos;
     lightTravel.xy+=texelPos.xy;
-    lightVoxData sunLight = {vec2(0,0),bvec4(true),sunColor,15,lightTravel,1};
+    lightVoxData sunLight = {vec2(0,0),bvec4(true),sunColor,lightTravel,1,1};
     setLightData(sunLight, ivec3(texelPos));
 
 }
