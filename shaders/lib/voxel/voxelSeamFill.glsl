@@ -17,7 +17,7 @@ layout (local_size_x = AREA_SIZE_MEM, local_size_y = 1, local_size_z = 1) in;
 struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint type;vec3 lightTravel;float columnation;};
 #endif
 
-const vec3 sunColor = normalize(vec3(0.61,0.61,0.6))*SUNLIGHT_STRENGTH;
+const vec3 sunColor = vec3(242,242,242)/255;
 
 vec3 sunPos = vec3(0,0,1000);
 

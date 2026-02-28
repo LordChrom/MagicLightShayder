@@ -206,7 +206,7 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
                     continue;
 
                 float lenSquared = dot(lightSrc.lightTravel, lightSrc.lightTravel);
-                lenSquared = lenSquared*(1-lightSrc.columnation)+lightSrc.columnation;
+//                lenSquared = lenSquared*(1-lightSrc.columnation)+lightSrc.columnation;
                 float strength = length(lightSrc.color)/max(0.1, lenSquared);
 
 #ifdef SHORTLISTED_COMPARISON
@@ -247,8 +247,18 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
         //I could also easily remove all this later
                 vec3 lightTravel = lightSrc.lightTravel;
                 vec2 xy = abs(lightTravel.xy);
-                vec2 outerSlope  = (xy+halfScale)* abs(scale/(lightTravel.z-halfScale));
-                vec2 innerSlope  = (xy-halfScale)*abs(scale/(lightTravel.z+halfScale));
+                vec2 outerSlope  = (xy+halfScale) * abs(scale/(lightTravel.z-halfScale));
+                vec2 innerSlope  = (xy-halfScale) * abs(scale/(lightTravel.z+halfScale));
+
+                if(lightTravel.x==0){
+                    outerSlope.x=2;
+                    innerSlope.x=0;
+                }
+
+                if(lightTravel.y==0){
+                    outerSlope.y=2;
+                    innerSlope.y=0;
+                }
 
                 if(!canIlluminateInBounds(vec4(outerSlope,innerSlope),lightSrc.occlusionRay,lightSrc.occlusionMap))
                     continue;
@@ -278,6 +288,7 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
 //out of 9 input samples, only up to 4 can have any light flowing between the source and the output
 //for all 2x2 selected sample arrays, corner closest to source at [0][0], output sample at [1][1]
 //newObstructions is flipped to match this, with [2][2] being the firthest corner from source
+//alignment.x means it is on the a axis,
 void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
     out lightVoxData[2][2] samples, out bool[2][2] relevance, out bvec2 alignment, out bool[2][2] newObstructions){
 
@@ -287,27 +298,32 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
     alignment = bvec2(bSignSrc==0,aSignSrc==0);
 
     for(int i=0; i<2; i++){
+        for (int j=0; j<2; j++){
+            samples[i][j].type=0;
+            relevance[i][j]=false;
+        }
+    }
+
+    //i=0 means a=offset, i=1 means a=0;
+    for(int i=0; i<2; i++){
         int a = (i-1)*aSignSrc;
         for(int j=0; j<2; j++){
             int b = (j-1)*bSignSrc;
             bool blockBlocked = getRawObstructions(a, b) || (getRawTranslucents(a,b)&&!translucentTerrain);
             newObstructions[i][j]=blockBlocked;
-            bool alignedX = (lightTravel.x-a*scale==0);
-            bool alignedY = (lightTravel.y-b*scale==0);
+//            bool alignedX = abs(lightTravel.y-b*scale)<=0.01;
+//            bool alignedY = abs(lightTravel.x-a*scale)<=0.01;
 
-            if((alignment.x&&j==0)||(alignment.y&&i==0)||(blockBlocked)){
-                samples[i][j].type=0;
-                relevance[i][j]=false;
+            if((alignment.x&&j==0) || (alignment.y&&i==0) || blockBlocked)
                 continue;
-            }
 
             for(int layer = 0; layer<VOX_LAYERS; layer++){
                 lightVoxData relevantSample = getRawSample(a,b,layer);
                 relevantSample.lightTravel+=vec3(-a, -b, 1)*scale;
 
                 bool sameSource = (relevantSample.lightTravel==bestSource.lightTravel)
-                && relevantSample.type == bestSource.type
-                && relevantSample.color == bestSource.color;
+                    && (relevantSample.type == bestSource.type)
+                    && (relevantSample.color == bestSource.color);
 
                 if (sameSource){
                     relevance[i][j] = true;
@@ -318,7 +334,7 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
         }
     }
 
-    bool cornerBlocked = (newObstructions[1][0] && newObstructions[0][1]);
+    bool cornerBlocked = (newObstructions[1][0] && newObstructions[0][1]) && !(alignment.x||alignment.y); //TODO test
     newObstructions[0][0] = newObstructions[0][0] || cornerBlocked;
     relevance[0][0]=relevance[0][0]&&!cornerBlocked;
 
@@ -326,18 +342,8 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
 
 
 
-//for this function only, 1,1 is top left corner, -1,-1 is bottom right corner
-void occludeCorner(inout float cornerX, inout float cornerY, vec2 occluder, vec2 whichCorner){
-    cornerX = whichCorner.x*(min(whichCorner.x*cornerX,whichCorner.x*occluder.x));
-    cornerY = whichCorner.y*(min(whichCorner.y*cornerY,whichCorner.y*occluder.y));
-}
-
-void occludeCorner(inout vec2 corner, vec2 occluder, vec2 whichCorner){
-    occludeCorner(corner.x,corner.y,occluder,whichCorner);
-}
-
 //i'll be calling the +b direction "top" and the +a direction "left", both of these directions are away from src
-//as though you're looking along the +z direction and the light is going +x+y
+//as though you're looking along the +z direction, with light traveling along L=+z and also somewhat +x+y
 void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignment, bool[2][2] relevantObstructions, vec3 lightTravel,
     out vec2 outRay, out bvec4 outMap
 ){
@@ -352,13 +358,22 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
     outRay=abs(lightTravel.xy/lightTravel.z);
 
 
-    vec2[2][2] corners = {{vec2(-1,-1),vec2(-1,2)},{vec2(2,-1),vec2(2,2)}};
+    //each corner is represented by (cornersX.N,cornersY.N), with N corresponding to
+    //the same corner as represented by occlusionMap.N
+    vec4 cornersX=vec4(2,-1,2,-1);
+    vec4 cornersY=vec4(2,2,-1,-1);
 
     //corners from blocks
+    //TODO just unroll manually, choosing the right min/maxes will be faster & (arguably) more readable (to me)
     for(int i=0; i<2; i++){
         for (int j=0; j<2; j++){
+            if( (i==0 && alignment.y) || (j==0 && alignment.x))
+            continue;
             if(relevantObstructions[i][j]){
-                occludeCorner(corners[i][j],middleSlope,vec2((i<<1)-1,(j<<1)-1));
+                int index = 3-i-j-j;
+                vec2 whichCorner = vec2((i<<1)-1,(j<<1)-1);
+                cornersX[index] = whichCorner.x*(min(whichCorner.x*cornersX[index],whichCorner.x*middleSlope.x));
+                cornersY[index] = whichCorner.y*(min(whichCorner.y*cornersY[index],whichCorner.y*middleSlope.y));
             }
         }
     }
@@ -375,103 +390,142 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
             bvec4 map = samples[i][j].occlusionMap;
             vec2 ray = samples[i][j].occlusionRay;
 
+            vec4 sX=ternary(map,vec4(2,-1,2,-1),vec4(ray.x)); //represents the ways this sample shadows the output's
+            vec4 sY=ternary(map,vec4(2,2,-1,-1),vec4(ray.y)); //corners
 
-            bool inOuterA = ray.x<=outerSlope.x|| true;
-            bool inOuterB = ray.y<=outerSlope.y|| true;
-            bool inInnerA = ray.x>=innerSlope.x;
-            bool inInnerB = ray.y>=innerSlope.y;
+            bool truncTL = false;
+            bool truncTR = false;
+            bool truncLU = false;
+            bool truncLD = false;
 
 
-//            bool truncatedAl = false;
-//            bool truncatedAh = false;
-//            bool truncatedBl = false;
-//            bool truncatedBr = false;
-            bool truncatedA = false;
-            bool truncatedB = false;
-            if(i==1){
-                lightVoxData innerNeighbor = samples[0][j];
-                truncatedA = (innerNeighbor.occlusionRay.x>=innerSlope.x) &&
-                            innerNeighbor.occlusionMap.y&&innerNeighbor.occlusionMap.w &&
-                            !(innerNeighbor.occlusionMap.x&&innerNeighbor.occlusionMap.z);
+            if(j==0 && relevance[i][1]){
+                lightVoxData neighbor = samples[i][1];
+
+                bvec4 nMap = neighbor.occlusionMap;
+                vec2 nRay = neighbor.occlusionRay;
+                truncTL = (!map.x) && nMap.x && (!nMap.z) && (nMap.y || nRay.x<=ray.x);
+                truncTR = (!map.y) && nMap.y && (!nMap.w) && (nMap.x || nRay.x>=ray.x);
+
+                if(truncTL){
+                    sY.x=2;
+                    sY.z=max(sY.z,nRay.y);
+                }
+
+                if(truncTR){
+                    sY.y=2;
+                    sY.w=max(sY.w,nRay.y);
+                }
             }
-            if(j==1){
-                lightVoxData innerNeighbor = samples[i][0];
-                truncatedB = (innerNeighbor.occlusionRay.y>=innerSlope.y) &&
-                            innerNeighbor.occlusionMap.z&&innerNeighbor.occlusionMap.w &&
-                            !(innerNeighbor.occlusionMap.x&&innerNeighbor.occlusionMap.y);
+
+            if(i==0 && relevance[1][j]){
+                lightVoxData neighbor = samples[1][j];
+                bvec4 nMap = neighbor.occlusionMap;
+                vec2 nRay = neighbor.occlusionRay;
+                truncLU = (!map.x) && nMap.x && (!nMap.y) && (nMap.z || nRay.y<=ray.y);
+                truncLD = (!map.z) && nMap.z && (!nMap.w) && (nMap.x || nRay.y>=ray.y);
+
+                if(truncLU){
+                    sX.x=2;
+                    sX.y=max(sX.y,nRay.x);
+                }
+
+                if(truncLD){
+                    sX.z=2;
+                    sX.w=max(sX.w,nRay.x);
+                }
             }
 
-//            truncatedA=false;
-//            truncatedB=false;
+            bvec4 shadowedCorners = and(not(map),bvec4(
+                sX.x<=outerSlope.x && sY.x<=outerSlope.y,
+                sX.y>=innerSlope.x && sY.y<=outerSlope.y,
+                sX.z<=outerSlope.x && sY.z>=innerSlope.y,
+                sX.w>=innerSlope.x && sY.w>=innerSlope.y
+            ));
+
+
+            if(shadowedCorners.x){
+                cornersX.x=min(cornersX.x,(sX.x>=innerSlope.x)?ray.x:2);
+                cornersY.x=min(cornersY.x,(sY.x>=innerSlope.y)?ray.y:2);
+            }
+            if(shadowedCorners.y){
+                cornersX.y=max(cornersX.y,ray.x);
+                cornersY.y=min(cornersY.y,(sY.y>=innerSlope.y)?ray.y:2);
+            }
+            if(shadowedCorners.z){
+                cornersX.z=min(cornersX.z,(sX.z>=innerSlope.x)?ray.x:2);
+                cornersY.z=max(cornersY.z,ray.y);
+            }
+            if(shadowedCorners.w){
+                cornersX.w=max(cornersX.w,ray.x);
+                cornersY.w=max(cornersY.w,ray.y);
+            }
 
 
             anyRelevantSamples = anyRelevantSamples ||
-            (map.x&&inOuterA&&inOuterB)||
-            (map.y&&inInnerA&&inOuterB)||
-            (map.z&&inOuterA&&inInnerB)||
-            (map.w&&inInnerA&&inInnerB);
-
-
-
-            if((!map.x) && inOuterA && inOuterB){
-                vec2 oldCorner = corners[1][1];
-                oldCorner.x=min(oldCorner.x,inInnerA?ray.x:2);
-                oldCorner.y=min(oldCorner.y,inInnerB?ray.y:2);
-                corners[1][1]=oldCorner;
-            }
-            if((!map.y) && inOuterB && inInnerA && !truncatedA){
-                vec2 oldCorner = corners[0][1];
-                oldCorner.x=max(oldCorner.x,ray.x);
-                oldCorner.y=min(oldCorner.y,inInnerB?ray.y:2);
-                corners[0][1]=oldCorner;
-            }
-            if((!map.z) && inOuterA && inInnerB && !truncatedB){
-                vec2 oldCorner = corners[1][0];
-                oldCorner.x=min(oldCorner.x,inInnerA?ray.x:2);
-                oldCorner.y=max(oldCorner.y,ray.y);
-                corners[1][0]=oldCorner;
-            }
-            if((!map.w) && inOuterA && inOuterB && (inInnerA && inInnerB) && !(truncatedA || truncatedB)){
-                vec2 oldCorner = corners[0][0];
-                oldCorner.x=max(oldCorner.x,ray.x);
-                oldCorner.y=max(oldCorner.y,ray.y);
-                corners[0][0]=oldCorner;
-            }
-
+                (!shadowedCorners.x)||(!shadowedCorners.y)||(!shadowedCorners.z)||(!shadowedCorners.w);
+//            anyRelevantSamples=true;
       }
     }
 
 
-    outMap = bvec4( !(corners[1][1].x<outerSlope.x && corners[1][1].y<outerSlope.y), !(corners[0][1].x>innerSlope.x && corners[0][1].y<outerSlope.y),
-                    !(corners[1][0].x<outerSlope.x && corners[1][0].y>innerSlope.y), !(corners[0][0].x>innerSlope.x && corners[0][0].y>innerSlope.y));
 
+    outMap = bvec4( !(cornersX.x<outerSlope.x && cornersY.x<outerSlope.y), !(cornersX.y>innerSlope.x && cornersY.y<outerSlope.y),
+                    !(cornersX.z<outerSlope.x && cornersY.z>innerSlope.y), !(cornersX.w>innerSlope.x && cornersY.w>innerSlope.y));
 
-
-    bvec4 edges = getOcclusionEdges(outMap);
-
-    bool aEdges = edges.x||edges.z;
-    bool bEdges = edges.y||edges.w;
-
-    if(edges.x /*&&!bEdges*/)
-        outRay.x=min(corners[1][0].x,corners[1][1].x);
-    if(edges.y /*&&!aEdges*/)
-        outRay.y=min(corners[1][1].y,corners[0][1].y);
-    if(edges.z /*&&!bEdges*/)
-        outRay.x=max(corners[0][1].x,corners[0][0].x);
-    if(edges.w /*&&!aEdges*/)
-        outRay.y=max(corners[0][0].y,corners[1][0].y);
-
-
-    int edgeCount = int(edges.x)+int(edges.y)+int(edges.z)+int(edges.w);
-    if(edgeCount==0){//only one corner is obstructed
-        if(!(edges.x||edges.z)) outRay.x=0;
-        if(!(edges.y||edges.w)) outRay.y=0;
-        if(!outMap.x) outRay=corners[1][1];
-        if(!outMap.y) outRay=corners[0][1];
-        if(!outMap.z) outRay=corners[1][0];
-        if(!outMap.w) outRay=corners[0][0];
+    if(cornersY.z>=outerSlope.y && !outMap.z){
+        outMap.x=false;
+//        cornersY.z=0;
+    }
+    if(cornersY.w>=outerSlope.y && !outMap.w){
+        outMap.y=false;
+//        cornersY.w=0;
     }
 
+    if(cornersX.y>=outerSlope.x && !outMap.y){
+        outMap.x=false;
+//        cornersX.y=0;
+    }
+    if(cornersX.w>=outerSlope.x && !outMap.w){
+        outMap.z=false;
+//        cornersX.w=0;
+    }
+
+
+    bvec4 edges = getOcclusionEdges(outMap); //left, top, right, bottom
+    int edgeCount = anyRelevantSamples? int(edges.x)+int(edges.y)+int(edges.z)+int(edges.w) : 4;
+
+    switch(edgeCount){
+        case 0: //no corner or 1 corner
+            if(!(edges.x||edges.z)) outRay.x=0;
+            if(!(edges.y||edges.w)) outRay.y=0;
+            if(!outMap.x) outRay=vec2(cornersX.x,cornersY.x);
+            if(!outMap.y) outRay=vec2(cornersX.y,cornersY.y);
+            if(!outMap.z) outRay=vec2(cornersX.z,cornersY.z);
+            if(!outMap.w) outRay=vec2(cornersX.w,cornersY.w);
+            break;
+
+        case 1: //one edge
+            if(edges.x)
+                outRay.x=min(cornersX.z,cornersX.x);
+            if(edges.y)
+                outRay.y=min(cornersY.x,cornersY.y);
+            if(edges.z)
+                outRay.x=max(cornersX.y,cornersX.w);
+            if(edges.w)
+                outRay.y=max(cornersY.w,cornersY.z);
+            break;
+
+        case 2: //L shape
+            outRay = edges.w? //arranged by which corner is lit
+                (edges.z?vec2(cornersX.y,cornersY.z):vec2(cornersX.x,cornersY.w)):
+                (edges.z?vec2(cornersX.w,cornersY.x):vec2(cornersX.z,cornersY.y));
+            break; //TODO: fix
+
+        default:
+        case 4:
+            outMap=bvec4(false);
+    }
 
     if(alignment.x){
         outMap=and(outMap, outMap.zwxy);
@@ -481,11 +535,6 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
         outMap=and(outMap, outMap.yxwz);
         outRay.x=0;
     }
-
-    if(!anyRelevantSamples){
-        outMap=bvec4(false);
-    }
-
 }
 
 
@@ -545,9 +594,6 @@ void lightVoxelFace(){
         }
     }
 
-//    translucentBlocksInSample=1;
-//    color=vec3(1,0,0);
-
     if(translucentBlocksInSample>0){
         color/=translucentBlocksInSample;
 
@@ -566,12 +612,12 @@ void lightVoxelFace(){
 
     //could maybe be at the top, not sure how much it'd actually help though TODO test later
     uint front = getRawFrontVoxel(0,0);
-    if (bool(front&4u)){
+    if (bool(front&0xf0u)){
         bestLights[VOX_LAYERS-1].lightTravel = vec3(0);
         bestLights[VOX_LAYERS-1].color = unpackUnorm4x8(front).wzy;
         bestLights[VOX_LAYERS-1].type = (front>>4)&0xfu;
         bestLights[VOX_LAYERS-1].occlusionMap=bvec4(true);
-        bestLights[VOX_LAYERS-1].columnation=0.2;
+        bestLights[VOX_LAYERS-1].columnation=MIN_COLUMNATION;
     }
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){

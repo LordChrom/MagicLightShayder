@@ -30,19 +30,15 @@ vec3 getDirectedLight(ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint a
 
     vec3 displacement = lightSrc.lightTravel + subVoxelOffset;
     float lengthSquared = dot(displacement,displacement);
-
-
-
-    float columnation = max(0.1,lightSrc.columnation);
+    float columnation = lightSrc.columnation;
     lengthSquared = lengthSquared*(1-columnation)+columnation;
 
-    float lightStrength=-1;
-    bool hasDistanceFalloff = true;
+    float lightStrength=0;
     switch(lightSrc.type){
-        case 0: //no light
         case 1: //sunlight
-            lightStrength=lightSrc.type;
-            hasDistanceFalloff = false;
+            const float sunStr = 1/float(MAX_LIGHT_STRENGTH);
+
+            lightStrength = sunStr;
             break;
         case 2: //steady blocklight
             lightStrength = BLOCK_LIGHT_STRENGTH;
@@ -56,8 +52,12 @@ vec3 getDirectedLight(ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint a
     }
 
 
-    if(hasDistanceFalloff)
-        lightStrength/=(max(lengthSquared,0.001));
+    const float b = 1/float(MAX_LIGHT_STRENGTH*MAX_LIGHT_STRENGTH);
+//        lengthSquareed=len*(1-columnation)+(MAX_LIGHT_STRENGTH);
+//        lightStrength/=(max(lengthSquared, 0.001));
+
+    lightStrength*=inversesqrt(lengthSquared*lengthSquared*(1-columnation)+b);
+
 
     if( displacement.z>0)
         lightStrength==0;
@@ -117,12 +117,8 @@ vec3 getDirectedLight(ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint a
 #ifndef DEBUG_OCCLUSION_MAP
         lightStrength*=lightDotN;
 #endif
-        const float minLight = 0.01;
-        const float mainLight = 1-minLight;
 
-//        lightStrength=min(lightStrength,0); //mostly just for testing
-        outColor += (lightSrc.color*(min(lightStrength,10)*mainLight))+minLight;
-
+        outColor += lightSrc.color*lightStrength;
     }
 
     //Debug Coloring
@@ -145,7 +141,7 @@ vec3 getDirectedLight(ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint a
         if(mapSum==0)
             outColor.r=1;
         if(mapSum==4)
-            outColor.g*=1.5;
+            outColor.g+=0.05;
 
         bvec2 mapHalf = lightSrc.occlusionMap.yw;
         if(debugQuadrant.x>0)
@@ -194,7 +190,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
     ivec4 sectionPos = worldPosToArea(worldPos,scale);
     vec3 subVoxelOffset = subVoxelOffset(worldPos,scale);
 
-    vec3 color = vec3(0.2);
+    vec3 color = vec3(0);
     for(int layer = 0; layer<VOX_LAYERS; layer++){
 
 #if DEBUG_AXIS>=0
@@ -206,5 +202,5 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
             color+=getDirectedLight(sectionPos, subVoxelOffset, normal, axis, layer, scale);
         }
     }
-    return max(color,0.06);
+    return max(color,0.1);
 }

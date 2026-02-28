@@ -5,8 +5,9 @@
 #define DEBUG_SCALE 1.0 //[1.0 0.5 0.25]
 
 
-#define BLOCK_LIGHT_STRENGTH 2
-#define SUNLIGHT_STRENGTH 1.3
+#define BLOCK_LIGHT_STRENGTH 3
+#define MIN_COLUMNATION 0.65
+#define MAX_LIGHT_STRENGTH 1.5
 
 #define VOX_LAYERS 2 //[1 2]
 

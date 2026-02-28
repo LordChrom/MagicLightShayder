@@ -162,6 +162,7 @@ bvec4 not(bvec4 a){return bvec4(!a.x,!a.y,!a.z,!a.w);}
 vec4 ternary(bvec4 conditions,vec4 ifTrue, vec4 ifFalse){
     return vec4(conditions.x?ifTrue.x:ifFalse.x, conditions.y?ifTrue.y:ifFalse.y, conditions.z?ifTrue.z:ifFalse.z, conditions.w?ifTrue.w:ifFalse.w);
 }
+bool any(bvec4 a){return (a.x||a.y)||(a.z||a.w);}
 
 
 bool isLit(vec2 slope, vec2 ray, bvec4 map){
@@ -183,13 +184,14 @@ bvec4 getOcclusionEdges(bvec4 occlusionMap){
     return not(or(occlusionMap.zxyw,occlusionMap.xywz));
 }
 
+//outer x,y, inner xy
 bool canIlluminateInBounds(vec4 edges, vec2 ray, bvec4 occlusionMap){
-    //TODO this can clearly be done better but it's late rn
-    return
-    isLit(edges.xy,ray,occlusionMap) ||
-    isLit(edges.xw,ray,occlusionMap) ||
-    isLit(edges.zy,ray,occlusionMap) ||
-    isLit(edges.zw,ray,occlusionMap);
+    return any(and(occlusionMap,
+        and(
+            bvec2(ray.x<edges.x,ray.x>edges.z).xyxy,
+            bvec2(ray.y<edges.y,ray.y>edges.w).xxyy
+        )
+    ));
 }
 
 
