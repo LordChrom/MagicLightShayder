@@ -169,15 +169,22 @@ vec3 getDirectedLight(ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint a
 
         float outlineWidth = DEBUG_OUTLINE_WIDTH/displacement.z;
         if(slopeDif.x<outlineWidth || slopeDif.y<outlineWidth){
-            outColor.rgb=vec3(0.3);
+            outColor.rgb=vec3(0.6);
             outlineWidth*=0.5;
             if(slopeDif.x<outlineWidth || slopeDif.y<outlineWidth){
                 outColor.rgb=vec3(0);
             }
 
         }
+
     }
 #endif
+     #ifdef DEBUG_GRID_OUTLINE
+    vec3 edgeNearness = abs(subVoxelOffset*2/scale)+(0.5*DEBUG_OUTLINE_WIDTH);
+    if((int(edgeNearness.x>=1)+int(edgeNearness.y>=1)+int(edgeNearness.z>=1))>=2){
+        outColor.rgb=outColor.rgb*1.3+0.02;
+    }
+    #endif
     return outColor;
 }
 

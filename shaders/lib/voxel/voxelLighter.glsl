@@ -311,8 +311,6 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
             int b = (j-1)*bSignSrc;
             bool blockBlocked = getRawObstructions(a, b) || (getRawTranslucents(a,b)&&!translucentTerrain);
             newObstructions[i][j]=blockBlocked;
-//            bool alignedX = abs(lightTravel.y-b*scale)<=0.01;
-//            bool alignedY = abs(lightTravel.x-a*scale)<=0.01;
 
             if((alignment.x&&j==0) || (alignment.y&&i==0) || blockBlocked)
                 continue;
@@ -367,9 +365,7 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
     //TODO just unroll manually, choosing the right min/maxes will be faster & (arguably) more readable (to me)
     for(int i=0; i<2; i++){
         for (int j=0; j<2; j++){
-            if( (i==0 && alignment.y) || (j==0 && alignment.x))
-            continue;
-            if(relevantObstructions[i][j]){
+            if(relevantObstructions[i][j] && !((i==0 && alignment.y) || (j==0 && alignment.x))){
                 int index = 3-i-j-j;
                 vec2 whichCorner = vec2((i<<1)-1,(j<<1)-1);
                 cornersX[index] = whichCorner.x*(min(whichCorner.x*cornersX[index],whichCorner.x*middleSlope.x));
@@ -520,6 +516,11 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
             outRay = edges.w? //arranged by which corner is lit
                 (edges.z?vec2(cornersX.y,cornersY.z):vec2(cornersX.x,cornersY.w)):
                 (edges.z?vec2(cornersX.w,cornersY.x):vec2(cornersX.z,cornersY.y));
+//            outRay = vec2(
+//                edges.x?min(cornersX.x,cornersX.z):max(cornersX.y,cornersX.w),
+//                edges.y?min(cornersY.x,cornersY.y):max(cornersY.z,cornersY.w)
+//            );
+
             break; //TODO: fix
 
         default:
