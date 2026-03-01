@@ -11,22 +11,34 @@ layout (rgba8ui) uniform readonly restrict uimage3D worldVox;
 struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint type;vec3 lightTravel;float columnation;};
 #endif
 
-vec3 getDirectedLight(ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint axis, uint layer, float scale){
+vec3 getDirectedLight(ivec3 blockPos, ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint axis, uint layer, float scale){
+    lightVoxData lightSrc = getLightData(sectionPos,axis,layer);
+    vec3 lightTravelWorld = lightSrc.lightTravel;
+
+    if((axis&1u)==0)
+    lightTravelWorld.z=-lightTravelWorld.z;
+
     if(axis>>1==0){
         subVoxelOffset=subVoxelOffset.yzx;
         normal = normal.yzx;
+        lightTravelWorld = lightTravelWorld.zxy;
+//        lightTravelWorld = lightTravelWorld.yzx;
     }
     if(axis>>1==1){
         subVoxelOffset=subVoxelOffset.zxy;
         normal = normal.zxy;
+        lightTravelWorld = lightTravelWorld.yzx;
+//        lightTravelWorld = lightTravelWorld.zxy;
     }
 
     if((axis&1u)==0){
-        subVoxelOffset.z*=-1;
-        normal.z*=-1;
+        subVoxelOffset.z=-subVoxelOffset.z;
+        normal.z=-normal.z;
+//        lightTravelWorld.z=-lightTravelWorld.z;
     }
 
-    lightVoxData lightSrc = getLightData(sectionPos,axis,layer);
+    blockPos-=ivec3(round(lightTravelWorld));
+
 
     vec3 displacement = lightSrc.lightTravel + subVoxelOffset;
     float lengthSquared = dot(displacement,displacement);
@@ -47,7 +59,7 @@ vec3 getDirectedLight(ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint a
             lightStrength = BLOCK_LIGHT_STRENGTH * pulsate();
             break;
         case 4: //fire flickering light
-            lightStrength = BLOCK_LIGHT_STRENGTH * flicker();
+            lightStrength = BLOCK_LIGHT_STRENGTH * flicker(blockPos);
             break;
     }
 
@@ -179,12 +191,13 @@ vec3 getDirectedLight(ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint a
 
     }
 #endif
-     #ifdef DEBUG_GRID_OUTLINE
+
+#ifdef DEBUG_GRID_OUTLINE
     vec3 edgeNearness = abs(subVoxelOffset*2/scale)+(0.5*DEBUG_OUTLINE_WIDTH);
     if((int(edgeNearness.x>=1)+int(edgeNearness.y>=1)+int(edgeNearness.z>=1))>=2){
         outColor.rgb=outColor.rgb*1.3+0.02;
     }
-    #endif
+#endif
     return outColor;
 }
 
@@ -196,6 +209,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
     float scale = 1;
     ivec4 sectionPos = worldPosToArea(worldPos,scale);
     vec3 subVoxelOffset = subVoxelOffset(worldPos,scale);
+    ivec3 blockPos = ivec3(round(worldPos+0.5)-0.5);
 
     vec3 color = vec3(0);
     for(int layer = 0; layer<VOX_LAYERS; layer++){
@@ -206,7 +220,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
         for (int axis=0;axis<6;axis++)
 #endif
         {
-            color+=getDirectedLight(sectionPos, subVoxelOffset, normal, axis, layer, scale);
+            color+=getDirectedLight(blockPos,sectionPos, subVoxelOffset, normal, axis, layer, scale);
         }
     }
     return max(color,0.1);
