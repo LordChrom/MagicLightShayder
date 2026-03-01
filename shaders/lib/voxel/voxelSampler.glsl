@@ -8,7 +8,7 @@ layout (rgba8ui) uniform readonly restrict uimage3D worldVox;
 #include "/lib/util/flicker.glsl"
 
 #if false //dummy definition because my intellij's best glsl plugin doesnt know includes exist
-struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint type;vec3 lightTravel;float columnation;};
+struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;};
 #endif
 
 vec3 getDirectedLight(ivec3 blockPos, ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint axis, uint layer, float scale){
@@ -42,15 +42,20 @@ vec3 getDirectedLight(ivec3 blockPos, ivec4 sectionPos, vec3 subVoxelOffset, vec
 
     vec3 displacement = lightSrc.lightTravel + subVoxelOffset;
     float lengthSquared = dot(displacement,displacement);
-    float columnation = lightSrc.columnation;
+    float columnation = MIN_COLUMNATION;
     lengthSquared = lengthSquared*(1-columnation)+columnation;
 
     float lightStrength=0;
+
+#ifdef EVERYTHING_IS_THE_SUN
+    if(lightSrc.type>0)
+        lightSrc.type=1;
+#endif
     switch(lightSrc.type){
         case 1: //sunlight
             const float sunStr = 1/float(MAX_LIGHT_STRENGTH);
-
             lightStrength = sunStr;
+            columnation=1;
             break;
         case 2: //steady blocklight
             lightStrength = BLOCK_LIGHT_STRENGTH;
@@ -82,57 +87,63 @@ vec3 getDirectedLight(ivec3 blockPos, ivec4 sectionPos, vec3 subVoxelOffset, vec
 
     lightDotN=max(lightDotN,0);
 
-    bool receivesLight = lightDotN>=0 && bool(lightSrc.type);
-    receivesLight = receivesLight && isLit(displacement,lightSrc);
 
 
-    vec3 outColor = vec3(0);
+#if EVERYTHING_FACING_SRC==1
+    if(lightDotN>0)
+        lightDotN=1;
+#elif EVERYTHING_FACING_SRC==2
+    lightDotN=1;
+#endif
 
-    if(receivesLight){
+
 #ifdef PRIDE_LIGHTING
-        float len = sqrt(lengthSquared);
-        if(length(lightSrc.color-(vec3(8,7,4)/8))<0.1){
+    float len = sqrt(lengthSquared);
+    if(length(lightSrc.color-(vec3(8,7,4)/8))<0.1){
 
-            if(2<=len && len<=2.5){
-                lightSrc.color=vec3(1);
-            }else if(1.5<=len && len<=3){
-                lightSrc.color=vec3(1,0.5,0.8);
-            }else{
-                lightSrc.color=vec3(0.3,0.3,1);
-                if(len>3)
-                    lightStrength*=2;
-            }
-        }else if(length(lightSrc.color-(vec3(9,8,4)/8))<0.15){
-            switch(int(floor(len*2-1))){
-                case 0:
-                    lightSrc.color=vec3(1,0,0);
-                    break;
-                case 1:
-                    lightSrc.color=vec3(1,0.5,0);
-                    break;
-                case 2:
-                    lightSrc.color=vec3(1,1,0);
-                    break;
-                case 3:
-                    lightSrc.color=vec3(0,1,0);
-                    break;
-                case 4:
-                    lightSrc.color=vec3(0,0,1);
-                    break;
-                default:
-                    lightSrc.color=vec3(1.3,0,1.3);
-
-            }
+        if(2<=len && len<=2.5){
+            lightSrc.color=vec3(1);
+        }else if(1.5<=len && len<=3){
+            lightSrc.color=vec3(1,0.5,0.8);
+        }else{
+            lightSrc.color=vec3(0.3,0.3,1);
+            if(len>3)
+                lightStrength*=2;
         }
-#endif
+    }else if(length(lightSrc.color-(vec3(9,8,4)/8))<0.15){
+        switch(int(floor(len*2-1))){
+            case 0:
+                lightSrc.color=vec3(1,0,0);
+                break;
+            case 1:
+                lightSrc.color=vec3(1,0.5,0);
+                break;
+            case 2:
+                lightSrc.color=vec3(1,1,0);
+                break;
+            case 3:
+                lightSrc.color=vec3(0,1,0);
+                break;
+            case 4:
+                lightSrc.color=vec3(0,0,1);
+                break;
+            default:
+                lightSrc.color=vec3(1.3,0,1.3);
 
-#ifndef DEBUG_OCCLUSION_MAP
-        lightStrength*=lightDotN;
-#endif
-
-        outColor += lightSrc.color*lightStrength;
+        }
     }
+#endif
 
+    if((abs(displacement.x)>displacement.z) || (abs(displacement.y)>displacement.z))
+    lightStrength=0;
+
+    #ifdef PENUMBRAS_ENABLED
+    lightStrength*=penumbralLightTest(displacement,lightSrc);
+    #else
+    lightStrength=isLit(displacement,lightSrc) ? lightStrength:0;
+    #endif
+
+    vec3 outColor = lightSrc.color*(lightStrength*lightDotN);
     //Debug Coloring
     //green = fully lit,
     //bright red = fully unlit (should never happen)

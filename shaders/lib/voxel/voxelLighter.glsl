@@ -19,7 +19,7 @@ layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z =
 
 
 #if 0 //dummy definition because intellij's best glsl plugin doesnt know includes exist
-struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;uint type;vec3 lightTravel;float columnation;};
+struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;};
 #endif
 
 
@@ -199,7 +199,7 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
 
                 bool newItem = true;
                 for (int i = 0; i<shortListOccupation; i++){ //can maybe make it ordered to allow binary search
-                    newItem=newItem && !(lightSrc.lightTravel==shortList[i].lightTravel && lightSrc.color==shortList[i].color);//also check direction here
+                    newItem=newItem && !(lightSrc.lightTravel==shortList[i].lightTravel && lightSrc.color==shortList[i].color);
                 }
                 //even in the non-shortlisted version, this branch is coherent enough to be worth the overhead
                 if((!newItem))
@@ -342,37 +342,27 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
 
 //i'll be calling the +b direction "top" and the +a direction "left", both of these directions are away from src
 //as though you're looking along the +z direction, with light traveling along L=+z and also somewhat +x+y
-void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignment, bool[2][2] relevantObstructions, vec3 lightTravel,
-    out vec2 outRay, out bvec4 outMap
+void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignment, bool[2][2] relevantObstructions,
+    inout lightVoxData lightSrc
 ){
+//.lightTravel,
+//bestLight.occlusionRay, bestLight.occlusionMap
 
-    lightTravel.xy=abs(lightTravel.xy);
-    float slopeScaleNear = abs(scale/(lightTravel.z-halfScale));
-    float slopeScaleFar  = abs(scale/(lightTravel.z+halfScale));
+    vec2 lightTravel= abs(lightSrc.lightTravel.xy);
+    float slopeScaleNear = abs(scale/(lightSrc.lightTravel.z-halfScale));
+    float slopeScaleFar  = abs(scale/(lightSrc.lightTravel.z+halfScale));
     vec2 outerSlope  = (lightTravel.xy+halfScale)*slopeScaleNear;  //anything more than this will not be visible
     vec2 middleSlope = (lightTravel.xy-halfScale)*slopeScaleNear;  //ray going to the center corner of the 4 relevant samples
     vec2 innerSlope  = (lightTravel.xy-halfScale)*slopeScaleFar;   //anything less than this will not be visible
 
-    outRay=abs(lightTravel.xy/lightTravel.z);
+    vec2 outRay=abs(lightTravel/lightSrc.lightTravel.z);
+    bvec4 outMap = lightSrc.occlusionMap;
 
 
     //each corner is represented by (cornersX.N,cornersY.N), with N corresponding to
     //the same corner as represented by occlusionMap.N
     vec4 cornersX=vec4(2,-1,2,-1);
     vec4 cornersY=vec4(2,2,-1,-1);
-
-    //corners from blocks
-    //TODO just unroll manually, choosing the right min/maxes will be faster & (arguably) more readable (to me)
-    for(int i=0; i<2; i++){
-        for (int j=0; j<2; j++){
-            if(relevantObstructions[i][j] && !((i==0 && alignment.y) || (j==0 && alignment.x))){
-                int index = 3-i-j-j;
-                vec2 whichCorner = vec2((i<<1)-1,(j<<1)-1);
-                cornersX[index] = whichCorner.x*(min(whichCorner.x*cornersX[index],whichCorner.x*middleSlope.x));
-                cornersY[index] = whichCorner.y*(min(whichCorner.y*cornersY[index],whichCorner.y*middleSlope.y));
-            }
-        }
-    }
 
     bool anyRelevantSamples = false;
 
@@ -461,7 +451,46 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
             anyRelevantSamples = anyRelevantSamples ||
                 (!shadowedCorners.x)||(!shadowedCorners.y)||(!shadowedCorners.z)||(!shadowedCorners.w);
 //            anyRelevantSamples=true;
-      }
+        }
+    }
+
+    //corners from blocks
+//    for(int i=0; i<2; i++){
+//        for (int j=0; j<2; j++){
+//            if(relevantObstructions[i][j] && !((i==0 && alignment.y) || (j==0 && alignment.x))){
+//                int index = 3-i-j-j;
+//                vec2 whichCorner = vec2((i<<1)-1,(j<<1)-1);
+//                cornersX[index] = whichCorner.x*(min(whichCorner.x*cornersX[index],whichCorner.x*middleSlope.x));
+//                cornersY[index] = whichCorner.y*(min(whichCorner.y*cornersY[index],whichCorner.y*middleSlope.y));
+//            }
+//        }
+//    }
+
+    bool newObstruction= false;
+
+    if(!alignment.y){
+        if(relevantObstructions[0][0]&&!alignment.x){
+            newObstruction=newObstruction||(middleSlope.x>cornersX.w || middleSlope.y>cornersY.w);
+            cornersX.w=max(cornersX.w,middleSlope.x);
+            cornersY.w=max(cornersY.w,middleSlope.y);
+        }
+        if(relevantObstructions[0][1]){
+            newObstruction=newObstruction||(middleSlope.x>cornersX.y || (middleSlope.y<cornersY.y&&!alignment.x));
+            cornersX.y=max(cornersX.y,middleSlope.x);
+            cornersY.y=min(cornersY.y,middleSlope.y);
+        }
+    }
+    {
+        if(relevantObstructions[1][0]&&!alignment.x){
+            newObstruction=newObstruction||((middleSlope.x<cornersX.z &&!alignment.y) || middleSlope.y>cornersY.z);
+            cornersX.z=min(cornersX.z,middleSlope.x);
+            cornersY.z=max(cornersY.z,middleSlope.y);
+        }
+        if(relevantObstructions[1][1]){
+            newObstruction=newObstruction||((middleSlope.x<cornersX.x &&!alignment.y) || (middleSlope.y<cornersY.x&&!alignment.x));
+            cornersX.x=min(cornersX.x,middleSlope.x);
+            cornersY.x=min(cornersY.x,middleSlope.y);
+        }
     }
 
 
@@ -536,12 +565,20 @@ void determineOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 
         outMap=and(outMap, outMap.yxwz);
         outRay.x=0;
     }
+
+//    newObstruction = newObstruction || any(and(lightSrc.occlusionMap,not(outMap)));
+
+    if(newObstruction){
+        lightSrc.occlusionHitDistance=lightSrc.lightTravel.z-0.6;
+    }
+
+    lightSrc.occlusionMap=outMap;
+    lightSrc.occlusionRay=outRay;
 }
 
 
 
-//
-lightVoxData doLightPassage(inout lightVoxData bestLight, bool translucentTerrain){
+void doLightPassage(inout lightVoxData bestLight, bool translucentTerrain){
     lightVoxData[2][2] relevantSamples;
     bool[2][2] relevance;
     bvec2 alignment;
@@ -551,13 +588,11 @@ lightVoxData doLightPassage(inout lightVoxData bestLight, bool translucentTerrai
     pickRelevantInputSamples(bestLight, translucentTerrain,
     relevantSamples, relevance, alignment, newObstructions);
 
-    determineOcclusion(relevantSamples, relevance, alignment, newObstructions, bestLight.lightTravel,
-    bestLight.occlusionRay, bestLight.occlusionMap);
+    doOcclusion(relevantSamples, relevance, alignment, newObstructions, bestLight);
 
     if ( !(bestLight.occlusionMap.x||bestLight.occlusionMap.y||bestLight.occlusionMap.z||bestLight.occlusionMap.w)){
         bestLight.type=0;
     }
-    return bestLight;
 }
 
 
@@ -618,7 +653,7 @@ void lightVoxelFace(){
         bestLights[VOX_LAYERS-1].color = unpackUnorm4x8(front).wzy;
         bestLights[VOX_LAYERS-1].type = (front>>4)&0xfu;
         bestLights[VOX_LAYERS-1].occlusionMap=bvec4(true);
-        bestLights[VOX_LAYERS-1].columnation=MIN_COLUMNATION;
+        bestLights[VOX_LAYERS-1].occlusionHitDistance=0;
     }
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
