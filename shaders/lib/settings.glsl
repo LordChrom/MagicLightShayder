@@ -3,6 +3,7 @@
 #define DEBUG_OUTLINE_WIDTH 0.04 //[0 0.01 0.02 0.04 0.08 0.16]
 #define DEBUG_AXIS -1 //[-1 0 1 2 3 4 5]
 #define DEBUG_SCALE 1.0 //[1.0 0.5 0.25]
+//#define DEBUG_DECOLOR
 //#define DEBUG_GRID_OUTLINE
 //#define EVERYTHING_IS_THE_SUN
 #define EVERYTHING_FACING_SRC 0 //[0 1 2]
@@ -16,7 +17,7 @@
 #define PENUMBRA_WIDTH 0.04 //[0.01 0.015 0.02 0.03 0.04 0.06 0.08 0.12 0.16 0.2 0.3]
 #define PENUMBRAS_ENABLED
 
-#define VOX_LAYERS 2 //[1 2]
+#define VOX_LAYERS 2 //[1 2 3]
 
 #define COLORED_TRANSLUCENTS
 //#define PRIDE_LIGHTING

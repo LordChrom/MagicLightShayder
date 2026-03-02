@@ -28,13 +28,9 @@ struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTr
 shared uvec4[SECTION_SIZE+2][SECTION_SIZE+2][VOX_LAYERS] sharedPackedSamples;
 shared uint[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedFrontVoxels;
 shared uint[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedRearVoxels;
-
-shared bool[SECTION_SIZE+2][SECTION_SIZE+2] sharedObstructions;
-shared bool[SECTION_SIZE+2][SECTION_SIZE+2] sharedTranslucents;
 #else
 uvec4[3][3][VOX_LAYERS] packedInputSamples;
 uint[3][3] frontVoxels, rearVoxels;
-bool[3][3] obstructions, translucents;
 #endif
 
 
@@ -48,17 +44,13 @@ uint A,B; //1 to SECTION_SIZE
 
 
 #ifdef PARALLEL_UNPACK
-lightVoxData getRawSample(int a, int b, uint layer){  return unpackLightData(sharedPackedSamples[A+a][B+b][layer]); }
-uint getRawFrontVoxel(int a, int b){  return sharedPackedFrontVoxels[A+a][B+b]; }
-uint getRawRearVoxel(int a, int b){  return sharedPackedRearVoxels[A+a][B+b]; }
-bool getRawObstructions(int a, int b){  return sharedObstructions[A+a][B+b]; }
-bool getRawTranslucents(int a, int b){  return sharedTranslucents[A+a][B+b]; }
+lightVoxData getInputSample(int a, int b, uint layer){  return unpackLightData(sharedPackedSamples[A+a][B+b][layer]); }
+uint getFrontVoxel(int a, int b){  return sharedPackedFrontVoxels[A+a][B+b]; }
+uint getRearVoxel(int a, int b){  return sharedPackedRearVoxels[A+a][B+b]; }
 #else
-lightVoxData getRawSample(int a, int b, uint layer){  return unpackLightData(packedInputSamples[a+1][b+1][layer]); }
-uint getRawFrontVoxel(int a, int b){  return frontVoxels[a+1][b+1]; }
-uint getRawRearVoxel(int a, int b){  return rearVoxels[a+1][b+1]; }
-bool getRawObstructions(int a, int b){  return obstructions[a+1][b+1]; }
-bool getRawTranslucents(int a, int b){  return translucents[a+1][b+1]; }
+lightVoxData getInputSample(int a, int b, uint layer){  return unpackLightData(packedInputSamples[a+1][b+1][layer]); }
+uint getFrontVoxel(int a, int b){  return frontVoxels[a+1][b+1]; }
+uint getRearVoxel(int a, int b){  return rearVoxels[a+1][b+1]; }
 #endif
 
 
@@ -87,13 +79,6 @@ void saveSharedSample(int a, int b){
     for(uint layer = 0; layer<VOX_LAYERS; layer++){
         sharedPackedSamples[A+a][B+b][layer]=packedLightSamples[layer];
     }
-
-    bool obstructedOpaque =  ((rearVoxel.w&3u)==1) || ((frontVoxel.w&3u)==1);
-    sharedObstructions[A+a][B+b] = obstructedOpaque;
-
-#ifdef COLORED_TRANSLUCENTS
-    sharedTranslucents[A+a][B+b] = ((rearVoxel.w&3u)==2) || ((frontVoxel.w&3u)==2) && !obstructedOpaque;
-#endif
 }
 #endif
 
@@ -124,7 +109,7 @@ void takeSamples(){
         saveSharedSample(A2offset,B2offset);
     }
 
-    barrier();
+    barrier(); //disable for fun party :)
 
 #else
 
@@ -135,13 +120,8 @@ void takeSamples(){
             uvec4[VOX_LAYERS] packedLightSamples;
             takeSingleSample(a,b,frontVoxel,rearVoxel,packedLightSamples);
 
-            bool obstructedOpaque =  ((rearVoxel.w&3u)==1) || ((frontVoxel.w&3u)==1);
-            obstructions[a+1][b+1] = obstructedOpaque;
             frontVoxels[a+1][b+1] = packBytes(frontVoxel);
             rearVoxels[a+1][b+1] = packBytes(rearVoxel);
-    #ifdef COLORED_TRANSLUCENTS
-            translucents[a+1][b+1] = ((rearVoxel.w&3u)==2) || ((frontVoxel.w&3u)==2) && !obstructedOpaque;
-    #endif
 
             for(uint layer = 0; layer<VOX_LAYERS; layer++){
                 lightVoxData inputSample = getLightData(zonePos[layer]+ivec3(a,b, -1));
@@ -185,13 +165,13 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
 
     for (int a=-1; a<=1;a++){
         for (int b=-1; b<=1;b++){
-            if(getRawObstructions(a,b) || //block in front
-                ( getRawObstructions(a,0) && getRawObstructions(0,b) && ((a|b)!=0))){ //neighboring blocks between src and center
+            if(bool((getRearVoxel(a,b)|getFrontVoxel(a,b))&1u) || //block in front
+                ( bool(getFrontVoxel(a,0)&1u) && bool(getFrontVoxel(0,b)&1u) && ((a|b)!=0))){ //neighboring blocks between src and center
                 continue;
             }
 
             for(int layer = 0; layer<VOX_LAYERS; layer++){
-                lightVoxData lightSrc = getRawSample(a,b,layer);
+                lightVoxData lightSrc = getInputSample(a,b,layer);
                 lightSrc.lightTravel+=vec3(-a, -b, 1)*scale;
 
                 if((lightSrc.type==0) || (lightSrc.lightTravel.x*a>0) || (lightSrc.lightTravel.y*b>0))
@@ -251,13 +231,13 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
                 vec2 innerSlope  = (xy-halfScale) * abs(scale/(lightTravel.z+halfScale));
 
                 if(lightTravel.x==0){
-                    outerSlope.x=2;
-                    innerSlope.x=0;
+//                    outerSlope.x=2;
+//                    innerSlope.x=0;
                 }
 
                 if(lightTravel.y==0){
-                    outerSlope.y=2;
-                    innerSlope.y=0;
+//                    outerSlope.y=2;
+//                    innerSlope.y=0;
                 }
 
                 if(!canIlluminateInBounds(vec4(outerSlope,innerSlope),lightSrc.occlusionRay,lightSrc.occlusionMap))
@@ -304,19 +284,30 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
         }
     }
 
+    bool cornerBlocked = !(alignment.x||alignment.y);
+
     //i=0 means a=offset, i=1 means a=0;
     for(int i=0; i<2; i++){
         int a = (i-1)*aSignSrc;
         for(int j=0; j<2; j++){
             int b = (j-1)*bSignSrc;
-            bool blockBlocked = getRawObstructions(a, b) || (getRawTranslucents(a,b)&&!translucentTerrain);
+
+            bool frontTrans = bool(getFrontVoxel(a,b)&2u);
+            bool frontSolid = bool((getFrontVoxel(a, b)&1u));
+            bool rearSolid = bool((getRearVoxel(a, b)&1u));
+            bool blockBlocked = (frontSolid || rearSolid) ||
+                                (translucentTerrain!=frontTrans);
+
+            cornerBlocked = cornerBlocked && (i==j || frontSolid);
+
+
             newObstructions[i][j]=blockBlocked;
 
             if((alignment.x&&j==0) || (alignment.y&&i==0) || blockBlocked)
                 continue;
 
             for(int layer = 0; layer<VOX_LAYERS; layer++){
-                lightVoxData relevantSample = getRawSample(a,b,layer);
+                lightVoxData relevantSample = getInputSample(a,b,layer);
                 relevantSample.lightTravel+=vec3(-a, -b, 1)*scale;
 
                 bool sameSource = (relevantSample.lightTravel==bestSource.lightTravel)
@@ -332,7 +323,6 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
         }
     }
 
-    bool cornerBlocked = (newObstructions[1][0] && newObstructions[0][1]) && !(alignment.x||alignment.y); //TODO test
     newObstructions[0][0] = newObstructions[0][0] || cornerBlocked;
     relevance[0][0]=relevance[0][0]&&!cornerBlocked;
 
@@ -345,9 +335,6 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
 void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignment, bool[2][2] relevantObstructions,
     inout lightVoxData lightSrc
 ){
-//.lightTravel,
-//bestLight.occlusionRay, bestLight.occlusionMap
-
     vec2 lightTravel= abs(lightSrc.lightTravel.xy);
     float slopeScaleNear = abs(scale/(lightSrc.lightTravel.z-halfScale));
     float slopeScaleFar  = abs(scale/(lightSrc.lightTravel.z+halfScale));
@@ -450,24 +437,13 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
 
             anyRelevantSamples = anyRelevantSamples ||
                 (!shadowedCorners.x)||(!shadowedCorners.y)||(!shadowedCorners.z)||(!shadowedCorners.w);
-//            anyRelevantSamples=true;
         }
     }
 
-    //corners from blocks
-//    for(int i=0; i<2; i++){
-//        for (int j=0; j<2; j++){
-//            if(relevantObstructions[i][j] && !((i==0 && alignment.y) || (j==0 && alignment.x))){
-//                int index = 3-i-j-j;
-//                vec2 whichCorner = vec2((i<<1)-1,(j<<1)-1);
-//                cornersX[index] = whichCorner.x*(min(whichCorner.x*cornersX[index],whichCorner.x*middleSlope.x));
-//                cornersY[index] = whichCorner.y*(min(whichCorner.y*cornersY[index],whichCorner.y*middleSlope.y));
-//            }
-//        }
-//    }
 
     bool newObstruction= false;
 
+    //TODO shape of shadows of corners should maybe be a little different
     if(!alignment.y){
         if(relevantObstructions[0][0]&&!alignment.x){
             newObstruction=newObstruction||(middleSlope.x>cornersX.w || middleSlope.y>cornersY.w);
@@ -493,6 +469,9 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
         }
     }
 
+    if(newObstruction){
+        lightSrc.occlusionHitDistance=lightSrc.lightTravel.z-0.6*scale;
+    }
 
 
     outMap = bvec4( !(cornersX.x<outerSlope.x && cornersY.x<outerSlope.y), !(cornersX.y>innerSlope.x && cornersY.y<outerSlope.y),
@@ -566,12 +545,6 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
         outRay.x=0;
     }
 
-//    newObstruction = newObstruction || any(and(lightSrc.occlusionMap,not(outMap)));
-
-    if(newObstruction){
-        lightSrc.occlusionHitDistance=lightSrc.lightTravel.z-0.6;
-    }
-
     lightSrc.occlusionMap=outMap;
     lightSrc.occlusionRay=outRay;
 }
@@ -616,8 +589,8 @@ void lightVoxelFace(){
         for (int j=0; j<2; j++){
             int b = (j-1)*travelDirSign.y;
 
-            uint front = getRawFrontVoxel(a,b);
-            uint rear = getRawRearVoxel(a,b);
+            uint front = getFrontVoxel(a,b);
+            uint rear = getRearVoxel(a,b);
 
             bool frontTrans = bool(front&2u);
             bool rearTrans = bool(rear&2u);
@@ -641,13 +614,14 @@ void lightVoxelFace(){
 #endif
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-        if(translucentBlocksInSample>0 && layer==VOX_LAYERS-1)
-            break;
+#ifdef COLORED_TRANSLUCENTS
+        if(translucentBlocksInSample>0 && layer==VOX_LAYERS-1) break;
+#endif
         doLightPassage(bestLights[layer],false);
     }
 
     //could maybe be at the top, not sure how much it'd actually help though TODO test later
-    uint front = getRawFrontVoxel(0,0);
+    uint front = getFrontVoxel(0,0);
     if (bool(front&0xf0u)){
         bestLights[VOX_LAYERS-1].lightTravel = vec3(0);
         bestLights[VOX_LAYERS-1].color = unpackUnorm4x8(front).wzy;

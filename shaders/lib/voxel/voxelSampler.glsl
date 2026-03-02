@@ -129,7 +129,11 @@ vec3 getDirectedLight(ivec3 blockPos, ivec4 sectionPos, vec3 subVoxelOffset, vec
     }
 #endif
 
-
+#ifdef DEBUG_DECOLOR
+    #ifdef DEBUG_OCCLUSION_MAP
+    lightSrc.color=vec3(0.3);
+    #endif
+#endif
 
 #ifdef PENUMBRAS_ENABLED
     //TODO make it so light occluded at 45deg also has penumbra fuzzing past the 45deg boundary
