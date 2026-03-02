@@ -29,13 +29,14 @@ struct lightVoxData{
     vec3 lightTravel;//the displacement from the light source voxel center to the sample's voxel center
     float occlusionHitDistance;
     uint type;
+    uint flags; //7 free, 1 for whether the light just had translucency applied
 };
 
 
 const float lightTravelScaleInv = 16.0; //most voxels per block representable for lightTravel
 const float lightTravelScale = 1.0/lightTravelScaleInv;
 
-const lightVoxData noLight = {vec2(0),bvec4(false),vec3(0),vec3(0),0,0};
+const lightVoxData noLight = {vec2(0),bvec4(false),vec3(0),vec3(0),0,0,0};
 
 bool isVoxelInBounds(vec3 worldPos){
     worldPos-=voxOriginOffset;
@@ -116,14 +117,9 @@ vec3 subVoxelOffset(vec3 pos, float scale){
 
 //bit layout of the packing
 //x is 2x16 a,b of travel
-//y is 2x8 occlusion (b then a), 1x16 z of travel
-//z is 3x8 color, 8 free
-//w is 1x8 occlusion hit distance, 16 free, 4x1 occlusion map, 1x4 light type
-
-//x is 2x16 a,b of travel
 //y is 1x16 occlusion hit distance, 1x16 z of travel
 //z is 3x8 color, 8 free
-//w 2x8 occlusion ray (b then a), 8 free, 4x1 occlusion map, 1x4 light type
+//w 2x8 occlusion ray (b then a), 4x1 occlusion map, 1x4 light type, 8 free
 lightVoxData unpackLightData(uvec4 packedData){
     lightVoxData ret;
     ret.lightTravel = vec3(ivec3(packedData.x,packedData.x<<16,packedData.y<<16)>>16)*lightTravelScale;
@@ -131,9 +127,10 @@ lightVoxData unpackLightData(uvec4 packedData){
 
     vec4 colorEtc = unpackUnorm4x8(packedData.z);
     ret.color=colorEtc.xyz;
-    ret.occlusionMap = bvec4(packedData.w&0x80u,packedData.w&0x40u,packedData.w&0x20u,packedData.w&0x10u);
-    ret.type = packedData.w&0xfu;
     ret.occlusionRay=unpackUnorm4x8(packedData.w).zw; //higher bits are later vec elements
+    ret.occlusionMap = bvec4(packedData.w&0x8000u,packedData.w&0x4000u,packedData.w&0x2000u,packedData.w&0x1000u);
+    ret.type = (packedData.w>>8)&0xfu;
+    ret.flags = packedData.w&0xffu;
     return ret;
 }
 
@@ -141,15 +138,15 @@ uvec4 packLightData(lightVoxData data){
     uvec4 ret;
     uvec4 intTravel = ivec4(round(vec4(data.lightTravel,data.occlusionHitDistance)*lightTravelScaleInv));
     uint intOcclMap =
-        (int(data.occlusionMap.x)<<7)|
-        (int(data.occlusionMap.y)<<6)|
-        (int(data.occlusionMap.z)<<5)|
-        (int(data.occlusionMap.w)<<4);
+        (int(data.occlusionMap.x)<<15)|
+        (int(data.occlusionMap.y)<<14)|
+        (int(data.occlusionMap.z)<<13)|
+        (int(data.occlusionMap.w)<<12);
 
     ret.x = (intTravel.x<<16) | (intTravel.y&0xffffu);
     ret.y = (intTravel.w<<16) | (intTravel.z&0xffffu);
     ret.z = packUnorm4x8(vec4(data.color,0));
-    ret.w = (packUnorm4x8(vec4(0,0,data.occlusionRay))&0xffff0000u) | (intOcclMap&0xf0u) | (data.type&0xfu);
+    ret.w = (packUnorm4x8(vec4(0,0,data.occlusionRay))&0xffff0000u) | (intOcclMap&0xf000u) | ((data.type&0xfu)<<8) | data.flags&0xffu;
     return ret;
 }
 

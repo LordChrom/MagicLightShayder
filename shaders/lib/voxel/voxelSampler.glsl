@@ -8,7 +8,7 @@ layout (rgba8ui) uniform readonly restrict uimage3D worldVox;
 #include "/lib/util/flicker.glsl"
 
 #if false //dummy definition because my intellij's best glsl plugin doesnt know includes exist
-struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;};
+struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;uint flags;};
 #endif
 
 vec3 getDirectedLight(ivec3 blockPos, ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint axis, uint layer, float scale){

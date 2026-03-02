@@ -19,7 +19,7 @@ layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z =
 
 
 #if 0 //dummy definition because intellij's best glsl plugin doesnt know includes exist
-struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;};
+struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;uint flags;};
 #endif
 
 
@@ -284,6 +284,8 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
         }
     }
 
+//    bool frontOutputTranslucent = bool(getFrontVoxel(0,0)&2u);
+    bool sampleFreshlyTranslucent = bool(bestSource.flags&1u);
     bool cornerBlocked = !(alignment.x||alignment.y);
 
     //i=0 means a=offset, i=1 means a=0;
@@ -292,14 +294,14 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
         for(int j=0; j<2; j++){
             int b = (j-1)*bSignSrc;
 
-            bool frontTrans = bool(getFrontVoxel(a,b)&2u);
-            bool frontSolid = bool((getFrontVoxel(a, b)&1u));
-            bool rearSolid = bool((getRearVoxel(a, b)&1u));
-            bool blockBlocked = (frontSolid || rearSolid) ||
-                                (translucentTerrain!=frontTrans);
+            uint front = getFrontVoxel(a,b);
+            uint rear = getRearVoxel(a,b);
+            bool rearTranslucent = bool(rear&2u);
 
-            cornerBlocked = cornerBlocked && (i==j || frontSolid);
+            bool blockRecolors = bool((front^rear)&2u)&&!sampleFreshlyTranslucent;
+            bool blockBlocked = bool((front|rear)&1u) || (translucentTerrain!=blockRecolors);
 
+            cornerBlocked = cornerBlocked && (i==j || bool(front&1u));
 
             newObstructions[i][j]=blockBlocked;
 
@@ -608,6 +610,7 @@ void lightVoxelFace(){
 
         doLightPassage(transucentPassage,true);
         transucentPassage.color*=color;
+        transucentPassage.flags|=1u;
 
         bestLights[VOX_LAYERS-1]=transucentPassage;
     }
@@ -618,6 +621,7 @@ void lightVoxelFace(){
         if(translucentBlocksInSample>0 && layer==VOX_LAYERS-1) break;
 #endif
         doLightPassage(bestLights[layer],false);
+        bestLights[layer].flags&=0xfeu;
     }
 
     //could maybe be at the top, not sure how much it'd actually help though TODO test later
