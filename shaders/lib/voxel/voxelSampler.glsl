@@ -22,19 +22,16 @@ vec3 getDirectedLight(ivec3 blockPos, ivec4 sectionPos, vec3 subVoxelOffset, vec
         subVoxelOffset=subVoxelOffset.yzx;
         normal = normal.yzx;
         lightTravelWorld = lightTravelWorld.zxy;
-//        lightTravelWorld = lightTravelWorld.yzx;
     }
     if(axis>>1==1){
         subVoxelOffset=subVoxelOffset.zxy;
         normal = normal.zxy;
         lightTravelWorld = lightTravelWorld.yzx;
-//        lightTravelWorld = lightTravelWorld.zxy;
     }
 
     if((axis&1u)==0){
         subVoxelOffset.z=-subVoxelOffset.z;
         normal.z=-normal.z;
-//        lightTravelWorld.z=-lightTravelWorld.z;
     }
 
     blockPos-=ivec3(round(lightTravelWorld));
@@ -70,8 +67,6 @@ vec3 getDirectedLight(ivec3 blockPos, ivec4 sectionPos, vec3 subVoxelOffset, vec
 
 
     const float b = 1/float(MAX_LIGHT_STRENGTH*MAX_LIGHT_STRENGTH);
-//        lengthSquareed=len*(1-columnation)+(MAX_LIGHT_STRENGTH);
-//        lightStrength/=(max(lengthSquared, 0.001));
 
     lightStrength*=inversesqrt(lengthSquared*lengthSquared*(1-columnation)+b);
 
@@ -134,21 +129,27 @@ vec3 getDirectedLight(ivec3 blockPos, ivec4 sectionPos, vec3 subVoxelOffset, vec
     }
 #endif
 
-    if((abs(displacement.x)>displacement.z) || (abs(displacement.y)>displacement.z))
-    lightStrength=0;
 
-    #ifdef PENUMBRAS_ENABLED
+
+#ifdef PENUMBRAS_ENABLED
+    //TODO make it so light occluded at 45deg also has penumbra fuzzing past the 45deg boundary
+    if((abs(displacement.x)>displacement.z) || (abs(displacement.y)>displacement.z))
+        lightStrength=0;
     lightStrength*=penumbralLightTest(displacement,lightSrc);
-    #else
+#else
+    if((abs(displacement.x)>displacement.z) || (abs(displacement.y)>displacement.z))
+        lightStrength=0;
+
     lightStrength=isLit(displacement,lightSrc) ? lightStrength:0;
-    #endif
+#endif
 
     vec3 outColor = lightSrc.color*(lightStrength*lightDotN);
+
+#ifdef DEBUG_OCCLUSION_MAP
     //Debug Coloring
     //green = fully lit,
     //bright red = fully unlit (should never happen)
     //blue = partially lit
-#ifdef DEBUG_OCCLUSION_MAP
     if(bool(lightSrc.type)){
         vec2 debugQuadrant = subVoxelOffset.xy;
 
@@ -214,7 +215,6 @@ vec3 getDirectedLight(ivec3 blockPos, ivec4 sectionPos, vec3 subVoxelOffset, vec
 
 
 vec3 voxelSample(vec3 worldPos, vec3 normal){
-//    worldPos+=vec3(0,0,-0.1); //TODO figure this out, probably something stupid
 
 //    worldPos+=normal*0.001;
     float scale = 1;
@@ -234,5 +234,5 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
             color+=getDirectedLight(blockPos,sectionPos, subVoxelOffset, normal, axis, layer, scale);
         }
     }
-    return max(color,0.1);
+    return color + MIN_LIGHT_AMOUNT*clamp(1-(color.x+color.y+color.z),0,1);
 }

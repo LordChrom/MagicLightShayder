@@ -24,7 +24,7 @@ vec3 sunPos = vec3(0,0,1000);
 void sunlight(uvec3 texelPos){
     vec3 lightTravel = sunPos;
     lightTravel.xy+=texelPos.xy;
-    lightVoxData sunLight = {vec2(0,0),bvec4(true),sunColor,lightTravel,1,1};
+    lightVoxData sunLight = {vec2(0,0),bvec4(true),sunColor,lightTravel,0,1};
     setLightData(sunLight, ivec3(texelPos));
 
 }
@@ -52,8 +52,8 @@ void fillSeams(uvec3 workGroupID, uvec3 localID){
 
     if(axis==2)
         sunlight(texelPos);
-    else
-        nullify(texelPos);
+//    else
+//        nullify(texelPos);
 
 
 }

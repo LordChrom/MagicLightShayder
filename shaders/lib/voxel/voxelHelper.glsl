@@ -117,23 +117,29 @@ vec3 subVoxelOffset(vec3 pos, float scale){
 //bit layout of the packing
 //x is 2x16 a,b of travel
 //y is 2x8 occlusion (b then a), 1x16 z of travel
-//z is 3x8 color, 1x8 occlusion hit distance
-//w is 24 free, 4x1 occlusion map, 1x4 light type
+//z is 3x8 color, 8 free
+//w is 1x8 occlusion hit distance, 16 free, 4x1 occlusion map, 1x4 light type
+
+//x is 2x16 a,b of travel
+//y is 1x16 occlusion hit distance, 1x16 z of travel
+//z is 3x8 color, 8 free
+//w 2x8 occlusion ray (b then a), 8 free, 4x1 occlusion map, 1x4 light type
 lightVoxData unpackLightData(uvec4 packedData){
     lightVoxData ret;
     ret.lightTravel = vec3(ivec3(packedData.x,packedData.x<<16,packedData.y<<16)>>16)*lightTravelScale;
+    ret.occlusionHitDistance=(packedData.y>>16)*lightTravelScale;
+
     vec4 colorEtc = unpackUnorm4x8(packedData.z);
     ret.color=colorEtc.xyz;
-    ret.occlusionHitDistance=colorEtc.w*30;
     ret.occlusionMap = bvec4(packedData.w&0x80u,packedData.w&0x40u,packedData.w&0x20u,packedData.w&0x10u);
-    ret.type = packedData.w&0xfu;;
-    ret.occlusionRay=unpackUnorm4x8(packedData.y).zw; //higher bits are later vec elements
+    ret.type = packedData.w&0xfu;
+    ret.occlusionRay=unpackUnorm4x8(packedData.w).zw; //higher bits are later vec elements
     return ret;
 }
 
 uvec4 packLightData(lightVoxData data){
     uvec4 ret;
-    uvec3 intTravel = ivec3(round(data.lightTravel*lightTravelScaleInv));
+    uvec4 intTravel = ivec4(round(vec4(data.lightTravel,data.occlusionHitDistance)*lightTravelScaleInv));
     uint intOcclMap =
         (int(data.occlusionMap.x)<<7)|
         (int(data.occlusionMap.y)<<6)|
@@ -141,9 +147,9 @@ uvec4 packLightData(lightVoxData data){
         (int(data.occlusionMap.w)<<4);
 
     ret.x = (intTravel.x<<16) | (intTravel.y&0xffffu);
-    ret.y = intTravel.z | (packUnorm4x8(vec4(0,0,data.occlusionRay))&0xffff0000u);
-    ret.z = packUnorm4x8(vec4(data.color,data.occlusionHitDistance/30));
-    ret.w = (intOcclMap&0xf0u) | (data.type&0xfu);
+    ret.y = (intTravel.w<<16) | (intTravel.z&0xffffu);
+    ret.z = packUnorm4x8(vec4(data.color,0));
+    ret.w = (packUnorm4x8(vec4(0,0,data.occlusionRay))&0xffff0000u) | (intOcclMap&0xf0u) | (data.type&0xfu);
     return ret;
 }
 
@@ -179,9 +185,9 @@ float penumbralLightTest(vec3 position, lightVoxData light){
     vec2 slope = abs(position.xy/position.z);
     vec2 ray = light.occlusionRay;
     bvec4 map = light.occlusionMap;
-    float width = PENUMBRA_WIDTH*(position.z-light.occlusionHitDistance)/position.z;
+    float widthInv = position.z/(PENUMBRA_WIDTH*(position.z-light.occlusionHitDistance));
 
-    vec2 m = clamp((slope-ray)/width,-0.5,0.5);
+    vec2 m = clamp((slope-ray)*widthInv,-0.5,0.5);
     vec4 mix = max(vec2(0.5+m.x,0.5-m.x),0).xyxy * max(vec2(0.5+m.y,0.5-m.y),0).xxyy;
     float totalLevel = (int(map.x)*mix.x+int(map.y)*mix.y+int(map.z)*mix.z+int(map.w)*mix.w);
     return totalLevel;
