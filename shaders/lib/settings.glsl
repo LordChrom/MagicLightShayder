@@ -6,6 +6,7 @@
 //#define DEBUG_DECOLOR
 //#define DEBUG_GRID_OUTLINE
 //#define EVERYTHING_IS_THE_SUN
+//#define KEEP_FULLY_OCCLUDED_SAMPLES
 #define EVERYTHING_FACING_SRC 0 //[0 1 2]
 
 
@@ -29,7 +30,7 @@
 
 
 #define SECTION_SIZE 16
-#define UPDATE_STRIDE 16
+#define UPDATE_STRIDE 16 //[16 8]
 #define AREA_WIDTH_SECTIONS 4
 const uvec3 AREAS = ivec3(1,1,1);
 
@@ -66,3 +67,7 @@ const uint debugAxisNum = DEBUG_AXIS;
 const float voxelDistance = 160.0;
 const float shadowDistance = 160.0;
 const int shadowMapResolution = 1;
+
+#ifdef KEEP_FULLY_OCCLUDED_SAMPLES
+#undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
+#endif

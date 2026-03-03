@@ -206,6 +206,10 @@ bool canIlluminateInBounds(vec4 edges, vec2 ray, bvec4 occlusionMap){
     ));
 }
 
+bool sameLight(lightVoxData a, lightVoxData b){
+    return (a.color==b.color) && (a.lightTravel==b.lightTravel) && (a.type==b.type);
+}
+
 
 
 #ifdef SAMPLES_LIGHT_FACE

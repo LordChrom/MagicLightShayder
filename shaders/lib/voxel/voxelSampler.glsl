@@ -94,7 +94,8 @@ vec3 getDirectedLight(ivec3 blockPos, ivec4 sectionPos, vec3 subVoxelOffset, vec
 
 #ifdef PRIDE_LIGHTING
     float len = sqrt(lengthSquared);
-    if(length(lightSrc.color-(vec3(8,7,4)/8))<0.1){
+    vec3 normalColor = normalize(lightSrc.color);
+    if(length(normalColor-normalize(vec3(8,7,4)))<0.1){
 
         if(2<=len && len<=2.5){
             lightSrc.color=vec3(1);
@@ -105,7 +106,7 @@ vec3 getDirectedLight(ivec3 blockPos, ivec4 sectionPos, vec3 subVoxelOffset, vec
             if(len>3)
                 lightStrength*=2;
         }
-    }else if(length(lightSrc.color-(vec3(9,8,4)/8))<0.15){
+    }else if(length(normalColor-normalize(vec3(8,5,2)))<0.15){
         switch(int(floor(len*2-1))){
             case 0:
                 lightSrc.color=vec3(1,0,0);

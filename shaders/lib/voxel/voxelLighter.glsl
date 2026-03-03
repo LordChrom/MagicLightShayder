@@ -177,19 +177,19 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
                 if((lightSrc.type==0) || (lightSrc.lightTravel.x*a>0) || (lightSrc.lightTravel.y*b>0))
                     continue;
 
-                bool newItem = true;
-                for (int i = 0; i<shortListOccupation; i++){ //can maybe make it ordered to allow binary search
-                    newItem=newItem && !(lightSrc.lightTravel==shortList[i].lightTravel && lightSrc.color==shortList[i].color);
-                }
-                //even in the non-shortlisted version, this branch is coherent enough to be worth the overhead
-                if((!newItem))
-                    continue;
-
                 float lenSquared = dot(lightSrc.lightTravel, lightSrc.lightTravel);
 //                lenSquared = lenSquared*(1-lightSrc.columnation)+lightSrc.columnation;
                 float strength = length(lightSrc.color)/max(0.1, lenSquared);
 
 #ifdef SHORTLISTED_COMPARISON
+                bool newItem = true;
+                for (int i = 0; i<shortListOccupation; i++){ //can maybe make it ordered to allow binary search
+                    newItem=newItem && !sameLight(lightSrc,shortList[i]);
+                }
+                //even in the non-shortlisted version, this branch is coherent enough to be worth the overhead
+                if((!newItem))
+                    continue;
+
                 uint indexToUse = -1;
                 if (shortListOccupation<shortListLen){
                     indexToUse=shortListOccupation;
@@ -230,21 +230,16 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
                 vec2 outerSlope  = (xy+halfScale) * abs(scale/(lightTravel.z-halfScale));
                 vec2 innerSlope  = (xy-halfScale) * abs(scale/(lightTravel.z+halfScale));
 
-                if(lightTravel.x==0){
-//                    outerSlope.x=2;
-//                    innerSlope.x=0;
-                }
-
-                if(lightTravel.y==0){
-//                    outerSlope.y=2;
-//                    innerSlope.y=0;
-                }
-
                 if(!canIlluminateInBounds(vec4(outerSlope,innerSlope),lightSrc.occlusionRay,lightSrc.occlusionMap))
                     continue;
 
 
                 for(int rank = 0; rank<VOX_LAYERS; rank++){
+#ifndef SHORTLISTED_COMPARISON
+                    if(sameLight(lightSrc,bestLights[rank]))
+                        break;
+#endif
+
                     if (strength>bestStrengths[rank]){
                         float tmpStr = bestStrengths[rank];
                         lightVoxData tmpSrc = bestLights[rank];
@@ -284,9 +279,15 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
         }
     }
 
-//    bool frontOutputTranslucent = bool(getFrontVoxel(0,0)&2u);
+    bool frontOutputTranslucent = bool(getFrontVoxel(0,0)&2u);
+    bool rearOutputTranslucent = bool(getRearVoxel(0,0)&2u);
     bool sampleFreshlyTranslucent = bool(bestSource.flags&1u);
+    bool lightThroughTranslucency = sampleFreshlyTranslucent || translucentTerrain;
     bool cornerBlocked = !(alignment.x||alignment.y);
+
+    if(frontOutputTranslucent&&!(sampleFreshlyTranslucent || translucentTerrain))
+        return;
+
 
     //i=0 means a=offset, i=1 means a=0;
     for(int i=0; i<2; i++){
@@ -298,8 +299,13 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
             uint rear = getRearVoxel(a,b);
             bool rearTranslucent = bool(rear&2u);
 
-            bool blockRecolors = bool((front^rear)&2u)&&!sampleFreshlyTranslucent;
-            bool blockBlocked = bool((front|rear)&1u) || (translucentTerrain!=blockRecolors);
+            bool blockRecolors = bool((front)&2u);
+            bool blockBlocked = bool((front|rear)&(lightThroughTranslucency?1u:3u));
+
+            if(!(translucentTerrain&&frontOutputTranslucent))
+                blockBlocked=blockBlocked|| (translucentTerrain!=blockRecolors);
+            if(sampleFreshlyTranslucent&&rearOutputTranslucent&&!frontOutputTranslucent)
+                blockBlocked=blockBlocked|| ((rear&3u)==0);
 
             cornerBlocked = cornerBlocked && (i==j || bool(front&1u));
 
@@ -308,17 +314,17 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
             if((alignment.x&&j==0) || (alignment.y&&i==0) || blockBlocked)
                 continue;
 
+
             for(int layer = 0; layer<VOX_LAYERS; layer++){
                 lightVoxData relevantSample = getInputSample(a,b,layer);
+                if(lightTravel.x*a>0 || lightTravel.y*b>0)
+                    continue;
                 relevantSample.lightTravel+=vec3(-a, -b, 1)*scale;
 
-                bool sameSource = (relevantSample.lightTravel==bestSource.lightTravel)
-                    && (relevantSample.type == bestSource.type)
-                    && (relevantSample.color == bestSource.color);
-
-                if (sameSource){
+                if (sameLight(relevantSample,bestSource)){
                     relevance[i][j] = true;
                     samples[i][j] = relevantSample;
+                    break;
                 }
             }
 
@@ -346,6 +352,8 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
 
     vec2 outRay=abs(lightTravel/lightSrc.lightTravel.z);
     bvec4 outMap = lightSrc.occlusionMap;
+    float occlHitDist = lightSrc.occlusionHitDistance;
+
 
 
     //each corner is represented by (cornersX.N,cornersY.N), with N corresponding to
@@ -361,9 +369,10 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
             if((!relevance[i][j]) || (i==0 && alignment.y) || (j==0 && alignment.x))
                 continue;
 
-            //1 if outer of block is inner of sample, -1 if outer
+
             bvec4 map = samples[i][j].occlusionMap;
             vec2 ray = samples[i][j].occlusionRay;
+            occlHitDist=max(occlHitDist,samples[i][j].occlusionHitDistance);
 
             vec4 sX=ternary(map,vec4(2,-1,2,-1),vec4(ray.x)); //represents the ways this sample shadows the output's
             vec4 sY=ternary(map,vec4(2,2,-1,-1),vec4(ray.y)); //corners
@@ -417,7 +426,6 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
                 sX.z<=outerSlope.x && sY.z>=innerSlope.y,
                 sX.w>=innerSlope.x && sY.w>=innerSlope.y
             ));
-
 
             if(shadowedCorners.x){
                 cornersX.x=min(cornersX.x,(sX.x>=innerSlope.x)?ray.x:2);
@@ -565,9 +573,11 @@ void doLightPassage(inout lightVoxData bestLight, bool translucentTerrain){
 
     doOcclusion(relevantSamples, relevance, alignment, newObstructions, bestLight);
 
+#if !(defined KEEP_FULLY_OCCLUDED_SAMPLES && defined DEBUG_OCCLUSION_MAP)
     if ( !(bestLight.occlusionMap.x||bestLight.occlusionMap.y||bestLight.occlusionMap.z||bestLight.occlusionMap.w)){
         bestLight.type=0;
     }
+#endif
 }
 
 
@@ -609,10 +619,14 @@ void lightVoxelFace(){
         color/=translucentBlocksInSample;
 
         doLightPassage(transucentPassage,true);
-        transucentPassage.color*=color;
-        transucentPassage.flags|=1u;
+        if(any(transucentPassage.occlusionMap)){
+            transucentPassage.color*=color;
+            transucentPassage.flags|=1u;
 
-        bestLights[VOX_LAYERS-1]=transucentPassage;
+            bestLights[VOX_LAYERS-1]=transucentPassage;
+        }else{
+            translucentBlocksInSample=0;
+        }
     }
 #endif
 
