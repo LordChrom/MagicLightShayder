@@ -59,10 +59,14 @@ void fillSeams(uvec3 workGroupID, uvec3 localID){
     zoneOrigin = areaToZoneSpace(getAreaOrigin(areaNum),axis);
     zoneMemOffset = zoneOffset(axis,layer);
 
+    if(localID==ivec3(0)){
+
+    }
+
     if(axis==2){
-        if (layer==0)
-            sunlight(zonePos);
-        else
+//        if (layer==0)
+//            sunlight(zonePos);
+//        else
             nullify(zonePos);
     }else{
         //        nullify(texelPos);

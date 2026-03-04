@@ -9,16 +9,18 @@ ivec3 getAreaOrigin(uint areaNum){
 
 }
 
-ivec3 getAreaOrigin(vec3 worldPos){
-    return getAreaOrigin(0);
-}
+//ivec3 getAreaOrigin(vec3 worldPos){return getAreaOrigin(0);}
 
 bool isVoxelInBounds(vec3 worldPos, ivec3 areaOrigin){
     worldPos-=areaOrigin;
     return worldPos.x>=0 && worldPos.y>=0 && worldPos.z>=0 && worldPos.x<voxWorldSize.x && worldPos.y<voxWorldSize.y && worldPos.z<voxWorldSize.z;
 }
 
-bool isVoxelInBounds(vec3 worldPos){ return isVoxelInBounds(worldPos,getAreaOrigin(worldPos));}
+uint getAreaNum(vec3 worldPos){
+    return 0u;
+}
+
+bool isVoxelInBounds(vec3 worldPos){ return isVoxelInBounds(worldPos,getAreaOrigin(getAreaNum(worldPos)));}
 
 const mat3[] areaToZoneSpaceMats = {
 mat3(0,1,0, 0,0,1, -1,0,0),
@@ -49,7 +51,7 @@ ivec4 worldPosToArea(vec3 pos, vec3 areaOrigin, float scale){
 }
 
 ivec4 worldPosToArea(vec3 pos, float scale){
-    return worldPosToArea(pos,getAreaOrigin(pos),scale);
+    return worldPosToArea(pos,getAreaOrigin(getAreaNum(pos)),scale);
 }
 
 //TODO include area num

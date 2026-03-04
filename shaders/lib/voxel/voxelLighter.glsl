@@ -649,6 +649,13 @@ void lightVoxelFace(){
         bestLights[VOX_LAYERS-1].occlusionHitDistance=0;
     }
 
+#if DEBUG_SHOW_UPDATES>=0
+    for(int layer = 0; layer<VOX_LAYERS; layer++){
+        uint frameIndicator = (frameCounter&0x3f);
+        bestLights[layer].flags=bestLights[layer].flags | (frameIndicator<<2);
+    }
+#endif
+
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         setLightData(bestLights[layer], zonePos, zoneOrigin, zoneMemOffsets[layer]);
     }

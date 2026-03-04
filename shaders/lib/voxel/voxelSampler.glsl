@@ -211,6 +211,21 @@ vec3 getDirectedLight(ivec3 blockPos, ivec4 areaPos, ivec3 zoneOrigin, vec3 subV
     }
 #endif
 
+#if DEBUG_SHOW_UPDATES >= 0
+    #if DEBUG_SHOW_UPDATES==0
+    if((axis>>1)!=1)
+    #endif
+    {
+        uint frameIndicator = (frameCounter&0x3fu);
+        uint frameIndicatorLight = (lightSrc.flags>>2)&0x3fu;
+        vec3 axisColor = ivec3(areaToZoneSpaceMats[axis][2]);
+        if ((axis&1u)==0)
+            axisColor=abs(axisColor)*0.3+0.1;
+        if (frameIndicator==frameIndicatorLight)
+            outColor.rgb+=DEBUG_UPDATES_INTENSITY*(axisColor);
+    }
+#endif
+
 #ifdef DEBUG_GRID_OUTLINE
     vec3 edgeNearness = abs(subVoxelOffset*2/scale)+(0.5*DEBUG_OUTLINE_WIDTH);
     if((int(edgeNearness.x>=1)+int(edgeNearness.y>=1)+int(edgeNearness.z>=1))>=2){
