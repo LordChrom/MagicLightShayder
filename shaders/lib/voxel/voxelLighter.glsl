@@ -8,12 +8,13 @@
 uniform int frameCounter;
 int frameOffset = frameCounter%UPDATE_STRIDE;
 
-layout(std430, binding = 1) restrict buffer indirectDispatches {
-    uvec3 dispatches;
-} indirectDispatchesAccess;
 
-//const ivec3 workGroups = ivec3(SECTIONS_PER_AREA,NUM_AREAS,1);
+layout(std430, binding = 0) readonly restrict buffer areaData {
+    areaMeta[AREA_COUNT] areaMeta;
+} areaDataAccess;
 
+
+//workGroups is indirect, determined in voxelSeamFill
 layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z = LOCAL_SIZE_Z) in;
 
 
@@ -36,7 +37,7 @@ uint[3][3] frontVoxels, rearVoxels;
 
 uint[VOX_LAYERS] zoneMemOffsets;
 ivec4 areaPos;       //xyz in area mem space, w is area num
-ivec3 zonePos, sectionOffset; //0 to SECTION_SIZE-1
+ivec3 zonePos, zoneOrigin,areaOrigin; //0 to SECTION_SIZE-1
 ivec3 aVec, bVec, LVec;
 float scale,halfScale;
 uint axis;
@@ -58,12 +59,12 @@ uint getRearVoxel(int a, int b){  return rearVoxels[a+1][b+1]; }
 void takeSingleSample(int Aoffset, int Boffset,
 out uvec4 frontVoxel, out uvec4 rearVoxel, out uvec4[VOX_LAYERS] packedLightSamples){
     ivec3 voxelPos = areaPos.xyz+ivec3(aVec*Aoffset + bVec*Boffset);
-    frontVoxel = getVoxData(voxelPos,areaMemOffset);
-    rearVoxel = getVoxData(voxelPos-LVec,areaMemOffset);
+    frontVoxel = getVoxData(voxelPos,areaOrigin,areaMemOffset);
+    rearVoxel = getVoxData(voxelPos-LVec,areaOrigin,areaMemOffset);
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         packedLightSamples[layer]= (rearVoxel.w&3u)==1? uvec4(0):
-            sampleLightData(zonePos+ivec3(Aoffset, Boffset, -1),zoneMemOffsets[layer],axis);
+            sampleLightData(zonePos+ivec3(Aoffset, Boffset, -1),zoneOrigin,zoneMemOffsets[layer]);
     }
 }
 
@@ -649,7 +650,7 @@ void lightVoxelFace(){
     }
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-        setLightData(bestLights[layer], zonePos, zoneMemOffsets[layer],axis);
+        setLightData(bestLights[layer], zonePos, zoneOrigin, zoneMemOffsets[layer]);
     }
 }
 
@@ -664,6 +665,7 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 
     areaPos.w = int(groupId.y);
     areaMemOffset = 1;
+    areaOrigin = getAreaOrigin(areaPos.w);
 
     scale = 1;
     halfScale=0.5*scale;
@@ -685,6 +687,7 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
         aVec = ivec3(areaToZoneSpaceMats[axis][0]);
         bVec = ivec3(areaToZoneSpaceMats[axis][1]);
         LVec = ivec3(areaToZoneSpaceMats[axis][2]);
+        zoneOrigin = areaToZoneSpace(areaOrigin,axis);
 
 
 #if SECTION_SIZE==UPDATE_STRIDE
@@ -694,9 +697,9 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 #endif
         {
 
-            int L = ((axis&1u)==0)? offset-(SECTION_SIZE-1):offset;
+            int L = ((axis&1u)==0)? offset-(SECTION_SIZE-1):offset; //TODO account for shifting origins to not skip steps
 
-            sectionOffset = ivec3(localId.x*aVec+localId.y*bVec) + L*LVec;
+            ivec3 sectionOffset = ivec3(localId.x*aVec+localId.y*bVec) + L*LVec;
             areaPos.xyz = ivec3(sectionOffset+sectionBasePos);
             zonePos=areaToZoneSpace(areaPos.xyz, axis);
 

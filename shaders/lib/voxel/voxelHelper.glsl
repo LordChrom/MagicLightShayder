@@ -4,9 +4,13 @@
 //cordinate space stuff
 uniform vec3 cameraPosition;
 
-ivec3 getAreaOrigin(vec3 worldPos){
+ivec3 getAreaOrigin(uint areaNum){
     return ivec3(cameraPosition-32);
-//    return ivec3(-24,48,-24);
+
+}
+
+ivec3 getAreaOrigin(vec3 worldPos){
+    return getAreaOrigin(0);
 }
 
 bool isVoxelInBounds(vec3 worldPos, ivec3 areaOrigin){
@@ -74,13 +78,13 @@ ivec3 toMemPos(ivec3 pos, ivec3 spaceShift, uint memOffset){
     return pos;
 }
 
-ivec3 zoneToMemPos(ivec3 pos, ivec3 spaceShift, uint memOffset, uint axis){
-    return toMemPos(pos,areaToZoneSpace(spaceShift,axis),memOffset);
-}
-
 
 
 //Data packing/unpacking
+struct areaMeta{//size 16
+    ivec3 areaOrigin;
+};
+
 struct lightVoxData{
     vec2 occlusionRay;// ( |da/dL|, |db/dL| ), range [0,1], sign implicitly same as lightTravel.xy
     bvec4 occlusionMap;//quadrants in which occlusion occurs, lit if true----> map.( x y )   ( +|a,b|  +|0,b| )
@@ -143,14 +147,12 @@ uint packBytes(uvec4 data){
 
 
 
-#define testAreaShift getAreaOrigin(vec3(0))
-//ivec3 toMemPos(ivec3 pos, ivec3 areaShift, int memOffset){
 //sampler/image access functions
 #ifdef SAMPLES_LIGHT_FACE
 uniform usampler3D lightVoxSampler;
 
-uvec4 sampleLightData(ivec3 zonePos, uint zoneMemOffset, uint axis){
-    return texelFetch(lightVoxSampler, zoneToMemPos(zonePos,testAreaShift,zoneMemOffset,axis),0);
+uvec4 sampleLightData(ivec3 zonePos, ivec3 zoneOrigin, uint zoneMemOffset){
+    return texelFetch(lightVoxSampler, toMemPos(zonePos,zoneOrigin,zoneMemOffset),0);
 }
 #endif
 
@@ -158,8 +160,8 @@ uvec4 sampleLightData(ivec3 zonePos, uint zoneMemOffset, uint axis){
 #ifdef WRITES_LIGHT_FACE
 layout (rgba32ui) uniform writeonly restrict uimage3D lightVox;
 
-void setLightData(lightVoxData light, ivec3 zonePos, uint zoneMemOffset, uint axis){
-    imageStore(lightVox,zoneToMemPos(zonePos,testAreaShift,zoneMemOffset,axis),packLightData(light));
+void setLightData(lightVoxData light, ivec3 zonePos, ivec3 zoneOrigin, uint zoneMemOffset){
+    imageStore(lightVox,toMemPos(zonePos,zoneOrigin,zoneMemOffset),packLightData(light));
 }
 #endif
 
@@ -167,8 +169,8 @@ void setLightData(lightVoxData light, ivec3 zonePos, uint zoneMemOffset, uint ax
 #ifdef SAMPLES_VOX
 uniform usampler3D worldVoxSampler;
 
-uvec4 getVoxData(ivec3 areaPos, uint areaMemOffset){
-    return texelFetch(worldVoxSampler,toMemPos(areaPos,testAreaShift,areaMemOffset),0);
+uvec4 getVoxData(ivec3 areaPos, ivec3 areaOrigin, uint areaMemOffset){
+    return texelFetch(worldVoxSampler,toMemPos(areaPos,areaOrigin,areaMemOffset),0);
 }
 #endif
 
@@ -176,8 +178,8 @@ uvec4 getVoxData(ivec3 areaPos, uint areaMemOffset){
 #ifdef WRITES_VOX
 layout (rgba8ui) uniform writeonly restrict uimage3D worldVox;
 
-void setVoxData(uvec4 voxData, ivec3 areaPos, uint areaMemOffset){
-    imageStore(worldVox,toMemPos(areaPos,testAreaShift,areaMemOffset),voxData);
+void setVoxData(uvec4 voxData, ivec3 areaPos, ivec3 areaOrigin, uint areaMemOffset){
+    imageStore(worldVox,toMemPos(areaPos,areaOrigin,areaMemOffset),voxData);
 }
 #endif
 
@@ -234,7 +236,7 @@ bool canIlluminateInBounds(vec4 edges, vec2 ray, bvec4 occlusionMap){
 
 //misc
 bool sameLight(lightVoxData a, lightVoxData b){
-    return (a.color==b.color) && (a.lightTravel==b.lightTravel) && (a.type==b.type);
+    return (a.color==b.color) && (a.lightTravel==b.lightTravel) && (a.type==b.type) || (a.type==1 && b.type==1); //TODO proper solution for moving lights
 }
 
 //left, top, right, bottom

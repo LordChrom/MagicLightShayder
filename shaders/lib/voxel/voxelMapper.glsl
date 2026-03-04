@@ -34,10 +34,11 @@ void writeVoxelMap(vec3 worldPos, int blockID, uint emission){
         metadata=1;
     }
 
-    ivec4 worldPosi = worldPosToArea(worldPos,1);
+    ivec4 areaPos = worldPosToArea(worldPos,1);
+    ivec3 areaOrigin = getAreaOrigin(areaPos.w);
     uint areaMemOffset = 1;
 
     if(!isVoxelInBounds(worldPos)) return;
 
-    setVoxData(uvec4(255*color,metadata),worldPosi.xyz,areaMemOffset);
+    setVoxData(uvec4(255*color,metadata),areaPos.xyz,areaOrigin,areaMemOffset);
 }
