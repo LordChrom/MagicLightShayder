@@ -20,12 +20,9 @@ layout(location = 2) out vec4 vanillaLighting;
 void main() {
     color = texture(gtexture, texcoord) * glcolor;
     color.rgb = mix(color.rgb, entityColor.rgb, entityColor.a);
-
-
     if (color.a < alphaTestRef) {
         discard;
     }
     vanillaLighting = texture(lightmap, lmcoord);
-    normalOut = vec4((normal+1)*0.5, 0); //TODO this just doesnt work?????
-
+    normalOut = vec4((normal+1)*0.5,1);
 }

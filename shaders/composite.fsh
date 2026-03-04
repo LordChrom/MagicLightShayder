@@ -23,25 +23,32 @@ layout(location = 0) out vec4 color;
 
 void main() {
 	float depth = texture(depthtex0,texcoord).x;
+
 	float solidDepth = texture(depthtex2,texcoord).x;
 
-	vec3 screenPos = vec3(texcoord,solidDepth); //TODO fix hand
-	vec4 viewPos = gbufferProjectionInverse*vec4(screenPos*2-1,1);
-	viewPos/=viewPos.w;
-	vec3 worldPos = (gbufferModelViewInverse*viewPos).xyz+cameraPosition;
+	vec3 ndcPos = vec3(vec3(texcoord,solidDepth)*2-1);
 
-//	vec3 normal = normalize(texture(colortex4,texcoord).xyz*2-1);
-	vec3 normal = normalize(texelFetch(colortex4,ivec2(texcoord*vec2(viewWidth,viewHeight)),0).xyz*2-1);
+	vec4 normalAndMore = texelFetch(colortex4,ivec2(texcoord*vec2(viewWidth,viewHeight)),0);
+	vec3 normal = normalize(normalAndMore.xyz*2-1);
+
+	if(normalAndMore.a>0.5) //currently, normal.a only stores if it is or isnt the hand
+		ndcPos.z/=MC_HAND_DEPTH;
+
+	vec4 viewPos = gbufferProjectionInverse*vec4(ndcPos,1);
+	viewPos/=viewPos.w;
+
+	vec3 worldPos = (gbufferModelViewInverse*viewPos).xyz+cameraPosition;
+	worldPos+=normal*0.005;
+
+
 
 	vec4 albedo = texture(colortex0, texcoord);
 
-	worldPos+=normal*0.005;
 
 	vec3 light = texture(colortex5,texcoord).xyz;
 
 	bool voxelLit = isVoxelInBounds(worldPos) && light!=vec3(1);
-	if(depth<0.56)
-		voxelLit=false;
+//		voxelLit=false;
 	if(voxelLit){
 		vec3 voxelLight = voxelSample(worldPos,normal);
 		light=voxelLight;
