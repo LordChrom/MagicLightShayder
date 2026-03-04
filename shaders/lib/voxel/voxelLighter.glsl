@@ -125,7 +125,6 @@ void takeSamples(){
                     frontVoxels[a+1][b+1] = packBytes(frontVoxel);
                     rearVoxels[a+1][b+1] = packBytes(rearVoxel);
                 }
-                lightVoxData inputSample = unpackLightData(sampleLightData(zonePos+ivec3(a,b, -1),zoneMemOffsets[layer]));
                 packedInputSamples[a+1][b+1][layer] = packedLightSamples[layer];
             }
         }

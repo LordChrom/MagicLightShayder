@@ -15,17 +15,30 @@
 Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x64 voxels. This is subject to change
 
 # Spaces
-| space | axes  | type  | range                        | 
-|:------|:------|:------|:-----------------------------|
-| World | mc    | float | inf                          |
-| Area  | mc    | int   | [-1,AREA_SIZE]               |
-| Zone  | light | int   | [-1,AREA_SIZE]               |
-| Mem   | mixed | int   | xy=[0,AREA_SIZE+1],z=[0,TBD) |
+| space | axes  | range                        | 
+|:------|:------|:-----------------------------|
+| World | mc    | inf                          |
+| Area  | mc    | [-1,AREA_SIZE]               |
+| Zone  | light | [-1,AREA_SIZE]               |
+| Mem   | mixed | xy=[0,AREA_SIZE+1],z=[0,TBD) |
+
+- world space is always in floats, mem space is always ints, zone and area space are usually ints
 - area positions may be bundled with a 4th element representing which area number the position belongs to
 - the spaces are all continuous mapping from themself to the world, except for mem space
 - mem space, per-element, will map boundary positions 1:1, but internal positions will be shuffled around relative to
 - area/zone space to allow the samples to be moved without mass copying.
 - the TBD max size of mem's z will be (AREA_SIZE+2)\*6\*VOX_LAYERS\*(max number of zones). depends on me figuring out a good way to resize the custom uimage3d in iris
+- axes in zone space are represented as a,b,L, with L positive in the direction light travels. examples are shown in the table
+- - Yes it fails to preserve handedness, no that doesnt matter here
+
+| direction | number | a,b,L  |
+|-----------|--------|--------|
+| -x        | 0      | y,z,-x |
+| +x        | 1      | y,z,x  |
+| -y        | 2      | z,x,-y |
+| +y        | 3      | z,x,y  |
+| -z        | 4      | x,y,-z |
+| +z        | 5      | x,y,z  |
 
 # light types
 - 0: no lighting

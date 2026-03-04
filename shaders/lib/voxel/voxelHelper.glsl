@@ -2,47 +2,11 @@
 
 
 
-#ifdef SAMPLES_LIGHT_FACE
-uniform usampler3D lightVoxSampler;
-#endif
-
-#ifdef WRITES_LIGHT_FACE
-layout (rgba32ui) uniform writeonly restrict uimage3D lightVox;
-#endif
-
-
-#ifdef SAMPLES_VOX
-uniform usampler3D worldVoxSampler;
-#endif
-
-#ifdef WRITES_VOX
-layout (rgba8ui) uniform writeonly restrict uimage3D worldVox;
-#endif
-
-
-//axes for voxel faces are represented as a,b,L, with L being the direction light travels in, a being the axis after it,
-//and b being the one after that. all examples are xyz,xy-z, zxy, zx-y, yzx,yz-x. Handedness be damned idc.
-struct lightVoxData{
-    vec2 occlusionRay;// ( |da/dL|, |db/dL| )                                ( x y )   ( +|a,b|  +|0,b| )
-    bvec4 occlusionMap;//quadrants in which occlusion occurs, lit if true -> ( z w ) = ( +|b,0|  +|0,0| )
-    vec3 color;
-    vec3 lightTravel;//the displacement from the light source voxel center to the sample's voxel center
-    float occlusionHitDistance;
-    uint type;
-    uint flags; //7 free, 1 for whether the light just had translucency applied
-};
-
-
-const float lightTravelScaleInv = 16.0; //most voxels per block representable for lightTravel
-const float lightTravelScale = 1.0/lightTravelScaleInv;
-
-const lightVoxData noLight = {vec2(0),bvec4(false),vec3(0),vec3(0),0,0,0};
-
+//cordinate space stuff
 bool isVoxelInBounds(vec3 worldPos){
     worldPos-=voxOriginOffset;
     return worldPos.x>=0 && worldPos.y>=0 && worldPos.z>=0 && worldPos.x<voxWorldSize.x && worldPos.y<voxWorldSize.y && worldPos.z<voxWorldSize.z;
 }
-
 
 const mat3[] areaToZoneSpaceMats = {
 mat3(0,1,0, 0,0,1, -1,0,0),
@@ -54,7 +18,6 @@ mat3(0,0,1, 1,0,0, 0,1,0),
 mat3(1,0,0,  0,1,0,  0,0,-1),
 mat3(1,0,0,  0,1,0,  0,0,1)
 };
-
 
 //in order from 0 to 5, -x,+x,-y,+y,-z,+z
 ivec3 axisNumToVec(uint axis){
@@ -93,6 +56,22 @@ vec3 subVoxelOffset(vec3 pos, float scale){
 }
 
 
+
+//Data packing/unpacking
+struct lightVoxData{
+    vec2 occlusionRay;// ( |da/dL|, |db/dL| ), range [0,1], sign implicitly same as lightTravel.xy
+    bvec4 occlusionMap;//quadrants in which occlusion occurs, lit if true----> map.( x y )   ( +|a,b|  +|0,b| )
+    vec3 color;                                                                  //( z w ) = ( +|b,0|  +|0,0| )
+    vec3 lightTravel;//zone space. the displacement from the light source voxel center to the sample's voxel center
+    float occlusionHitDistance; //distance from the light source to the edge which caused a shadow, for penumbra sharpness
+    uint type;
+    uint flags; //7 free, 1 for whether the light just had translucency applied
+};
+
+const lightVoxData noLight = {vec2(0),bvec4(false),vec3(0),vec3(0),0,0,0};
+
+const float lightTravelScaleInv = 16.0; //most voxels per block representable for lightTravel
+const float lightTravelScale = 1.0/lightTravelScaleInv;
 
 //to consider: frexp and idexp
 
@@ -140,6 +119,46 @@ uint packBytes(uvec4 data){
 }
 
 
+
+//sampler/image access functions
+#ifdef SAMPLES_LIGHT_FACE
+uniform usampler3D lightVoxSampler;
+
+uvec4 sampleLightData(ivec3 zonePos, uint zoneMemOffset){
+    return texelFetch(lightVoxSampler, zonePos+ivec3(1,1,zoneMemOffset),0);
+}
+#endif
+
+
+#ifdef WRITES_LIGHT_FACE
+layout (rgba32ui) uniform writeonly restrict uimage3D lightVox;
+
+void setLightData(lightVoxData light, ivec3 zonePos, uint zoneMemOffset){
+    imageStore(lightVox,zonePos+ivec3(1,1,zoneMemOffset),packLightData(light));
+}
+#endif
+
+
+#ifdef SAMPLES_VOX
+uniform usampler3D worldVoxSampler;
+
+uvec4 getVoxData(ivec3 areaPos, uint areaMemOffset){
+    return texelFetch(worldVoxSampler,areaPos+ivec3(1,1,areaMemOffset),0);
+}
+#endif
+
+
+#ifdef WRITES_VOX
+layout (rgba8ui) uniform writeonly restrict uimage3D worldVox;
+
+void setVoxData(uvec4 voxData, ivec3 areaPos, uint areaMemOffset){
+    imageStore(worldVox,areaPos+ivec3(1,1,areaMemOffset),voxData);
+}
+#endif
+
+
+
+//boolean operations
 bvec4 and(bvec4 a, bvec4 b){return bvec4(a.x&&b.x,a.y&&b.y,a.z&&b.z,a.w&&b.w);}
 bvec4 or(bvec4 a, bvec4 b){return bvec4(a.x||b.x,a.y||b.y,a.z||b.z,a.w||b.w);}
 bvec4 not(bvec4 a){return bvec4(!a.x,!a.y,!a.z,!a.w);}
@@ -149,6 +168,8 @@ vec4 ternary(bvec4 conditions,vec4 ifTrue, vec4 ifFalse){
 bool any(bvec4 a){return (a.x||a.y)||(a.z||a.w);}
 
 
+
+//occlusion map stuff
 bool isLit(vec2 slope, vec2 ray, bvec4 map){
     ivec2 pos = ivec2(int(slope.x>ray.x),int(slope.y>ray.y));
     return map[3-pos.x-(pos.y<<1)];
@@ -172,47 +193,26 @@ float penumbralLightTest(vec3 position, lightVoxData light){
 }
 #endif
 
-//left, top, right, bottom
-bvec4 getOcclusionEdges(bvec4 occlusionMap){
-    return not(or(occlusionMap.zxyw,occlusionMap.xywz));
-}
+
 
 //outer x,y, inner xy
 bool canIlluminateInBounds(vec4 edges, vec2 ray, bvec4 occlusionMap){
     return any(and(occlusionMap,
-        and(
-            bvec2(ray.x<edges.x,ray.x>edges.z).xyxy,
-            bvec2(ray.y<edges.y,ray.y>edges.w).xxyy
-        )
+    and(
+    bvec2(ray.x<edges.x,ray.x>edges.z).xyxy,
+    bvec2(ray.y<edges.y,ray.y>edges.w).xxyy
+    )
     ));
 }
 
+
+
+//misc
 bool sameLight(lightVoxData a, lightVoxData b){
     return (a.color==b.color) && (a.lightTravel==b.lightTravel) && (a.type==b.type);
 }
 
-
-
-#ifdef SAMPLES_LIGHT_FACE
-uvec4 sampleLightData(ivec3 zonePos, uint zoneMemOffset){
-    return texelFetch(lightVoxSampler, zonePos+ivec3(1,1,zoneMemOffset),0);
+//left, top, right, bottom
+bvec4 getOcclusionEdges(bvec4 occlusionMap){
+    return not(or(occlusionMap.zxyw,occlusionMap.xywz));
 }
-#endif
-
-#ifdef WRITES_LIGHT_FACE
-void setLightData(lightVoxData light, ivec3 zonePos, uint zoneMemOffset){
-    imageStore(lightVox,zonePos+ivec3(1,1,zoneMemOffset),packLightData(light));
-}
-#endif
-
-#ifdef SAMPLES_VOX
-uvec4 getVoxData(ivec3 areaPos, uint areaMemOffset){
-    return texelFetch(worldVoxSampler,areaPos+ivec3(1,1,areaMemOffset),0);
-}
-#endif
-
-#ifdef WRITES_VOX
-void setVoxData(uvec4 voxData, ivec3 areaPos, uint areaMemOffset){
-    imageStore(worldVox,areaPos+ivec3(1,1,areaMemOffset),voxData);
-}
-#endif
