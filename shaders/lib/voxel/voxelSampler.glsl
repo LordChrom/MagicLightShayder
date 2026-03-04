@@ -12,9 +12,9 @@ struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTr
 #endif
 
 vec3 getDirectedLight(ivec3 blockPos, ivec4 areaPos, vec3 subVoxelOffset, vec3 normal, uint axis, uint layer, float scale){
-    ivec3 zonePos = areaToZoneSpace(areaPos,axis);
+    ivec3 zonePos = areaToZoneSpace(areaPos.xyz,axis);
     uint zoneMemOffset = zoneOffset(axis,layer);
-    lightVoxData lightSrc = unpackLightData(sampleLightData(zonePos,zoneMemOffset));
+    lightVoxData lightSrc = unpackLightData(sampleLightData(zonePos,zoneMemOffset,axis));
     vec3 lightTravelWorld = lightSrc.lightTravel;
 
     if((axis&1u)==0)

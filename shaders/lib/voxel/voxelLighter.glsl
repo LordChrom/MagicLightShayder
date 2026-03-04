@@ -63,7 +63,7 @@ out uvec4 frontVoxel, out uvec4 rearVoxel, out uvec4[VOX_LAYERS] packedLightSamp
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         packedLightSamples[layer]= (rearVoxel.w&3u)==1? uvec4(0):
-            sampleLightData(zonePos+ivec3(Aoffset, Boffset, -1),zoneMemOffsets[layer]);
+            sampleLightData(zonePos+ivec3(Aoffset, Boffset, -1),zoneMemOffsets[layer],axis);
     }
 }
 
@@ -649,7 +649,7 @@ void lightVoxelFace(){
     }
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-        setLightData(bestLights[layer], zonePos, zoneMemOffsets[layer]);
+        setLightData(bestLights[layer], zonePos, zoneMemOffsets[layer],axis);
     }
 }
 
@@ -698,7 +698,7 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 
             sectionOffset = ivec3(localId.x*aVec+localId.y*bVec) + L*LVec;
             areaPos.xyz = ivec3(sectionOffset+sectionBasePos);
-            zonePos=areaToZoneSpace(areaPos, axis);
+            zonePos=areaToZoneSpace(areaPos.xyz, axis);
 
             for(int layer = 0; layer<VOX_LAYERS; layer++){
                 zoneMemOffsets[layer] = zoneOffset(axis,layer);

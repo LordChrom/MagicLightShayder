@@ -39,6 +39,7 @@ const uint NUM_AREAS = AREAS.x*AREAS.y*AREAS.z;
 
 const int SECTIONS_PER_AREA = AREA_WIDTH_SECTIONS*AREA_WIDTH_SECTIONS*AREA_WIDTH_SECTIONS;
 const int AREA_SIZE =  AREA_WIDTH_SECTIONS*SECTION_SIZE;
+const int AREA_POS_MASK = AREA_SIZE-1;
 
 #define AREA_SIZE_MEM 66 //Update Manually
 
@@ -52,7 +53,7 @@ const int ZONE_OFFSET = AREA_SIZE+4;
 //#define VOX_SIZE 66
 //#define VOX_SIZE_BIG 840
 
-const vec3 voxOriginOffset = vec3(-16,48,-16);
+const vec3 testVoxOriginOffset = vec3(-16,48,-16);
 const vec3 voxWorldSize = vec3(AREA_SIZE);
 const vec3 sectionCount = vec3(2);
 

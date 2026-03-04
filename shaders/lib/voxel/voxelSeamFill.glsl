@@ -20,17 +20,17 @@ struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTr
 const vec3 sunColor = vec3(242,242,242)/255;
 
 const vec3 sunPos = vec3(0,0,1000);
-uint zoneMemOffset;
+uint zoneMemOffset, axis;
 
 void sunlight(ivec3 zonePos){
     vec3 lightTravel = sunPos;
     lightTravel.xy+=zonePos.xy;
     lightVoxData sunLight = {vec2(0,0),bvec4(true),sunColor,lightTravel,0,1,0};
-    setLightData(sunLight, ivec3(zonePos), zoneMemOffset);
+    setLightData(sunLight, ivec3(zonePos), zoneMemOffset,axis);
 }
 
 void nullify(ivec3 zonePos){
-    setLightData(noLight, ivec3(zonePos), zoneMemOffset);
+    setLightData(noLight, ivec3(zonePos), zoneMemOffset,axis);
 }
 
 
@@ -38,7 +38,7 @@ void fillSeams(uvec3 workGroupID, uvec3 localID){
     uint zoneNum = 0;
 
     uint layer = workGroupID.z%VOX_LAYERS;
-    uint axis = workGroupID.z/VOX_LAYERS;
+    axis = workGroupID.z/VOX_LAYERS;
 
     ivec3 zonePos = ivec3(ivec2(localID.x,workGroupID.y)-1, -1);
 

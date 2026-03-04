@@ -13,7 +13,7 @@ uniform float viewHeight;
 
 uniform mat4 gbufferProjectionInverse;
 uniform mat4 gbufferModelViewInverse;
-uniform vec3 cameraPosition;
+//uniform vec3 cameraPosition;
 
 in vec2 texcoord;
 
