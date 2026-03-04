@@ -34,13 +34,13 @@ uint[3][3] frontVoxels, rearVoxels;
 #endif
 
 
-ivec3[VOX_LAYERS] zonePos;
+uint[VOX_LAYERS] zoneMemOffsets;
 ivec4 areaPos;       //xyz in area mem space, w is area num
-ivec3 sectionOffset; //0 to SECTION_SIZE-1
+ivec3 zonePos, sectionOffset; //0 to SECTION_SIZE-1
 ivec3 aVec, bVec, LVec;
 float scale,halfScale;
 uint axis;
-uint A,B; //1 to SECTION_SIZE
+uint A,B,areaMemOffset; //1 to SECTION_SIZE
 
 
 #ifdef PARALLEL_UNPACK
@@ -58,12 +58,12 @@ uint getRearVoxel(int a, int b){  return rearVoxels[a+1][b+1]; }
 void takeSingleSample(int Aoffset, int Boffset,
 out uvec4 frontVoxel, out uvec4 rearVoxel, out uvec4[VOX_LAYERS] packedLightSamples){
     ivec3 voxelPos = areaPos.xyz+ivec3(aVec*Aoffset + bVec*Boffset);
-    frontVoxel = getVoxData(voxelPos);
-    rearVoxel = getVoxData(voxelPos-LVec);
+    frontVoxel = getVoxData(voxelPos,areaMemOffset);
+    rearVoxel = getVoxData(voxelPos-LVec,areaMemOffset);
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         packedLightSamples[layer]= (rearVoxel.w&3u)==1? uvec4(0):
-            getRawLightData(zonePos[layer]+ivec3(Aoffset, Boffset, -1));
+            sampleLightData(zonePos+ivec3(Aoffset, Boffset, -1),zoneMemOffsets[layer]);
     }
 }
 
@@ -115,16 +115,17 @@ void takeSamples(){
 
     for (int a=-1;a<=1;a++){
         for (int b=-1; b<=1;b++){
-
-            uvec4 frontVoxel,rearVoxel;
-            uvec4[VOX_LAYERS] packedLightSamples;
-            takeSingleSample(a,b,frontVoxel,rearVoxel,packedLightSamples);
-
-            frontVoxels[a+1][b+1] = packBytes(frontVoxel);
-            rearVoxels[a+1][b+1] = packBytes(rearVoxel);
-
             for(uint layer = 0; layer<VOX_LAYERS; layer++){
-                lightVoxData inputSample = getLightData(zonePos[layer]+ivec3(a,b, -1));
+
+                uvec4 frontVoxel,rearVoxel;
+                uvec4[VOX_LAYERS] packedLightSamples;
+                takeSingleSample(a,b,frontVoxel,rearVoxel,packedLightSamples);
+
+                if(layer==0){
+                    frontVoxels[a+1][b+1] = packBytes(frontVoxel);
+                    rearVoxels[a+1][b+1] = packBytes(rearVoxel);
+                }
+                lightVoxData inputSample = unpackLightData(sampleLightData(zonePos+ivec3(a,b, -1),zoneMemOffsets[layer]));
                 packedInputSamples[a+1][b+1][layer] = packedLightSamples[layer];
             }
         }
@@ -649,7 +650,7 @@ void lightVoxelFace(){
     }
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-        setLightData(bestLights[layer], areaPos, axis, layer);
+        setLightData(bestLights[layer], zonePos, zoneMemOffsets[layer]);
     }
 }
 
@@ -657,14 +658,13 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
     A = localId.x+1;
     B = localId.y+1;
 
-    uint zoneOffset = groupId.x;
-    ivec3 sectionBasePos = (ivec3(zoneOffset>>(AREA_WIDTH_SECTIONS_SHIFT+AREA_WIDTH_SECTIONS_SHIFT),
-        zoneOffset>>AREA_WIDTH_SECTIONS_SHIFT,
-        zoneOffset)&(AREA_WIDTH_SECTIONS-1))*SECTION_SIZE;
-    sectionBasePos+=1;
+
+    ivec3 sectionBasePos = (ivec3(groupId.x>>(AREA_WIDTH_SECTIONS_SHIFT+AREA_WIDTH_SECTIONS_SHIFT),
+        groupId.x>>AREA_WIDTH_SECTIONS_SHIFT,
+        groupId.x)&(AREA_WIDTH_SECTIONS-1))*SECTION_SIZE;
 
     areaPos.w = int(groupId.y);
-
+    areaMemOffset = 1;
 
     scale = 1;
     halfScale=0.5*scale;
@@ -699,9 +699,11 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 
             sectionOffset = ivec3(localId.x*aVec+localId.y*bVec) + L*LVec;
             areaPos.xyz = ivec3(sectionOffset+sectionBasePos);
+            zonePos=areaToZoneSpace(areaPos, axis);
 
-            for(int layer = 0; layer<VOX_LAYERS; layer++)
-                zonePos[layer]=areaToZoneSpace(areaPos,axis,layer);
+            for(int layer = 0; layer<VOX_LAYERS; layer++){
+                zoneMemOffsets[layer] = zoneOffset(axis,layer);
+            }
 
             lightVoxelFace();
         }

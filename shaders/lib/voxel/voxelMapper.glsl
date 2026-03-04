@@ -24,7 +24,7 @@ void writeVoxelMap(vec3 worldPos, int blockID, uint emission){
 
         metadata = ((blockID/1000u)%10u);
         if(emission>0){
-            color*=float(emission)*0.06666; //1/(15*9)
+            color*=float(emission)*0.06666; //1/15
             metadata&=0xfeu;
             metadata |= ((blockID/10000u)%10u)<<4;
         }
@@ -35,8 +35,9 @@ void writeVoxelMap(vec3 worldPos, int blockID, uint emission){
     }
 
     ivec4 worldPosi = worldPosToArea(worldPos,1);
+    uint areaMemOffset = 1;
 
     if(!isVoxelInBounds(worldPos)) return;
 
-    setVoxData(uvec4(255*color,metadata),worldPosi.xyz);
+    setVoxData(uvec4(255*color,metadata),worldPosi.xyz,areaMemOffset);
 }

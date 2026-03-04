@@ -71,38 +71,19 @@ ivec4 worldPosToArea(vec3 pos, float scale){
     pos-=AREA_SIZE*sectionID;
     int areaNum = (sectionID.x<<(AREA_SHIFT+AREA_SHIFT)) + (sectionID.y<<AREA_SHIFT) + sectionID.z;
 
-    return ivec4(ivec3(round(pos/scale+0.5)*scale),areaNum);
+    return ivec4(floor(pos/scale),areaNum);
 }
 
 //TODO include area num
 uint zoneOffset(uint axis, uint layer){
-    return int((ZONE_OFFSET)*(VOX_LAYERS*axis+layer));
+    return 1+int((ZONE_OFFSET)*(VOX_LAYERS*axis+layer));
 }
 
-ivec3 areaToZoneSpace(ivec4 areaPos, uint axis, uint layer){
-    uint upper = axis>>1u;
-    ivec3 ret = areaPos.xyz;
-    switch(upper){
-        case 0u:
-            ret=areaPos.yzx;
-            break;
-        case 1u:
-            ret=areaPos.zxy;
-            break;
-        case 2u:
-            ret=areaPos.xyz;
-            break;
-        default:
-            ret=ivec3(0);
-            break;
-    }
-
-    if((axis&1u)==0u){
-        ret.z=(AREA_SIZE-1)-ret.z;
-    }
-
-    ret.z+=int(zoneOffset(axis,layer)); //TODO fix overlap better
-
+ivec3 areaToZoneSpace(ivec4 areaPos, uint axis){
+    ivec3 ret = (axis<4) ?
+        (bool(axis&6u)?areaPos.zxy:areaPos.yzx)
+        :areaPos.xyz;
+    ret.z=bool(axis&1u)?ret.z:(AREA_SIZE-1)-ret.z;
     return ret;
 }
 
@@ -213,41 +194,25 @@ bool sameLight(lightVoxData a, lightVoxData b){
 
 
 #ifdef SAMPLES_LIGHT_FACE
-uvec4 getRawLightData(ivec3 texelCoord){
-    return texelFetch(lightVoxSampler, texelCoord,0);
-}
-
-lightVoxData getLightData(ivec3 texelCoord){
-    uvec4 packedData = texelFetch(lightVoxSampler, texelCoord,0);
-    return unpackLightData(packedData);
-}
-
-lightVoxData getLightData(ivec4 sectionPos, uint axis, uint layer){
-    ivec3 texelCoord = areaToZoneSpace(sectionPos,axis,layer);
-    return getLightData(texelCoord);
+uvec4 sampleLightData(ivec3 zonePos, uint zoneMemOffset){
+    return texelFetch(lightVoxSampler, zonePos+ivec3(1,1,zoneMemOffset),0);
 }
 #endif
 
 #ifdef WRITES_LIGHT_FACE
-void setLightData(lightVoxData light, ivec3 texelCoord){
-    uvec4 packedData = packLightData(light);
-    imageStore(lightVox,texelCoord, packedData);
-}
-
-void setLightData(lightVoxData light, ivec4 sectionPos, uint axis,uint layer){
-    ivec3 texelCoord = areaToZoneSpace(sectionPos,axis,layer);
-    setLightData(light,texelCoord);
+void setLightData(lightVoxData light, ivec3 zonePos, uint zoneMemOffset){
+    imageStore(lightVox,zonePos+ivec3(1,1,zoneMemOffset),packLightData(light));
 }
 #endif
 
 #ifdef SAMPLES_VOX
-uvec4 getVoxData(ivec3 texelCoord){
-    return texelFetch(worldVoxSampler,texelCoord,0);
+uvec4 getVoxData(ivec3 areaPos, uint areaMemOffset){
+    return texelFetch(worldVoxSampler,areaPos+ivec3(1,1,areaMemOffset),0);
 }
 #endif
 
 #ifdef WRITES_VOX
-void setVoxData(uvec4 voxData, ivec3 texelCoord){
-    imageStore(worldVox,texelCoord,voxData);
+void setVoxData(uvec4 voxData, ivec3 areaPos, uint areaMemOffset){
+    imageStore(worldVox,areaPos+ivec3(1,1,areaMemOffset),voxData);
 }
 #endif

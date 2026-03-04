@@ -11,8 +11,10 @@ layout (rgba8ui) uniform readonly restrict uimage3D worldVox;
 struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;uint flags;};
 #endif
 
-vec3 getDirectedLight(ivec3 blockPos, ivec4 sectionPos, vec3 subVoxelOffset, vec3 normal, uint axis, uint layer, float scale){
-    lightVoxData lightSrc = getLightData(sectionPos,axis,layer);
+vec3 getDirectedLight(ivec3 blockPos, ivec4 areaPos, vec3 subVoxelOffset, vec3 normal, uint axis, uint layer, float scale){
+    ivec3 zonePos = areaToZoneSpace(areaPos,axis);
+    uint zoneMemOffset = zoneOffset(axis,layer);
+    lightVoxData lightSrc = unpackLightData(sampleLightData(zonePos,zoneMemOffset));
     vec3 lightTravelWorld = lightSrc.lightTravel;
 
     if((axis&1u)==0)
@@ -222,10 +224,10 @@ vec3 getDirectedLight(ivec3 blockPos, ivec4 sectionPos, vec3 subVoxelOffset, vec
 vec3 voxelSample(vec3 worldPos, vec3 normal){
 
 //    worldPos+=normal*0.001;
-    float scale = 1;
-    ivec4 sectionPos = worldPosToArea(worldPos,scale);
+    float scale = DEBUG_SCALE;
+    ivec4 areaPos = worldPosToArea(worldPos,scale);
     vec3 subVoxelOffset = subVoxelOffset(worldPos,scale);
-    ivec3 blockPos = ivec3(round(worldPos+0.5)-0.5);
+    ivec3 blockPos = ivec3(floor(worldPos));
 
     vec3 color = vec3(0);
     for(int layer = 0; layer<VOX_LAYERS; layer++){
@@ -236,7 +238,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
         for (int axis=0;axis<6;axis++)
 #endif
         {
-            color+=getDirectedLight(blockPos,sectionPos, subVoxelOffset, normal, axis, layer, scale);
+            color+=getDirectedLight(blockPos,areaPos, subVoxelOffset, normal, axis, layer, scale);
         }
     }
     return color + MIN_LIGHT_AMOUNT*clamp(1-(color.x+color.y+color.z),0,1);

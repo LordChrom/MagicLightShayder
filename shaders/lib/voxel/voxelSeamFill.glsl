@@ -19,18 +19,18 @@ struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTr
 
 const vec3 sunColor = vec3(242,242,242)/255;
 
-vec3 sunPos = vec3(0,0,1000);
+const vec3 sunPos = vec3(0,0,1000);
+uint zoneMemOffset;
 
-void sunlight(uvec3 texelPos){
+void sunlight(ivec3 zonePos){
     vec3 lightTravel = sunPos;
-    lightTravel.xy+=texelPos.xy;
+    lightTravel.xy+=zonePos.xy;
     lightVoxData sunLight = {vec2(0,0),bvec4(true),sunColor,lightTravel,0,1,0};
-    setLightData(sunLight, ivec3(texelPos));
-
+    setLightData(sunLight, ivec3(zonePos), zoneMemOffset);
 }
 
-void nullify(uvec3 texelPos){
-    setLightData(noLight, ivec3(texelPos));
+void nullify(ivec3 zonePos){
+    setLightData(noLight, ivec3(zonePos), zoneMemOffset);
 }
 
 
@@ -40,20 +40,16 @@ void fillSeams(uvec3 workGroupID, uvec3 localID){
     uint layer = workGroupID.z%VOX_LAYERS;
     uint axis = workGroupID.z/VOX_LAYERS;
 
+    ivec3 zonePos = ivec3(ivec2(localID.x,workGroupID.y)-1, -1);
 
-//    ivec4 sectionPos = ivec4(0,AREA_SIZE,0,zoneNum);
-//    sectionPos.xz = ivec2(localID.xy + (workGroupID.xy*SECTION_SIZE));
-//    uvec3 texelPos = areaToZoneSpace(sectionPos,axis,layer).xyz;
-    uvec3 texelPos;
-    //    texelPos.xy = ivec2(localID.xy + (workGroupID.xy*SECTION_SIZE));
-    texelPos.xy = ivec2(localID.x,workGroupID.y);
+    zoneMemOffset = zoneOffset(axis,layer);
 
-    texelPos.z = zoneOffset(axis,layer);
-
-    if(axis==2)
-        sunlight(texelPos);
-//    else
-//        nullify(texelPos);
+    if(axis==2){
+        if (layer==0)
+            sunlight(zonePos);
+    }else{
+        //        nullify(texelPos);
+    }
 
 
 }
