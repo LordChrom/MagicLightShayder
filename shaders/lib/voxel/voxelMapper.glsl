@@ -11,7 +11,10 @@
 
 
 
-void writeVoxelMap(vec3 worldPos, int blockID, uint emission){
+void writeVoxelMap(vec3 worldPos, int blockID, vec3 toMidblock, uint emission){
+//    if(max(max(abs(toMidblock.x),abs(toMidblock.y)),abs(toMidblock.z))>0.5)
+//        return; //for blocks that dont fit in the box, altho not best solution
+
     vec3 color = vec3(0.9,0.6,0.6);
     uint metadata;
 
@@ -33,6 +36,9 @@ void writeVoxelMap(vec3 worldPos, int blockID, uint emission){
         color=vec3(1,0,0);
         metadata=1;
     }
+
+    worldPos+= toMidblock; //TODO account for scale
+
 
     ivec4 areaPos = worldPosToArea(worldPos,1);
     ivec3 areaOrigin = getAreaOrigin(areaPos.w);
