@@ -200,8 +200,8 @@ bool any(bvec4 a){return (a.x||a.y)||(a.z||a.w);}
 
 //occlusion map stuff
 bool isLit(vec2 slope, vec2 ray, bvec4 map){
-    ivec2 pos = ivec2(int(slope.x>ray.x),int(slope.y>ray.y));
-    return map[3-pos.x-(pos.y<<1)];
+    ivec2 pos = ivec2(slope.x<ray.x,slope.y<ray.y);
+    return map[pos.x+(pos.y<<1)];
 }
 
 bool isLit(vec3 position, lightVoxData light){
@@ -242,6 +242,10 @@ bool sameLight(lightVoxData a, lightVoxData b){
 }
 
 //left, top, right, bottom
+bvec4 getLightEdges(bvec4 occlusionMap){
+    return and(occlusionMap.zxyw,occlusionMap.xywz);
+}
+
 bvec4 getOcclusionEdges(bvec4 occlusionMap){
     return not(or(occlusionMap.zxyw,occlusionMap.xywz));
 }

@@ -362,6 +362,8 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
     vec4 cornersX=vec4(2,-1,2,-1);
     vec4 cornersY=vec4(2,2,-1,-1);
 
+    vec4 truncBounds = vec4(outerSlope.xy,innerSlope.xy);
+
     bool anyRelevantSamples = false;
 
 
@@ -373,53 +375,26 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
 
             bvec4 map = samples[i][j].occlusionMap;
             vec2 ray = samples[i][j].occlusionRay;
+
+            bvec4 lightEdges = getLightEdges(map); //left, top, right, bottom
+
+            //for all of these, it will truncate the outer bounds if both samples on that edge are lit,
+            //but one or both of the inner samples are obstructed.
+            //this is mostly for when edges intersect at a corner to prevent the edges from continuing past that corner
+
+            if(i==1 && lightEdges.x && !lightEdges.z)   //left
+                truncBounds.x = min(truncBounds.x,ray.x);
+            if(j==1 && lightEdges.y && !lightEdges.w)   //top
+                truncBounds.y = min(truncBounds.y,ray.y);
+            if(i==0 && lightEdges.z && !lightEdges.x)   //right
+                truncBounds.z = max(truncBounds.z,ray.x);
+            if(j==0 && lightEdges.w && !lightEdges.y)   //bottom
+                truncBounds.w = max(truncBounds.w,ray.y);
+
             occlHitDist=max(occlHitDist,samples[i][j].occlusionHitDistance);
 
             vec4 sX=ternary(map,vec4(2,-1,2,-1),vec4(ray.x)); //represents the ways this sample shadows the output's
             vec4 sY=ternary(map,vec4(2,2,-1,-1),vec4(ray.y)); //corners
-
-            bool truncTL = false;
-            bool truncTR = false;
-            bool truncLU = false;
-            bool truncLD = false;
-
-
-            if(j==0 && relevance[i][1]){
-                lightVoxData neighbor = samples[i][1];
-
-                bvec4 nMap = neighbor.occlusionMap;
-                vec2 nRay = neighbor.occlusionRay;
-                truncTL = (!map.x) && nMap.x && (!nMap.z) && (nMap.y || nRay.x<=ray.x);
-                truncTR = (!map.y) && nMap.y && (!nMap.w) && (nMap.x || nRay.x>=ray.x);
-
-                if(truncTL){
-                    sY.x=2;
-                    sY.z=max(sY.z,nRay.y);
-                }
-
-                if(truncTR){
-                    sY.y=2;
-                    sY.w=max(sY.w,nRay.y);
-                }
-            }
-
-            if(i==0 && relevance[1][j]){
-                lightVoxData neighbor = samples[1][j];
-                bvec4 nMap = neighbor.occlusionMap;
-                vec2 nRay = neighbor.occlusionRay;
-                truncLU = (!map.x) && nMap.x && (!nMap.y) && (nMap.z || nRay.y<=ray.y);
-                truncLD = (!map.z) && nMap.z && (!nMap.w) && (nMap.x || nRay.y>=ray.y);
-
-                if(truncLU){
-                    sX.x=2;
-                    sX.y=max(sX.y,nRay.x);
-                }
-
-                if(truncLD){
-                    sX.z=2;
-                    sX.w=max(sX.w,nRay.x);
-                }
-            }
 
             bvec4 shadowedCorners = and(not(map),bvec4(
                 sX.x<=outerSlope.x && sY.x<=outerSlope.y,
@@ -507,11 +482,25 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
     }
 
 
+    if(outerSlope.x>truncBounds.x){
+        outMap.x=outMap.z=true;
+    }
+    if(truncBounds.z>innerSlope.x){
+        outMap.y=outMap.w=true;
+    }
+    if(outerSlope.y>truncBounds.y){
+        outMap.x=outMap.y=true;
+    }
+    if(truncBounds.w>innerSlope.y){
+        outMap.z=outMap.w=true;
+    }
+
+
     bvec4 edges = getOcclusionEdges(outMap); //left, top, right, bottom
     int edgeCount = anyRelevantSamples? int(edges.x)+int(edges.y)+int(edges.z)+int(edges.w) : 4;
 
     switch(edgeCount){
-        case 0: //no corner or 1 corner
+        case 0: //no corner, 1 corner, or opposite corners
             if(!(edges.x||edges.z)) outRay.x=0;
             if(!(edges.y||edges.w)) outRay.y=0;
             if(!outMap.x) outRay=vec2(cornersX.x,cornersY.x);
