@@ -377,7 +377,8 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
     vec4 cornersX=vec4(2,-1,2,-1);
     vec4 cornersY=vec4(2,2,-1,-1);
 
-    vec4 truncBounds = vec4(outerSlope.xy,innerSlope.xy);
+    vec4 litBounds = vec4(outerSlope.xy,innerSlope.xy);
+    vec4 shadedBounds = litBounds;
 
     bool anyRelevantSamples = false;
 
@@ -392,19 +393,29 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
             vec2 ray = samples[i][j].occlusionRay;
 
             bvec4 lightEdges = getLightEdges(map); //left, top, right, bottom
+            bvec4 darkEdges = getOcclusionEdges(map);
 
             //for all of these, it will truncate the outer bounds if both samples on that edge are lit,
             //but one or both of the inner samples are obstructed.
             //this is mostly for when edges intersect at a corner to prevent the edges from continuing past that corner
 
             if(i==1 && lightEdges.x && !lightEdges.z)   //left
-                truncBounds.x = min(truncBounds.x,ray.x);
+                litBounds.x = min(litBounds.x,ray.x);
             if(j==1 && lightEdges.y && !lightEdges.w)   //top
-                truncBounds.y = min(truncBounds.y,ray.y);
+                litBounds.y = min(litBounds.y,ray.y);
             if(i==0 && lightEdges.z && !lightEdges.x)   //right
-                truncBounds.z = max(truncBounds.z,ray.x);
+                litBounds.z = max(litBounds.z,ray.x);
             if(j==0 && lightEdges.w && !lightEdges.y)   //bottom
-                truncBounds.w = max(truncBounds.w,ray.y);
+                litBounds.w = max(litBounds.w,ray.y);
+
+            if(i==1 && darkEdges.x && !darkEdges.z)   //left
+                shadedBounds.x = min(shadedBounds.x,ray.x);
+            if(j==1 && darkEdges.y && !darkEdges.w)   //top
+                shadedBounds.y = min(shadedBounds.y,ray.y);
+            if(i==0 && darkEdges.z && !darkEdges.x)   //right
+                shadedBounds.z = max(shadedBounds.z,ray.x);
+            if(j==0 && darkEdges.w && !darkEdges.y)   //bottom
+                shadedBounds.w = max(shadedBounds.w,ray.y);
 
             occlHitDist=max(occlHitDist,samples[i][j].occlusionHitDistance);
 
@@ -450,14 +461,14 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
             newObstruction=newObstruction||(middleSlope.x>cornersX.w || middleSlope.y>cornersY.w);
             cornersX.w=max(cornersX.w,middleSlope.x);
             cornersY.w=max(cornersY.w,middleSlope.y);
-            truncBounds.z=truncBounds.w=-1;
+            litBounds.z=litBounds.w=-1;
         }
         if(relevantObstructions[0][1]){
             newObstruction=newObstruction||(middleSlope.x>cornersX.y || (middleSlope.y<cornersY.y&&!alignment.x));
             cornersX.y=max(cornersX.y,middleSlope.x);
             cornersY.y=min(cornersY.y,middleSlope.y);
-            truncBounds.y=2;
-            truncBounds.z=-1;
+            litBounds.y=2;
+            litBounds.z=-1;
         }
     }
     {
@@ -465,14 +476,14 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
             newObstruction=newObstruction||((middleSlope.x<cornersX.z &&!alignment.y) || middleSlope.y>cornersY.z);
             cornersX.z=min(cornersX.z,middleSlope.x);
             cornersY.z=max(cornersY.z,middleSlope.y);
-            truncBounds.x=2;
-            truncBounds.w=-1;
+            litBounds.x=2;
+            litBounds.w=-1;
         }
         if(relevantObstructions[1][1]){
             newObstruction=newObstruction||((middleSlope.x<cornersX.x &&!alignment.y) || (middleSlope.y<cornersY.x&&!alignment.x));
             cornersX.x=min(cornersX.x,middleSlope.x);
             cornersY.x=min(cornersY.x,middleSlope.y);
-            truncBounds.x=truncBounds.y=2;
+            litBounds.x=litBounds.y=2;
         }
     }
 
@@ -503,19 +514,34 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
     }
 
 
-    if(outerSlope.x>truncBounds.x){
-        outMap.x=outMap.z=true;
+    //TODO better way of combining these at corners of conflicting types
+    //the inner ones before the outer ones helps stuff like corners of glass shadows
+    if(innerSlope.x<max(litBounds.z,shadedBounds.z)){
+        outMap.y=outMap.w= (litBounds.z>shadedBounds.z);
     }
-    if(truncBounds.z>innerSlope.x){
-        outMap.y=outMap.w=true;
-    }
-    if(outerSlope.y>truncBounds.y){
-        outMap.x=outMap.y=true;
-    }
-    if(truncBounds.w>innerSlope.y){
-        outMap.z=outMap.w=true;
+    if(innerSlope.y<max(litBounds.w,shadedBounds.w)){
+        outMap.z=outMap.w= (litBounds.w>shadedBounds.w);
     }
 
+    if(outerSlope.x>min(litBounds.x,shadedBounds.x)){
+        outMap.x=outMap.z= (litBounds.x<shadedBounds.x);
+    }
+    if(outerSlope.y>min(litBounds.y,shadedBounds.y)){
+        outMap.x=outMap.y= (litBounds.y<shadedBounds.y);
+    }
+
+//    if(outerSlope.x>litBounds.x){
+//        outMap.x=outMap.z=true;
+//    }
+//    if(litBounds.z>innerSlope.x){
+//        outMap.y=outMap.w=true;
+//    }
+//    if(outerSlope.y>litBounds.y){
+//        outMap.x=outMap.y=true;
+//    }
+//    if(litBounds.w>innerSlope.y){
+//        outMap.z=outMap.w=true;
+//    }
 
     bvec4 edges = getOcclusionEdges(outMap); //left, top, right, bottom
     int edgeCount = anyRelevantSamples? int(edges.x)+int(edges.y)+int(edges.z)+int(edges.w) : 4;
