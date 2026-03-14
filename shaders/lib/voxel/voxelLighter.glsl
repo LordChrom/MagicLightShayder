@@ -273,20 +273,25 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
     int bSignSrc = int(sign(lightTravel.y));
     alignment = bvec2(bSignSrc==0,aSignSrc==0);
 
+    uint[2][2] localFronts;
+    uint[2][2] localRears;
+
     for(int i=0; i<2; i++){
+        int a = (i-1)*aSignSrc;
         for (int j=0; j<2; j++){
+            int b = (j-1)*bSignSrc;
             samples[i][j].type=0;
             relevance[i][j]=false;
+            localFronts[i][j]=getFrontVoxel(a,b);
+            localRears[i][j]=getRearVoxel(a,b);
         }
     }
 
-    bool frontOutputTranslucent = bool(getFrontVoxel(0,0)&2u);
-    bool rearOutputTranslucent = bool(getRearVoxel(0,0)&2u);
     bool sampleFreshlyTranslucent = bool(bestSource.flags&1u);
-    bool lightThroughTranslucency = sampleFreshlyTranslucent || translucentTerrain;
+    uint obstructingTerrainMask = (sampleFreshlyTranslucent || translucentTerrain)?1u:3u;
     bool cornerBlocked = !(alignment.x||alignment.y);
 
-    if(frontOutputTranslucent&&!(sampleFreshlyTranslucent || translucentTerrain))
+    if(bool(localFronts[1][1]&2u)&&!(sampleFreshlyTranslucent || translucentTerrain))
         return;
 
 
@@ -296,18 +301,28 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
         for(int j=0; j<2; j++){
             int b = (j-1)*bSignSrc;
 
-            uint front = getFrontVoxel(a,b);
-            uint rear = getRearVoxel(a,b);
+            uint front = localFronts[i][j];
+            uint rear = localRears[i][j];
             bool rearTranslucent = bool(rear&2u);
 
-            bool blockRecolors = bool((front)&2u);
-            bool blockBlocked = bool((front|rear)&(lightThroughTranslucency?1u:3u));
 
-            if(!(translucentTerrain&&frontOutputTranslucent))
-                blockBlocked=blockBlocked|| (translucentTerrain!=blockRecolors);
-            if(sampleFreshlyTranslucent&&rearOutputTranslucent&&!frontOutputTranslucent)
-                blockBlocked=blockBlocked|| ((rear&3u)==0);
+            bool blockBlocked = bool((front|rear)&obstructingTerrainMask);
 
+            //TODO optimize
+            if(translucentTerrain){
+                blockBlocked=blockBlocked|| ((!bool(front&2u))&& ( //only cutoff the outside when its at the front
+                    (i==1 && aSignSrc!=0)||
+                    (j==1 && bSignSrc!=0)
+                ));
+            }
+            if(sampleFreshlyTranslucent){ //only cutoff the inside when its at the back
+                blockBlocked=blockBlocked|| ((!bool(rear&2u)) && (
+                    (i==0&&bool(localRears[1][j]&2u))||
+                    (j==0&&bool(localRears[i][1]&2u)))
+                );
+            }
+
+            //TODO figure out if this is necessary after handling the opposing corners case
             cornerBlocked = cornerBlocked && (i==j || bool(front&1u));
 
             newObstructions[i][j]=blockBlocked;
