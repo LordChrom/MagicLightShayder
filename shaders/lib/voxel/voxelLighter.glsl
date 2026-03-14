@@ -435,11 +435,14 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
             newObstruction=newObstruction||(middleSlope.x>cornersX.w || middleSlope.y>cornersY.w);
             cornersX.w=max(cornersX.w,middleSlope.x);
             cornersY.w=max(cornersY.w,middleSlope.y);
+            truncBounds.z=truncBounds.w=-1;
         }
         if(relevantObstructions[0][1]){
             newObstruction=newObstruction||(middleSlope.x>cornersX.y || (middleSlope.y<cornersY.y&&!alignment.x));
             cornersX.y=max(cornersX.y,middleSlope.x);
             cornersY.y=min(cornersY.y,middleSlope.y);
+            truncBounds.y=2;
+            truncBounds.z=-1;
         }
     }
     {
@@ -447,11 +450,14 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
             newObstruction=newObstruction||((middleSlope.x<cornersX.z &&!alignment.y) || middleSlope.y>cornersY.z);
             cornersX.z=min(cornersX.z,middleSlope.x);
             cornersY.z=max(cornersY.z,middleSlope.y);
+            truncBounds.x=2;
+            truncBounds.w=-1;
         }
         if(relevantObstructions[1][1]){
             newObstruction=newObstruction||((middleSlope.x<cornersX.x &&!alignment.y) || (middleSlope.y<cornersY.x&&!alignment.x));
             cornersX.x=min(cornersX.x,middleSlope.x);
             cornersY.x=min(cornersY.x,middleSlope.y);
+            truncBounds.x=truncBounds.y=2;
         }
     }
 
@@ -500,6 +506,7 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
     int edgeCount = anyRelevantSamples? int(edges.x)+int(edges.y)+int(edges.z)+int(edges.w) : 4;
 
     switch(edgeCount){
+        //TODO improve the opposite corners one (esp. with one glass one solid)
         case 0: //no corner, 1 corner, or opposite corners
             if(!(edges.x||edges.z)) outRay.x=0;
             if(!(edges.y||edges.w)) outRay.y=0;
