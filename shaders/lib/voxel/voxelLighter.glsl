@@ -294,6 +294,9 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
     if(bool(localFronts[1][1]&2u)&&!(sampleFreshlyTranslucent || translucentTerrain))
         return;
 
+#ifdef UNOCCLUDED_INTO_BLOCKS
+    bool frontBlockedCompletely = bool(localFronts[1][1]&1u);
+#endif
 
     //i=0 means a=offset, i=1 means a=0;
     for(int i=0; i<2; i++){
@@ -303,6 +306,13 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
 
             uint front = localFronts[i][j];
             uint rear = localRears[i][j];
+
+#ifdef UNOCCLUDED_INTO_BLOCKS
+            if(frontBlockedCompletely){
+                front&=~1u;
+                rear&=~1u;
+            }
+#endif
             bool rearTranslucent = bool(rear&2u);
 
 
@@ -423,10 +433,10 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
             vec4 sY=ternary(map,vec4(2,2,-1,-1),vec4(ray.y)); //corners
 
             bvec4 shadowedCorners = and(not(map),bvec4(
-                sX.x<=outerSlope.x && sY.x<=outerSlope.y,
-                sX.y>=innerSlope.x && sY.y<=outerSlope.y,
-                sX.z<=outerSlope.x && sY.z>=innerSlope.y,
-                sX.w>=innerSlope.x && sY.w>=innerSlope.y
+                sX.x<outerSlope.x && sY.x<outerSlope.y,
+                sX.y>innerSlope.x && sY.y<outerSlope.y,
+                sX.z<outerSlope.x && sY.z>innerSlope.y,
+                sX.w>innerSlope.x && sY.w>innerSlope.y
             ));
 
             if(shadowedCorners.x){
@@ -516,19 +526,19 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
 
     //TODO better way of combining these at corners of conflicting types
     //the inner ones before the outer ones helps stuff like corners of glass shadows
-    if(innerSlope.x<max(litBounds.z,shadedBounds.z)){
-        outMap.y=outMap.w= (litBounds.z>shadedBounds.z);
-    }
-    if(innerSlope.y<max(litBounds.w,shadedBounds.w)){
-        outMap.z=outMap.w= (litBounds.w>shadedBounds.w);
-    }
-
-    if(outerSlope.x>min(litBounds.x,shadedBounds.x)){
-        outMap.x=outMap.z= (litBounds.x<shadedBounds.x);
-    }
-    if(outerSlope.y>min(litBounds.y,shadedBounds.y)){
-        outMap.x=outMap.y= (litBounds.y<shadedBounds.y);
-    }
+//    if(innerSlope.x<max(litBounds.z,shadedBounds.z)){
+//        outMap.y=outMap.w= (litBounds.z>shadedBounds.z);
+//    }
+//    if(innerSlope.y<max(litBounds.w,shadedBounds.w)){
+//        outMap.z=outMap.w= (litBounds.w>shadedBounds.w);
+//    }
+//
+//    if(outerSlope.x>min(litBounds.x,shadedBounds.x)){
+//        outMap.x=outMap.z= (litBounds.x<shadedBounds.x);
+//    }
+//    if(outerSlope.y>min(litBounds.y,shadedBounds.y)){
+//        outMap.x=outMap.y= (litBounds.y<shadedBounds.y);
+//    }
 
 //    if(outerSlope.x>litBounds.x){
 //        outMap.x=outMap.z=true;
