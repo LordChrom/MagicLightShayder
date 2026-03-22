@@ -3,24 +3,17 @@
 
 //cordinate space stuff
 uniform vec3 cameraPosition;
+//TODO make uniform
+vec3 globalOrigin = round(cameraPosition/DEBUG_SCALE)*DEBUG_SCALE;
 
-ivec3 getAreaOrigin(uint areaNum){
-    return ivec3(cameraPosition-32);
-
-}
-
-//ivec3 getAreaOrigin(vec3 worldPos){return getAreaOrigin(0);}
-
-bool isVoxelInBounds(vec3 worldPos, ivec3 areaOrigin){
-    worldPos-=areaOrigin;
-    return worldPos.x>=0 && worldPos.y>=0 && worldPos.z>=0 && worldPos.x<voxWorldSize.x && worldPos.y<voxWorldSize.y && worldPos.z<voxWorldSize.z;
+ivec3 getAreaShift(float scale){
+    return ivec3(globalOrigin/scale);
 }
 
 uint getAreaNum(vec3 worldPos){
     return 0u;
 }
 
-bool isVoxelInBounds(vec3 worldPos){ return isVoxelInBounds(worldPos,getAreaOrigin(getAreaNum(worldPos)));}
 
 const mat3[] areaToZoneSpaceMats = {
 mat3(0,1,0, 0,0,1, -1,0,0),
@@ -41,18 +34,19 @@ ivec3 axisNumToVec(uint axis){
 
 //output.xyz is area xyz
 //output.w is area number
-ivec4 worldPosToArea(vec3 pos, vec3 areaOrigin, float scale){
-    pos-=areaOrigin;
-    ivec3 sectionID = ivec3(floor(pos/AREA_SIZE));
-    pos-=AREA_SIZE*sectionID;
-    int areaNum = (sectionID.x<<(AREA_SHIFT+AREA_SHIFT)) + (sectionID.y<<AREA_SHIFT) + sectionID.z;
-
-    return ivec4(floor(pos/scale),areaNum);
-}
-
 ivec4 worldPosToArea(vec3 pos, float scale){
-    return worldPosToArea(pos,getAreaOrigin(getAreaNum(pos)),scale);
+    uint areaNum = getAreaNum(pos);
+    pos -= globalOrigin;
+    pos = floor(pos/scale+(AREA_SIZE*0.5));
+    return ivec4(pos,areaNum);
 }
+
+bool isVoxelInBounds(ivec3 areaPos){
+    return areaPos.x>=0 && areaPos.y>=0 && areaPos.z>=0 && areaPos.x<AREA_SIZE && areaPos.y<AREA_SIZE && areaPos.z<AREA_SIZE;
+}
+//get rid of these, it should always be less work to calculate the area in whatever context s calling this
+bool isVoxelInBounds(vec3 worldPos, float scale){return isVoxelInBounds(worldPosToArea(worldPos,scale).xyz);}
+bool isVoxelInBounds(vec3 worldPos){return isVoxelInBounds(worldPos,DEBUG_SCALE);}
 
 //TODO include area num
 uint zoneOffset(uint axis, uint layer){
@@ -84,7 +78,7 @@ ivec3 toMemPos(ivec3 pos, ivec3 spaceShift, uint memOffset){
 
 //Data packing/unpacking
 struct areaMeta{//size 16
-    ivec3 areaOrigin;
+    ivec3 areaOriginBADDONTUSE;
 };
 
 struct lightVoxData{
@@ -153,8 +147,8 @@ uint packBytes(uvec4 data){
 #ifdef SAMPLES_LIGHT_FACE
 uniform usampler3D lightVoxSampler;
 
-uvec4 sampleLightData(ivec3 zonePos, ivec3 zoneOrigin, uint zoneMemOffset){
-    return texelFetch(lightVoxSampler, toMemPos(zonePos,zoneOrigin,zoneMemOffset),0);
+uvec4 sampleLightData(ivec3 zonePos, ivec3 zoneShift, uint zoneMemOffset){
+    return texelFetch(lightVoxSampler, toMemPos(zonePos,zoneShift,zoneMemOffset),0);
 }
 #endif
 
@@ -162,8 +156,8 @@ uvec4 sampleLightData(ivec3 zonePos, ivec3 zoneOrigin, uint zoneMemOffset){
 #ifdef WRITES_LIGHT_FACE
 layout (rgba32ui) uniform writeonly restrict uimage3D lightVox;
 
-void setLightData(lightVoxData light, ivec3 zonePos, ivec3 zoneOrigin, uint zoneMemOffset){
-    imageStore(lightVox,toMemPos(zonePos,zoneOrigin,zoneMemOffset),packLightData(light));
+void setLightData(lightVoxData light, ivec3 zonePos, ivec3 zoneShift, uint zoneMemOffset){
+    imageStore(lightVox,toMemPos(zonePos,zoneShift,zoneMemOffset),packLightData(light));
 }
 #endif
 
@@ -171,8 +165,8 @@ void setLightData(lightVoxData light, ivec3 zonePos, ivec3 zoneOrigin, uint zone
 #ifdef SAMPLES_VOX
 uniform usampler3D worldVoxSampler;
 
-uvec4 getVoxData(ivec3 areaPos, ivec3 areaOrigin, uint areaMemOffset){
-    return texelFetch(worldVoxSampler,toMemPos(areaPos,areaOrigin,areaMemOffset),0);
+uvec4 getVoxData(ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
+    return texelFetch(worldVoxSampler,toMemPos(areaPos,areaShift,areaMemOffset),0);
 }
 #endif
 
@@ -180,8 +174,8 @@ uvec4 getVoxData(ivec3 areaPos, ivec3 areaOrigin, uint areaMemOffset){
 #ifdef WRITES_VOX
 layout (rgba8ui) uniform writeonly restrict uimage3D worldVox;
 
-void setVoxData(uvec4 voxData, ivec3 areaPos, ivec3 areaOrigin, uint areaMemOffset){
-    imageStore(worldVox,toMemPos(areaPos,areaOrigin,areaMemOffset),voxData);
+void setVoxData(uvec4 voxData, ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
+    imageStore(worldVox,toMemPos(areaPos,areaShift,areaMemOffset),voxData);
 }
 #endif
 

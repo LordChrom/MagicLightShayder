@@ -15,12 +15,12 @@
 Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x64 voxels. This is subject to change
 
 # Spaces
-| space | axes  | range                        | 
-|:------|:------|:-----------------------------|
-| World | mc    | inf                          |
-| Area  | mc    | [-1,AREA_SIZE]               |
-| Zone  | light | [-1,AREA_SIZE]               |
-| Mem   | mixed | xy=[0,AREA_SIZE+1],z=[0,TBD) |
+| space | axes  | range                        | unit scale | 
+|:------|:------|:-----------------------------|:-----------|
+| World | mc    | inf                          | block      |
+| Area  | mc    | [-1,AREA_SIZE]               | voxel      |
+| Zone  | light | [-1,AREA_SIZE]               | voxel      |
+| Mem   | mixed | xy=[0,AREA_SIZE+1],z=[0,TBD) | mixed      |
 
 - world space is always in floats, mem space is always ints, zone and area space are usually ints
 - area positions may be bundled with a 4th element representing which area number the position belongs to

@@ -37,7 +37,7 @@ uint[3][3] frontVoxels, rearVoxels;
 
 uint[VOX_LAYERS] zoneMemOffsets;
 ivec4 areaPos;       //xyz in area mem space, w is area num
-ivec3 zonePos, zoneOrigin,areaOrigin; //0 to SECTION_SIZE-1
+ivec3 zonePos, zoneShift,areaShift; //0 to SECTION_SIZE-1
 ivec3 aVec, bVec, LVec;
 float scale,halfScale;
 uint axis;
@@ -59,12 +59,12 @@ uint getRearVoxel(int a, int b){  return rearVoxels[a+1][b+1]; }
 void takeSingleSample(int Aoffset, int Boffset,
 out uvec4 frontVoxel, out uvec4 rearVoxel, out uvec4[VOX_LAYERS] packedLightSamples){
     ivec3 voxelPos = areaPos.xyz+ivec3(aVec*Aoffset + bVec*Boffset);
-    frontVoxel = getVoxData(voxelPos,areaOrigin,areaMemOffset);
-    rearVoxel = getVoxData(voxelPos-LVec,areaOrigin,areaMemOffset);
+    frontVoxel = getVoxData(voxelPos,areaShift,areaMemOffset);
+    rearVoxel = getVoxData(voxelPos-LVec,areaShift,areaMemOffset);
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         packedLightSamples[layer]= (rearVoxel.w&3u)==1? uvec4(0):
-            sampleLightData(zonePos+ivec3(Aoffset, Boffset, -1),zoneOrigin,zoneMemOffsets[layer]);
+            sampleLightData(zonePos+ivec3(Aoffset, Boffset, -1),zoneShift,zoneMemOffsets[layer]);
     }
 }
 
@@ -526,19 +526,19 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
 
     //TODO better way of combining these at corners of conflicting types
     //the inner ones before the outer ones helps stuff like corners of glass shadows
-//    if(innerSlope.x<max(litBounds.z,shadedBounds.z)){
-//        outMap.y=outMap.w= (litBounds.z>shadedBounds.z);
-//    }
-//    if(innerSlope.y<max(litBounds.w,shadedBounds.w)){
-//        outMap.z=outMap.w= (litBounds.w>shadedBounds.w);
-//    }
-//
-//    if(outerSlope.x>min(litBounds.x,shadedBounds.x)){
-//        outMap.x=outMap.z= (litBounds.x<shadedBounds.x);
-//    }
-//    if(outerSlope.y>min(litBounds.y,shadedBounds.y)){
-//        outMap.x=outMap.y= (litBounds.y<shadedBounds.y);
-//    }
+    if(innerSlope.x<max(litBounds.z,shadedBounds.z)){
+        outMap.y=outMap.w= (litBounds.z>shadedBounds.z);
+    }
+    if(innerSlope.y<max(litBounds.w,shadedBounds.w)){
+        outMap.z=outMap.w= (litBounds.w>shadedBounds.w);
+    }
+
+    if(outerSlope.x>min(litBounds.x,shadedBounds.x)){
+        outMap.x=outMap.z= (litBounds.x<shadedBounds.x);
+    }
+    if(outerSlope.y>min(litBounds.y,shadedBounds.y)){
+        outMap.x=outMap.y= (litBounds.y<shadedBounds.y);
+    }
 
 //    if(outerSlope.x>litBounds.x){
 //        outMap.x=outMap.z=true;
@@ -704,7 +704,7 @@ void lightVoxelFace(){
 #endif
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-        setLightData(bestLights[layer], zonePos, zoneOrigin, zoneMemOffsets[layer]);
+        setLightData(bestLights[layer], zonePos, zoneShift, zoneMemOffsets[layer]);
     }
 }
 
@@ -719,9 +719,10 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 
     areaPos.w = int(groupId.y);
     areaMemOffset = 1;
-    areaOrigin = getAreaOrigin(areaPos.w);
-
     scale = 1;
+
+    areaShift = getAreaShift(scale);
+
     halfScale=0.5*scale;
 
 
@@ -741,7 +742,7 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
         aVec = ivec3(areaToZoneSpaceMats[axis][0]);
         bVec = ivec3(areaToZoneSpaceMats[axis][1]);
         LVec = ivec3(areaToZoneSpaceMats[axis][2]);
-        zoneOrigin = areaToZoneSpace(areaOrigin,axis);
+        zoneShift = areaToZoneSpace(areaShift,axis);
 
 
 #if SECTION_SIZE==UPDATE_STRIDE

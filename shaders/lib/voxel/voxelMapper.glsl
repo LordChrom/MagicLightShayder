@@ -40,11 +40,12 @@ void writeVoxelMap(vec3 worldPos, int blockID, vec3 toMidblock, uint emission){
     worldPos+= toMidblock; //TODO account for scale
 
 
-    ivec4 areaPos = worldPosToArea(worldPos,1);
-    ivec3 areaOrigin = getAreaOrigin(areaPos.w);
+    float scale = DEBUG_SCALE;
+    ivec4 areaPos = worldPosToArea(worldPos,scale);
+    ivec3 areaShift = getAreaShift(scale);
     uint areaMemOffset = 1;
 
     if(!isVoxelInBounds(worldPos)) return;
 
-    setVoxData(uvec4(255*color,metadata),areaPos.xyz,areaOrigin,areaMemOffset);
+    setVoxData(uvec4(255*color,metadata),areaPos.xyz,areaShift,areaMemOffset);
 }

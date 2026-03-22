@@ -11,10 +11,10 @@ layout (rgba8ui) uniform readonly restrict uimage3D worldVox;
 struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;uint flags;};
 #endif
 
-vec3 getDirectedLight(ivec3 blockPos, ivec4 areaPos, ivec3 zoneOrigin, vec3 subVoxelOffset, vec3 normal, uint axis, uint layer, float scale){
+vec3 getDirectedLight(ivec3 blockPos, ivec4 areaPos, ivec3 zoneShift, vec3 subVoxelOffset, vec3 normal, uint axis, uint layer, float scale){
     ivec3 zonePos = areaToZoneSpace(areaPos.xyz,axis);
     uint zoneMemOffset = zoneOffset(axis,layer);
-    lightVoxData lightSrc = unpackLightData(sampleLightData(zonePos, zoneOrigin, zoneMemOffset));
+    lightVoxData lightSrc = unpackLightData(sampleLightData(zonePos, zoneShift, zoneMemOffset));
     vec3 lightTravelWorld = lightSrc.lightTravel;
 
     if((axis&1u)==0)
@@ -226,8 +226,8 @@ vec3 getDirectedLight(ivec3 blockPos, ivec4 areaPos, ivec3 zoneOrigin, vec3 subV
     }
 #endif
 
-#ifdef DEBUG_GRID_OUTLINE
-    vec3 edgeNearness = abs(subVoxelOffset*2/scale)+(0.5*DEBUG_OUTLINE_WIDTH);
+#if DEBUG_GRID_OUTLINE >0
+    vec3 edgeNearness = abs(subVoxelOffset*2/scale)+(DEBUG_GRID_OUTLINE/(64*scale));
     if((int(edgeNearness.x>=1)+int(edgeNearness.y>=1)+int(edgeNearness.z>=1))>=2){
         outColor.rgb=outColor.rgb*1.3+0.02;
     }
@@ -243,7 +243,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
     ivec4 areaPos = worldPosToArea(worldPos,scale);
     vec3 subVoxelOffset = subVoxelOffset(worldPos,scale);
     ivec3 blockPos = ivec3(floor(worldPos));
-    ivec3 areaOrigin = getAreaOrigin(areaPos.w);
+    ivec3 areaShift = getAreaShift(scale);
 
     vec3 color = vec3(0);
     for(int layer = 0; layer<VOX_LAYERS; layer++){
@@ -254,8 +254,8 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
         for (int axis=0;axis<6;axis++)
 #endif
         {
-            ivec3 zoneOrigin = areaToZoneSpace(areaOrigin,axis);
-            color+=getDirectedLight(blockPos,areaPos, zoneOrigin, subVoxelOffset, normal, axis, layer, scale);
+            ivec3 zoneShift = areaToZoneSpace(areaShift,axis);
+            color+=getDirectedLight(blockPos,areaPos, zoneShift, subVoxelOffset, normal, axis, layer, scale);
         }
     }
     return color + MIN_LIGHT_AMOUNT*clamp(1-(color.x+color.y+color.z),0,1);

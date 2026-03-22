@@ -32,17 +32,17 @@ layout(std430, binding = 1) restrict buffer indirectDispatches {
 } indirectDispatchesAccess;
 
 uint zoneMemOffset, axis;
-ivec3 zoneOrigin;
+ivec3 zoneShift;
 
 void sunlight(ivec3 zonePos){
     vec3 lightTravel = sunPos;
     lightTravel.xy+=zonePos.xy;
     lightVoxData sunLight = {vec2(0,0),bvec4(true),sunColor,lightTravel,0,1,0};
-    setLightData(sunLight, ivec3(zonePos), zoneOrigin, zoneMemOffset);
+    setLightData(sunLight, ivec3(zonePos), zoneShift, zoneMemOffset);
 }
 
 void nullify(ivec3 zonePos){
-    setLightData(noLight, ivec3(zonePos), zoneOrigin, zoneMemOffset);
+    setLightData(noLight, ivec3(zonePos), zoneShift, zoneMemOffset);
 }
 
 
@@ -56,7 +56,7 @@ void fillSeams(uvec3 workGroupID, uvec3 localID){
 
     ivec3 zonePos = ivec3(ivec2(localID.x,workGroupID.y)-1, -1);
 
-    zoneOrigin = areaToZoneSpace(getAreaOrigin(areaNum),axis);
+    zoneShift = areaToZoneSpace(getAreaShift(areaNum),axis);
     zoneMemOffset = zoneOffset(axis,layer);
 
     if(localID==ivec3(0)){
