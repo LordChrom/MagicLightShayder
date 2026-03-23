@@ -1,4 +1,7 @@
-#version 330 compatibility
+#define BONUS_STUFF
+#include "lib/renderComponents/gbufferFragment.glsl"
+
+//TODO sky, this is still just the base-330 sky and its ugly
 
 uniform int renderStage;
 uniform float viewHeight;
@@ -8,7 +11,6 @@ uniform mat4 gbufferProjectionInverse;
 uniform vec3 fogColor;
 uniform vec3 skyColor;
 
-in vec4 glcolor;
 
 float fogify(float x, float w) {
 	return w / (x * x + w);
@@ -25,21 +27,12 @@ vec3 screenToView(vec3 screenPos) {
 	return tmp.xyz / tmp.w;
 }
 
-/* RENDERTARGETS: 0,4,5 */
-layout(location = 0) out vec4 color;
-layout(location = 1) out vec4 normalOut;
-layout(location = 2) out vec4 vanillaLighting;
 
-//TODO sky
-void main() {
+void doBonusStuff(){
 	if (renderStage == MC_RENDER_STAGE_STARS) {
 		color = glcolor;
 	} else {
 		vec3 pos = screenToView(vec3(gl_FragCoord.xy / vec2(viewWidth, viewHeight), 1.0));
 		color = vec4(calcSkyColor(normalize(pos)), 1.0);
 	}
-
-	vanillaLighting=vec4(1);
-	normalOut = vec4(0);
-
 }
