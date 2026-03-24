@@ -370,8 +370,8 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
     inout lightVoxData lightSrc
 ){
     vec2 lightTravel= abs(lightSrc.lightTravel.xy);
-    float slopeScaleNear = abs(scale/(lightSrc.lightTravel.z-halfScale));
-    float slopeScaleFar  = abs(scale/(lightSrc.lightTravel.z+halfScale));
+    float slopeScaleNear = abs(1/(lightSrc.lightTravel.z-halfScale));
+    float slopeScaleFar  = abs(1/(lightSrc.lightTravel.z+halfScale));
     vec2 outerSlope  = (lightTravel.xy+halfScale)*slopeScaleNear;  //anything more than this will not be visible
     vec2 middleSlope = (lightTravel.xy-halfScale)*slopeScaleNear;  //ray going to the center corner of the 4 relevant samples
     vec2 innerSlope  = (lightTravel.xy-halfScale)*slopeScaleFar;   //anything less than this will not be visible
@@ -689,7 +689,16 @@ void lightVoxelFace(){
     //could maybe be at the top, not sure how much it'd actually help though TODO test later
     uint front = getFrontVoxel(0,0);
     if (bool(front&0xf0u)){
-        bestLights[VOX_LAYERS-1].lightTravel = vec3(0);
+#ifdef LIGHT_SOURCES_BLOCK_CENTERIC
+        if(scale<1){
+            vec3 worldPos = vec3(areaPos.xyz)*scale-halfScale+globalOrigin;
+            vec3 subBlockOffset = areaToZoneSpaceRelative((worldPos-round(worldPos)),axis);
+            bestLights[VOX_LAYERS-1].lightTravel = subBlockOffset;
+        }else
+#endif
+        {
+            bestLights[VOX_LAYERS-1].lightTravel = vec3(0);
+        }
         bestLights[VOX_LAYERS-1].color = unpackUnorm4x8(front).wzy;
         bestLights[VOX_LAYERS-1].type = (front>>4)&0xfu;
         bestLights[VOX_LAYERS-1].occlusionMap=bvec4(true);
@@ -719,7 +728,7 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 
     areaPos.w = int(groupId.y);
     areaMemOffset = 1;
-    scale = 1;
+    scale = DEBUG_SCALE;
 
     areaShift = getAreaShift(scale);
 

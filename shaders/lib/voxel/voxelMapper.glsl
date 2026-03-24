@@ -37,7 +37,12 @@ void writeVoxelMap(vec3 worldPos, int blockID, vec3 toMidblock, uint emission){
         metadata=1;
     }
 
-    worldPos+= toMidblock; //TODO account for scale
+#ifndef LIGHT_SOURCES_BLOCK_CENTERIC
+    if(emission>0)
+        worldPos+= toMidblock+vec3(0.05); //TODO account for scale
+    else
+#endif
+        worldPos+= toMidblock*0.5; //TODO account for scale
 
 
     float scale = DEBUG_SCALE;

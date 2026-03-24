@@ -61,6 +61,14 @@ ivec3 areaToZoneSpace(ivec3 areaPos, uint axis){
     return ret;
 }
 
+vec3 areaToZoneSpaceRelative(vec3 areaPos, uint axis){
+    vec3 ret = (axis<4) ?
+    (bool(axis&6u)?areaPos.zxy:areaPos.yzx)
+    :areaPos;
+    ret.z=bool(axis&1u)?ret.z:-ret.z;
+    return ret;
+}
+
 //input is is absolute world space, output is world space distance from center of voxel
 vec3 subVoxelOffset(vec3 pos, float scale){
     return (fract(pos/scale)-0.5)*scale;
