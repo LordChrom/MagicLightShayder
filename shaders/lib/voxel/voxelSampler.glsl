@@ -237,12 +237,13 @@ vec3 getDirectedLight(ivec3 blockPos, ivec4 areaPos, ivec3 zoneShift, vec3 subVo
 
 
 vec3 voxelSample(vec3 worldPos, vec3 normal){
-
-//    worldPos+=normal*0.001;
     float scale = DEBUG_SCALE;
-    ivec4 areaPos = worldPosToArea(worldPos,scale);
-    vec3 subVoxelOffset = subVoxelOffset(worldPos,scale);
-    ivec3 blockPos = ivec3(floor(worldPos));
+
+    vec3 voxelCenter = (floor(worldPos/scale+normal*(scale/64))+0.5) * scale;
+
+    ivec4 areaPos = worldPosToArea(voxelCenter,scale);
+    vec3 subVoxelOffset = worldPos-voxelCenter;
+    ivec3 blockPos = ivec3(floor(voxelCenter));
     ivec3 areaShift = getAreaShift(scale);
 
     vec3 color = vec3(0);

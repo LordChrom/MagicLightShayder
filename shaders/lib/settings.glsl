@@ -31,6 +31,7 @@
 #define AXES_INORDER
 #define PARALLEL_UNPACK
 
+#define LIGHTING_RENDERSCALE 1 //[0.01 0.25 0.5 0.75 1]
 
 #define SECTION_SIZE 16
 #define UPDATE_STRIDE 16 //[16 8]
@@ -73,6 +74,8 @@ const uint debugAxisNum = DEBUG_AXIS;
 const float voxelDistance = 160.0;
 const float shadowDistance = 160.0;
 const int shadowMapResolution = 1;
+
+
 
 #ifdef KEEP_FULLY_OCCLUDED_SAMPLES
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef

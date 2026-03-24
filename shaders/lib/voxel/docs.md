@@ -46,3 +46,9 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - 2: steady blocklight
 - 3: pulsating blocklight (like amethyst crystals)
 - 4: analog flickering blocklight (like fire, trial spawners)
+
+# Colortexes
+- 0: material albedo & main output
+- 4: normals
+- 5: vanilla lighting
+- 6: presampled lighting
