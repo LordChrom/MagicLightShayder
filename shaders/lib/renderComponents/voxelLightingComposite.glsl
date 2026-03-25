@@ -46,13 +46,12 @@ void doVoxelLighting(vec2 sampleTexCoord, ivec2 texpos) {
     voxelFog = vec4(0);
     float offset = dither(texpos);
 
-    const float maxFogDepth = 70;
-    if(length(worldPosRelative)>maxFogDepth)
-        worldPosRelative=normalize(worldPosRelative)*maxFogDepth;
+    if(length(worldPosRelative)>MAX_FOG_DEPTH)
+        worldPosRelative=normalize(worldPosRelative)*MAX_FOG_DEPTH;
 
     float length = length(worldPosRelative);
 
-//    int fogSamples = min(VOLUMETRIC_FOG_SAMPLES,int(2*length)); //theoretically saves work but in practice not really
+//    int fogSamples = min(VOLUMETRIC_FOG_SAMPLES,int(2*length)); //theoretically saves work but in practice not really unless indoors
     const int fogSamples = VOLUMETRIC_FOG_SAMPLES;
     for(int i=0; i<VOLUMETRIC_FOG_SAMPLES; i++){
         //TODO maybe smarter spacing?

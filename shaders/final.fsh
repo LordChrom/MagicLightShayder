@@ -28,6 +28,10 @@ void main() {
 	vec4 albedo = texelFetch(colortex0,texpos,0);
 	vec3 light = texelFetch(colortex5,texpos,0).xyz;
 
+#ifdef DEBUG_WHITEN
+	albedo.xyz=vec3(DEBUG_WHITE_LEVEL);
+#endif
+
 #if LIGHTING_RENDERSCALE >= 1
 	doVoxelLighting(texcoord,texpos);
 #else
