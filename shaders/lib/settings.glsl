@@ -1,3 +1,6 @@
+#ifndef SETTINGS_GLSL
+#define SETTINGS_GLSL
+
 //#define DEBUG_OCCLUSION_MAP
 #define UNFLIP_DEBUG_MAPS
 #define DEBUG_OUTLINE_WIDTH 0.04 //[0 0.01 0.02 0.04 0.08 0.16]
@@ -36,6 +39,12 @@
 #define SECTION_SIZE 16
 #define UPDATE_STRIDE 16 //[16 8]
 #define AREA_WIDTH_SECTIONS 4
+
+
+#define AREA_SIZE_MEM 66 //Update Manually
+#define LOCAL_SIZE_Z 1
+
+
 const uvec3 AREAS = ivec3(1,1,1);
 
 
@@ -45,7 +54,6 @@ const int SECTIONS_PER_AREA = AREA_WIDTH_SECTIONS*AREA_WIDTH_SECTIONS*AREA_WIDTH
 const int AREA_SIZE =  AREA_WIDTH_SECTIONS*SECTION_SIZE;
 const int AREA_POS_MASK = AREA_SIZE-1;
 
-#define AREA_SIZE_MEM 66 //Update Manually
 
 //const int SECTIONS_PER_AREA = AREA_WIDTH_SECTIONS*AREA_WIDTH_SECTIONS*AREA_WIDTH_SECTIONS;
 const int AREA_WIDTH_SECTIONS_SHIFT = int(log2(AREA_WIDTH_SECTIONS));
@@ -54,7 +62,6 @@ const int ZONE_OFFSET = AREA_SIZE+4;
 const int AREA_COUNT = 1;
 const int AREA_HALF_SIZE = int(AREA_SIZE*0.5);
 
-#define LOCAL_SIZE_Z 1
 
 //#define VOX_SIZE 66
 //#define VOX_SIZE_BIG 840
@@ -76,7 +83,7 @@ const float shadowDistance = 160.0;
 const int shadowMapResolution = 1;
 
 
-
 #ifdef KEEP_FULLY_OCCLUDED_SAMPLES
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
+#endif
 #endif
