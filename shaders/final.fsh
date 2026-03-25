@@ -5,13 +5,8 @@
 uniform sampler2D colortex0;
 uniform sampler2D colortex5;
 
-
-#if LIGHTING_RENDERSCALE >= 1
-#include "/lib/renderComponents/voxelLightingComposite.glsl"
-#else
 uniform sampler2D colortex6;
 uniform sampler2D colortex7;
-#endif
 
 
 uniform float viewWidth;
@@ -32,12 +27,8 @@ void main() {
 	albedo.xyz=vec3(DEBUG_WHITE_LEVEL);
 #endif
 
-#if LIGHTING_RENDERSCALE >= 1
-	doVoxelLighting(texcoord,texpos);
-#else
 	vec4 voxelLighting = texture(colortex6,texcoord* LIGHTING_RENDERSCALE );
 	vec4 voxelFog = texture(colortex7,texcoord* LIGHTING_RENDERSCALE );
-#endif
 
 	if( voxelLighting.a>0.1 && light!=vec3(1)){
 		light=voxelLighting.xyz;
