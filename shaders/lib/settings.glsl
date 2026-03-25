@@ -44,9 +44,11 @@
 #define FOG_TEMPORAL_NOISE
 
 #define LIGHTING_RENDERSCALE 1 //[0.01 0.25 0.5 0.75 1]
+#define BLOOM_INTENSITY 0.1 //[-1 0.0001 0.01 0.02 0.05 0.075 0.1 0.15 0.2 1.0]
+#define BLOOM_WIDTH 1.5 //[0.5 1 1.5 2 3]
 
 #define SECTION_SIZE 16
-#define UPDATE_STRIDE 16 //[16 8]
+#define UPDATE_STRIDE 16 //[8 16]
 #define AREA_WIDTH_SECTIONS 4
 
 
@@ -91,8 +93,10 @@ const float voxelDistance = 160.0;
 const float shadowDistance = 160.0;
 const int shadowMapResolution = 1;
 
-
+#if BLOOM>0
 #ifdef KEEP_FULLY_OCCLUDED_SAMPLES
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
 #endif
+#endif
+
 #endif
