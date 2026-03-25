@@ -46,8 +46,9 @@ void doVoxelLighting(vec2 sampleTexCoord, ivec2 texpos) {
     voxelFog = vec4(0);
     float offset = dither(texpos);
 
-    if(isSky)
-        worldPosRelative=normalize(worldPosRelative)*60;
+    const float maxFogDepth = 70;
+    if(length(worldPosRelative)>maxFogDepth)
+        worldPosRelative=normalize(worldPosRelative)*maxFogDepth;
 
     float length = length(worldPosRelative);
 
@@ -61,11 +62,12 @@ void doVoxelLighting(vec2 sampleTexCoord, ivec2 texpos) {
         vec3 fogSamplePos = cameraPosition +worldPosRelative*weight;
         if(!isVoxelInBounds(fogSamplePos))continue;
 
-        float density = min(1.0,0.1 * (length/fogSamples));
-        voxelFog = voxelFog*(1-density) + vec4(voxelSampleFog(fogSamplePos),1)*density;
+        float density = FOG_DENSITY * (length/fogSamples);
+        density = min(1.0,density);
+        vec4 newSample = vec4(voxelSampleFog(fogSamplePos),density);
+        voxelFog = voxelFog*(1-density) + newSample*density;
     }
 
-    voxelFog.a*=0.3;
-    voxelFog.rgb*=0.4;
+    voxelFog.rgb*=FOG_BRIGHTNESS;
 #endif
 }
