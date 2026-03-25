@@ -10,6 +10,7 @@ uniform sampler2D colortex5;
 #include "/lib/renderComponents/voxelLightingComposite.glsl"
 #else
 uniform sampler2D colortex6;
+uniform sampler2D colortex7;
 #endif
 
 
@@ -31,6 +32,7 @@ void main() {
 	doVoxelLighting(texcoord,texpos);
 #else
 	vec4 voxelLighting = texture(colortex6,texcoord* LIGHTING_RENDERSCALE );
+	vec4 voxelFog = texture(colortex7,texcoord* LIGHTING_RENDERSCALE );
 #endif
 
 	if( voxelLighting.a>0.1 && light!=vec3(1)){
@@ -39,5 +41,10 @@ void main() {
 
 
 	color = albedo.xyz*light;
+
+#if VOLUMETRIC_FOG_SAMPLES > 0
+	float fogThickness = clamp(voxelFog.a,0,0.7);
+	color = color*(1-fogThickness) + voxelFog.rgb;
+#endif
 
 }

@@ -77,6 +77,9 @@ vec3 getDirectedLight(ivec3 blockPos, ivec4 areaPos, ivec3 zoneShift, vec3 subVo
         lightStrength==0;
 
     float lightDotN = -dot(normalize(displacement),normal);
+    if(length(normal)<0.1){
+        lightDotN=1;
+    }
 
     bool emissiveVoxel = displacement.z<=scale*0.51;
     if(emissiveVoxel && lightDotN<0)
@@ -229,7 +232,7 @@ vec3 getDirectedLight(ivec3 blockPos, ivec4 areaPos, ivec3 zoneShift, vec3 subVo
 #if DEBUG_GRID_OUTLINE >0
     vec3 edgeNearness = abs(subVoxelOffset*2/scale)+(DEBUG_GRID_OUTLINE/(64*scale));
     if((int(edgeNearness.x>=1)+int(edgeNearness.y>=1)+int(edgeNearness.z>=1))>=2){
-        outColor.rgb=outColor.rgb*1.3+0.02;
+        outColor.rgb=max(outColor.rgb*1.5,vec3(0.03));
     }
 #endif
     return outColor;
@@ -255,9 +258,15 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
         for (int axis=0;axis<6;axis++)
 #endif
         {
+            //TODO probably fetch stuff for next iteration ahead of time for latency hiding
             ivec3 zoneShift = areaToZoneSpace(areaShift,axis);
             color+=getDirectedLight(blockPos,areaPos, zoneShift, subVoxelOffset, normal, axis, layer, scale);
         }
     }
     return color + MIN_LIGHT_AMOUNT*clamp(1-(color.x+color.y+color.z),0,1);
+}
+
+vec3 voxelSampleFog(vec3 worldPos){
+    //TODO add a computationally cheap option and an option that weights based on how much of the fog line thru the voxel is lit
+    return voxelSample(worldPos,vec3(0));
 }
