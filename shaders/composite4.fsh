@@ -13,6 +13,6 @@ layout(location = 0) out vec4 lighting;
 
 void main() {
     if(texcoord.x>LIGHTING_RENDERSCALE || texcoord.y>LIGHTING_RENDERSCALE) return;
-    lighting = doBloom(colortex6,texcoord,vec2(viewWidth,viewHeight),2);
+    lighting = doBloom(colortex6,texcoord,vec2(viewWidth,viewHeight),3);
 
 }

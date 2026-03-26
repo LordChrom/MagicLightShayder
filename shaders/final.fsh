@@ -37,7 +37,7 @@ void main() {
 	vec2 scaledTexcoord = texcoord* LIGHTING_RENDERSCALE;
 	ivec2 texelPos = ivec2(floor(scaledTexcoord*screenDim));
 	vec2 halfPixel = 0.4/screenDim;
-#if BLOOM_LEVEL > 0
+#if (BLOOM_LEVEL > 0) || (BLOOM_LEVEL>=0 && LIGHTING_RENDERSCALE<1)
 	vec4 voxelLighting = doBloom(colortex6,scaledTexcoord,vec2(viewWidth,viewHeight),1);
 #else
 	vec4 voxelLighting = texture(colortex6,scaledTexcoord);
