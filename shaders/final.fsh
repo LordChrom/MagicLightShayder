@@ -1,5 +1,6 @@
 #version 430 compatibility
 #include "/lib/settings.glsl"
+#include "/lib/renderComponents/blur.glsl"
 
 
 uniform sampler2D colortex0;
@@ -27,8 +28,18 @@ void main() {
 	albedo.xyz=vec3(DEBUG_WHITE_LEVEL);
 #endif
 
-	vec4 voxelLighting = texture(colortex6,texcoord* LIGHTING_RENDERSCALE );
-	vec4 voxelFog = texture(colortex7,texcoord* LIGHTING_RENDERSCALE );
+	vec2 screenDim = vec2(viewWidth,viewHeight);
+	vec2 scaledTexcoord = texcoord* LIGHTING_RENDERSCALE;
+	ivec2 texelPos = ivec2(floor(scaledTexcoord*screenDim));
+	vec2 halfPixel = 0.4/screenDim;
+//	vec2 offsetScaledTexcoord = (floor(scaledTexcoord*screenDim+0.5)-0.5)/screenDim;
+
+	vec4 voxelLighting = texture(colortex6,scaledTexcoord );
+#if FOG_BLUR>=1
+	vec4 voxelFog = doBlur(colortex7, scaledTexcoord,1.5/vec2(viewWidth,viewHeight),1,1,1);
+#else
+	vec4 voxelFog = texture(colortex7,scaledTexcoord);
+#endif
 
 	if( voxelLighting.a>0.1 && light!=vec3(1)){
 		light=voxelLighting.xyz;
