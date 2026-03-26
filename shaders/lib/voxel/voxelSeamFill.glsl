@@ -31,6 +31,7 @@ layout(std430, binding = 1) restrict buffer indirectDispatches {
     uvec3 lighterDispatches;
 } indirectDispatchesAccess;
 
+float scale;
 uint zoneMemOffset, axis;
 ivec3 zoneShift;
 
@@ -45,6 +46,9 @@ void nullify(ivec3 zonePos){
     setLightData(noLight, ivec3(zonePos), zoneShift, zoneMemOffset);
 }
 
+void trim(ivec3 zonePos){
+    nullify(zonePos); //TODO sample from lower detail region
+}
 
 void fillSeams(uvec3 workGroupID, uvec3 localID){
     indirectDispatchesAccess.lighterDispatches=uvec3(SECTIONS_PER_AREA,NUM_AREAS,workGroupZ);
@@ -55,9 +59,12 @@ void fillSeams(uvec3 workGroupID, uvec3 localID){
     axis = workGroupID.z/VOX_LAYERS;
 
     ivec3 zonePos = ivec3(ivec2(localID.x,workGroupID.y)-1, -1);
+    scale = DEBUG_SCALE;
+    ivec3 areaShift = getAreaShift(scale);
 
-    zoneShift = areaToZoneSpace(getAreaShift(areaNum),axis);
+    zoneShift = areaToZoneSpace(areaShift,axis);
     zoneMemOffset = zoneOffset(axis,layer);
+    ivec3 zoneMovement = areaToZoneSpaceRelative(areaShift - getPreviousAreaShift(scale),axis);
 
     if(localID==ivec3(0)){
 
@@ -72,5 +79,23 @@ void fillSeams(uvec3 workGroupID, uvec3 localID){
         //        nullify(texelPos);
     }
 
+
+    ivec3 movementSigns = sign(zoneMovement);
+    ivec3 edgeToTrim = abs(zoneMovement);
+
+    for(int i=0; i<edgeToTrim.z;i++){
+        int L = movementSigns.z>0?63-i:i;
+        trim(ivec3(zonePos.xy,L));
+    }
+
+    for(int i=0; i<edgeToTrim.x;i++){
+        int A = movementSigns.x>0?63-i:i;
+        trim(ivec3(A,zonePos.xy));
+    }
+
+    for(int i=0; i<edgeToTrim.y;i++){
+        int B = movementSigns.y>0?63-i:i;
+        trim(ivec3(zonePos.x,B,zonePos.y));
+    }
 
 }

@@ -6,7 +6,6 @@
 
 
 uniform int frameCounter;
-int frameOffset = frameCounter%UPDATE_STRIDE;
 
 
 layout(std430, binding = 0) readonly restrict buffer areaData {
@@ -732,6 +731,8 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
     scale = DEBUG_SCALE;
 
     areaShift = getAreaShift(scale);
+    ivec3 zoneMovement = areaToZoneSpaceRelative(areaShift - getPreviousAreaShift(scale),axis);
+
 
     halfScale=0.5*scale;
 
@@ -756,7 +757,8 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 
 
 #if SECTION_SIZE==UPDATE_STRIDE
-        int offset = frameOffset;
+        int offset = (frameCounter-zoneShift.z)%UPDATE_STRIDE;
+
 #else
         for (int offset = frameOffset;offset<SECTION_SIZE;offset+=UPDATE_STRIDE)
 #endif

@@ -3,12 +3,17 @@
 
 //cordinate space stuff
 uniform vec3 cameraPosition;
+uniform vec3 previousCameraPosition;
+
 //TODO make uniform
 vec3 globalOrigin = round(cameraPosition/DEBUG_SCALE)*DEBUG_SCALE;
+vec3 previousGlobalOrigin = round(previousCameraPosition/DEBUG_SCALE)*DEBUG_SCALE;
 
-ivec3 getAreaShift(float scale){
-    return ivec3(globalOrigin/scale);
+ivec3 getAreaShift(float scale, vec3 origin){
+    return ivec3(origin/scale);
 }
+ivec3 getAreaShift(float scale){return getAreaShift(scale,globalOrigin);}
+ivec3 getPreviousAreaShift(float scale){return getAreaShift(scale,previousGlobalOrigin);}
 
 uint getAreaNum(vec3 worldPos){
     return 0u;
@@ -63,6 +68,14 @@ ivec3 areaToZoneSpace(ivec3 areaPos, uint axis){
 
 vec3 areaToZoneSpaceRelative(vec3 areaPos, uint axis){
     vec3 ret = (axis<4) ?
+    (bool(axis&6u)?areaPos.zxy:areaPos.yzx)
+    :areaPos;
+    ret.z=bool(axis&1u)?ret.z:-ret.z;
+    return ret;
+}
+
+ivec3 areaToZoneSpaceRelative(ivec3 areaPos, uint axis){
+    ivec3 ret = (axis<4) ?
     (bool(axis&6u)?areaPos.zxy:areaPos.yzx)
     :areaPos;
     ret.z=bool(axis&1u)?ret.z:-ret.z;
