@@ -9,17 +9,17 @@ uniform mat4 gbufferModelViewInverse;
 
 
 
-///* RENDERTARGETS: 6 */
-//layout(location = 0) out vec4 lighting;
+layout(location = 2) out vec3 funnyDebug;
 
 vec4 voxelLighting;
 vec4 voxelFog;
 
-void doVoxelLighting(vec2 sampleTexCoord, ivec2 texpos) {
+void doVoxelLighting(vec2 sampleTexCoord, ivec2 inTexpos, ivec2 outTexpos) {
+    float ditherValue = dither(outTexpos);
 
-    float solidDepth = texelFetch(depthtex2,texpos,0).x;
-    vec4 normalAndMore = texelFetch(colortex4,texpos,0);
-    float depth = texelFetch(depthtex0,texpos,0).x;
+    float solidDepth = texelFetch(depthtex2,inTexpos,0).x;
+    vec4 normalAndMore = texelFetch(colortex4,inTexpos,0);
+    float depth = texelFetch(depthtex0,inTexpos,0).x;
 
     vec3 ndcPos = vec3(vec3(sampleTexCoord,solidDepth)*2-1);
 
@@ -44,7 +44,6 @@ void doVoxelLighting(vec2 sampleTexCoord, ivec2 texpos) {
 
 #if VOLUMETRIC_FOG_SAMPLES > 0
     voxelFog = vec4(0);
-    float offset = dither(texpos);
 
     if(length(worldPosRelative)>MAX_FOG_DEPTH)
         worldPosRelative=normalize(worldPosRelative)*MAX_FOG_DEPTH;
@@ -57,7 +56,7 @@ void doVoxelLighting(vec2 sampleTexCoord, ivec2 texpos) {
         //TODO maybe smarter spacing?
         if(i>=fogSamples)
             break;
-        float weight = 1-clamp(float(i+offset)/fogSamples,0.001,0.999);
+        float weight = 1-clamp(float(i+ditherValue)/fogSamples,0.001,0.999);
         vec3 fogSamplePos = cameraPosition +worldPosRelative*weight;
         if(!isVoxelInBounds(fogSamplePos))continue;
 
@@ -68,5 +67,24 @@ void doVoxelLighting(vec2 sampleTexCoord, ivec2 texpos) {
     }
 
     voxelFog.rgb*=FOG_BRIGHTNESS;
+#endif
+
+#if DEBUG_SPECIAL_VIEW == 0
+    funnyDebug = vec3(length(worldPosRelative)/40,normalAndMore.a,float(isSky));
+#elif DEBUG_SPECIAL_VIEW == 1
+    funnyDebug = normalAndMore.xyz;
+#elif DEBUG_SPECIAL_VIEW == 2
+    funnyDebug = voxelLighting.xyz;
+#elif DEBUG_SPECIAL_VIEW == 3
+    funnyDebug = voxelFog.xyz;
+#elif DEBUG_SPECIAL_VIEW == 4
+    funnyDebug = vec3(ditherValue);
+#elif DEBUG_SPECIAL_VIEW == 5
+    funnyDebug = vec3((inTexpos.x^inTexpos.y)&4,(inTexpos.x^inTexpos.y)&2,(inTexpos.x^inTexpos.y)&1);
+#elif DEBUG_SPECIAL_VIEW == 6
+#elif DEBUG_SPECIAL_VIEW == 7
+#elif DEBUG_SPECIAL_VIEW == 8
+#elif DEBUG_SPECIAL_VIEW == 9
+#elif DEBUG_SPECIAL_VIEW == 10
 #endif
 }
