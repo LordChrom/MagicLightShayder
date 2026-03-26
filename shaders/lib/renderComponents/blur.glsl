@@ -40,11 +40,23 @@ vec4 doBlurSnapped(sampler2D texToBlur, ivec2 texPos, int step, float weightCent
 }
 
 vec4 doFogBlur(sampler2D texToBlur, vec2 pos, vec2 screenDim, int level){
+//#define FOG_BLUR_SNAPPED
+
 #ifdef FOG_BLUR_SNAPPED
     ivec2 texPos = ivec2(round(pos*screenDim-0.07));
     return doBlurSnapped(texToBlur, texPos,level,1,0.5,0.25);
 #else
-    return doBlur(texToBlur, pos,(level*1.5)/screenDim,1,1,1);
+    return doBlur(texToBlur, pos,(level*1.5*LIGHTING_RENDERSCALE)/screenDim,1,1,1);
 #endif
+}
 
+vec4 doBloom(sampler2D texToBlur, vec2 pos, vec2 screenDim, int level){
+//#define BLOOM_SNAPPED
+
+#ifdef BLOOM_SNAPPED
+    ivec2 texPos = ivec2(round(pos*screenDim-0.07));
+    return doBlurSnapped(texToBlur, texPos,level,7,3,2);
+#else
+    return doBlur(texToBlur, pos,(level*BLOOM_WIDTH*LIGHTING_RENDERSCALE)/screenDim,7,3,2);
+#endif
 }
