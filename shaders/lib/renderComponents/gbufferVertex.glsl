@@ -15,7 +15,9 @@ out vec2 lmcoord;
 const vec2 maxLm = vec2(15.0/16.0);
 #endif
 
-
+#ifdef HAND
+uniform mat4 gbufferModelViewInverse;
+#endif
 
 void main() {
     gl_Position = ftransform();
@@ -26,6 +28,10 @@ void main() {
 
 #ifdef VERTEX_NORMALS
     normal = gl_Normal;
+
+    #ifdef HAND
+    normal = (gbufferModelViewInverse*vec4(normal,0)).xyz;
+    #endif
 #endif
 
 #ifdef LIT

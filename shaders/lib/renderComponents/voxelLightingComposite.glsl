@@ -72,7 +72,10 @@ void doVoxelLighting(vec2 sampleTexCoord, ivec2 inTexpos, ivec2 outTexpos) {
 #if DEBUG_SPECIAL_VIEW == 0
     funnyDebug = vec3(length(worldPosRelative)/40,normalAndMore.a,float(isSky));
 #elif DEBUG_SPECIAL_VIEW == 1
-    funnyDebug = normalAndMore.xyz;
+    float debugCheckerScale = 7;
+    bool checker = bool((int(outTexpos.x/debugCheckerScale)^int(outTexpos.y/debugCheckerScale))&1);
+    vec3 mult = checker?vec3(1):vec3(normal.x<0,normal.y<0,normal.z<0)*0.25+0.75;
+    funnyDebug = abs(normal)*mult;
 #elif DEBUG_SPECIAL_VIEW == 2
     funnyDebug = voxelLighting.xyz;
 #elif DEBUG_SPECIAL_VIEW == 3
