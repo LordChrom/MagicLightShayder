@@ -16,17 +16,7 @@ layout(location = 0) out vec4 lighting;
 layout(location = 1) out vec4 fog;
 
 void main() {
-	ivec2 outTexpos = ivec2(round(vec2(texcoord)*vec2(viewWidth,viewHeight)-0.07));
-	vec2 newTexCoord = texcoord/LIGHTING_RENDERSCALE;
-
-#if LIGHTING_RENDERSCALE==1
-	ivec2 inTexpos = outTexpos;
-#else
-	if(newTexCoord.x>1 || newTexCoord.y>1) return;
-	ivec2 inTexpos = ivec2(round(newTexCoord*vec2(viewWidth,viewHeight)-0.07));
-#endif
-
-	doVoxelLighting(vec2(newTexCoord),inTexpos,outTexpos);
+	doVoxelLighting(vec2(texcoord),vec2(viewWidth,viewHeight));
 	lighting = voxelLighting;
 	fog = voxelFog;
 }

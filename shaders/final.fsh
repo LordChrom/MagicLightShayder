@@ -34,19 +34,16 @@ void main() {
 #endif
 
 	vec2 screenDim = vec2(viewWidth,viewHeight);
-	vec2 scaledTexcoord = texcoord* LIGHTING_RENDERSCALE;
-	ivec2 texelPos = ivec2(floor(scaledTexcoord*screenDim));
-	vec2 halfPixel = 0.4/screenDim;
 #if (BLOOM_LEVEL > 0) || (BLOOM_LEVEL>=0 && LIGHTING_RENDERSCALE<1)
-	vec4 voxelLighting = doBloom(colortex6,scaledTexcoord,vec2(viewWidth,viewHeight),1);
+	vec4 voxelLighting = doBloom(colortex6,texcoord,screenDim,1);
 #else
-	vec4 voxelLighting = texture(colortex6,scaledTexcoord);
+	vec4 voxelLighting = texture(colortex6,texcoord);
 #endif
 
 #if FOG_BLUR>=1
-	vec4 voxelFog = doFogBlur(colortex7,scaledTexcoord,vec2(viewWidth,viewHeight),1);
+	vec4 voxelFog = doFogBlur(colortex7,texcoord,screenDim,1);
 #else
-	vec4 voxelFog = texture(colortex7,scaledTexcoord);
+	vec4 voxelFog = texture(colortex7,texcoord);
 #endif
 
 	if( voxelLighting.a>0.1 && light!=vec3(1)){
@@ -62,7 +59,7 @@ void main() {
 #endif
 
 #if DEBUG_SPECIAL_VIEW >= 0
-	color = texture(colortex8,texcoord).xyz;
+	color = texelFetch(colortex8,texpos,0).xyz;
 #endif
 
 }

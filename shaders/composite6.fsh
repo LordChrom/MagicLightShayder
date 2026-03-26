@@ -13,10 +13,8 @@ in vec2 texcoord;
 uniform int frameCounter;
 
 /* RENDERTARGETS: 7 */
-layout(location = 0) out vec4 lighting;
+layout(location = 0) out vec4 fog;
 
 void main() {
-    if(texcoord.x>LIGHTING_RENDERSCALE || texcoord.y>LIGHTING_RENDERSCALE) return;
-
-    lighting = doFogBlur(colortex7,texcoord,vec2(viewWidth,viewHeight),2);
+    fog = doFogBlur(colortex7,texcoord,vec2(viewWidth,viewHeight),2);
 }

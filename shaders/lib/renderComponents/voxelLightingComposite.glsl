@@ -7,19 +7,26 @@ uniform sampler2D depthtex2;
 uniform mat4 gbufferProjectionInverse;
 uniform mat4 gbufferModelViewInverse;
 
-
+/*
+//const int colortex6Format = RGBA16F;
+const int colortex6Format = RGB10_A2;
+//const int colortex7Format = RGBA16F;
+*/
 
 layout(location = 2) out vec3 funnyDebug;
 
 vec4 voxelLighting;
 vec4 voxelFog;
 
-void doVoxelLighting(vec2 sampleTexCoord, ivec2 inTexpos, ivec2 outTexpos) {
-    float ditherValue = dither(outTexpos);
+void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
+    ivec2 texpos = ivec2(round(vec2(sampleTexCoord)*screenDims*LIGHTING_RENDERSCALE-0.07));
+    ivec2 sourceTexpos = ivec2(round(vec2(sampleTexCoord)*screenDims-0.07));
 
-    float solidDepth = texelFetch(depthtex2,inTexpos,0).x;
-    vec4 normalAndMore = texelFetch(colortex4,inTexpos,0);
-    float depth = texelFetch(depthtex0,inTexpos,0).x;
+    float ditherValue = dither(texpos);
+
+    float solidDepth = texelFetch(depthtex2,sourceTexpos,0).x;
+    vec4 normalAndMore = texelFetch(colortex4,sourceTexpos,0);
+    float depth = texelFetch(depthtex0,sourceTexpos,0).x;
 
     vec3 ndcPos = vec3(vec3(sampleTexCoord,solidDepth)*2-1);
 
