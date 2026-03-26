@@ -501,6 +501,7 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
         lightSrc.occlusionHitDistance=lightSrc.lightTravel.z-0.6*scale;
     }
 
+    outerSlope=min(outerSlope,0.999);
 
     outMap = bvec4( !(cornersX.x<outerSlope.x && cornersY.x<outerSlope.y), !(cornersX.y>innerSlope.x && cornersY.y<outerSlope.y),
                     !(cornersX.z<outerSlope.x && cornersY.z>innerSlope.y), !(cornersX.w>innerSlope.x && cornersY.w>innerSlope.y));
