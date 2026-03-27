@@ -67,45 +67,48 @@ const vec4 colortex1ClearColor = vec4(0.0,0.0,0.0,0.0);
 
 void main() {
 
-#if defined VANILLA_FALLBACK || !defined TEXTURED
-    #ifndef VANILLA_FALLBACK
-    vec4 vanillaLighting;
-    #endif
-    #ifdef LIT
-    vanillaLighting = texture(lightmap, lmcoord);
-    #elif defined BASIC
+#ifdef LIT
+    vec4 lighting = texture(lightmap, lmcoord);
+#elif defined BASIC
     bool isLeash = length(glcolor.xyz-vec3(0.425,0.34,0.25))<0.5;
-    vanillaLighting = isLeash?vec4(0.9,0.9,0.9,1):vec4(1.0);
-    #else
-    vanillaLighting = vec4(1.0);
-    #endif
+    vec4 lighting = isLeash?vec4(0.9,0.9,0.9,1):vec4(1.0);
+#else
+    vec4 lighting = vec4(1.0);
 #endif
 
-    #ifdef TEXTURED
-    color = glcolor * texture(gtexture, texcoord);
-    #else
-    color = glcolor * vanillaLighting;
-    #endif
+#ifdef TEXTURED
+    vec4 sampledColor = glcolor * texture(gtexture, texcoord);
+#else
+    vec4 sampledColor = glcolor * lighting;
+#endif
 
 
 
-    #ifdef ENTITY
-    color.rgb = mix(color.rgb, entityColor.rgb, entityColor.a);
-    #endif
+#ifdef ENTITY
+    sampledColor.rgb = mix(sampledColor.rgb, entityColor.rgb, entityColor.a);
+#endif
 
-    #ifdef ALPHATEST
-    if (color.a < alphaTestRef) {
+#ifdef ALPHATEST
+    if (sampledColor.a < alphaTestRef) {
         discard;
     }
-    #endif
+#endif
 
 #ifdef VERTEX_NORMALS
     #ifdef TRANSLUCENT
-    if(color.a>translucentPrecedenceCutoff)
+    if(sampledColor.a>translucentPrecedenceCutoff)
         normalOut = vec4((normal+1)*0.5,1);
     #else
         normalOut = vec4((normal+1)*0.5,HAND_MASK);
     #endif
+#endif
+
+    color = sampledColor;
+
+//#ifdef OPAQUE_BLOCK_ENTITY
+
+#ifdef VANILLA_FALLBACK
+    vanillaLighting=lighting;
 #endif
 
     #ifdef BONUS_STUFF
