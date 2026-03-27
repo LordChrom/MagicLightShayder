@@ -7,7 +7,7 @@ uniform float viewHeight;
 in vec2 texcoord;
 
 #if DEBUG_SPECIAL_VIEW >= 0
-/* RENDERTARGETS: 6,7,8 */
+/* RENDERTARGETS: 6,7,15 */
 #else
 /* RENDERTARGETS: 6,7 */
 #endif

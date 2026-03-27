@@ -1,7 +1,7 @@
 #include "/lib/voxel/voxelSampler.glsl"
 #include "/lib/util/dither.glsl"
 
-uniform sampler2D colortex4;
+uniform sampler2D colortex2;
 uniform sampler2D depthtex0;
 uniform sampler2D depthtex2;
 uniform mat4 gbufferProjectionInverse;
@@ -25,15 +25,16 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     float ditherValue = dither(texpos);
 
     float solidDepth = texelFetch(depthtex2,sourceTexpos,0).x;
-    vec4 normalAndMore = texelFetch(colortex4,sourceTexpos,0);
+    vec4 normalAndMore = texelFetch(colortex2,sourceTexpos,0);
     float depth = texelFetch(depthtex0,sourceTexpos,0).x;
 
     vec3 ndcPos = vec3(vec3(sampleTexCoord,solidDepth)*2-1);
 
     vec3 normal = normalize(normalAndMore.xyz*2-1);
 
-    if(normalAndMore.a>0.5) //currently, normal.a only stores if it is or isnt the hand
-    ndcPos.z/=MC_HAND_DEPTH;
+    bool isHand = normalAndMore.a>0.4 && normalAndMore.a<0.6;
+    if(isHand) //currently, normal.a only stores if it is or isnt the hand
+        ndcPos.z/=MC_HAND_DEPTH;
 
     vec4 viewPos = gbufferProjectionInverse*vec4(ndcPos,1);
     viewPos/=viewPos.w;
@@ -52,10 +53,10 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 #if VOLUMETRIC_FOG_SAMPLES > 0
     voxelFog = vec4(0);
 
-    if(length(worldPosRelative)>MAX_FOG_DEPTH)
+    if(length(worldPosRelative)>MAX_FOG_DEPTH || isSky)
         worldPosRelative=normalize(worldPosRelative)*MAX_FOG_DEPTH;
 
-    float length = length(worldPosRelative);
+    float hitDistance = length(worldPosRelative);
 
 //    int fogSamples = min(VOLUMETRIC_FOG_SAMPLES,int(2*length)); //theoretically saves work but in practice not really unless indoors
     const int fogSamples = VOLUMETRIC_FOG_SAMPLES;
@@ -67,7 +68,7 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
         vec3 fogSamplePos = cameraPosition +worldPosRelative*weight;
         if(!isVoxelInBounds(fogSamplePos))continue;
 
-        float density = FOG_DENSITY * (length/fogSamples);
+        float density = FOG_DENSITY * (hitDistance/fogSamples);
         density = min(1.0,density);
         vec4 newSample = vec4(voxelSampleFog(fogSamplePos),density);
         voxelFog = voxelFog*(1-density) + newSample*density;
@@ -77,10 +78,10 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 #endif
 
 #if DEBUG_SPECIAL_VIEW == 0
-    funnyDebug = vec3(length(worldPosRelative)/40,normalAndMore.a,float(isSky));
+    funnyDebug = vec3(clamp(0.03*sqrt(length(worldPosRelative)),0,1),bool(isHand),float(isSky));
 #elif DEBUG_SPECIAL_VIEW == 1
     float debugCheckerScale = 7;
-    bool checker = bool((int(outTexpos.x/debugCheckerScale)^int(outTexpos.y/debugCheckerScale))&1);
+    bool checker = bool((int(texpos.x/debugCheckerScale)^int(texpos.y/debugCheckerScale))&1);
     vec3 mult = checker?vec3(1):vec3(normal.x<0,normal.y<0,normal.z<0)*0.25+0.75;
     funnyDebug = abs(normal)*mult;
 #elif DEBUG_SPECIAL_VIEW == 2

@@ -1,5 +1,7 @@
 #version 430 compatibility
 
+#include "/lib/settings.glsl"
+
 #ifdef TEXTURED
 in vec2 texcoord;
 uniform sampler2D gtexture;
@@ -23,7 +25,7 @@ uniform vec4 entityColor;
 #endif
 
 #ifdef HAND
-#define HAND_MASK 1
+#define HAND_MASK 0.5
 #else
 #define HAND_MASK 0
 #endif
@@ -34,17 +36,43 @@ void doBonusStuff();
 
 in vec4 glcolor;
 
-/* RENDERTARGETS: 0,4,5 */
+#ifdef VANILLA_FALLBACK
+    #if defined TRANSLUCENT && defined TRANSLUCENT_SEPARATE_BUFFER
+    /* RENDERTARGETS: 1,2,5 */
+    #else
+    /* RENDERTARGETS: 0,2,5 */
+    #endif
+layout(location = 2) out vec4 vanillaLighting;
+#else
+    #if defined TRANSLUCENT && defined TRANSLUCENT_SEPARATE_BUFFER
+    /* RENDERTARGETS: 1,2 */
+    #else
+    /* RENDERTARGETS: 0,2 */
+    #endif
+#endif
+
+
 layout(location = 0) out vec4 color;
 layout(location = 1) out vec4 normalOut;
-layout(location = 2) out vec4 vanillaLighting;
+
+#ifdef TRANSLUCENT_SEPARATE_BUFFER
+/*
+const vec4 colortex1ClearColor = vec4(0.0,0.0,0.0,0.0);
+*/
+#endif
 
 void main() {
+
+#if defined VANILLA_FALLBACK || !defined TEXTURED
+    #ifndef VANILLA_FALLBACK
+    vec4 vanillaLighting;
+    #endif
     #ifdef LIT
     vanillaLighting = texture(lightmap, lmcoord);
     #else
     vanillaLighting = vec4(1.0);
     #endif
+#endif
 
     #ifdef TEXTURED
     color = glcolor * texture(gtexture, texcoord);
@@ -62,9 +90,15 @@ void main() {
     }
     #endif
 
-    #ifdef VERTEX_NORMALS
-    normalOut = vec4((normal+1)*0.5,HAND_MASK);
+#ifdef VERTEX_NORMALS
+    #ifdef TRANSLUCENT
+    if(color.a>translucentPrecedenceCutoff)
+        normalOut = vec4((normal+1)*0.5,1);
+
+    #else
+        normalOut = vec4((normal+1)*0.5,HAND_MASK);
     #endif
+#endif
 
     #ifdef BONUS_STUFF
     doBonusStuff();

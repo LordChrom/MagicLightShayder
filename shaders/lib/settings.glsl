@@ -60,6 +60,8 @@
 #define AREA_SIZE_MEM 66 //Update Manually
 #define LOCAL_SIZE_Z 1
 
+#define VANILLA_FALLBACK
+#define TRANSLUCENT_SEPARATE_BUFFER
 
 const uvec3 AREAS = ivec3(1,1,1);
 
@@ -97,10 +99,13 @@ const uint debugAxisNum = DEBUG_AXIS;
 const float voxelDistance = 160.0;
 const float shadowDistance = 160.0;
 const int shadowMapResolution = 1;
+const float translucentPrecedenceCutoff = 0.9;
 
 #if BLOOM>0
 #ifdef KEEP_FULLY_OCCLUDED_SAMPLES
+#ifdef TRANSLUCENT_SEPARATE_BUFFER
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
+#endif
 #endif
 #endif
 

@@ -48,8 +48,10 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - 4: analog flickering blocklight (like fire, trial spawners)
 
 # Colortexes
-- 0: material albedo & main output
-- 4: normals
-- 5: vanilla lighting
+- 0: opaque albedo & main output
+- 1: transparent albedo
+- 2: normals
+- 5: vanilla fallback (optional)
 - 6: multiplicative lighting
 - 7: additive light
+- 15: debug (optional)

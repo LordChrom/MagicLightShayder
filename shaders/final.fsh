@@ -3,17 +3,23 @@
 //#define FOG_BLUR_SNAPPED
 
 #include "/lib/renderComponents/blur.glsl"
+#include "/lib/util/blend.glsl"
 
 #if DEBUG_SPECIAL_VIEW >= 0
-uniform sampler2D colortex8;
+uniform sampler2D colortex15;
 #endif
 
 uniform sampler2D colortex0;
-uniform sampler2D colortex5;
-
 uniform sampler2D colortex6;
 uniform sampler2D colortex7;
 
+#ifdef VANILLA_FALLBACK
+uniform sampler2D colortex5;
+#endif
+
+#ifdef TRANSLUCENT_SEPARATE_BUFFER
+uniform sampler2D colortex1;
+#endif
 
 uniform float viewWidth;
 uniform float viewHeight;
@@ -27,7 +33,16 @@ layout(location = 0) out vec3 color;
 void main() {
 	ivec2 texpos = ivec2(texcoord*vec2(viewWidth,viewHeight));
 	vec4 albedo = texelFetch(colortex0,texpos,0);
+	#ifdef TRANSLUCENT_SEPARATE_BUFFER
+	vec4 transColor = texelFetch(colortex1,texpos,0);
+//	albedo.xyz = albedo.xyz*(1-transColor.a)*transColor.xyz;
+	albedo = blend(vec4(albedo.xyz,1),transColor);
+	#endif
+#ifdef VANILLA_FALLBACK
 	vec3 light = texelFetch(colortex5,texpos,0).xyz;
+#else
+	vec3 light = vec3(1/15.0);
+#endif
 
 #ifdef DEBUG_WHITEN
 	albedo.xyz=vec3(DEBUG_WHITE_LEVEL);
@@ -59,7 +74,7 @@ void main() {
 #endif
 
 #if DEBUG_SPECIAL_VIEW >= 0
-	color = texelFetch(colortex8,texpos,0).xyz;
+		color = texelFetch(colortex15,ivec2(floor(0.1+texcoord*LIGHTING_RENDERSCALE*vec2(viewWidth,viewHeight))),0).xyz;
 #endif
 
 }
