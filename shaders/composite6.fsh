@@ -1,20 +1,39 @@
 #version 430 compatibility
-//#define FOG_BLUR_SNAPPED
-
 #include "/lib/renderComponents/blur.glsl"
 
+#if BLOOM_LEVEL>=2
+uniform sampler2D colortex6;
+#endif
 
+#if FOG_BLUR>=2
 uniform sampler2D colortex7;
+#endif
+
+#if FOG_BLUR>=2 && BLOOM_LEVEL>=2
+/* RENDERTARGETS: 6,7 */
+layout(location = 0) out vec4 lighting;
+layout(location = 1) out vec4 fog;
+#elif BLOOM_LEVEL>=2
+/* RENDERTARGETS: 6 */
+layout(location = 0) out vec4 lighting;
+
+#elif FOG_BLUR>=2
+/* RENDERTARGETS: 7 */
+layout(location = 0) out vec4 fog;
+#endif
+
 uniform float viewWidth;
 uniform float viewHeight;
 
 in vec2 texcoord;
 
-uniform int frameCounter;
-
-/* RENDERTARGETS: 7 */
-layout(location = 0) out vec4 fog;
 
 void main() {
+#if BLOOM_LEVEL>=2
+    lighting = doBloom(colortex6,texcoord,vec2(viewWidth,viewHeight),2);
+#endif
+
+#if FOG_BLUR>=2
     fog = doFogBlur(colortex7,texcoord,vec2(viewWidth,viewHeight),2);
+#endif
 }
