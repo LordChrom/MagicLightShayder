@@ -1,0 +1,33 @@
+{
+    "unusedString": "
+        #define VOXY_PATCH
+        #include "/lib/settings.glsl"
+    ",
+    "version": 1,
+    "excludeLodsFromVanillaDepth": false,
+    "opaqueDrawBuffers": [
+        0,2
+#ifdef VANILLA_FALLBACK
+        ,5
+#endif
+    ],
+    "translucentDrawBuffers": [
+        1,2
+#ifdef VANILLA_FALLBACK
+        ,5
+#endif
+    ],
+    "blending": {
+        -1: "off",
+        0: "SRC_ALPHA ONE_MINUS_SRC_ALPHA ONE ONE_MINUS_SRC_ALPHA"
+    },
+
+
+    "uniforms": [
+        "alphaTestRef"
+    ],
+    "samplers": {
+        "lightmap": "sampler2D"
+       // "gtexture": "sampler2D"
+    }
+}

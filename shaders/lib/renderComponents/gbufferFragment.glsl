@@ -1,5 +1,12 @@
-#version 430 compatibility
+#ifdef VOXY_PATCH
+#include "/lib/settings.glsl"
 
+#ifdef VANILLA_FALLBACK
+layout(location = 2) out vec4 vanillaLighting;
+#endif
+
+#else
+#version 430 compatibility
 #include "/lib/settings.glsl"
 
 #ifdef TEXTURED
@@ -24,12 +31,6 @@ uniform float alphaTestRef = 0.1;
 uniform vec4 entityColor;
 #endif
 
-#ifdef HAND
-#define HAND_MASK 0.5
-#else
-#define HAND_MASK 0
-#endif
-
 #ifdef BONUS_STUFF
 void doBonusStuff();
 #endif
@@ -40,11 +41,8 @@ in flat vec4 glcolor;
 in vec4 glcolor;
 #endif
 
-#ifndef GATEWAYS_IN_GBUFFER
-#undef MAYBE_END_GATEWAY
-#endif
 
-#ifdef MAYBE_END_GATEWAY
+#if defined MAYBE_END_GATEWAY && defined GATEWAYS_IN_GBUFFER
 in float material;
 uniform float viewWidth, viewHeight;
 #include "/lib/renderComponents/endGateway.glsl"
@@ -65,6 +63,14 @@ layout(location = 2) out vec4 vanillaLighting;
     #endif
 #endif
 
+#endif
+
+
+#ifdef HAND
+#define HAND_MASK 0.5
+#else
+#define HAND_MASK 0
+#endif
 
 layout(location = 0) out vec4 color;
 layout(location = 1) out vec4 normalOut;
@@ -75,10 +81,20 @@ const vec4 colortex1ClearColor = vec4(0.0,0.0,0.0,0.0);
 */
 #endif
 
-void main() {
+#ifdef VOXY_PATCH
+void handleFragment(vec4 glcolor,vec3 normal, vec2 lmcoord, vec4 voxySampledColor)
+#else
+void main()
+#endif
+{
 
 #ifdef LIT
+    #ifdef VOXY_PATCH
+    //TODO get the lightmap working
+    vec4 lighting = vec4(0.5);
+    #else
     vec4 lighting = texture(lightmap, lmcoord);
+    #endif
 #elif defined BASIC
     bool isLeash = length(glcolor.xyz-vec3(0.425,0.34,0.25))<0.5;
     vec4 lighting = isLeash?vec4(0.9,0.9,0.9,1):vec4(1.0);
@@ -97,6 +113,8 @@ void main() {
         sampledColor = glcolor*texture(gtexture, texcoord);
     }
 
+#elif defined VOXY_PATCH
+    vec4 sampledColor = voxySampledColor*glcolor;
 #elif defined TEXTURED
     vec4 sampledColor = glcolor * texture(gtexture, texcoord);
 #else

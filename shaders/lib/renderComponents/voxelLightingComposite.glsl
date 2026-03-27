@@ -8,6 +8,14 @@ uniform mat4 gbufferProjectionInverse;
 uniform mat4 gbufferModelViewInverse;
 uniform vec3 cameraPosition;
 
+#if DEBUG_SPECIAL_VIEW == 0
+uniform sampler2D colortex0;
+#else if DEBUG_SPECIAL_VIEW == 1
+uniform sampler2D colortex1;
+#else if DEBUG_SPECIAL_VIEW == 5
+uniform sampler2D colortex5;
+#endif
+
 /*
 //const int colortex6Format = RGBA16F;
 const int colortex6Format = RGB10_A2;
@@ -79,24 +87,27 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 #endif
 
 #if DEBUG_SPECIAL_VIEW == 0
-    funnyDebug = vec3(clamp(0.03*sqrt(length(worldPosRelative)),0,1),bool(isHand),float(isSky));
+    funnyDebug=texture(colortex0,sampleTexCoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 1
+    funnyDebug=texture(colortex1,sampleTexCoord).rgb;
+#elif DEBUG_SPECIAL_VIEW == 2
     float debugCheckerScale = 7;
     bool checker = bool((int(texpos.x/debugCheckerScale)^int(texpos.y/debugCheckerScale))&1);
     vec3 mult = checker?vec3(1):vec3(normal.x<0,normal.y<0,normal.z<0)*0.25+0.75;
     funnyDebug = abs(normal)*mult;
-#elif DEBUG_SPECIAL_VIEW == 2
-    funnyDebug = voxelLighting.xyz;
 #elif DEBUG_SPECIAL_VIEW == 3
-    funnyDebug = voxelFog.xyz;
 #elif DEBUG_SPECIAL_VIEW == 4
-    funnyDebug = vec3(ditherValue);
 #elif DEBUG_SPECIAL_VIEW == 5
-    funnyDebug = vec3((inTexpos.x^inTexpos.y)&4,(inTexpos.x^inTexpos.y)&2,(inTexpos.x^inTexpos.y)&1);
+    funnyDebug=texture(colortex5,sampleTexCoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 6
+    funnyDebug = voxelLighting.xyz;
 #elif DEBUG_SPECIAL_VIEW == 7
-#elif DEBUG_SPECIAL_VIEW == 8
-#elif DEBUG_SPECIAL_VIEW == 9
-#elif DEBUG_SPECIAL_VIEW == 10
+    funnyDebug = voxelFog.xyz;
+#elif DEBUG_SPECIAL_VIEW == 100
+    funnyDebug = vec3(clamp(0.03*sqrt(length(worldPosRelative)),0,1),bool(isHand),float(isSky));
+#elif DEBUG_SPECIAL_VIEW == 101
+    funnyDebug = vec3(ditherValue);
+#elif DEBUG_SPECIAL_VIEW == 102
+    funnyDebug = vec3((texpos.x^texpos.y)&4,(texpos.x^texpos.y)&2,(texpos.x^texpos.y)&1);
 #endif
 }
