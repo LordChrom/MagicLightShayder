@@ -43,7 +43,7 @@ void writeVoxelMap(vec3 worldPos, int blockID, vec3 toMidblock, uint emission){
         worldPos+= toMidblock+vec3(0.05); //TODO account for scale
     else
 #endif
-        worldPos+= toMidblock*0.5; //TODO account for scale
+        worldPos+= toMidblock*0.5; //TODO account for scale and slabs
 
 
     float scale = DEBUG_SCALE;

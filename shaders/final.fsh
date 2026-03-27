@@ -36,7 +36,7 @@ void main() {
 	#ifdef TRANSLUCENT_SEPARATE_BUFFER
 	vec4 transColor = texelFetch(colortex1,texpos,0);
 //	albedo.xyz = albedo.xyz*(1-transColor.a)*transColor.xyz;
-	albedo = blend(vec4(albedo.xyz,1),transColor);
+	albedo.xyz = blend(vec4(albedo.xyz,1),transColor);
 	#endif
 #ifdef VANILLA_FALLBACK
 	vec3 light = texelFetch(colortex5,texpos,0).xyz;

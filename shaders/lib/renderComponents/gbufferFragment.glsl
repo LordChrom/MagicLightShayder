@@ -34,7 +34,11 @@ uniform vec4 entityColor;
 void doBonusStuff();
 #endif
 
+#ifdef BASIC
+in flat vec4 glcolor;
+#else
 in vec4 glcolor;
+#endif
 
 #ifdef VANILLA_FALLBACK
     #if defined TRANSLUCENT && defined TRANSLUCENT_SEPARATE_BUFFER
@@ -69,6 +73,9 @@ void main() {
     #endif
     #ifdef LIT
     vanillaLighting = texture(lightmap, lmcoord);
+    #elif defined BASIC
+    bool isLeash = length(glcolor.xyz-vec3(0.425,0.34,0.25))<0.5;
+    vanillaLighting = isLeash?vec4(0.9,0.9,0.9,1):vec4(1.0);
     #else
     vanillaLighting = vec4(1.0);
     #endif
@@ -79,6 +86,8 @@ void main() {
     #else
     color = glcolor * vanillaLighting;
     #endif
+
+
 
     #ifdef ENTITY
     color.rgb = mix(color.rgb, entityColor.rgb, entityColor.a);
@@ -94,7 +103,6 @@ void main() {
     #ifdef TRANSLUCENT
     if(color.a>translucentPrecedenceCutoff)
         normalOut = vec4((normal+1)*0.5,1);
-
     #else
         normalOut = vec4((normal+1)*0.5,HAND_MASK);
     #endif

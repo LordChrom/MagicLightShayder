@@ -1,13 +1,6 @@
 #include "/lib/settings.glsl"
 
-
-//cordinate space stuff
-uniform vec3 cameraPosition;
-uniform vec3 previousCameraPosition;
-
-//TODO make uniform
-vec3 globalOrigin = round(cameraPosition/DEBUG_SCALE)*DEBUG_SCALE;
-vec3 previousGlobalOrigin = round(previousCameraPosition/DEBUG_SCALE)*DEBUG_SCALE;
+uniform vec3 globalOrigin, previousGlobalOrigin;
 
 ivec3 getAreaShift(float scale, vec3 origin){
     return ivec3(origin/scale);
@@ -213,6 +206,9 @@ void setVoxData(uvec4 voxData, ivec3 areaPos, ivec3 areaShift, uint areaMemOffse
 }
 #endif
 
+#define WORLDVOX_OPAQUE 1u
+#define WORLDVOX_TRANSLUCENT 2u
+#define WORLDVOX_NOT_AIR 3u
 
 
 //boolean operations

@@ -62,7 +62,7 @@ out uvec4 frontVoxel, out uvec4 rearVoxel, out uvec4[VOX_LAYERS] packedLightSamp
     rearVoxel = getVoxData(voxelPos-LVec,areaShift,areaMemOffset);
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-        packedLightSamples[layer]= (rearVoxel.w&3u)==1? uvec4(0):
+        packedLightSamples[layer]= (rearVoxel.w&WORLDVOX_NOT_AIR)==1? uvec4(0):
             sampleLightData(zonePos+ivec3(Aoffset, Boffset, -1),zoneShift,zoneMemOffsets[layer]);
     }
 }
@@ -165,8 +165,8 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
 
     for (int a=-1; a<=1;a++){
         for (int b=-1; b<=1;b++){
-            if(bool((getRearVoxel(a,b)|getFrontVoxel(a,b))&1u) || //block in front
-                ( bool(getFrontVoxel(a,0)&1u) && bool(getFrontVoxel(0,b)&1u) && ((a|b)!=0))){ //neighboring blocks between src and center
+            if(bool((getRearVoxel(a,b)|getFrontVoxel(a,b))&WORLDVOX_OPAQUE) || //block in front
+                ( bool(getFrontVoxel(a,0)&WORLDVOX_OPAQUE) && bool(getFrontVoxel(0,b)&WORLDVOX_OPAQUE) && ((a|b)!=0))){ //neighboring blocks between src and center
                 continue;
             }
 
@@ -286,15 +286,15 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
         }
     }
 
-    bool sampleFreshlyTranslucent = bool(bestSource.flags&1u);
-    uint obstructingTerrainMask = (sampleFreshlyTranslucent || translucentTerrain)?1u:3u;
+    bool sampleFreshlyTranslucent = bool(bestSource.flags&WORLDVOX_OPAQUE);
+    uint obstructingTerrainMask = (sampleFreshlyTranslucent || translucentTerrain)?WORLDVOX_OPAQUE:WORLDVOX_NOT_AIR;
     bool cornerBlocked = !(alignment.x||alignment.y);
 
-    if(bool(localFronts[1][1]&2u)&&!(sampleFreshlyTranslucent || translucentTerrain))
+    if(bool(localFronts[1][1]&WORLDVOX_TRANSLUCENT)&&!(sampleFreshlyTranslucent || translucentTerrain))
         return;
 
 #ifdef UNOCCLUDED_INTO_BLOCKS
-    bool frontBlockedCompletely = bool(localFronts[1][1]&1u);
+    bool frontBlockedCompletely = bool(localFronts[1][1]&WORLDVOX_OPAQUE);
 #endif
 
     //i=0 means a=offset, i=1 means a=0;
@@ -308,31 +308,28 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
 
 #ifdef UNOCCLUDED_INTO_BLOCKS
             if(frontBlockedCompletely){
-                front&=~1u;
-                rear&=~1u;
+                front&=~WORLDVOX_OPAQUE;
+                rear&=~WORLDVOX_OPAQUE;
             }
 #endif
-            bool rearTranslucent = bool(rear&2u);
+            bool rearTranslucent = bool(rear&WORLDVOX_TRANSLUCENT);
 
 
-            bool blockBlocked = bool((front|rear)&obstructingTerrainMask);
-
-            //TODO optimize
-            if(translucentTerrain){
-                blockBlocked=blockBlocked|| ((!bool(front&2u))&& ( //only cutoff the outside when its at the front
+            bool blockBlocked = bool((front|rear)&obstructingTerrainMask)
+            ||
+                ((!bool(front&WORLDVOX_TRANSLUCENT)&&translucentTerrain) && ( //only cutoff the outside when its at the front
                     (i==1 && aSignSrc!=0)||
                     (j==1 && bSignSrc!=0)
-                ));
-            }
-            if(sampleFreshlyTranslucent){ //only cutoff the inside when its at the back
-                blockBlocked=blockBlocked|| ((!bool(rear&2u)) && (
-                    (i==0&&bool(localRears[1][j]&2u))||
-                    (j==0&&bool(localRears[i][1]&2u)))
-                );
-            }
+                ))
+            ||
+                ((!bool(rear&WORLDVOX_TRANSLUCENT)&&translucentTerrain) && (
+                    (i==0&&bool(localRears[1][j]&WORLDVOX_TRANSLUCENT))||
+                    (j==0&&bool(localRears[i][1]&WORLDVOX_TRANSLUCENT)))
+                )
+            ;
 
             //TODO figure out if this is necessary after handling the opposing corners case
-            cornerBlocked = cornerBlocked && (i==j || bool(front&1u));
+            cornerBlocked = cornerBlocked && (i==j || bool(front&WORLDVOX_OPAQUE));
 
             newObstructions[i][j]=blockBlocked;
 
@@ -652,8 +649,8 @@ void lightVoxelFace(){
             uint front = getFrontVoxel(a,b);
             uint rear = getRearVoxel(a,b);
 
-            bool frontTrans = bool(front&2u);
-            bool rearTrans = bool(rear&2u);
+            bool frontTrans = bool(front&WORLDVOX_TRANSLUCENT);
+            bool rearTrans = bool(rear&WORLDVOX_TRANSLUCENT);
             rearTrans=false;
             translucentBlocksInSample += int(frontTrans) + int(rearTrans);
             if(frontTrans)
@@ -764,7 +761,7 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 #endif
         {
 
-            int L = ((axis&1u)==0)? offset-(SECTION_SIZE-1):offset; //TODO account for shifting origins to not skip steps
+            int L = ((axis&1u)==0)? offset-(SECTION_SIZE-1):offset;
 
             ivec3 sectionOffset = ivec3(localId.x*aVec+localId.y*bVec) + L*LVec;
             areaPos.xyz = ivec3(sectionOffset+sectionBasePos);

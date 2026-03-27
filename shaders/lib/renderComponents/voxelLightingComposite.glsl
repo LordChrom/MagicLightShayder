@@ -6,6 +6,7 @@ uniform sampler2D depthtex0;
 uniform sampler2D depthtex2;
 uniform mat4 gbufferProjectionInverse;
 uniform mat4 gbufferModelViewInverse;
+uniform vec3 cameraPosition;
 
 /*
 //const int colortex6Format = RGBA16F;

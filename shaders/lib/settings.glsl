@@ -47,7 +47,7 @@
 //#define FOG_FILTER
 #define FOG_BLUR 2 //[0 1 2]
 
-#define LIGHTING_RENDERSCALE 1 //[0.01 0.25 0.5 0.75 1]
+#define LIGHTING_RENDERSCALE 1 //[0.01 0.1 0.15 0.2 0.25 0.3333 0.5 0.625 0.75 0.8 0.9 1]
 #define BLOOM_INTENSITY -1 //[-1 0.0001 0.01 0.02 0.05 0.075 0.1 0.15 0.2 1.0]
 #define BLOOM_WIDTH 1.5 //[0.5 1 1.5 2 3]
 #define BLOOM_LEVEL 0 //[-1 0 1 2]
