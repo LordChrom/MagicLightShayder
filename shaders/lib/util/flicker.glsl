@@ -1,7 +1,5 @@
-uniform int frameCounter;
+#include "/lib/util/time.glsl"
 
-uniform ivec3 currentTime;
-uniform float frameTimeCounter;
 
 //this noise probably sucks but oh well.
 float blockPosNoise(ivec3 pos){
@@ -10,9 +8,6 @@ float blockPosNoise(ivec3 pos){
 //    return pos.y*3.7+((pos.x*3)+pos.z*13);
 }
 
-float currentTimeSec(){
-    return frameTimeCounter;
-}
 
 float flicker(float offset){
     float time = offset+currentTimeSec();

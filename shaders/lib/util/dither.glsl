@@ -18,6 +18,11 @@ float bayer32(ivec2 pos){
     return bayer16(pos) + 0.00390625*bayer2(pos>>3);
 }
 
+
+#ifdef FOG_TEMPORAL_NOISE
+uniform int frameCounter;
+#endif
+
 float dither(ivec2 pos){
 #ifdef FOG_TEMPORAL_NOISE
     int frameNoise = int(packSnorm2x16(vec2(sin(frameCounter),cos(frameCounter))));
