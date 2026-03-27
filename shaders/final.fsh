@@ -49,7 +49,7 @@ void main() {
 #endif
 
 	vec2 screenDim = vec2(viewWidth,viewHeight);
-#if (BLOOM_LEVEL > 0) || (BLOOM_LEVEL>=0 && LIGHTING_RENDERSCALE<1)
+#if BLOOM_LEVEL > 0
 	vec4 voxelLighting = doBloom(colortex6,texcoord,screenDim,1);
 #else
 	vec4 voxelLighting = texture(colortex6,texcoord);

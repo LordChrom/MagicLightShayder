@@ -56,8 +56,8 @@ vec4 doBloom(sampler2D texToBlur, vec2 pos, vec2 screenDim, int level){
 
 #ifdef BLOOM_SNAPPED
     ivec2 texPos = ivec2(round(pos*screenDim*LIGHTING_RENDERSCALE-0.07));
-    return doBlurSnapped(texToBlur, texPos,level,7,3,2);
+    return doBlurSnapped(texToBlur, texPos,level,2/BLOOM_INTENSITY,0.5,0.25);
 #else
-    return doBlur(texToBlur, pos,(level*BLOOM_WIDTH)/screenDim,7,3,2);
+    return doBlur(texToBlur, pos,(level*BLOOM_WIDTH)/screenDim,2/BLOOM_INTENSITY,0.5,0.25);
 #endif
 }
