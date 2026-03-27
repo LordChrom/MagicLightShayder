@@ -1,6 +1,5 @@
 
 
-layout (rgba8ui) uniform readonly restrict uimage3D worldVox;
 
 #define SAMPLES_LIGHT_FACE
 

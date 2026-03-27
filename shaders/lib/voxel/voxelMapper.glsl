@@ -9,6 +9,7 @@
 // a bit that's 1 for translucent blocks like stained glass
 // a bit that's 1 for surfaces that block light
 
+//TODO redo this so the layout can be rearranged with defines, to change the priority of blocks in low detail regions
 
 
 void writeVoxelMap(vec3 worldPos, int blockID, vec3 toMidblock, uint emission){
