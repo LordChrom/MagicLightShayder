@@ -40,6 +40,16 @@ in flat vec4 glcolor;
 in vec4 glcolor;
 #endif
 
+#ifndef GATEWAYS_IN_GBUFFER
+#undef MAYBE_END_GATEWAY
+#endif
+
+#ifdef MAYBE_END_GATEWAY
+in float material;
+uniform float viewWidth, viewHeight;
+#include "/lib/renderComponents/endGateway.glsl"
+#endif
+
 #ifdef VANILLA_FALLBACK
     #if defined TRANSLUCENT && defined TRANSLUCENT_SEPARATE_BUFFER
     /* RENDERTARGETS: 1,2,5 */
@@ -76,13 +86,22 @@ void main() {
     vec4 lighting = vec4(1.0);
 #endif
 
-#ifdef TEXTURED
+#ifdef MAYBE_END_GATEWAY
+    bool isEndGateway = abs(material-55498)<20;
+    vec4 sampledColor;
+
+    if(isEndGateway){
+        lighting=vec4(1.0);
+        sampledColor = vec4(doEndGateway(gl_FragCoord.xy/vec2(viewWidth,viewHeight)),1);
+    }else{
+        sampledColor = glcolor*texture(gtexture, texcoord);
+    }
+
+#elif defined TEXTURED
     vec4 sampledColor = glcolor * texture(gtexture, texcoord);
 #else
     vec4 sampledColor = glcolor * lighting;
 #endif
-
-
 
 #ifdef ENTITY
     sampledColor.rgb = mix(sampledColor.rgb, entityColor.rgb, entityColor.a);
@@ -105,9 +124,8 @@ void main() {
 
     color = sampledColor;
 
-//#ifdef OPAQUE_BLOCK_ENTITY
-
-#ifdef VANILLA_FALLBACK
+//TODO the translucent part is for viewing fully lit stuff thru transparents, prolly a better solution tho
+#if defined VANILLA_FALLBACK && !defined TRANSLUCENT
     vanillaLighting=lighting;
 #endif
 

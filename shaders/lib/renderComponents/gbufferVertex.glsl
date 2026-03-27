@@ -23,6 +23,11 @@ const vec2 maxLm = vec2(15.0/16.0);
 uniform mat4 gbufferModelViewInverse;
 #endif
 
+#ifdef MAYBE_END_GATEWAY
+uniform int blockEntityId;
+out float material;
+#endif
+
 void main() {
     gl_Position = ftransform();
 
@@ -46,6 +51,10 @@ void main() {
 #ifdef LIT
     lmcoord = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
     lmcoord = min(lmcoord,maxLm);
+#endif
+
+#ifdef MAYBE_END_GATEWAY
+    material=blockEntityId;
 #endif
 
     glcolor = gl_Color;
