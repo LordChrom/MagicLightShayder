@@ -234,7 +234,8 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
 
 
 vec3 voxelSample(vec3 worldPos, vec3 normal, bool fog){
-    float scale = getScale(worldPos);
+    uint cascadeLevel = getCascadeLevel(worldPos);
+    float scale = getScale(cascadeLevel);
 
     vec3 voxelCenter = (floor(worldPos/scale+normal*(scale/64))+0.5) * scale;
 
@@ -256,7 +257,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, bool fog){
         {
             ivec3 zoneShift = areaToZoneSpace(areaShift, axis);
             ivec3 zonePos = areaToZoneSpace(areaPos.xyz, axis);
-            uint zoneMemOffset = zoneOffset(axis, layer);
+            uint zoneMemOffset = zoneOffset(axis, layer,cascadeLevel);
             uvec4 packedSrc = sampleLightData(zonePos, zoneShift, zoneMemOffset);
 
             color+=getDirectedLight(packedSrc, blockPos, subVoxelOffset, normal, axis, scale,minNoL);

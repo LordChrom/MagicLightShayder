@@ -725,7 +725,8 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 
     areaPos.w = int(groupId.y);
     areaMemOffset = 1;
-    uint cascadeLevel = 0;
+    uint cascadeLevel = groupId.z%NUM_CASCADES;
+
     scale = getScale(cascadeLevel);
 
     areaShift = getAreaShift(scale);
@@ -741,7 +742,7 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
     axis = debugAxisNum;
 #else
     #ifndef AXES_INORDER
-        axis = groupId.z;
+        axis = groupId.z/NUM_CASCADES;
     #else
         for(axis=0;axis<6;axis++)
     #endif
@@ -769,7 +770,7 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
             zonePos=areaToZoneSpace(areaPos.xyz, axis);
 
             for(int layer = 0; layer<VOX_LAYERS; layer++){
-                zoneMemOffsets[layer] = zoneOffset(axis,layer);
+                zoneMemOffsets[layer] = zoneOffset(axis,layer,cascadeLevel);
             }
 
             lightVoxelFace();

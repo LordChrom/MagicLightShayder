@@ -46,12 +46,16 @@ void writeVoxelMap(vec3 worldPos, int blockID, vec3 toMidblock, uint emission){
         worldPos+= toMidblock*0.5; //TODO account for scale and slabs
 
 
-    float scale = getScale(worldPos);
-    ivec4 areaPos = worldPosToArea(worldPos,scale);
-    ivec3 areaShift = getAreaShift(scale);
-    uint areaMemOffset = 1;
-
     if(!isVoxelInBounds(worldPos)) return;
 
-    setVoxData(uvec4(255*color,metadata),areaPos.xyz,areaShift,areaMemOffset);
+    uint cascadeLevel = getCascadeLevel(worldPos);
+    for(uint i = cascadeLevel; i<NUM_CASCADES;i++){
+        float scale = getScale(i);
+        ivec4 areaPos = worldPosToArea(worldPos, scale);
+        ivec3 areaShift = getAreaShift(scale);
+        uint areaMemOffset = 1;
+
+
+        setVoxData(uvec4(255*color, metadata), areaPos.xyz, areaShift, areaMemOffset);
+    }
 }

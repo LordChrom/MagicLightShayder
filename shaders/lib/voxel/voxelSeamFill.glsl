@@ -7,15 +7,15 @@ struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTr
 #endif
 
 
-const ivec3 workGroups = ivec3(1,AREA_SIZE_MEM,12);
+const ivec3 workGroups = ivec3(NUM_CASCADES,AREA_SIZE_MEM,12);
 layout (local_size_x = AREA_SIZE_MEM, local_size_y = 1, local_size_z = 1) in;
 
 const vec3 sunColor = vec3(242,242,242)/255;
 const vec3 sunPos = vec3(0,0,1000);
 #ifdef AXES_INORDER
-const int workGroupZ = 1;
+const int workGroupZ = 1*NUM_CASCADES;
 #else
-const int workGroupZ = 6;
+const int workGroupZ = 6*NUM_CASCADES;
 #endif
 
 
@@ -52,7 +52,7 @@ void trim(ivec3 zonePos){
 
 void fillSeams(uvec3 workGroupID, uvec3 localID){
     indirectDispatchesAccess.lighterDispatches=uvec3(SECTIONS_PER_AREA,NUM_AREAS,workGroupZ);
-    uint cascadeLevel = 0;
+    uint cascadeLevel = workGroupID.x;
 
 
     uint layer = workGroupID.z%VOX_LAYERS;
@@ -63,7 +63,7 @@ void fillSeams(uvec3 workGroupID, uvec3 localID){
     ivec3 areaShift = getAreaShift(scale);
 
     zoneShift = areaToZoneSpace(areaShift,axis);
-    zoneMemOffset = zoneOffset(axis,layer);
+    zoneMemOffset = zoneOffset(axis,layer,cascadeLevel);
     ivec3 zoneMovement = areaToZoneSpaceRelative(areaShift - getPreviousAreaShift(scale),axis);
 
     if(localID==ivec3(0)){
