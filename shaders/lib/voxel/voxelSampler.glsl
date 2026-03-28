@@ -207,7 +207,7 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
 
 #if DEBUG_SHOW_UPDATES >= 0
     #if DEBUG_SHOW_UPDATES==0
-    if((axis>>1)!=1)
+    if(abs(normal.z)<0.9)
     #endif
     {
         uint frameIndicator = (frameCounter&0x3fu);

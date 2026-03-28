@@ -705,7 +705,7 @@ void lightVoxelFace(){
 #if DEBUG_SHOW_UPDATES>=0
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         uint frameIndicator = (frameCounter&0x3f);
-        bestLights[layer].flags=bestLights[layer].flags | (frameIndicator<<2);
+        bestLights[layer].flags=(bestLights[layer].flags&3u) | (frameIndicator<<2);
     }
 #endif
 
