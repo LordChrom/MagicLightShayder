@@ -39,6 +39,29 @@ ivec4 worldPosToArea(vec3 pos, float scale){
     return ivec4(pos,areaNum);
 }
 
+uint getCascadeLevel(vec3 worldPos){
+    worldPos = abs(worldPos/(0.5*MIN_SCALE*AREA_SIZE));
+    float maxDist = max(max(worldPos.x,worldPos.y),worldPos.z);
+    return max(0,floor(log2(maxDist)));
+}
+
+float getScale(uint cascadeLevel){
+    return MIN_SCALE*(1<<cascadeLevel);
+}
+
+#if DEBUG_SCALE>=0
+float getScale(vec3 worldPos){
+    return DEBUG_SCALE;
+}
+#else
+float getScale(vec3 worldPos){
+    uint cascade = getCascadeLevel(worldPos);
+    return cascade>=NUM_CASCADES?-1:getScale(cascade);
+}
+#endif
+
+
+
 bool isVoxelInBounds(ivec3 areaPos){
     return areaPos.x>=0 && areaPos.y>=0 && areaPos.z>=0 && areaPos.x<AREA_SIZE && areaPos.y<AREA_SIZE && areaPos.z<AREA_SIZE;
 }

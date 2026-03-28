@@ -54,12 +54,14 @@
 #define BLOOM_SMART
 
 
+#define NUM_CASCADES 2 //[1 2 3]
+#define MIN_SCALE 1 //[0.5 1 2]
+
 #define UPDATE_STRIDE 16 //[8 16]
 #define SECTION_SIZE 16 //[]
 #define AREA_WIDTH_SECTIONS 4 //[]
 
 
-#define AREA_SIZE_MEM 66 //Update Manually
 #define LOCAL_SIZE_Z 1
 
 #define VANILLA_FALLBACK
@@ -67,7 +69,11 @@
 
 #define GATEWAYS_IN_GBUFFER
 
+/////
+#define MAX_SCALE (MIN_SCALE*(1<<(NUM_CASCADES-1)))
+
 ///// The following to be copy pasted into shaders.properties
+
 #define AREA_SIZE (AREA_WIDTH_SECTIONS*SECTION_SIZE)
 
 #if AREA_SIZE == 32
@@ -77,7 +83,7 @@
 #else
 #endif
 
-#define MEM_SIZE_BIG_EXACT (AREA_SIZE_MEM*6*VOX_LAYERS)
+#define MEM_SIZE_BIG_EXACT (AREA_SIZE_MEM*6*VOX_LAYERS*NUM_CASCADES)
 
 #if MEM_SIZE_BIG_EXACT  <=256
     #define MEM_SIZE_BIG  256

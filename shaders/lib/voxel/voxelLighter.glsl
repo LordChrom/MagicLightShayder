@@ -725,7 +725,8 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 
     areaPos.w = int(groupId.y);
     areaMemOffset = 1;
-    scale = DEBUG_SCALE;
+    uint cascadeLevel = 0;
+    scale = getScale(cascadeLevel);
 
     areaShift = getAreaShift(scale);
     ivec3 zoneMovement = areaToZoneSpaceRelative(areaShift - getPreviousAreaShift(scale),axis);

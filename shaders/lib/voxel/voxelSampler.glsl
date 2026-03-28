@@ -234,7 +234,7 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
 
 
 vec3 voxelSample(vec3 worldPos, vec3 normal, bool fog){
-    float scale = DEBUG_SCALE;
+    float scale = getScale(worldPos);
 
     vec3 voxelCenter = (floor(worldPos/scale+normal*(scale/64))+0.5) * scale;
 

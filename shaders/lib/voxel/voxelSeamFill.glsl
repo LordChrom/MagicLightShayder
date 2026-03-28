@@ -52,14 +52,14 @@ void trim(ivec3 zonePos){
 
 void fillSeams(uvec3 workGroupID, uvec3 localID){
     indirectDispatchesAccess.lighterDispatches=uvec3(SECTIONS_PER_AREA,NUM_AREAS,workGroupZ);
-    uint areaNum = 0;
+    uint cascadeLevel = 0;
 
 
     uint layer = workGroupID.z%VOX_LAYERS;
     axis = workGroupID.z/VOX_LAYERS;
 
     ivec3 zonePos = ivec3(ivec2(localID.x,workGroupID.y)-1, -1);
-    scale = DEBUG_SCALE;
+    scale = getScale(cascadeLevel);
     ivec3 areaShift = getAreaShift(scale);
 
     zoneShift = areaToZoneSpace(areaShift,axis);

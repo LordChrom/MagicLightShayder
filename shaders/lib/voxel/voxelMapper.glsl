@@ -46,7 +46,7 @@ void writeVoxelMap(vec3 worldPos, int blockID, vec3 toMidblock, uint emission){
         worldPos+= toMidblock*0.5; //TODO account for scale and slabs
 
 
-    float scale = DEBUG_SCALE;
+    float scale = getScale(worldPos);
     ivec4 areaPos = worldPosToArea(worldPos,scale);
     ivec3 areaShift = getAreaShift(scale);
     uint areaMemOffset = 1;
