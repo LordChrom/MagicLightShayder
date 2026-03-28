@@ -6,8 +6,8 @@
 #define ALPHATEST
 
 #if VOXY >=2
-vec3 lightmapLighting(vec2 lightcoord){
-    return texture(lightmap,lightcoord).xyz;
+vec4 voxyLighting(vec2 lightcoord){
+    return texture(lightmap,lightcoord);
 }
 #else
 
