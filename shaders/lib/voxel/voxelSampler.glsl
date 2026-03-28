@@ -72,7 +72,7 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
 
     float lightDotN = -dot(normalize(displacement),normal);
 
-    bool emissiveVoxel = displacement.z<=scale;
+    bool emissiveVoxel = displacement.z<=scale*0.501;
     if(emissiveVoxel)
         lightDotN=1;
 
