@@ -1,6 +1,3 @@
-
-
-
 #define SAMPLES_LIGHT_FACE
 
 #include "/lib/voxel/voxelHelper.glsl"
@@ -75,8 +72,8 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
 
     float lightDotN = -dot(normalize(displacement),normal);
 
-    bool emissiveVoxel = displacement.z<=scale*0.51;
-    if(emissiveVoxel && lightDotN<0)
+    bool emissiveVoxel = displacement.z<=scale;
+    if(emissiveVoxel)
         lightDotN=1;
 
     lightDotN=max(lightDotN,minNoL);
@@ -248,7 +245,8 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, bool fog){
 
     vec3 color = vec3(0);
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-
+        if(fog && (layer>=LIGHTS_PER_FOG_SAMPLE))
+            break;
 #if DEBUG_AXIS>=0
         uint axis = debugAxisNum;
 #else
@@ -262,8 +260,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, bool fog){
 
             color+=getDirectedLight(packedSrc, blockPos, subVoxelOffset, normal, axis, scale,minNoL);
         }
-        if(fog)
-            break;
+
     }
     return color + MIN_LIGHT_AMOUNT*clamp(1-(color.x+color.y+color.z),0,1);
 }

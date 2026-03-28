@@ -1,4 +1,11 @@
+#include "/lib/settings.glsl"
+
+#if (defined DEBUG_SHOW_UPDATES) || (defined FOG_TEMPORAL_NOISE)
+uniform int frameCounter;
+#endif
+
 #include "/lib/voxel/voxelSampler.glsl"
+
 #include "/lib/util/dither.glsl"
 
 uniform sampler2D colortex2;

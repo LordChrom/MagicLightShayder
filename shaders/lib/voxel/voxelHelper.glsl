@@ -2,15 +2,23 @@
 
 uniform vec3 globalOrigin, previousGlobalOrigin;
 
+vec3 getGlobalOrigin(float scale){
+    return floor(globalOrigin/scale)*scale;
+}
+vec3 getPreviousGlobalOrigin(float scale){
+    return floor(previousGlobalOrigin/scale)*scale;
+}
 ivec3 getAreaShift(float scale, vec3 origin){
     return ivec3(origin/scale);
 }
-ivec3 getAreaShift(float scale){return getAreaShift(scale,globalOrigin);}
-ivec3 getPreviousAreaShift(float scale){return getAreaShift(scale,previousGlobalOrigin);}
+ivec3 getAreaShift(float scale){return getAreaShift(scale,getGlobalOrigin(scale));}
+ivec3 getPreviousAreaShift(float scale){return getAreaShift(scale,getPreviousGlobalOrigin(scale));}
 
 uint getAreaNum(vec3 worldPos){
     return 0u;
 }
+
+
 
 
 const mat3[] areaToZoneSpaceMats = {
@@ -32,9 +40,9 @@ ivec3 axisNumToVec(uint axis){
 
 //output.xyz is area xyz
 //output.w is area number
-ivec4 worldPosToArea(vec3 pos, float scale){ //TODO fix snapping for scales >1
+ivec4 worldPosToArea(vec3 pos, float scale){
     uint areaNum = getAreaNum(pos);
-    pos -= globalOrigin;
+    pos -= getGlobalOrigin(scale);
     pos = floor(pos/scale+(AREA_SIZE*0.5));
     return ivec4(pos,areaNum);
 }
