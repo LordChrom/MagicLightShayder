@@ -28,7 +28,7 @@
 #define PENUMBRA_WIDTH 0.04 //[0.01 0.015 0.02 0.03 0.04 0.06 0.08 0.12 0.16 0.2 0.3]
 #define PENUMBRAS_ENABLED
 
-#define VOX_LAYERS 2 //[1 2 3]
+#define VOX_LAYERS 2 //[1 2 3 4]
 
 #define COLORED_TRANSLUCENTS
 //#define PRIDE_LIGHTING
@@ -53,9 +53,10 @@
 #define BLOOM_LEVEL 0 //[0 1 2]
 #define BLOOM_SMART
 
-#define SECTION_SIZE 16
+
 #define UPDATE_STRIDE 16 //[8 16]
-#define AREA_WIDTH_SECTIONS 4
+#define SECTION_SIZE 16 //[]
+#define AREA_WIDTH_SECTIONS 4 //[]
 
 
 #define AREA_SIZE_MEM 66 //Update Manually
@@ -66,6 +67,31 @@
 
 #define GATEWAYS_IN_GBUFFER
 
+///// The following to be copy pasted into shaders.properties
+#define AREA_SIZE (AREA_WIDTH_SECTIONS*SECTION_SIZE)
+
+#if AREA_SIZE == 32
+    #define AREA_SIZE_MEM 34
+#elif AREA_SIZE == 64
+    #define AREA_SIZE_MEM 66
+#else
+#endif
+
+#define MEM_SIZE_BIG_EXACT (AREA_SIZE_MEM*6*VOX_LAYERS)
+
+#if MEM_SIZE_BIG_EXACT  <=256
+    #define MEM_SIZE_BIG  256
+#elif MEM_SIZE_BIG_EXACT<=512
+    #define MEM_SIZE_BIG  512
+#elif MEM_SIZE_BIG_EXACT<=1024
+    #define MEM_SIZE_BIG  1024
+#elif MEM_SIZE_BIG_EXACT<=2048
+    #define MEM_SIZE_BIG  2048
+#elif MEM_SIZE_BIG_EXACT<=4096
+    #define MEM_SIZE_BIG  4096
+#else
+    #define MEM_SIZE_BIG 8192
+#endif
 
 #ifdef BLOOM_SMART
 #if LIGHTING_RENDERSCALE<1
@@ -76,6 +102,7 @@
     #endif
 #endif
 #endif
+/////
 
 const uvec3 AREAS = ivec3(1,1,1);
 
@@ -83,7 +110,6 @@ const uvec3 AREAS = ivec3(1,1,1);
 const uint NUM_AREAS = AREAS.x*AREAS.y*AREAS.z;
 
 const int SECTIONS_PER_AREA = AREA_WIDTH_SECTIONS*AREA_WIDTH_SECTIONS*AREA_WIDTH_SECTIONS;
-const int AREA_SIZE =  AREA_WIDTH_SECTIONS*SECTION_SIZE;
 const int AREA_POS_MASK = AREA_SIZE-1;
 
 
@@ -95,7 +121,7 @@ const int AREA_COUNT = 1;
 const int AREA_HALF_SIZE = int(AREA_SIZE*0.5);
 
 
-//#define VOX_SIZE 66
+//#define AREA_SIZE_MEM 66
 //#define VOX_SIZE_BIG 840
 
 const vec3 testVoxOriginOffset = vec3(-16,48,-16);
