@@ -724,8 +724,8 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
         groupId.x)&(AREA_WIDTH_SECTIONS-1))*SECTION_SIZE;
 
     areaPos.w = int(groupId.y);
-    areaMemOffset = 1;
     uint cascadeLevel = groupId.z%NUM_CASCADES;
+    areaMemOffset = areaOffset(cascadeLevel);
 
     scale = getScale(cascadeLevel);
 

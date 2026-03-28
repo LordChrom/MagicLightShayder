@@ -93,7 +93,7 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 #elif DEBUG_SPECIAL_VIEW == 2
     float debugCheckerScale = 7;
     bool checker = bool((int(texpos.x/debugCheckerScale)^int(texpos.y/debugCheckerScale))&1);
-    vec3 mult = checker?vec3(1):vec3(normal.x<0,normal.y<0,normal.z<0)*0.25+0.75;
+    vec3 mult = checker?vec3(1):sign(normal)*0.2+0.8;
     funnyDebug = abs(normal)*mult;
 #elif DEBUG_SPECIAL_VIEW == 3
 #elif DEBUG_SPECIAL_VIEW == 4

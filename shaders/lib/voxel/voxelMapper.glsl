@@ -53,7 +53,7 @@ void writeVoxelMap(vec3 worldPos, int blockID, vec3 toMidblock, uint emission){
         float scale = getScale(i);
         ivec4 areaPos = worldPosToArea(worldPos, scale);
         ivec3 areaShift = getAreaShift(scale);
-        uint areaMemOffset = 1;
+        uint areaMemOffset = areaOffset(i);
 
 
         setVoxData(uvec4(255*color, metadata), areaPos.xyz, areaShift, areaMemOffset);

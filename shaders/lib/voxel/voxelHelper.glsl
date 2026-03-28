@@ -32,7 +32,7 @@ ivec3 axisNumToVec(uint axis){
 
 //output.xyz is area xyz
 //output.w is area number
-ivec4 worldPosToArea(vec3 pos, float scale){
+ivec4 worldPosToArea(vec3 pos, float scale){ //TODO fix snapping for scales >1
     uint areaNum = getAreaNum(pos);
     pos -= globalOrigin;
     pos = floor(pos/scale+(AREA_SIZE*0.5));
@@ -50,16 +50,6 @@ float getScale(uint cascadeLevel){
     return MIN_SCALE*float(1<<cascadeLevel);
 }
 
-#if DEBUG_SCALE>=0
-float getScale(vec3 worldPos){
-    return DEBUG_SCALE;
-}
-#else
-float getScale(vec3 worldPos){
-    uint cascade = getCascadeLevel(worldPos);
-    return cascade>=NUM_CASCADES?-1:getScale(cascade);
-}
-#endif
 
 
 
@@ -70,9 +60,12 @@ bool isVoxelInBounds(ivec3 areaPos){
 bool isVoxelInBounds(vec3 worldPos, float scale){return isVoxelInBounds(worldPosToArea(worldPos,scale).xyz);}
 bool isVoxelInBounds(vec3 worldPos){return isVoxelInBounds(worldPos,MAX_SCALE);}
 
-//TODO include area num
 uint zoneOffset(uint axis, uint layer, uint cascadeLevel){
     return 1+int((ZONE_OFFSET)*(VOX_LAYERS*axis+layer+(6*VOX_LAYERS)*cascadeLevel));
+}
+
+uint areaOffset(uint cascadeLevel){
+    return 1+AREA_OFFSET*cascadeLevel;
 }
 
 ivec3 areaToZoneSpace(ivec3 areaPos, uint axis){
