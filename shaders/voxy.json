@@ -27,7 +27,7 @@
         "alphaTestRef"
     ],
     "samplers": {
-        "lightmap": "sampler2D"
-       // "gtexture": "sampler2D"
+        "lightmap": "sampler2D",
+        "gtexture": "sampler2D"
     }
 }

@@ -83,6 +83,11 @@ const vec4 colortex1ClearColor = vec4(0.0,0.0,0.0,0.0);
 
 #ifdef VOXY_PATCH
 void handleFragment(vec4 glcolor,vec3 normal, vec2 lmcoord, vec4 voxySampledColor)
+
+#if 0
+;//for my IDE :/
+#endif
+
 #else
 void main()
 #endif
@@ -90,8 +95,7 @@ void main()
 
 #ifdef LIT
     #ifdef VOXY_PATCH
-    //TODO get the lightmap working
-    vec4 lighting = vec4(0.5);
+    vec4 lighting = voxyLighting(lmcoord);
     #else
     vec4 lighting = texture(lightmap, lmcoord);
     #endif
