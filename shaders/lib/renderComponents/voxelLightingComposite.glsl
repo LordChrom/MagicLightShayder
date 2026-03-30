@@ -77,7 +77,7 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 //    int fogSamples = min(VOLUMETRIC_FOG_SAMPLES,int(2*length)); //theoretically saves work but in practice not really unless indoors
     const int fogSamples = VOLUMETRIC_FOG_SAMPLES;
     for(int i=0; i<VOLUMETRIC_FOG_SAMPLES; i++){
-        //TODO maybe smarter spacing?
+        //TODO better fog amount calc, and fix the banding, maybe smarter spacing
         if(i>=fogSamples)
             break;
         float weight = 1-clamp(float(i+ditherValue)/fogSamples,0.001,0.999);

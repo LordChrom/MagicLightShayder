@@ -55,3 +55,21 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - 6: multiplicative lighting
 - 7: additive light
 - 15: debug (optional)
+
+
+# General TODO List
+- Turn the sun back on
+- Merge adjacent unoccluded lights of same type
+- fix corner cases of occlusion system
+- ambient light
+- maybe try switching from fixed number of samples per direction to fixed number per voxel + list of relevant samples per voxel
+- tonemap
+- make bloom that's not awful
+- think of a name for approach to lighting
+- subsurface scattering
+- sky stuff & clouds
+- timekeeping method that advances proportionally to game ticks regardless of world time
+- PBR
+- reflections
+- water stuff
+- fog sampling having a random one of the subsamples

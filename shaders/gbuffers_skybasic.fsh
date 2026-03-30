@@ -1,8 +1,6 @@
 #define BONUS_STUFF
 #include "lib/renderComponents/gbufferFragment.glsl"
 
-//TODO sky, this is still just the base-330 sky and its ugly
-
 uniform int renderStage;
 uniform float viewHeight;
 uniform float viewWidth;

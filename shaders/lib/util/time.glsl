@@ -1,7 +1,5 @@
 //#define WORLD_TIME
 
-//TODO find a way that advances proportionally to game ticks regardless of world time
-
 #ifdef WORLD_TIME
 uniform int worldTime;
 float currentTimeSec(){

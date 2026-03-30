@@ -287,7 +287,7 @@ bool canIlluminateInBounds(vec4 edges, vec2 ray, bvec4 occlusionMap){
 
 //misc
 bool sameLight(lightVoxData a, lightVoxData b){
-    return (a.color==b.color) && (a.lightTravel==b.lightTravel) && (a.type==b.type) || (a.type==1 && b.type==1); //TODO proper solution for moving lights
+    return (a.color==b.color) && (a.lightTravel==b.lightTravel) && (a.type==b.type) || (a.type==1 && b.type==1);
 }
 
 //left, top, right, bottom
