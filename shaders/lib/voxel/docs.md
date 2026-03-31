@@ -72,4 +72,3 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - PBR
 - reflections
 - water stuff
-- fog sampling having a random one of the subsamples

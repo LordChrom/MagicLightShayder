@@ -46,7 +46,8 @@
 #define FOG_TEMPORAL_NOISE
 //#define FOG_FILTER
 #define FOG_BLUR 2 //[0 1 2]
-#define LIGHTS_PER_FOG_SAMPLE 1 //[1 2 3 4]
+#define LIGHTS_PER_FOG_SAMPLE 1 //[0 1 2 3 4]
+#define FOG_RANDOM_LESSER_SOURCE
 
 #define LIGHTING_RENDERSCALE 1 //[0.01 0.1 0.15 0.2 0.25 0.3333 0.5 0.625 0.6666 0.75 0.8 0.9 1]
 #define BLOOM_INTENSITY 1.0 //[0.25 0.5 0.75 1.0 1.5 2.0 3.0]
@@ -72,6 +73,10 @@
 #define GATEWAYS_IN_GBUFFER
 
 /////
+#if LIGHTS_PER_FOG_SAMPLE>=VOX_LAYERS
+#undef FOG_RANDOM_LESSER_SOURCE
+#endif
+
 #define MAX_SCALE (MIN_SCALE*(1<<(NUM_CASCADES-1)))
 
 ///// The following to be copy pasted into shaders.properties

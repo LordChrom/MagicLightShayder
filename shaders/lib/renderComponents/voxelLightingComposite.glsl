@@ -35,6 +35,12 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     ivec2 sourceTexpos = ivec2(round(vec2(sampleTexCoord)*screenDims-0.07));
 
     float ditherValue = dither(texpos);
+#ifdef FOG_RANDOM_LESSER_SOURCE
+    int bonusNonsense = int(packUnorm2x16(vec2(sin(ditherValue),cos(ditherValue))));
+    float ditherValue2 = dither(texpos.yx^ivec2(bonusNonsense&0xffff,bonusNonsense>>16));
+#else
+    float ditherValue2 = 0;
+#endif
 
     float solidDepth = texelFetch(depthtex2,sourceTexpos,0).x;
     vec4 normalAndMore = texelFetch(colortex2,sourceTexpos,0);
@@ -82,7 +88,7 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 
         float density = FOG_DENSITY * (hitDistance/fogSamples);
         density = min(1.0,density);
-        vec4 newSample = vec4(voxelSampleFog(fogSamplePos),density);
+        vec4 newSample = vec4(voxelSampleFog(fogSamplePos,ditherValue2),density);
         voxelFog = voxelFog*(1-density) + newSample*density;
     }
 

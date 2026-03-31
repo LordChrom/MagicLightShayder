@@ -230,7 +230,7 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
 }
 
 
-vec3 voxelSample(vec3 worldPos, vec3 normal, bool fog){
+vec3 voxelSample(vec3 worldPos, vec3 normal, bool fog, float fogNoise){
     uint cascadeLevel = getCascadeLevel(worldPos);
     float scale = getScale(cascadeLevel);
 
@@ -247,6 +247,13 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, bool fog){
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         if(fog && (layer>=LIGHTS_PER_FOG_SAMPLE))
             break;
+#ifdef FOG_RANDOM_LESSER_SOURCE
+        if(fog && (layer==(LIGHTS_PER_FOG_SAMPLE-1))){
+            float numOptions = VOX_LAYERS-LIGHTS_PER_FOG_SAMPLE;
+            layer+=int(floor(fogNoise*numOptions));
+        }
+#endif
+
 #if DEBUG_AXIS>=0
         uint axis = debugAxisNum;
 #else
@@ -266,10 +273,10 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, bool fog){
 }
 
 vec3 voxelSample(vec3 worldPos, vec3 normal){
-    return voxelSample(worldPos,normal,false);
+    return voxelSample(worldPos,normal,false,0.0);
 }
 
-vec3 voxelSampleFog(vec3 worldPos){
+vec3 voxelSampleFog(vec3 worldPos, float fogNoise){
     //TODO add a computationally cheap option and an option that weights based on how much of the fog line thru the voxel is lit
-    return voxelSample(worldPos,vec3(0),true);
+    return voxelSample(worldPos,vec3(0),true,fogNoise);
 }
