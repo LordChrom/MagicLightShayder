@@ -61,7 +61,7 @@ void trim(ivec3 zonePos){
 }
 
 void fillSeams(uvec3 workGroupID, uvec3 localID){
-    indirectDispatchesAccess.lighterDispatches=uvec3(SECTIONS_PER_AREA,NUM_AREAS,workGroupZ);
+    indirectDispatchesAccess.lighterDispatches=uvec3(SECTIONS_PER_AREA_XY,SECTIONS_PER_AREA_Z,workGroupZ);
 
     uint cascadeLevel= bool(workGroupID.x&1u) ? getSecondaryCascadeLevel() : 0;
     if(cascadeLevel>=NUM_CASCADES) return;

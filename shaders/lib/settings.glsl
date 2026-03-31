@@ -34,13 +34,14 @@
 
 //TODO probably remove, after speeding up isLit this seems just like, unambigously worse
 //#define SHORTLISTED_COMPARISON
-#define AXES_INORDER
+//#define AXES_INORDER
+//#define WAVES_INORDER
 #define PARALLEL_UNPACK
 
 #define VOLUMETRIC_FOG_SAMPLES 2 //[0 1 2 4 8 16 32]
 #define FOG_DENSITY 0.02 //[0.01 0.02 0.03 0.04 0.06 0.08 0.12 0.16 0.24 0.32]
 #define FOG_BRIGHTNESS 0.6 //[0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0]
-#define MAX_FOG_DEPTH 256 //[1 2 4 8 16 32 48 64 96 128 256 512]
+#define MAX_FOG_DEPTH 128 //[1 2 4 8 16 32 48 64 96 128 256 512]
 #define FOG_DITHER_METHOD 32 //[1 2 4 8 16 32]
 #define FOG_TEMPORAL_NOISE
 //#define FOG_FILTER
@@ -57,7 +58,7 @@
 #define NUM_CASCADES 6 //[1 2 3 4 6 8 12 16]
 #define MIN_SCALE 1 //[0.5 1 2]
 
-#define UPDATE_STRIDE 16 //[8 16]
+#define UPDATE_STRIDE 16 //[2 4 8 16 32]
 #define SECTION_SIZE 16 //[]
 #define AREA_WIDTH_SECTIONS 4 //[]
 
@@ -131,12 +132,15 @@
 #endif
 /////
 
-const uvec3 AREAS = ivec3(1,1,1);
 
 
-const uint NUM_AREAS = AREAS.x*AREAS.y*AREAS.z;
+const int SECTIONS_PER_AREA_XY = AREA_WIDTH_SECTIONS*AREA_WIDTH_SECTIONS;
 
-const int SECTIONS_PER_AREA = AREA_WIDTH_SECTIONS*AREA_WIDTH_SECTIONS*AREA_WIDTH_SECTIONS;
+#ifdef WAVES_INORDER
+const int SECTIONS_PER_AREA_Z = 1;
+#else
+const int SECTIONS_PER_AREA_Z = AREA_SIZE/UPDATE_STRIDE;
+#endif
 const int AREA_POS_MASK = AREA_SIZE-1;
 
 

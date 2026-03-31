@@ -78,27 +78,31 @@ uint areaOffset(uint cascadeLevel){
 }
 
 ivec3 areaToZoneSpace(ivec3 areaPos, uint axis){
-    ivec3 ret = (axis<4) ?
-    (bool(axis&6u)?areaPos.zxy:areaPos.yzx)
-    :areaPos;
-    ret.z=bool(axis&1u)?ret.z:(AREA_SIZE-1)-ret.z;
+    ivec3 ret = bool(axis&4u) ? areaPos :
+    (bool(axis&2u)?areaPos.zxy:areaPos.yzx);
+    ret.z=bool(axis&1u)?ret.z:((AREA_SIZE-1)-ret.z);
     return ret;
 }
 
 vec3 areaToZoneSpaceRelative(vec3 areaPos, uint axis){
-    vec3 ret = (axis<4) ?
-    (bool(axis&6u)?areaPos.zxy:areaPos.yzx)
-    :areaPos;
+    vec3 ret = bool(axis&4u) ? areaPos :
+    (bool(axis&2u)?areaPos.zxy:areaPos.yzx);
     ret.z=bool(axis&1u)?ret.z:-ret.z;
     return ret;
 }
 
 ivec3 areaToZoneSpaceRelative(ivec3 areaPos, uint axis){
-    ivec3 ret = (axis<4) ?
-    (bool(axis&6u)?areaPos.zxy:areaPos.yzx)
-    :areaPos;
+    ivec3 ret = bool(axis&4u) ? areaPos :
+    (bool(axis&2u)?areaPos.zxy:areaPos.yzx);
     ret.z=bool(axis&1u)?ret.z:-ret.z;
     return ret;
+}
+
+ivec3 zoneToAreaSpace(ivec3 zonePos, uint axis){
+    zonePos.z=bool(axis&1u)?zonePos.z:((AREA_SIZE-1)-zonePos.z);
+
+    return bool(axis&4u) ? zonePos:
+    (bool(axis&2u)?zonePos.yzx:zonePos.zxy);
 }
 
 //input is is absolute world space, output is world space distance from center of voxel

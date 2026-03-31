@@ -34,7 +34,7 @@ uint[3][3] frontVoxels, rearVoxels;
 
 
 uint[VOX_LAYERS] zoneMemOffsets;
-ivec4 areaPos;       //xyz in area mem space, w is area num
+ivec3 areaPos;       //xyz in area mem space, w is area num
 ivec3 zonePos, zoneShift,areaShift; //0 to SECTION_SIZE-1
 ivec3 aVec, bVec, LVec;
 float scale,halfScale;
@@ -720,9 +720,11 @@ void lightVoxelFace(){
 }
 
 void lightVoxelFaces(uvec3 groupId, uvec3 localId){
-    ivec3 sectionBasePos = (ivec3(groupId.x>>(AREA_WIDTH_SECTIONS_SHIFT+AREA_WIDTH_SECTIONS_SHIFT),
-        groupId.x>>AREA_WIDTH_SECTIONS_SHIFT,
-        groupId.x)&(AREA_WIDTH_SECTIONS-1))*SECTION_SIZE;
+    ivec3 zoneBasePos = ivec3(
+        localId.x+(groupId.x%AREA_WIDTH_SECTIONS)*SECTION_SIZE,
+        localId.y+(groupId.x/AREA_WIDTH_SECTIONS)*SECTION_SIZE,
+        (groupId.y)*UPDATE_STRIDE
+    );
 
     int frameBasedOffset = frameCounter;
     uint cascadeLevel= bool(groupId.z&1u) ? getSecondaryCascadeLevel(frameBasedOffset) : 0;
@@ -733,7 +735,6 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
     A = localId.x+1;
     B = localId.y+1;
 
-    areaPos.w = int(groupId.y);
     areaMemOffset = areaOffset(cascadeLevel);
 
     scale = getScale(cascadeLevel);
@@ -757,30 +758,23 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
     #endif
 #endif
     {
+        for(int layer = 0; layer<VOX_LAYERS; layer++){
+            zoneMemOffsets[layer] = zoneOffset(axis,layer,cascadeLevel);
+        }
 
         aVec = ivec3(areaToZoneSpaceMats[axis][0]);
         bVec = ivec3(areaToZoneSpaceMats[axis][1]);
         LVec = ivec3(areaToZoneSpaceMats[axis][2]);
         zoneShift = areaToZoneSpace(areaShift,axis);
 
-
-#if SECTION_SIZE==UPDATE_STRIDE
         int offset = (frameBasedOffset-zoneShift.z)%UPDATE_STRIDE;
 
-#else
-        for (int offset = frameOffset;offset<SECTION_SIZE;offset+=UPDATE_STRIDE)
+#ifdef WAVES_INORDER
+        for(;offset<AREA_SIZE;offset+=UPDATE_STRIDE)
 #endif
         {
-
-            int L = ((axis&1u)==0)? offset-(SECTION_SIZE-1):offset;
-
-            ivec3 sectionOffset = ivec3(localId.x*aVec+localId.y*bVec) + L*LVec;
-            areaPos.xyz = ivec3(sectionOffset+sectionBasePos);
-            zonePos=areaToZoneSpace(areaPos.xyz, axis);
-
-            for(int layer = 0; layer<VOX_LAYERS; layer++){
-                zoneMemOffsets[layer] = zoneOffset(axis,layer,cascadeLevel);
-            }
+            zonePos = ivec3(zoneBasePos.xy,zoneBasePos.z+offset);
+            areaPos = zoneToAreaSpace(zonePos,axis);
 
             lightVoxelFace();
         }
