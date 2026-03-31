@@ -1,6 +1,7 @@
 #include "/lib/settings.glsl"
 
 uniform vec3 globalOrigin, previousGlobalOrigin;
+uniform int frameCounter;
 
 vec3 getGlobalOrigin(float scale){
     return floor(globalOrigin/scale)*scale;
@@ -204,6 +205,12 @@ uvec4 sampleLightData(ivec3 zonePos, ivec3 zoneShift, uint zoneMemOffset){
 layout (rgba32ui) uniform writeonly restrict uimage3D lightVox;
 
 void setLightData(lightVoxData light, ivec3 zonePos, ivec3 zoneShift, uint zoneMemOffset){
+#if DEBUG_SHOW_UPDATES>=0
+    for(int layer = 0; layer<VOX_LAYERS; layer++){
+        uint frameIndicator = (frameCounter&0x3f);
+        light.flags=(light.flags&3u) | (frameIndicator<<2);
+    }
+#endif
     imageStore(lightVox,toMemPos(zonePos,zoneShift,zoneMemOffset),packLightData(light));
 }
 #endif
@@ -310,3 +317,8 @@ uint countTrailingZeroes(uint x){
     ret+=((~x)&0x1u);
     return ret;
 }
+
+uint getSecondaryCascadeLevel(int frame){
+    return 1+countTrailingZeroes(frame);
+}
+uint getSecondaryCascadeLevel(){return getSecondaryCascadeLevel(frameCounter);}

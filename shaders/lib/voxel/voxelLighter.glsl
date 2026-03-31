@@ -5,7 +5,6 @@
 #include "/lib/voxel/voxelHelper.glsl"
 
 
-uniform int frameCounter;
 
 
 layout(std430, binding = 0) readonly restrict buffer areaData {
@@ -62,8 +61,14 @@ out uvec4 frontVoxel, out uvec4 rearVoxel, out uvec4[VOX_LAYERS] packedLightSamp
     rearVoxel = getVoxData(voxelPos-LVec,areaShift,areaMemOffset);
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-        packedLightSamples[layer]= (rearVoxel.w&WORLDVOX_NOT_AIR)==1? uvec4(0):
-            sampleLightData(zonePos+ivec3(Aoffset, Boffset, -1),zoneShift,zoneMemOffsets[layer]);
+        packedLightSamples[layer] = uvec4(0);
+        if((rearVoxel.w&WORLDVOX_NOT_AIR)==0){
+            packedLightSamples[layer] = sampleLightData(zonePos+ivec3(Aoffset, Boffset, -1), zoneShift, zoneMemOffsets[layer]);
+#if MAX_LIGHT_TRAVEL > 0
+            if(unpackLightData(packedLightSamples[layer]).lightTravel.z>MAX_LIGHT_TRAVEL)
+            packedLightSamples[layer] = uvec4(0);
+#endif
+        }
     }
 }
 
@@ -702,12 +707,12 @@ void lightVoxelFace(){
         bestLights[VOX_LAYERS-1].occlusionHitDistance=0;
     }
 
-#if DEBUG_SHOW_UPDATES>=0
-    for(int layer = 0; layer<VOX_LAYERS; layer++){
-        uint frameIndicator = (frameCounter&0x3f);
-        bestLights[layer].flags=(bestLights[layer].flags&3u) | (frameIndicator<<2);
-    }
-#endif
+//#if DEBUG_SHOW_UPDATES>=0
+//    for(int layer = 0; layer<VOX_LAYERS; layer++){
+//        uint frameIndicator = (frameCounter&0x3f);
+//        bestLights[layer].flags=(bestLights[layer].flags&3u) | (frameIndicator<<2);
+//    }
+//#endif
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         setLightData(bestLights[layer], zonePos, zoneShift, zoneMemOffsets[layer]);
@@ -720,10 +725,7 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
         groupId.x)&(AREA_WIDTH_SECTIONS-1))*SECTION_SIZE;
 
     int frameBasedOffset = frameCounter;
-    uint cascadeLevel=0;
-    if((groupId.z&1u)!=0){
-        cascadeLevel=1+countTrailingZeroes(frameBasedOffset);
-    }
+    uint cascadeLevel= bool(groupId.z&1u) ? getSecondaryCascadeLevel(frameBasedOffset) : 0;
     if(cascadeLevel>=NUM_CASCADES) return;
 
     frameBasedOffset=(frameBasedOffset>>cascadeLevel);

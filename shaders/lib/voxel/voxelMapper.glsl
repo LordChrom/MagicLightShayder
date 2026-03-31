@@ -46,17 +46,17 @@ void writeVoxelMap(vec3 worldPos, int blockID, vec3 toMidblock, vec3 normal, uin
     uint cascadeLevel = getCascadeLevel(worldPos);
 
     //TODO replace with something done by seamfiller
-    for(uint i = cascadeLevel; i<NUM_CASCADES;i++){
-        float scale = getScale(i);
+    for(uint i = 0; i<3;i++){
+        uint cascadeWriteLevel = cascadeLevel+i;
+        float scale = getScale(cascadeWriteLevel);
         vec3 svo = subVoxelOffset(worldPos,scale);
         if(abs(svo.x*svo.y*svo.z) <= 1e-6)
             continue;
         ivec4 areaPos = worldPosToArea(worldPos, scale);
         ivec3 areaShift = getAreaShift(scale);
-        uint areaMemOffset = areaOffset(i);
+        uint areaMemOffset = areaOffset(cascadeWriteLevel);
 
 
         setVoxData(uvec4(255*color, metadata), areaPos.xyz, areaShift, areaMemOffset);
-//        break;
     }
 }
