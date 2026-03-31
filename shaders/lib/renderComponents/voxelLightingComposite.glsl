@@ -21,7 +21,7 @@ uniform sampler2D colortex5;
 
 /*
 //const int colortex6Format = RGBA16F;
-const int colortex6Format = RGB10_A2;
+const int colortex6Format = RGB16F;
 //const int colortex7Format = RGBA16F;
 */
 

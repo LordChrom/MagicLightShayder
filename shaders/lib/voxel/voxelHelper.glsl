@@ -273,7 +273,8 @@ float penumbralLightTest(vec3 position, lightVoxData light){
     vec2 slope = abs(position.xy/position.z);
     vec2 ray = light.occlusionRay;
     bvec4 map = light.occlusionMap;
-    float widthInv = position.z/(PENUMBRA_WIDTH*(position.z-light.occlusionHitDistance));
+    float lightSrcWidth = PENUMBRA_WIDTH;
+    float widthInv = light.occlusionHitDistance/(lightSrcWidth *(position.z-light.occlusionHitDistance));
 
     vec2 m = clamp((slope-ray)*widthInv,-0.5,0.5);
     vec4 mix = max(vec2(0.5+m.x,0.5-m.x),0).xyxy * max(vec2(0.5+m.y,0.5-m.y),0).xxyy;

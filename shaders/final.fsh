@@ -4,6 +4,7 @@
 
 #include "/lib/renderComponents/blur.glsl"
 #include "/lib/util/blend.glsl"
+#include "/lib/util/tonemap.glsl"
 
 #if DEBUG_SPECIAL_VIEW >= 0
 uniform sampler2D colortex15;
@@ -28,7 +29,7 @@ in vec2 texcoord;
 
 
 /* RENDERTARGETS: 0 */
-layout(location = 0) out vec3 color;
+layout(location = 0) out vec3 outputColor;
 
 void main() {
 	ivec2 texpos = ivec2(texcoord*vec2(viewWidth,viewHeight));
@@ -66,15 +67,15 @@ void main() {
 	}
 
 
-	color = albedo.xyz*light;
+	vec3 color = albedo.xyz*light;
 
 #if VOLUMETRIC_FOG_SAMPLES > 0
 	float fogThickness = clamp(voxelFog.a,0,0.7);
 	color = color*(1-fogThickness) + voxelFog.rgb;
 #endif
+	outputColor=tonemap(color);
 
 #if DEBUG_SPECIAL_VIEW >= 0
-		color = texelFetch(colortex15,ivec2(floor(0.1+texcoord*LIGHTING_RENDERSCALE*vec2(viewWidth,viewHeight))),0).xyz;
+	outputColor = texelFetch(colortex15,ivec2(floor(0.1+texcoord*LIGHTING_RENDERSCALE*vec2(viewWidth,viewHeight))),0).xyz;
 #endif
-
 }

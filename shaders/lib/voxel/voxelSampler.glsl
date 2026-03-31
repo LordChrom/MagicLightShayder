@@ -230,6 +230,7 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
 }
 
 
+//TODO split this and the fog one into separate funcs, incorporate normal offset into the terrain one for cascade level z fighting
 vec3 voxelSample(vec3 worldPos, vec3 normal, bool fog, float fogNoise){
     uint cascadeLevel = getCascadeLevel(worldPos);
     float scale = getScale(cascadeLevel);

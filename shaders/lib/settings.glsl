@@ -55,6 +55,8 @@
 #define BLOOM_LEVEL 0 //[0 1 2]
 #define BLOOM_SMART
 
+#define TONEMAP_METHOD 0 //[-1 0 1 2]
+
 
 #define NUM_CASCADES 6 //[1 2 3 4 6 8 12 16]
 #define MIN_SCALE 1 //[0.5 1 2]

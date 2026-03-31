@@ -63,7 +63,6 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - fix corner cases of occlusion system
 - ambient light
 - maybe try switching from fixed number of samples per direction to fixed number per voxel + list of relevant samples per voxel
-- tonemap
 - make bloom that's not awful
 - think of a name for approach to lighting
 - subsurface scattering
@@ -72,3 +71,4 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - PBR
 - reflections
 - water stuff
+- biome colored fog
