@@ -715,16 +715,23 @@ void lightVoxelFace(){
 }
 
 void lightVoxelFaces(uvec3 groupId, uvec3 localId){
-    A = localId.x+1;
-    B = localId.y+1;
-
-
     ivec3 sectionBasePos = (ivec3(groupId.x>>(AREA_WIDTH_SECTIONS_SHIFT+AREA_WIDTH_SECTIONS_SHIFT),
         groupId.x>>AREA_WIDTH_SECTIONS_SHIFT,
         groupId.x)&(AREA_WIDTH_SECTIONS-1))*SECTION_SIZE;
 
+    int frameBasedOffset = frameCounter;
+    uint cascadeLevel=0;
+    if((groupId.z&1u)!=0){
+        cascadeLevel=1+countTrailingZeroes(frameBasedOffset);
+    }
+    if(cascadeLevel>=NUM_CASCADES) return;
+
+    frameBasedOffset=(frameBasedOffset>>cascadeLevel);
+
+    A = localId.x+1;
+    B = localId.y+1;
+
     areaPos.w = int(groupId.y);
-    uint cascadeLevel = groupId.z%NUM_CASCADES;
     areaMemOffset = areaOffset(cascadeLevel);
 
     scale = getScale(cascadeLevel);
@@ -742,7 +749,7 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
     axis = debugAxisNum;
 #else
     #ifndef AXES_INORDER
-        axis = groupId.z/NUM_CASCADES;
+    axis = groupId.z>>1;
     #else
         for(axis=0;axis<6;axis++)
     #endif
@@ -756,7 +763,7 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 
 
 #if SECTION_SIZE==UPDATE_STRIDE
-        int offset = (frameCounter-zoneShift.z)%UPDATE_STRIDE;
+        int offset = (frameBasedOffset-zoneShift.z)%UPDATE_STRIDE;
 
 #else
         for (int offset = frameOffset;offset<SECTION_SIZE;offset+=UPDATE_STRIDE)

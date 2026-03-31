@@ -54,7 +54,7 @@
 #define BLOOM_SMART
 
 
-#define NUM_CASCADES 2 //[1 2 3 4 5 6]
+#define NUM_CASCADES 2 //[1 2 3 4 5 6 16]
 #define MIN_SCALE 1 //[0.5 1 2]
 
 #define UPDATE_STRIDE 16 //[8 16]

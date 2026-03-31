@@ -298,3 +298,15 @@ bvec4 getLightEdges(bvec4 occlusionMap){
 bvec4 getOcclusionEdges(bvec4 occlusionMap){
     return not(or(occlusionMap.zxyw,occlusionMap.xywz));
 }
+
+//caps out at 31 but its whatever
+uint countTrailingZeroes(uint x){
+    uint ret = 0;
+    for(uint bits = 16; bits>=2; bits>>=1){
+        bool bitsInLowerHalf = bool(x&((1u<<bits)-1));
+        ret=bitsInLowerHalf?ret:ret+bits;
+        x  =bitsInLowerHalf?x:x>>bits;
+    }
+    ret+=((~x)&0x1u);
+    return ret;
+}

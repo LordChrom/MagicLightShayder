@@ -12,7 +12,7 @@
 //TODO redo this so the layout can be rearranged with defines, to change the priority of blocks in low detail regions
 
 
-void writeVoxelMap(vec3 worldPos, int blockID, vec3 toMidblock, uint emission){
+void writeVoxelMap(vec3 worldPos, int blockID, vec3 toMidblock, vec3 normal, uint emission){
 //    if(max(max(abs(toMidblock.x),abs(toMidblock.y)),abs(toMidblock.z))>0.5)
 //        return; //for blocks that dont fit in the box, altho not best solution
 
@@ -38,24 +38,25 @@ void writeVoxelMap(vec3 worldPos, int blockID, vec3 toMidblock, uint emission){
         metadata=1;
     }
 
-#ifndef LIGHT_SOURCES_BLOCK_CENTERIC
-    if(emission>0)
-        worldPos+= toMidblock+vec3(0.05); //TODO account for scale
-    else
-#endif
-        worldPos+= toMidblock*0.5; //TODO account for scale and slabs
+    const float midblockWeight = MIN_SCALE* 15.0/16.0;
+    const float normalWeight = -MIN_SCALE*3.0/64.0;
 
-
-    if(!isVoxelInBounds(worldPos)) return;
+    worldPos += midblockWeight*toMidblock -0.015625*normal;
 
     uint cascadeLevel = getCascadeLevel(worldPos);
+
+    //TODO replace with something done by seamfiller
     for(uint i = cascadeLevel; i<NUM_CASCADES;i++){
         float scale = getScale(i);
+        vec3 svo = subVoxelOffset(worldPos,scale);
+        if(abs(svo.x*svo.y*svo.z) <= 1e-6)
+            continue;
         ivec4 areaPos = worldPosToArea(worldPos, scale);
         ivec3 areaShift = getAreaShift(scale);
         uint areaMemOffset = areaOffset(i);
 
 
         setVoxData(uvec4(255*color, metadata), areaPos.xyz, areaShift, areaMemOffset);
+//        break;
     }
 }

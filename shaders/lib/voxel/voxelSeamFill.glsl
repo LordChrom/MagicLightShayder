@@ -7,15 +7,16 @@ struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTr
 #endif
 
 
-const ivec3 workGroups = ivec3(NUM_CASCADES,AREA_SIZE_MEM,12);
+//TODO variable for layers
+const ivec3 workGroups = ivec3(2,AREA_SIZE_MEM,12);
 layout (local_size_x = AREA_SIZE_MEM, local_size_y = 1, local_size_z = 1) in;
 
 const vec3 sunColor = vec3(242,242,242)/255;
 const vec3 sunPos = vec3(0,0,1000);
 #ifdef AXES_INORDER
-const int workGroupZ = 1*NUM_CASCADES;
+const int workGroupZ = 2;
 #else
-const int workGroupZ = 6*NUM_CASCADES;
+const int workGroupZ = 6*2;
 #endif
 
 
@@ -52,8 +53,12 @@ void trim(ivec3 zonePos){
 
 void fillSeams(uvec3 workGroupID, uvec3 localID){
     indirectDispatchesAccess.lighterDispatches=uvec3(SECTIONS_PER_AREA,NUM_AREAS,workGroupZ);
-    uint cascadeLevel = workGroupID.x;
-
+//    uint cascadeLevel = workGroupID.x;
+    uint cascadeLevel=0;
+    if((workGroupID .z&1u)!=0){
+        cascadeLevel=1+countTrailingZeroes(frameCounter);
+    }
+    if(cascadeLevel>=NUM_CASCADES) return;
 
     uint layer = workGroupID.z%VOX_LAYERS;
     axis = workGroupID.z/VOX_LAYERS;
