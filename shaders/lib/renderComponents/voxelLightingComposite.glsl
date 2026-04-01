@@ -13,9 +13,9 @@ uniform vec3 cameraPosition;
 
 #if DEBUG_SPECIAL_VIEW == 0
 uniform sampler2D colortex0;
-#else if DEBUG_SPECIAL_VIEW == 1
+#elif DEBUG_SPECIAL_VIEW == 1
 uniform sampler2D colortex1;
-#else if DEBUG_SPECIAL_VIEW == 5
+#elif DEBUG_SPECIAL_VIEW == 5
 uniform sampler2D colortex5;
 #endif
 

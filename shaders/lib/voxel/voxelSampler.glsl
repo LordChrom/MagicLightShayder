@@ -2,6 +2,7 @@
 
 #include "/lib/voxel/voxelHelper.glsl"
 #include "/lib/util/flicker.glsl"
+#include "/lib/util/misc.glsl"
 
 #if false //dummy definition because my intellij's best glsl plugin doesnt know includes exist
 struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;uint flags;};
@@ -134,8 +135,11 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
 
 #ifdef PENUMBRAS_ENABLED
     //TODO make it so light occluded at 45deg also has penumbra fuzzing past the 45deg boundary
+
     if((abs(displacement.x)>displacement.z) || (abs(displacement.y)>displacement.z))
         lightStrength=0;
+    if((abs(displacement.x)==displacement.z) || (abs(displacement.y)==displacement.z))
+        lightStrength*=0.5;
     lightStrength*=penumbralLightTest(displacement,lightSrc);
 #else
     if((abs(displacement.x)>displacement.z) || (abs(displacement.y)>displacement.z))
@@ -239,6 +243,9 @@ vec3 getOtherDirectedLight2(uint cascadeLevel, uint layer, uint axis, float scal
 }
 
 vec3 voxelSample(vec3 worldPos, vec3 normal){
+#if PIXEL_LOCK >0
+    worldPos = pixelLock(worldPos+0.01*normal,1.0/PIXEL_LOCK);
+#endif
     uint cascadeLevel = getCascadeLevel(worldPos+normal*0.1);
     float scale = getScale(cascadeLevel);
     vec3 voxelCenter = (floor(worldPos/scale+normal*(scale/64))+0.5) * scale;
