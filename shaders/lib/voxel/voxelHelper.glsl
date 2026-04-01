@@ -40,12 +40,10 @@ ivec3 axisNumToVec(uint axis){
 }
 
 //output.xyz is area xyz
-//output.w is area number
-ivec4 worldPosToArea(vec3 pos, float scale){
-    uint areaNum = getAreaNum(pos);
+ivec3 worldPosToArea(vec3 pos, float scale){
     pos -= getGlobalOrigin(scale);
     pos = floor(pos/scale+(AREA_SIZE*0.5));
-    return ivec4(pos,areaNum);
+    return ivec3(pos);
 }
 
 uint getCascadeLevel(vec3 worldPos){
@@ -55,19 +53,19 @@ uint getCascadeLevel(vec3 worldPos){
     return uint(max(0,floor(log2(maxDist))));
 }
 
+uint getCascadeLevel(vec3 worldPos, vec3 normal){
+    return getCascadeLevel(worldPos+0.1*normal);
+}
+
 float getScale(uint cascadeLevel){
     return MIN_SCALE*float(1<<cascadeLevel);
 }
 
-
-
-
-bool isVoxelInBounds(ivec3 areaPos){
-    return areaPos.x>=0 && areaPos.y>=0 && areaPos.z>=0 && areaPos.x<AREA_SIZE && areaPos.y<AREA_SIZE && areaPos.z<AREA_SIZE;
+bool isVoxelInBounds(vec3 worldPos){
+    const float maxDist = 0.5*AREA_SIZE*MIN_SCALE*(1<<NUM_CASCADES);
+    worldPos = abs(worldPos-getGlobalOrigin(MAX_SCALE));
+    return (worldPos.x<=maxDist) && (worldPos.y<=maxDist) && (worldPos.z<=maxDist);
 }
-//get rid of these, it should always be less work to calculate the area in whatever context s calling this
-bool isVoxelInBounds(vec3 worldPos, float scale){return isVoxelInBounds(worldPosToArea(worldPos,scale).xyz);}
-bool isVoxelInBounds(vec3 worldPos){return isVoxelInBounds(worldPos,MAX_SCALE);}
 
 uint zoneOffset(uint axis, uint layer, uint cascadeLevel){
     return 1+int((ZONE_OFFSET)*(VOX_LAYERS*axis+layer+(6*VOX_LAYERS)*cascadeLevel));
