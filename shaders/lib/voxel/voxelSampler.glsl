@@ -280,8 +280,8 @@ vec3 voxelSampleFog(vec3 worldPos, float fogNoise){
     vec3 color = vec3(0);
 
 #ifdef FOG_RANDOM_LESSER_SOURCE
-    uint randLayer = int(floor(float(VOX_LAYERS-LIGHTS_PER_FOG_SAMPLE)*fract(fogNoise+fract(worldPos.x*worldPos.y*worldPos.z))))+LIGHTS_PER_FOG_SAMPLE;
     const int lightsInLoop = min(LIGHTS_PER_FOG_SAMPLE-1,VOX_LAYERS);
+    uint randLayer = int(floor(float(VOX_LAYERS-lightsInLoop)*fract(fogNoise)))+lightsInLoop;
 #else
     const int lightsInLoop = min(LIGHTS_PER_FOG_SAMPLE,VOX_LAYERS);
 #endif
