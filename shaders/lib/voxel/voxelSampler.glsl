@@ -242,7 +242,7 @@ vec3 getDirectedLight(uint cascadeLevel, uint layer, uint axis, float scale, flo
     return getDirectedLight(packedSrc, blockPos, subVoxelOffset, normal, axis, scale,minNoL);
 }
 
-vec3 voxelSample(vec3 worldPos, vec3 normal){
+vec3 voxelSample(vec3 worldPos, vec3 normal, float minNoL){
 #if PIXEL_LOCK >0
     worldPos = pixelLock(worldPos+0.01*normal,1.0/PIXEL_LOCK);
 #endif
@@ -265,7 +265,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
 #endif
     for(uint layer = 0; layer<VOX_LAYERS; layer++)
     {
-        color+=getDirectedLight(cascadeLevel,layer,axis,scale,0.0,areaShift,areaPos,blockPos,normal,subVoxelOffset);
+        color+=getDirectedLight(cascadeLevel,layer,axis,scale,minNoL,areaShift,areaPos,blockPos,normal,subVoxelOffset);
     }
 
     return color + MIN_LIGHT_AMOUNT*clamp(1-(color.x+color.y+color.z),0,1);

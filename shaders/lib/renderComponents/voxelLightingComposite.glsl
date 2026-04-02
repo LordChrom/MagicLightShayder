@@ -11,6 +11,10 @@ uniform mat4 gbufferProjectionInverse;
 uniform mat4 gbufferModelViewInverse;
 uniform vec3 cameraPosition;
 
+#if MATERIALS_TYPE >= 0
+uniform usampler2D colortex3;
+#endif
+
 #if DEBUG_SPECIAL_VIEW == 0
 uniform sampler2D colortex0;
 #elif DEBUG_SPECIAL_VIEW == 1
@@ -23,15 +27,10 @@ uniform sampler2D colortex5;
 uniform vec3 fogColor;
 #endif
 
-/*
-//const int colortex6Format = RGBA16F;
-const int colortex6Format = RGB16F;
-//const int colortex7Format = RGBA16F;
-*/
 
 layout(location = 2) out vec3 funnyDebug;
 
-vec4 voxelLighting;
+vec3 voxelLighting;
 vec4 voxelFog;
 
 void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
@@ -45,6 +44,14 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     vec4 normalAndMore = texelFetch(colortex2,sourceTexpos,0);
     float depth = texelFetch(depthtex0,sourceTexpos,0).x;
 
+#if MATERIALS_TYPE >= 0
+    uvec4 matInfo = texelFetch(colortex3,sourceTexpos,0);
+    float minNoL = clamp(float(matInfo.b-64)/190.0, 0.0,1.0);
+#else
+    float minNoL = 0;
+#endif
+
+    float subsurface = 0;
     vec3 ndcPos = vec3(vec3(sampleTexCoord,solidDepth)*2-1);
 
     vec3 normal = normalize(normalAndMore.xyz*2-1);
@@ -63,9 +70,9 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 
     bool voxelLit = isVoxelInBounds(worldPos+normal*0.1) && !isSky;
     if(voxelLit)
-        voxelLighting = vec4(voxelSample(worldPos,normal),1);
+        voxelLighting = voxelSample(worldPos,normal,minNoL);
     else
-        voxelLighting = vec4(0);
+        voxelLighting = vec3(-1);
 
 #if VOLUMETRIC_FOG_SAMPLES > 0
     voxelFog = vec4(0);
@@ -107,6 +114,7 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     vec3 mult = checker?vec3(1):sign(normal)*0.2+0.8;
     funnyDebug = abs(normal)*mult;
 #elif DEBUG_SPECIAL_VIEW == 3
+    funnyDebug=texture(colortex3,sampleTexCoord).rgb*(1.0/255.0);
 #elif DEBUG_SPECIAL_VIEW == 4
 #elif DEBUG_SPECIAL_VIEW == 5
     funnyDebug=texture(colortex5,sampleTexCoord).rgb;

@@ -1,5 +1,13 @@
 #version 430 compatibility
 
+#if MATERIALS_TYPE < 0
+    #undef WRITE_MATERIALS
+#endif
+
+#if (defined WRITE_MATERIALS) && (MATERIALS_TYPE == 0)
+    #define NEEDS_MATERIAL_ID
+#endif
+
 #ifdef BASIC
 out flat vec4 glcolor;
 #else
@@ -23,9 +31,13 @@ const vec2 maxLm = vec2(15.0/16.0);
 uniform mat4 gbufferModelViewInverse;
 #endif
 
-#ifdef MAYBE_END_GATEWAY
-uniform int blockEntityId;
-out float material;
+#ifdef NEEDS_MATERIAL_ID
+    #ifdef BLOCK_ENTITY
+        uniform int blockEntityId;
+    #else
+        in vec2 mc_Entity;
+    #endif
+out int materialID;
 #endif
 
 void main() {
@@ -53,8 +65,14 @@ void main() {
     lmcoord = min(lmcoord,maxLm);
 #endif
 
-#ifdef MAYBE_END_GATEWAY
-    material=blockEntityId;
+#ifdef NEEDS_MATERIAL_ID
+    #ifdef BLOCK_ENTITY
+        materialID=blockEntityId;
+    #else
+    //TODO handle old versions, optifine jank
+        float awa = mc_Entity.x*1.0;
+        materialID = int(round(awa));
+    #endif
 #endif
 
     glcolor = gl_Color;

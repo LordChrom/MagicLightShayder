@@ -15,7 +15,7 @@ layout (local_size_x = AREA_SIZE_MEM, local_size_y = 1, local_size_z = 1) in;
 
 const vec3 sunColor = vec3(242,242,242)/255;
 const vec3 sunPos = vec3(0,0,1000);
-const lightVoxData defaultSunLight = {vec2(0,0),bvec4(true),sunColor,ivec3(0),0,1,0};
+const lightVoxData defaultSunLight = {vec2(0,0),bvec4(true),sunColor,ivec3(0,0,10),0,1,0};
 
 #ifdef AXES_INORDER
 const int workGroupZ = 2;
@@ -34,15 +34,9 @@ layout(std430, binding = 1) restrict buffer indirectDispatches {
 } indirectDispatchesAccess;
 
 float scale;
-uint zoneMemOffset, upZoneMemOffset, axis;
+uint zoneMemOffset, upZoneMemOffset, axis, cascadeLevel;
 ivec3 zoneShift, upZoneShift;
 
-void sunlight(ivec3 zonePos){
-    vec3 lightTravel = sunPos;
-    lightTravel.xy+=zonePos.xy;
-    lightVoxData sunLight = {vec2(0,0),bvec4(true),sunColor,lightTravel,0,1,0};
-    setLightData(sunLight, ivec3(zonePos), zoneShift, zoneMemOffset);
-}
 
 void nullify(ivec3 zonePos){
     setLightData(noLight, ivec3(zonePos), zoneShift, zoneMemOffset);
@@ -64,7 +58,7 @@ void trim(ivec3 zonePos){
     }
     if(axis==2 && zonePos.z==-1){
         float height = getGlobalOrigin(scale).y+0.5*scale*AREA_SIZE;
-        if(height>=heightLimit)
+        if(height>=heightLimit || (cascadeLevel==(NUM_CASCADES-1)))
             light = defaultSunLight;
     }
     setLightData(light, ivec3(zonePos), zoneShift, zoneMemOffset);
@@ -73,9 +67,8 @@ void trim(ivec3 zonePos){
 void fillSeams(uvec3 workGroupID, uvec3 localID){
     indirectDispatchesAccess.lighterDispatches=uvec3(SECTIONS_PER_AREA_XY,SECTIONS_PER_AREA_Z,workGroupZ);
 
-    uint cascadeLevel= bool(workGroupID.x&1u) ? getSecondaryCascadeLevel() : 0;
+    cascadeLevel= bool(workGroupID.x&1u) ? getSecondaryCascadeLevel() : 0;
     if(cascadeLevel>=NUM_CASCADES) return;
-
 
     uint layer = workGroupID.z%VOX_LAYERS;
     axis = workGroupID.z/VOX_LAYERS;

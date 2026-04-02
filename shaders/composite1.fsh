@@ -12,7 +12,7 @@ in vec2 texcoord;
 /* RENDERTARGETS: 6,7 */
 #endif
 
-layout(location = 0) out vec4 lighting;
+layout(location = 0) out vec3 lighting;
 layout(location = 1) out vec4 fog;
 
 void main() {

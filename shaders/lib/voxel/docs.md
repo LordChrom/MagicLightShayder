@@ -51,6 +51,7 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - 0: opaque albedo & main output
 - 1: transparent albedo
 - 2: normals
+- 3: opaque materials info (labpbr specular)
 - 5: vanilla fallback (optional)
 - 6: multiplicative lighting
 - 7: additive light
@@ -72,3 +73,4 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - water stuff
 - biome colored fog
 - make sun shadows better & respect angles
+- redo block.properties

@@ -27,6 +27,11 @@ uniform float viewHeight;
 
 in vec2 texcoord;
 
+/*
+const int colortex3Format = RGBA8UI;
+const int colortex6Format = RGB16F;
+const int colortex7Format = RGBA16F;
+*/
 
 /* RENDERTARGETS: 0 */
 layout(location = 0) out vec3 outputColor;
@@ -51,9 +56,9 @@ void main() {
 
 	vec2 screenDim = vec2(viewWidth,viewHeight);
 #if BLOOM_LEVEL > 0
-	vec4 voxelLighting = doBloom(colortex6,texcoord,screenDim,1);
+	vec3 voxelLighting = doBloom(colortex6,texcoord,screenDim,1).rgb;
 #else
-	vec4 voxelLighting = texture(colortex6,texcoord);
+	vec3 voxelLighting = texture(colortex6,texcoord).rgb;
 #endif
 
 #if FOG_BLUR>=1
@@ -62,7 +67,7 @@ void main() {
 	vec4 voxelFog = texture(colortex7,texcoord);
 #endif
 
-	if( voxelLighting.a>0.1 && light!=vec3(1)){
+	if( voxelLighting.r>=0 && light!=vec3(1)){
 		light=voxelLighting.xyz;
 	}
 
