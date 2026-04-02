@@ -8,7 +8,7 @@
 struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;uint flags;};
 #endif
 
-vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset, vec3 normal, uint axis, float scale, float minNoL){
+vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset, vec3 normal, uint axis, float scale, float minNoL, bool isForFog){
     lightVoxData lightSrc = unpackLightData(packedLightSrc);
     vec3 lightTravelWorld = lightSrc.lightTravel;
 
@@ -49,6 +49,8 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
         case 1: //sunlight
             const float sunStr = 1/float(MAX_LIGHT_STRENGTH);
             lightStrength = sunStr;
+            if(isForFog)
+                lightStrength*=SUN_FOG_STRENGTH;
             columnation=1;
             break;
         case 2: //steady blocklight
@@ -234,12 +236,12 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
 }
 
 
-vec3 getDirectedLight(uint cascadeLevel, uint layer, uint axis, float scale, float minNoL, ivec3 areaShift, ivec3 areaPos, ivec3 blockPos, vec3 normal, vec3 subVoxelOffset){
+vec3 getDirectedLight(uint cascadeLevel, uint layer, uint axis, float scale, float minNoL, ivec3 areaShift, ivec3 areaPos, ivec3 blockPos, vec3 normal, vec3 subVoxelOffset, bool isForFog){
     ivec3 zoneShift = areaToZoneSpace(areaShift, axis);
     ivec3 zonePos = areaToZoneSpace(areaPos, axis);
     uint zoneMemOffset = zoneOffset(axis, layer,cascadeLevel);
     uvec4 packedSrc = sampleLightData(zonePos, zoneShift, zoneMemOffset);
-    return getDirectedLight(packedSrc, blockPos, subVoxelOffset, normal, axis, scale,minNoL);
+    return getDirectedLight(packedSrc, blockPos, subVoxelOffset, normal, axis, scale,minNoL, isForFog);
 }
 
 vec3 voxelSample(vec3 worldPos, vec3 normal, float minNoL){
@@ -265,7 +267,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float minNoL){
 #endif
     for(uint layer = 0; layer<VOX_LAYERS; layer++)
     {
-        color+=getDirectedLight(cascadeLevel,layer,axis,scale,minNoL,areaShift,areaPos,blockPos,normal,subVoxelOffset);
+        color+=getDirectedLight(cascadeLevel,layer,axis,scale,minNoL,areaShift,areaPos,blockPos,normal,subVoxelOffset,false);
     }
 
     return color + MIN_LIGHT_AMOUNT*clamp(1-(color.x+color.y+color.z),0,1);
@@ -300,10 +302,10 @@ vec3 voxelSampleFog(vec3 worldPos, float fogNoise){
 #endif
     {
         for(int layer = 0; layer<lightsInLoop; layer++){
-            color+=getDirectedLight(cascadeLevel,layer,axis,scale,1.0,areaShift,areaPos,blockPos,vec3(0),subVoxelOffset);
+            color+=getDirectedLight(cascadeLevel,layer,axis,scale,1.0,areaShift,areaPos,blockPos,vec3(0),subVoxelOffset,true);
         }
 #ifdef FOG_RANDOM_LESSER_SOURCE
-            color+=getDirectedLight(cascadeLevel,randLayer,axis,scale,1.0,areaShift,areaPos,blockPos,vec3(0),subVoxelOffset);
+            color+=getDirectedLight(cascadeLevel,randLayer,axis,scale,1.0,areaShift,areaPos,blockPos,vec3(0),subVoxelOffset,true);
 #endif
     }
     return color;
