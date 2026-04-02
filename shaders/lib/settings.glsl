@@ -86,6 +86,7 @@
 #endif
 
 #define MAX_SCALE (MIN_SCALE*(1<<(NUM_CASCADES-1)))
+#define LIGHT_TYPE_SUN 1
 
 ///// The following to be copy pasted into shaders.properties
 

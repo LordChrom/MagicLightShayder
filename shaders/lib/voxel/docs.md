@@ -58,7 +58,6 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 
 
 # General TODO List
-- Turn the sun back on
 - Merge adjacent unoccluded lights of same type
 - fix corner cases of occlusion system
 - ambient light
@@ -72,3 +71,4 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - reflections
 - water stuff
 - biome colored fog
+- make sun shadows better & respect angles

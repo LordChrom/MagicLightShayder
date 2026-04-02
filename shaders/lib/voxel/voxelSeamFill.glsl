@@ -2,6 +2,8 @@
 #define WRITES_LIGHT_FACE
 #include "/lib/voxel/voxelHelper.glsl"
 
+uniform int heightLimit;
+
 #if false //dummy definition because intellij's best glsl plugin doesnt know includes exist
 struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;uint flags;};
 #endif
@@ -13,6 +15,8 @@ layout (local_size_x = AREA_SIZE_MEM, local_size_y = 1, local_size_z = 1) in;
 
 const vec3 sunColor = vec3(242,242,242)/255;
 const vec3 sunPos = vec3(0,0,1000);
+const lightVoxData defaultSunLight = {vec2(0,0),bvec4(true),sunColor,ivec3(0),0,1,0};
+
 #ifdef AXES_INORDER
 const int workGroupZ = 2;
 #else
@@ -54,8 +58,14 @@ void trim(ivec3 zonePos){
     if(upsampleValid){
         uvec4 packedUpsample = sampleLightData(upZonePos,upZoneShift,upZoneMemOffset);
         lightVoxData outerLight =  unpackLightData(packedUpsample); //TODO operate only on the light travel
-        outerLight.lightTravel+=zonePosRemnants;
+        if(outerLight.type!=LIGHT_TYPE_SUN)
+            outerLight.lightTravel+=zonePosRemnants;
         light=outerLight;
+    }
+    if(axis==2 && zonePos.z==-1){
+        float height = getGlobalOrigin(scale).y+0.5*scale*AREA_SIZE;
+        if(height>=heightLimit)
+            light = defaultSunLight;
     }
     setLightData(light, ivec3(zonePos), zoneShift, zoneMemOffset);
 }
@@ -79,19 +89,6 @@ void fillSeams(uvec3 workGroupID, uvec3 localID){
     upZoneMemOffset = (cascadeLevel<NUM_CASCADES-1)?zoneOffset(axis,layer,cascadeLevel+1) : 0;
     upZoneShift = areaToZoneSpace(getAreaShift(scale*2),axis);
     ivec3 zoneMovement = areaToZoneSpaceRelative(areaShift - getPreviousAreaShift(scale),axis);
-
-    if(localID==ivec3(0)){
-
-    }
-
-    if(axis==2){
-//        if (layer==0)
-//            sunlight(zonePos);
-//        else
-//            nullify(zonePos);
-    }else{
-        //        nullify(texelPos);
-    }
 
     trim(ivec3(zonePos.xy,-1));
     trim(ivec3(AREA_SIZE+1,zonePos.xy));

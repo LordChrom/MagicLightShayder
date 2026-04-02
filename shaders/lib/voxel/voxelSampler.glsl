@@ -234,7 +234,7 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
 }
 
 
-vec3 getOtherDirectedLight2(uint cascadeLevel, uint layer, uint axis, float scale, float minNoL, ivec3 areaShift, ivec3 areaPos, ivec3 blockPos, vec3 normal, vec3 subVoxelOffset){
+vec3 getDirectedLight(uint cascadeLevel, uint layer, uint axis, float scale, float minNoL, ivec3 areaShift, ivec3 areaPos, ivec3 blockPos, vec3 normal, vec3 subVoxelOffset){
     ivec3 zoneShift = areaToZoneSpace(areaShift, axis);
     ivec3 zonePos = areaToZoneSpace(areaPos, axis);
     uint zoneMemOffset = zoneOffset(axis, layer,cascadeLevel);
@@ -265,7 +265,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal){
 #endif
     for(uint layer = 0; layer<VOX_LAYERS; layer++)
     {
-        color+=getOtherDirectedLight2(cascadeLevel,layer,axis,scale,0.0,areaShift,areaPos,blockPos,normal,subVoxelOffset);
+        color+=getDirectedLight(cascadeLevel,layer,axis,scale,0.0,areaShift,areaPos,blockPos,normal,subVoxelOffset);
     }
 
     return color + MIN_LIGHT_AMOUNT*clamp(1-(color.x+color.y+color.z),0,1);
@@ -300,10 +300,10 @@ vec3 voxelSampleFog(vec3 worldPos, float fogNoise){
 #endif
     {
         for(int layer = 0; layer<lightsInLoop; layer++){
-            color+=getOtherDirectedLight2(cascadeLevel,layer,axis,scale,1.0,areaShift,areaPos,blockPos,vec3(0),subVoxelOffset);
+            color+=getDirectedLight(cascadeLevel,layer,axis,scale,1.0,areaShift,areaPos,blockPos,vec3(0),subVoxelOffset);
         }
 #ifdef FOG_RANDOM_LESSER_SOURCE
-            color+=getOtherDirectedLight2(cascadeLevel,randLayer,axis,scale,1.0,areaShift,areaPos,blockPos,vec3(0),subVoxelOffset);
+            color+=getDirectedLight(cascadeLevel,randLayer,axis,scale,1.0,areaShift,areaPos,blockPos,vec3(0),subVoxelOffset);
 #endif
     }
     return color;

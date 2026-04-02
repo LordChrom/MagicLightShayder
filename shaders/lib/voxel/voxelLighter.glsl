@@ -177,7 +177,8 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
 
             for(int layer = 0; layer<VOX_LAYERS; layer++){
                 lightVoxData lightSrc = getInputSample(a,b,layer);
-                lightSrc.lightTravel+=vec3(-a, -b, 1)*scale;
+                if(lightSrc.type!=LIGHT_TYPE_SUN)
+                    lightSrc.lightTravel+=vec3(-a, -b, 1)*scale;
 
                 if((lightSrc.type==0) || (lightSrc.lightTravel.x*a>0) || (lightSrc.lightTravel.y*b>0))
                     continue;
