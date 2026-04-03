@@ -108,6 +108,8 @@
 #define VOXEL_AGE_MASK (0xffffffff<<VOXEL_AGE_SHIFT)
 #define VOXEL_INITIAL_TIME 10
 
+#define PI 3.1419526535897932
+
 ///// The following to be copy pasted into shaders.properties
 #if VOXELIZATION_MODE==1
     #define VOXEL_MAP_DOESNT_CLEAR

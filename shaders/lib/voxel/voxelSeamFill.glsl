@@ -7,6 +7,7 @@
 uniform int heightLimit;
 uniform int bedrockLevel;
 uniform bool hasCeiling;
+uniform vec3 playerLookVector;
 
 #if false //dummy definition because intellij's best glsl plugin doesnt know includes exist
 struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;uint flags;};
@@ -143,7 +144,6 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
 
 
     ivec2 posXY = ivec2(localID.x,workGroupID.y)-1;
-//    ivec3 areaPos;
 
 #ifdef VOXEL_MAP_DOESNT_CLEAR
     //TODO SOON account for cascades that dont update every frame
@@ -152,16 +152,17 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
     ivec3 edgeToTrim = abs(areaMovement);
 
 
+    const float onScreenThreshold = cos(0.5*110*PI/180);
     for(ivec3 areaPos = ivec3(posXY,-1); areaPos.z<AREA_SIZE_MEM; areaPos.z++){
-        uint whatToWrite;
-        if(
+        uint whatToWrite = 0u;
+        if(!(
             (movementSigns.x>0?(areaPos.x>63-edgeToTrim.x):(areaPos.x<edgeToTrim.x)) ||
             (movementSigns.y>0?(areaPos.y>63-edgeToTrim.y):(areaPos.y<edgeToTrim.y)) ||
             (movementSigns.z>0?(areaPos.z>63-edgeToTrim.z):(areaPos.z<edgeToTrim.z))
-        )
-            whatToWrite=0u;
-        else{
-            whatToWrite=getRawVoxData(areaPos, thisShift,thisMemOffset);
+        )){
+            if(dot(playerLookVector,normalize(vec3(areaPos-(AREA_SIZE>>1))))<=onScreenThreshold)
+                continue;
+            whatToWrite=getRawVoxData(areaPos,thisShift,thisMemOffset);
             whatToWrite-=(1<<VOXEL_AGE_SHIFT);
             whatToWrite = bool(whatToWrite&VOXEL_AGE_MASK)?whatToWrite:0;
         }
