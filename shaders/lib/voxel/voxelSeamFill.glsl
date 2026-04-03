@@ -7,7 +7,8 @@
 uniform int heightLimit;
 uniform int bedrockLevel;
 uniform bool hasCeiling;
-uniform vec3 playerLookVector;
+uniform mat4 gbufferModelView, gbufferProjection;
+uniform vec3 cameraPosition;
 
 #if false //dummy definition because intellij's best glsl plugin doesnt know includes exist
 struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;uint flags;};
@@ -132,6 +133,14 @@ void fillLightSeams(uvec3 workGroupID, uvec3 localID){
 
 
 
+bool isBlockOffScreen(ivec3 areaPos){
+    vec3 pos = vec3(areaPos-(AREA_SIZE>>1))*scale+0.5;
+    vec4 clipSpace = gbufferProjection*vec4((gbufferModelView*vec4(pos,1)).xyz,1);
+
+    return (clipSpace.x<-clipSpace.w || clipSpace.x>clipSpace.w)||
+        (clipSpace.y<-clipSpace.w || clipSpace.y>clipSpace.w)||
+        (clipSpace.z<-clipSpace.w || clipSpace.z>clipSpace.w);
+}
 
 void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
     indirectDispatchesAccess.lighterDispatches=uvec3(SECTIONS_PER_AREA_XY,SECTIONS_PER_AREA_Z,workGroupZ);
@@ -152,7 +161,6 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
     ivec3 edgeToTrim = abs(areaMovement);
 
 
-    const float onScreenThreshold = cos(0.5*110*PI/180);
     for(ivec3 areaPos = ivec3(posXY,-1); areaPos.z<AREA_SIZE_MEM; areaPos.z++){
         uint whatToWrite = 0u;
         if(!(
@@ -160,7 +168,7 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
             (movementSigns.y>0?(areaPos.y>63-edgeToTrim.y):(areaPos.y<edgeToTrim.y)) ||
             (movementSigns.z>0?(areaPos.z>63-edgeToTrim.z):(areaPos.z<edgeToTrim.z))
         )){
-            if(dot(playerLookVector,normalize(vec3(areaPos-(AREA_SIZE>>1))))<=onScreenThreshold)
+            if(isBlockOffScreen(areaPos))
                 continue;
             whatToWrite=getRawVoxData(areaPos,thisShift,thisMemOffset);
             whatToWrite-=(1<<VOXEL_AGE_SHIFT);
