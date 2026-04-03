@@ -39,7 +39,7 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
     float columnation = MIN_COLUMNATION;
     lengthSquared = lengthSquared*(1-columnation)+columnation;
 
-    float lightStrength=0;
+    float lightStrength=BLOCK_LIGHT_STRENGTH;
 
 #ifdef EVERYTHING_IS_THE_SUN
     if(lightSrc.type>0)

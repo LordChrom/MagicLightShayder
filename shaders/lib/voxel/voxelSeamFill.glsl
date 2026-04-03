@@ -1,5 +1,7 @@
 #define SAMPLES_LIGHT_FACE
 #define WRITES_LIGHT_FACE
+#define SAMPLES_VOX
+#define WRITES_VOX
 #include "/lib/voxel/voxelHelper.glsl"
 
 uniform int heightLimit;
@@ -48,12 +50,12 @@ layout(std430, binding = 1) restrict buffer indirectDispatches {
 } indirectDispatchesAccess;
 
 float scale;
-uint zoneMemOffset, upZoneMemOffset, axis, cascadeLevel;
-ivec3 zoneShift, upZoneShift;
+uint thisMemOffset, upperMemOffset, axis, cascadeLevel;
+ivec3 thisShift, upperShift;
 
 
 void nullify(ivec3 zonePos){
-    setLightData(noLight, ivec3(zonePos), zoneShift, zoneMemOffset);
+    setLightData(noLight, ivec3(zonePos), thisShift, thisMemOffset);
 }
 
 void trim(ivec3 zonePos){
@@ -62,55 +64,46 @@ void trim(ivec3 zonePos){
     ivec3 upZonePos = (zonePos+(AREA_SIZE/2))/2;
     vec3 zonePosRemnants = (vec3(zonePos&1)-0.5)*scale;
     //TODO check if position in higher volume hasnt been shifted out of bounds, but should only be an issue when moving *very* fast
-    bool upsampleValid = bool(upZoneMemOffset);
+    bool upsampleValid = bool(upperMemOffset);
     if(upsampleValid){
-        uvec4 packedUpsample = sampleLightData(upZonePos,upZoneShift,upZoneMemOffset);
+        uvec4 packedUpsample = sampleLightData(upZonePos,upperShift,upperMemOffset);
         lightVoxData outerLight =  unpackLightData(packedUpsample); //TODO operate only on the light travel
         if(outerLight.type!=LIGHT_TYPE_SUN)
             outerLight.lightTravel+=zonePosRemnants;
         light=outerLight;
     }
+#ifdef ENABLE_THE_SUN
     if(axis==2 && zonePos.z==-1){
         float height = getGlobalOrigin(scale).y+0.5*scale*AREA_SIZE;
         if(height>=heightLimit || (cascadeLevel==(NUM_CASCADES-1)))
             light = defaultSunLight;
     }
-    setLightData(light, ivec3(zonePos), zoneShift, zoneMemOffset);
+#endif
+    setLightData(light, ivec3(zonePos), thisShift, thisMemOffset);
 }
 
 void fillLightSeams(uvec3 workGroupID, uvec3 localID){
-    indirectDispatchesAccess.lighterDispatches=uvec3(SECTIONS_PER_AREA_XY,SECTIONS_PER_AREA_Z,workGroupZ);
-
-    int frameBasedOffset = frameCounter;
-    cascadeLevel = getVariableCascadeLevel(frameBasedOffset,bool(workGroupID.x&1u));
-    if(cascadeLevel>=NUM_CASCADES) return;
-
-    #ifdef DOUBLE_PROC
-    frameBasedOffset=(frameBasedOffset>>cascadeLevel);
-    #else
-    frameBasedOffset=(frameBasedOffset>>(cascadeLevel+1));
-    #endif
-
     uint layer = workGroupID.z%VOX_LAYERS;
     axis = workGroupID.z/VOX_LAYERS;
 
     ivec3 zonePos = ivec3(ivec2(localID.x,workGroupID.y)-1, -1);
     scale = getScale(cascadeLevel);
     ivec3 areaShift = getAreaShift(scale);
-    zoneShift = areaToZoneSpace(areaShift,axis);
+    thisShift = areaToZoneSpace(areaShift,axis);
     ivec3 zoneMovement = areaToZoneSpaceRelative(areaShift - getPreviousAreaShift(scale),axis);
 
-    zoneMemOffset = zoneOffset(axis,layer,cascadeLevel);
-    upZoneMemOffset = (cascadeLevel<NUM_CASCADES-1)?zoneOffset(axis,layer,cascadeLevel+1) : 0;
-    upZoneShift = areaToZoneSpace(getAreaShift(scale*2),axis);
+    thisMemOffset = zoneOffset(axis,layer,cascadeLevel);
+    upperMemOffset = (cascadeLevel<NUM_CASCADES-1)?zoneOffset(axis,layer,cascadeLevel+1) : 0;
+    upperShift = areaToZoneSpace(getAreaShift(scale*2),axis);
 
+    //TODO consider making only do the recetnly updated ones, but TBH this part takes 0.03ms so its not a big deal
+    //TODO make do outward light
     trim(ivec3(zonePos.xy,-1));
     trim(ivec3(AREA_SIZE+1,zonePos.xy));
     trim(ivec3(         -1,zonePos.xy));
     trim(ivec3(zonePos.x,AREA_SIZE+1,zonePos.y));
     trim(ivec3(zonePos.x,         -1,zonePos.y));
-    //TODO make only do the recetnly updated ones
-    //TODO make do inward light
+
 
     ivec3 movementSigns = sign(zoneMovement);
     ivec3 edgeToTrim = abs(zoneMovement);
@@ -134,14 +127,41 @@ void fillLightSeams(uvec3 workGroupID, uvec3 localID){
 }
 
 void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
-    ivec3 areaPos = ivec3(ivec2(localID.x,workGroupID.y)-1, -1);
+    indirectDispatchesAccess.lighterDispatches=uvec3(SECTIONS_PER_AREA_XY,SECTIONS_PER_AREA_Z,workGroupZ);
 
+    return;
+
+    thisMemOffset = areaOffset(cascadeLevel);
+    upperMemOffset = (cascadeLevel<NUM_CASCADES-1)?areaOffset(cascadeLevel+1):0;
+
+    thisShift = getAreaShift(scale);
+    upperShift = getAreaShift(scale*2);
+
+    ivec2 posXY = ivec2(localID.x,workGroupID.y)-1;
+    if(0<=posXY.x && posXY.x<AREA_SIZE && 0<=posXY.y && posXY.y<AREA_SIZE){
+        if(upperMemOffset==0) return;
+
+        ivec3 areaPos = ivec3(posXY&~1,(((posXY.x&1)<<1)+((posXY.y&1)<<2)+(frameCounter<<3))%AREA_SIZE);
+        uint representative = 0;
+        for(int i=0; i<8; i++){
+            ivec3 subPos = ivec3(i,i>>1,i>>2)&1;
+            uint sampledVox = getRawVoxData(areaPos+subPos, thisShift, thisMemOffset);
+            representative = max(representative,sampledVox);
+        }
+        //0-62, 0-31, 16-48
+        areaPos=(areaPos>>1)+ivec3(1,1,1)*(AREA_SIZE>>2);
+        setRawVoxData(representative, areaPos, upperShift, upperMemOffset);
+    }else{
+        //TODO make it do the inward blocks
+    }
 }
 
 void fillSeams(uvec3 workGroupID, uvec3 localID){
-    if(localID.z==(AXIS_LAYER_WORLD_COUNT-1))
+    cascadeLevel = getVariableCascadeLevel(bool(workGroupID.x&1u));
+    if(cascadeLevel>=NUM_CASCADES) return;
+
+    if(workGroupID.z==(AXIS_LAYER_WORLD_COUNT-1))
         fillVoxSeams(workGroupID, localID);
     else
         fillLightSeams(workGroupID,localID);
-
 }

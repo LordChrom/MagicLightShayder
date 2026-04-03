@@ -221,9 +221,12 @@ void setLightData(lightVoxData light, ivec3 zonePos, ivec3 zoneShift, uint zoneM
 #ifdef SAMPLES_VOX
 uniform usampler3D worldVoxSampler;
 
+uint getRawVoxData(ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
+    return texelFetch(worldVoxSampler,toMemPos(areaPos,areaShift,areaMemOffset),0).x;
+}
+
 uvec4 getVoxData(ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
-    uvec4 v = texelFetch(worldVoxSampler,toMemPos(areaPos,areaShift,areaMemOffset),0);
-    return unpackWorldVox(v.x);
+    return unpackWorldVox(getRawVoxData(areaPos,areaShift,areaMemOffset));
 }
 #endif
 
@@ -231,12 +234,15 @@ uvec4 getVoxData(ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
 #ifdef WRITES_VOX
 layout (r32ui) uniform restrict uimage3D worldVox;
 
-void setVoxData(uvec4 voxData, ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
-
+void setRawVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
     ivec3 memPos = toMemPos(areaPos,areaShift,areaMemOffset);
-    uint packedData = packWorldVox(voxData);
 //    imageStore(worldVox,memPos,uvec4(packedData,0,0,0));
     imageAtomicMax(worldVox,memPos,packedData);
+}
+
+void setVoxData(uvec4 voxData, ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
+    uint packedData = packWorldVox(voxData);
+    setRawVoxData(packedData,areaPos,areaShift,areaMemOffset);
 }
 #endif
 

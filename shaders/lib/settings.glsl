@@ -78,6 +78,8 @@
 #define GATEWAYS_IN_GBUFFER
 #define PIXEL_LOCK -1 //[-1 16 32 64 128 256]
 
+#define ENABLE_THE_SUN
+
 /////
 #ifdef DOUBLE_PROC
 #define PROC_MULT 2
