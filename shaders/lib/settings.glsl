@@ -67,6 +67,7 @@
 #define UPDATE_STRIDE 16 //[2 4 8 16 32]
 #define SECTION_SIZE 16 //[]
 #define AREA_WIDTH_SECTIONS 4 //[]
+#define DOUBLE_PROC
 
 #define MAX_LIGHT_TRAVEL 64 //[-1 0 1 2 4 8 16 24 32 64 128 256 512 1024]
 
@@ -79,6 +80,12 @@
 #define PIXEL_LOCK -1 //[-1 16 32 64 128 256]
 
 /////
+#ifdef DOUBLE_PROC
+#define PROC_MULT 2
+#else
+#define PROC_MULT 1
+#endif
+
 #if (LIGHTS_PER_FOG_SAMPLE>=VOX_LAYERS) || (LIGHTS_PER_FOG_SAMPLE<=0)
 #undef FOG_RANDOM_LESSER_SOURCE
 #endif

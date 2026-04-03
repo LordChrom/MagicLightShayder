@@ -10,7 +10,8 @@ struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTr
 
 
 //TODO variable for layers
-const ivec3 workGroups = ivec3(2,AREA_SIZE_MEM,12);
+const int AxisLayerAwawa = VOX_LAYERS*6+1;
+const ivec3 workGroups = ivec3(PROC_MULT,AREA_SIZE_MEM,AxisLayerAwawa);
 layout (local_size_x = AREA_SIZE_MEM, local_size_y = 1, local_size_z = 1) in;
 
 const vec3 sunColor = vec3(242,242,242)/255;
@@ -18,9 +19,9 @@ const vec3 sunPos = vec3(0,0,1000);
 const lightVoxData defaultSunLight = {vec2(0,0),bvec4(true),sunColor,ivec3(0,0,10),0,1,0};
 
 #ifdef AXES_INORDER
-const int workGroupZ = 2;
+const int workGroupZ = PROC_MULT;
 #else
-const int workGroupZ = 6*2;
+const int workGroupZ = 6*PROC_MULT;
 #endif
 
 
@@ -64,10 +65,10 @@ void trim(ivec3 zonePos){
     setLightData(light, ivec3(zonePos), zoneShift, zoneMemOffset);
 }
 
-void fillSeams(uvec3 workGroupID, uvec3 localID){
+void fillLightSeams(uvec3 workGroupID, uvec3 localID){
     indirectDispatchesAccess.lighterDispatches=uvec3(SECTIONS_PER_AREA_XY,SECTIONS_PER_AREA_Z,workGroupZ);
 
-    cascadeLevel= bool(workGroupID.x&1u) ? getSecondaryCascadeLevel() : 0;
+    cascadeLevel = getVariableCascadeLevel(bool(workGroupID.x&1u));
     if(cascadeLevel>=NUM_CASCADES) return;
 
     uint layer = workGroupID.z%VOX_LAYERS;
@@ -108,5 +109,19 @@ void fillSeams(uvec3 workGroupID, uvec3 localID){
         int B = movementSigns.y>0?63-i:i;
         trim(ivec3(zonePos.x,B,zonePos.y));
     }
+
+}
+
+void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
+    ivec3 areaPos = ivec3(ivec2(localID.x,workGroupID.y)-1, -1);
+    cascadeLevel = getVariableCascadeLevel(bool(workGroupID.x&1u));
+
+}
+
+void fillSeams(uvec3 workGroupID, uvec3 localID){
+    if(localID.z==AxisLayerAwawa-1)
+        fillVoxSeams(workGroupID, localID);
+    else
+        fillLightSeams(workGroupID,localID);
 
 }

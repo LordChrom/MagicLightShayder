@@ -728,10 +728,13 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
     );
 
     int frameBasedOffset = frameCounter;
-    uint cascadeLevel= bool(groupId.z&1u) ? getSecondaryCascadeLevel(frameBasedOffset) : 0;
+    uint cascadeLevel = getVariableCascadeLevel(frameBasedOffset,bool(groupId.z&1u));
     if(cascadeLevel>=NUM_CASCADES) return;
-
+#ifdef DOUBLE_PROC
     frameBasedOffset=(frameBasedOffset>>cascadeLevel);
+#else
+    frameBasedOffset=(frameBasedOffset>>(cascadeLevel+1));
+#endif
 
     A = localId.x+1;
     B = localId.y+1;
@@ -753,7 +756,7 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
     axis = DEBUG_AXIS;
 #else
     #ifndef AXES_INORDER
-    axis = groupId.z>>1;
+    axis = groupId.z/PROC_MULT;
     #else
         for(axis=0;axis<6;axis++)
     #endif

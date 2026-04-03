@@ -1,6 +1,5 @@
 #version 430 compatibility
 #include "lib/voxel/voxelMapper.glsl"
-uniform mat4 shadowModelViewInverse;
 uniform vec3 cameraPosition;
 
 in vec4 at_midBlock;

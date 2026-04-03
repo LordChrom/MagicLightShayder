@@ -321,7 +321,25 @@ uint countTrailingZeroes(uint x){
     return ret;
 }
 
-uint getSecondaryCascadeLevel(int frame){
-    return 1+countTrailingZeroes(frame);
+uint getVariableCascadeLevel(int frame){
+    uint trailingZeroes = countTrailingZeroes(frame);
+#ifdef DOUBLE_PROC
+    return trailingZeroes+1;
+#else
+    return trailingZeroes;
+#endif
 }
-uint getSecondaryCascadeLevel(){return getSecondaryCascadeLevel(frameCounter);}
+
+
+uint getVariableCascadeLevel(int frame, bool isAuxGroup){
+#ifdef DOUBLE_PROC
+    return isAuxGroup?0:getVariableCascadeLevel(frame);
+#else
+    return getVariableCascadeLevel(frame);
+#endif
+}
+
+uint getVariableCascadeLevel(bool isAuxGroup){
+    return getVariableCascadeLevel(frameCounter,isAuxGroup);
+}
+
