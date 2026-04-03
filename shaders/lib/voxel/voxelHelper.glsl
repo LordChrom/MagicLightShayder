@@ -62,7 +62,7 @@ float getScale(uint cascadeLevel){
 }
 
 bool isVoxelInBounds(vec3 worldPos){
-    const float maxDist = 0.5*AREA_SIZE*MIN_SCALE*(1<<NUM_CASCADES);
+    const float maxDist = 0.5*AREA_SIZE*MIN_SCALE*(1<<(NUM_CASCADES-1));
     worldPos = abs(worldPos-getGlobalOrigin(MAX_SCALE));
     return (worldPos.x<=maxDist) && (worldPos.y<=maxDist) && (worldPos.z<=maxDist);
 }

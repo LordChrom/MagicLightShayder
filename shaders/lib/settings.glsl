@@ -34,7 +34,6 @@
 
 //TODO probably remove, after speeding up isLit this seems just like, unambigously worse
 //#define SHORTLISTED_COMPARISON
-//#define AXES_INORDER
 //#define WAVES_INORDER
 #define PARALLEL_UNPACK
 

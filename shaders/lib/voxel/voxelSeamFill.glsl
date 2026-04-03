@@ -9,20 +9,33 @@ struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTr
 #endif
 
 
-//TODO variable for layers
-const int AxisLayerAwawa = VOX_LAYERS*6+1;
-const ivec3 workGroups = ivec3(PROC_MULT,AREA_SIZE_MEM,AxisLayerAwawa);
+//one for each axis * layer combo, and also one for the world
+#if VOX_LAYERS==1
+    #define AXIS_LAYER_WORLD_COUNT 7
+#elif VOX_LAYERS==2
+    #define AXIS_LAYER_WORLD_COUNT 13
+#elif VOX_LAYERS==3
+    #define AXIS_LAYER_WORLD_COUNT 19
+#elif VOX_LAYERS==4
+    #define AXIS_LAYER_WORLD_COUNT 25
+#elif VOX_LAYERS==5
+    #define AXIS_LAYER_WORLD_COUNT 31
+#elif VOX_LAYERS==6
+    #define AXIS_LAYER_WORLD_COUNT 37
+#elif VOX_LAYERS==7
+    #define AXIS_LAYER_WORLD_COUNT 43
+#elif VOX_LAYERS==8
+    #define AXIS_LAYER_WORLD_COUNT 49
+#endif
+
+const ivec3 workGroups = ivec3(PROC_MULT,AREA_SIZE_MEM,AXIS_LAYER_WORLD_COUNT);
 layout (local_size_x = AREA_SIZE_MEM, local_size_y = 1, local_size_z = 1) in;
 
 const vec3 sunColor = vec3(242,242,242)/255;
 const vec3 sunPos = vec3(0,0,1000);
 const lightVoxData defaultSunLight = {vec2(0,0),bvec4(true),sunColor,ivec3(0,0,10),0,1,0};
 
-#ifdef AXES_INORDER
-const int workGroupZ = PROC_MULT;
-#else
 const int workGroupZ = 6*PROC_MULT;
-#endif
 
 
 
@@ -68,8 +81,15 @@ void trim(ivec3 zonePos){
 void fillLightSeams(uvec3 workGroupID, uvec3 localID){
     indirectDispatchesAccess.lighterDispatches=uvec3(SECTIONS_PER_AREA_XY,SECTIONS_PER_AREA_Z,workGroupZ);
 
-    cascadeLevel = getVariableCascadeLevel(bool(workGroupID.x&1u));
+    int frameBasedOffset = frameCounter;
+    cascadeLevel = getVariableCascadeLevel(frameBasedOffset,bool(workGroupID.x&1u));
     if(cascadeLevel>=NUM_CASCADES) return;
+
+    #ifdef DOUBLE_PROC
+    frameBasedOffset=(frameBasedOffset>>cascadeLevel);
+    #else
+    frameBasedOffset=(frameBasedOffset>>(cascadeLevel+1));
+    #endif
 
     uint layer = workGroupID.z%VOX_LAYERS;
     axis = workGroupID.z/VOX_LAYERS;
@@ -77,12 +97,12 @@ void fillLightSeams(uvec3 workGroupID, uvec3 localID){
     ivec3 zonePos = ivec3(ivec2(localID.x,workGroupID.y)-1, -1);
     scale = getScale(cascadeLevel);
     ivec3 areaShift = getAreaShift(scale);
-
     zoneShift = areaToZoneSpace(areaShift,axis);
+    ivec3 zoneMovement = areaToZoneSpaceRelative(areaShift - getPreviousAreaShift(scale),axis);
+
     zoneMemOffset = zoneOffset(axis,layer,cascadeLevel);
     upZoneMemOffset = (cascadeLevel<NUM_CASCADES-1)?zoneOffset(axis,layer,cascadeLevel+1) : 0;
     upZoneShift = areaToZoneSpace(getAreaShift(scale*2),axis);
-    ivec3 zoneMovement = areaToZoneSpaceRelative(areaShift - getPreviousAreaShift(scale),axis);
 
     trim(ivec3(zonePos.xy,-1));
     trim(ivec3(AREA_SIZE+1,zonePos.xy));
@@ -110,16 +130,16 @@ void fillLightSeams(uvec3 workGroupID, uvec3 localID){
         trim(ivec3(zonePos.x,B,zonePos.y));
     }
 
+
 }
 
 void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
     ivec3 areaPos = ivec3(ivec2(localID.x,workGroupID.y)-1, -1);
-    cascadeLevel = getVariableCascadeLevel(bool(workGroupID.x&1u));
 
 }
 
 void fillSeams(uvec3 workGroupID, uvec3 localID){
-    if(localID.z==AxisLayerAwawa-1)
+    if(localID.z==(AXIS_LAYER_WORLD_COUNT-1))
         fillVoxSeams(workGroupID, localID);
     else
         fillLightSeams(workGroupID,localID);

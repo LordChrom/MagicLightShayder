@@ -708,12 +708,6 @@ void lightVoxelFace(){
         bestLights[VOX_LAYERS-1].occlusionHitDistance=0;
     }
 
-//#if DEBUG_SHOW_UPDATES>=0
-//    for(int layer = 0; layer<VOX_LAYERS; layer++){
-//        uint frameIndicator = (frameCounter&0x3f);
-//        bestLights[layer].flags=(bestLights[layer].flags&3u) | (frameIndicator<<2);
-//    }
-//#endif
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         setLightData(bestLights[layer], zonePos, zoneShift, zoneMemOffsets[layer]);
@@ -755,11 +749,7 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 #if DEBUG_AXIS>=0
     axis = DEBUG_AXIS;
 #else
-    #ifndef AXES_INORDER
     axis = groupId.z/PROC_MULT;
-    #else
-        for(axis=0;axis<6;axis++)
-    #endif
 #endif
     {
         for(int layer = 0; layer<VOX_LAYERS; layer++){
