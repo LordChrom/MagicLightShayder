@@ -10,7 +10,7 @@ vec3 getPreviousGlobalOrigin(float scale){
     return floor(previousGlobalOrigin/scale)*scale;
 }
 ivec3 getAreaShift(float scale, vec3 origin){
-    return ivec3(origin/scale);
+    return ivec3(floor(origin/scale));
 }
 ivec3 getAreaShift(float scale){return getAreaShift(scale,getGlobalOrigin(scale));}
 ivec3 getPreviousAreaShift(float scale){return getAreaShift(scale,getPreviousGlobalOrigin(scale));}
@@ -184,13 +184,15 @@ uint packBytes(uvec4 data){
 }
 
 uvec4 unpackWorldVox(uint packedData){
-    return uvec4(packedData>>16,packedData>>8,packedData,packedData>>24)&0xffu;
+    uvec4 ret = uvec4((packedData>>14),(packedData>>7)&0x7fu,packedData&0x7fu,packedData>>21);
+    ret.rgb<<=1;
+    return ret;
 }
 
 uint packWorldVox(uvec4 data){
-    return ((data.w<<24)|(data.x<<16))|((data.y<<8)|(data.z));
+    data.rgb=(data.rgb>>=1)&0x7fu;
+    return ((data.w<<21)|(data.x<<14))|((data.y<<7)|(data.z));
 }
-
 
 
 //sampler/image access functions
@@ -234,21 +236,18 @@ uvec4 getVoxData(ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
 #ifdef WRITES_VOX
 layout (r32ui) uniform restrict uimage3D worldVox;
 
-void setRawVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
+//doesnt reset timer
+void updateVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
     ivec3 memPos = toMemPos(areaPos,areaShift,areaMemOffset);
-//    imageStore(worldVox,memPos,uvec4(packedData,0,0,0));
     imageAtomicMax(worldVox,memPos,packedData);
 }
 
-void setVoxData(uvec4 voxData, ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
-    uint packedData = packWorldVox(voxData);
-    setRawVoxData(packedData,areaPos,areaShift,areaMemOffset);
+void setVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
+    ivec3 memPos = toMemPos(areaPos,areaShift,areaMemOffset);
+    imageStore(worldVox,memPos,uvec4(packedData,0,0,0));
 }
 #endif
 
-#define WORLDVOX_OPAQUE 1u
-#define WORLDVOX_TRANSLUCENT 2u
-#define WORLDVOX_NOT_AIR 3u
 
 
 //boolean operations

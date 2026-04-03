@@ -79,6 +79,7 @@
 #define PIXEL_LOCK -1 //[-1 16 32 64 128 256]
 
 #define ENABLE_THE_SUN
+#define VOXELIZATION_MODE 1 //[-1 0 1]
 
 /////
 #ifdef DOUBLE_PROC
@@ -98,7 +99,19 @@
 #define MAX_SCALE (MIN_SCALE*(1<<(NUM_CASCADES-1)))
 #define LIGHT_TYPE_SUN 1
 
+
+#define VOXEL_TYPE_SHIFT 2
+#define WORLDVOX_OPAQUE 1u
+#define WORLDVOX_TRANSLUCENT 2u
+#define WORLDVOX_NOT_AIR 3u
+#define VOXEL_AGE_SHIFT 27
+#define VOXEL_AGE_MASK (0xffffffff<<VOXEL_AGE_SHIFT)
+#define VOXEL_INITIAL_TIME 10
+
 ///// The following to be copy pasted into shaders.properties
+#if VOXELIZATION_MODE==1
+    #define VOXEL_MAP_DOESNT_CLEAR
+#endif
 
 #define AREA_SIZE (AREA_WIDTH_SECTIONS*SECTION_SIZE)
 

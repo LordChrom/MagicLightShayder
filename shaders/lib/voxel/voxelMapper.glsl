@@ -2,14 +2,6 @@
 #define WRITES_VOX
 #include "/lib/voxel/voxelHelper.glsl"
 
-//block info, RGB are color,
-//A is, from MSB to LSB,
-// 4 bits emission type
-// 2 bits free
-// a bit that's 1 for translucent blocks like stained glass
-// a bit that's 1 for surfaces that block light
-
-//TODO redo this so the layout can be rearranged with defines, to change the priority of blocks in low detail regions
 
 
 void writeVoxelMap(vec3 worldPos, int blockID, vec3 toMidblock, vec3 normal, uint emission){
@@ -26,11 +18,11 @@ void writeVoxelMap(vec3 worldPos, int blockID, vec3 toMidblock, vec3 normal, uin
         color/=9;
 
 
-        metadata = ((blockID/1000u)%10u);
+        metadata = ((blockID/1000u)%10u)&3u;
         if(emission>0){
             color*=float(emission)*0.06666; //1/15
             metadata&=0xfeu;
-            metadata |= ((blockID/10000u)%10u)<<4;
+            metadata |= ((blockID/10000u)%10u)<<VOXEL_TYPE_SHIFT;
         }
 
     }else{
@@ -53,6 +45,8 @@ void writeVoxelMap(vec3 worldPos, int blockID, vec3 toMidblock, vec3 normal, uin
     ivec3 areaShift = getAreaShift(scale);
     uint areaMemOffset = areaOffset(cascadeLevel);
 
+//TODO Comedian: What's the deal with end rods? *laugh track*
 
-    setVoxData(uvec4(255*color, metadata), areaPos, areaShift, areaMemOffset);
+    uint packedData = packWorldVox(uvec4(255*color, metadata)) | (VOXEL_INITIAL_TIME<<VOXEL_AGE_SHIFT);
+    updateVoxData(packedData, areaPos, areaShift, areaMemOffset);
 }

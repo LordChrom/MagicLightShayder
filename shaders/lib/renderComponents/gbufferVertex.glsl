@@ -1,4 +1,5 @@
 #version 430 compatibility
+#include "/lib/settings.glsl"
 
 #if MATERIALS_TYPE < 0
     #undef WRITE_MATERIALS
@@ -31,13 +32,26 @@ const vec2 maxLm = vec2(15.0/16.0);
 uniform mat4 gbufferModelViewInverse;
 #endif
 
+
+#if ( VOXELIZATION_MODE ==1 ) && (defined IS_TERRAIN )
+    #include "/lib/voxel/voxelMapper.glsl"
+    uniform vec3 cameraPosition;
+    in vec4 at_midBlock;
+    #define UPDATE_VOXEL_MAP
+    #define NEEDS_MC_ENTITY
+#endif
+
 #ifdef NEEDS_MATERIAL_ID
     #ifdef BLOCK_ENTITY
         uniform int blockEntityId;
     #else
-        in vec2 mc_Entity;
+        #define NEEDS_MC_ENTITY
     #endif
 flat out int materialID;
+#endif
+
+#ifdef NEEDS_MC_ENTITY
+in vec2 mc_Entity;
 #endif
 
 void main() {
@@ -73,6 +87,15 @@ void main() {
         float awa = mc_Entity.x*1.0;
         materialID = int(round(awa));
     #endif
+#endif
+
+#ifdef UPDATE_VOXEL_MAP
+    int emission = int(at_midBlock.w);
+
+    vec3 worldPos = gl_Vertex.xyz-gl_ProjectionMatrix[3].xyz+cameraPosition;
+    vec3 toMidblock = at_midBlock.xyz/64.0;
+    int blockId = int(mc_Entity.x);
+    writeVoxelMap(worldPos,blockId,toMidblock,gl_Normal,emission);
 #endif
 
     glcolor = gl_Color;

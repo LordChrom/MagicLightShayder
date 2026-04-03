@@ -691,7 +691,7 @@ void lightVoxelFace(){
 
     //could maybe be at the top, not sure how much it'd actually help though TODO test later
     uint front = getFrontVoxel(0,0);
-    if (bool(front&0xf0u)){
+    if (bool(front&(0xfu<<VOXEL_TYPE_SHIFT))){
 #ifdef LIGHT_SOURCES_BLOCK_CENTERIC
         if(scale<1){
             vec3 worldPos = vec3(areaPos.xyz)*scale-halfScale+globalOrigin;
@@ -703,7 +703,7 @@ void lightVoxelFace(){
             bestLights[VOX_LAYERS-1].lightTravel = vec3(0);
         }
         bestLights[VOX_LAYERS-1].color = unpackUnorm4x8(front).wzy;
-        bestLights[VOX_LAYERS-1].type = (front>>4)&0xfu;
+        bestLights[VOX_LAYERS-1].type = (front>>VOXEL_TYPE_SHIFT)&0xfu;
         bestLights[VOX_LAYERS-1].occlusionMap=bvec4(true);
         bestLights[VOX_LAYERS-1].occlusionHitDistance=0;
     }

@@ -57,6 +57,15 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - 7: additive light
 - 15: debug (optional)
 
+# Layouts
+### Voxel map
+- RGB are color (7 bits)
+- A, 11 bits, is, from MSB to LSB,
+- - 5 bits age tag
+- - 4 bits its emission type
+- - a bit that's 1 for translucent blocks like stained glass
+- - a bit that's 1 for surfaces that block light
+
 
 # General TODO List
 - Merge adjacent unoccluded lights of same type
