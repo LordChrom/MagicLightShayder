@@ -750,7 +750,7 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 
 
 #if DEBUG_AXIS>=0
-    axis = debugAxisNum;
+    axis = DEBUG_AXIS;
 #else
     #ifndef AXES_INORDER
     axis = groupId.z>>1;

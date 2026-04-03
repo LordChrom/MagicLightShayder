@@ -37,7 +37,7 @@ uniform mat4 gbufferModelViewInverse;
     #else
         in vec2 mc_Entity;
     #endif
-out int materialID;
+flat out int materialID;
 #endif
 
 void main() {

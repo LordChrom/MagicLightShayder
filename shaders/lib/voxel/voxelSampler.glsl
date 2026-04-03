@@ -261,9 +261,9 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float minNoL){
     vec3 color = vec3(0);
 
 #if DEBUG_AXIS>=0
-     int axis = debugAxisNum;
+    uint axis = DEBUG_AXIS;
 #else
-    for (int axis=5;axis>=0;axis--)
+    for (uint axis=0;axis<6;axis++)
 #endif
     for(uint layer = 0; layer<VOX_LAYERS; layer++)
     {
@@ -296,9 +296,9 @@ vec3 voxelSampleFog(vec3 worldPos, float fogNoise){
 #endif
 
 #if DEBUG_AXIS>=0
-    int axis = debugAxisNum;
-    #else
-    for (int axis=5;axis>=0;axis--)
+    uint axis = DEBUG_AXIS;
+#else
+    for (uint axis=0;axis<6;axis++)
 #endif
     {
         for(int layer = 0; layer<lightsInLoop; layer++){

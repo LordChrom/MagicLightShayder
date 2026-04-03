@@ -179,7 +179,7 @@ void main()
         0,
         (porosity>0.01)?porosity*64:64+subsurface*190.0,
         0
-    ),0,255);
+    ),0u,255u);
 
 
     #elif MATERIALS_TYPE == 1 //PBR pack

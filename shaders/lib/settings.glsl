@@ -179,9 +179,6 @@ const vec3 sectionCount = vec3(2);
 //a section is 16x16x16 voxels
 //a zone is a group of up to 4x4x4 sections, specifically limited to 1 axis/layer where it comes to faces
 
-#if DEBUG_AXIS>=0
-const uint debugAxisNum = DEBUG_AXIS;
-#endif
 
 
 const float voxelDistance = 160.0;
