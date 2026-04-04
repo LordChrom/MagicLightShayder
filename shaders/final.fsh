@@ -29,6 +29,7 @@ in vec2 texcoord;
 
 /*
 const int colortex3Format = RGBA8UI;
+const int colortex4Format = RGBA8UI;
 const int colortex6Format = RGB16F;
 const int colortex7Format = RGBA16F;
 */
@@ -42,13 +43,15 @@ void main() {
 	#ifdef TRANSLUCENT_SEPARATE_BUFFER
 	vec4 transColor = texelFetch(colortex1,texpos,0);
 //	albedo.xyz = albedo.xyz*(1-transColor.a)*transColor.xyz;
-	albedo.xyz = blend(vec4(albedo.xyz,1),transColor);
 	#endif
 #ifdef VANILLA_FALLBACK
 	vec3 light = texelFetch(colortex5,texpos,0).xyz;
 #else
 	vec3 light = vec3(1/15.0);
 #endif
+
+albedo.xyz = blend(vec4(albedo.xyz,1),transColor);
+
 
 #ifdef DEBUG_WHITEN
 	albedo.xyz=vec3(DEBUG_WHITE_LEVEL);

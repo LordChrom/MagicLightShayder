@@ -13,6 +13,9 @@ uniform vec3 cameraPosition;
 
 #if MATERIALS_TYPE >= 0
 uniform usampler2D colortex3;
+#ifdef TRANSLUCENT_SEPARATE_BUFFER
+uniform usampler2D colortex4;
+#endif
 #endif
 
 #if DEBUG_SPECIAL_VIEW == 0
@@ -44,8 +47,6 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     vec4 normalAndMore = texelFetch(colortex2,sourceTexpos,0);
     float depth = texelFetch(depthtex0,sourceTexpos,0).x;
 
-    float subsurface = 0;
-
     vec3 normal = normalize(normalAndMore.xyz*2-1);
 
     bool isHand = normalAndMore.a>0.4 && normalAndMore.a<0.6;
@@ -56,10 +57,24 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 
 #if MATERIALS_TYPE >= 0
     //TODO transparent materials info
-    uvec4 matInfo = isHand?uvec4(0):texelFetch(colortex3,sourceTexpos,0);
+    uvec4 matInfo = uvec4(0);
+
+    if(!isHand){
+        #ifdef TRANSLUCENT_SEPARATE_BUFFER
+
+        matInfo = texelFetch(colortex4 ,sourceTexpos ,0);
+        if((matInfo.a==255) || matInfo==uvec4(0))
+    #endif
+        {
+            matInfo = texelFetch(colortex3, sourceTexpos, 0);
+        }
+    }
+
     float minNoL = clamp(float(matInfo.b-64)/190.0, 0.0,1.0);
+    float emissive = (matInfo.a==255)?0.0:(matInfo.a/254.0); //TODO maybe selective based on lightness of pixels
 #else
     float minNoL = 0;
+    float emissive = 0;
 #endif
 
     vec4 viewPos = gbufferProjectionInverse*vec4(ndcPos,1);
@@ -72,9 +87,9 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 
     bool voxelLit = isVoxelInBounds(worldPos+normal*0.1) && !isSky;
     if(voxelLit)
-        voxelLighting = voxelSample(worldPos,normal,minNoL);
+        voxelLighting = voxelSample(worldPos,normal,minNoL)+emissive;
     else
-        voxelLighting = vec3(-1);
+        voxelLighting = vec3(0);
 
 #if VOLUMETRIC_FOG_SAMPLES > 0
     voxelFog = vec4(0,0,0,1);
@@ -120,8 +135,15 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     vec3 mult = checker?vec3(1):sign(normal)*0.2+0.8;
     funnyDebug = abs(normal)*mult;
 #elif DEBUG_SPECIAL_VIEW == 3
-    funnyDebug=texture(colortex3,sampleTexCoord).rgb*(1.0/255.0);
+    uvec4 mat = texture(colortex3,sampleTexCoord);
+    funnyDebug=mat.rgb*(1.0/255.0);
+    if(mat.a>0 && mat.a<255)
+        funnyDebug=0.5+0.5*funnyDebug;
 #elif DEBUG_SPECIAL_VIEW == 4
+    uvec4 mat = texture(colortex4,sampleTexCoord);
+    funnyDebug=mat.rgb*(1.0/255.0);
+    if(mat.a>0 && mat.a<255)
+        funnyDebug=0.5+0.5*funnyDebug;
 #elif DEBUG_SPECIAL_VIEW == 5
     funnyDebug=texture(colortex5,sampleTexCoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 6

@@ -15,6 +15,8 @@ layout(location = 2) out vec4 vanillaLighting;
 
 #if (defined WRITE_MATERIALS) && (MATERIALS_TYPE == 0)
     #define NEEDS_MATERIAL_ID
+    #define HARDCODED_MATERIAL
+    flat in uvec4 hardcodedMaterialInfo;
 #endif
 
 #ifdef TEXTURED
@@ -58,24 +60,17 @@ uniform float viewWidth, viewHeight;
 #include "/lib/renderComponents/endGateway.glsl"
 #endif
 
-#ifdef VANILLA_FALLBACK
-    #if defined TRANSLUCENT && defined TRANSLUCENT_SEPARATE_BUFFER
+#if defined TRANSLUCENT && defined TRANSLUCENT_SEPARATE_BUFFER
+    #ifdef WRITE_MATERIALS
+    /* RENDERTARGETS: 1,2,5,4 */
+    #else
     /* RENDERTARGETS: 1,2,5 */
-    #elif defined WRITE_MATERIALS
+    #endif
+#else
+    #ifdef WRITE_MATERIALS
     /* RENDERTARGETS: 0,2,5,3 */
-    layout(location = 3) out uvec4 materialInfo;
     #else
     /* RENDERTARGETS: 0,2,5 */
-    #endif
-layout(location = 2) out vec4 vanillaLighting;
-#else
-    #if defined TRANSLUCENT && defined TRANSLUCENT_SEPARATE_BUFFER
-    /* RENDERTARGETS: 1,2 */
-    #elif defined WRITE_MATERIALS
-    /* RENDERTARGETS: 0,2,3 */
-    layout(location = 2) out uvec4 materialInfo;
-    #else
-    /* RENDERTARGETS: 0,2 */
     #endif
 #endif
 
@@ -83,13 +78,22 @@ layout(location = 2) out vec4 vanillaLighting;
 
 
 #ifdef HAND
-#define HAND_MASK 0.5
+    #define NORMAL_A 0.5
+#elif defined TRANSLUCENT
+    #define NORMAL_A 1
 #else
-#define HAND_MASK 0
+    #define NORMAL_A 0
 #endif
 
 layout(location = 0) out vec4 color;
 layout(location = 1) out vec4 normalOut;
+
+#ifdef VANILLA_FALLBACK
+layout(location = 2) out vec4 vanillaLighting;
+#endif
+#ifdef WRITE_MATERIALS
+layout(location = 3) out uvec4 materialInfo;
+#endif
 
 #ifdef TRANSLUCENT_SEPARATE_BUFFER
 /*
@@ -154,13 +158,10 @@ void main()
 #ifdef VERTEX_NORMALS
     #ifdef TRANSLUCENT
     if(sampledColor.a>translucentPrecedenceCutoff)
-        normalOut = vec4((normal+1)*0.5,1);
-    #else
-        normalOut = vec4((normal+1)*0.5,HAND_MASK);
     #endif
+    normalOut = vec4((normal+1)*0.5,NORMAL_A);
 #endif
 
-    color = sampledColor;
 
 //TODO the translucent part is for viewing fully lit stuff thru transparents, prolly a better solution tho
 #if defined VANILLA_FALLBACK && !defined TRANSLUCENT
@@ -168,25 +169,21 @@ void main()
 #endif
 
 #ifdef WRITE_MATERIALS
-
     #if MATERIALS_TYPE == 0 //hardcoded
-
-    float subsurface = ((materialID%10000)==15)?0.33:0;
-    float porosity = 0;
-
-    materialInfo=clamp(uvec4(
-        0,
-        0,
-        (porosity>0.01)?porosity*64:64+subsurface*190.0,
-        0
-    ),0u,255u);
-
-
+    materialInfo = hardcodedMaterialInfo;
     #elif MATERIALS_TYPE == 1 //PBR pack
-    materialInfo=uvec4(0);
+    materialInfo = uvec4(0);
+    #endif
 
+    #ifdef TRANSLUCENT
+
+    if(sampledColor.a<0.99)
+        materialInfo.a=255;
     #endif
 #endif
+
+
+    color = sampledColor;
 
     #ifdef BONUS_STUFF
     doBonusStuff();

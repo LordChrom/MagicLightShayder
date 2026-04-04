@@ -6,7 +6,8 @@
 #endif
 
 #if (defined WRITE_MATERIALS) && (MATERIALS_TYPE == 0)
-    #define NEEDS_MATERIAL_ID
+    #define HARDCODED_MATERIAL
+    flat out uvec4 hardcodedMaterialInfo;
 #endif
 
 #ifdef BASIC
@@ -41,12 +42,15 @@ uniform mat4 gbufferModelViewInverse;
     #define NEEDS_MC_ENTITY
 #endif
 
-#ifdef NEEDS_MATERIAL_ID
+#if (defined NEEDS_MATERIAL_ID) || (defined HARDCODED_MATERIAL)
     #ifdef BLOCK_ENTITY
         uniform int blockEntityId;
     #else
         #define NEEDS_MC_ENTITY
     #endif
+#endif
+
+#ifdef NEEDS_MATERIAL_ID
 flat out int materialID;
 #endif
 
@@ -79,14 +83,40 @@ void main() {
     lmcoord = min(lmcoord,maxLm);
 #endif
 
-#ifdef NEEDS_MATERIAL_ID
+#if (defined NEEDS_MATERIAL_ID) || (defined HARDCODED_MATERIAL)
+    #ifndef NEEDS_MATERIAL_ID
+        int materialID;
+    #endif
+
     #ifdef BLOCK_ENTITY
-        materialID=blockEntityId;
+        materialID = blockEntityId;
+        if(materialID==65535)
+            materialID=-1;
     #else
     //TODO handle old versions, optifine jank
-        float awa = mc_Entity.x*1.0;
-        materialID = int(round(awa));
+        materialID = int(round(mc_Entity.x));
     #endif
+#endif
+
+#ifdef HARDCODED_MATERIAL
+
+    int meta = ((materialID/1000)%10);
+
+    float subsurface = 0;
+    uint emissive = 0;
+    float porosity = 0;
+
+    if(materialID>=0){
+        subsurface = ((materialID%10000)==15)?0.33:0;
+        emissive = bool(meta&4)?254:0;
+    }
+
+    hardcodedMaterialInfo=clamp(uvec4(
+        0,
+        0,
+        (porosity>0.01)?porosity*64:64+subsurface*190.0,
+        emissive
+    ),0u,255u);
 #endif
 
 #ifdef UPDATE_VOXEL_MAP

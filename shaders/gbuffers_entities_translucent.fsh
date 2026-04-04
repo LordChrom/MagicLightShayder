@@ -1,2 +1,2 @@
 #define TRANSLUCENT
-#include "/gbuffers_particles.fsh"
+#include "/gbuffers_entities.fsh"

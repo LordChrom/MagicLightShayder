@@ -52,6 +52,7 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - 1: transparent albedo
 - 2: normals
 - 3: opaque materials info (labpbr specular)
+- 4: transparent materials info (labpbr specular)
 - 5: vanilla fallback (optional)
 - 6: multiplicative lighting
 - 7: additive light

@@ -59,10 +59,6 @@ uint thisMemOffset, upperMemOffset, axis, cascadeLevel;
 ivec3 thisShift, upperShift, movement;
 
 
-void nullify(ivec3 zonePos){
-    setLightData(noLight, ivec3(zonePos), thisShift, thisMemOffset);
-}
-
 void trimLight(ivec3 zonePos){
     lightVoxData light = noLight;
 
@@ -173,7 +169,7 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
                 continue;
             whatToWrite=getRawVoxData(areaPos,thisShift,thisMemOffset);
     #ifndef DEBUG_NOTHING_EXPIRES
-            whatToWrite-=(1<<VOXEL_AGE_SHIFT);
+            whatToWrite-=(uint(bool(whatToWrite))<<VOXEL_AGE_SHIFT);
             whatToWrite = bool(whatToWrite&VOXEL_AGE_MASK)?whatToWrite:0;
     #endif
         }
