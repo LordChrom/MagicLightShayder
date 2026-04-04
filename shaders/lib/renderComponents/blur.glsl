@@ -58,6 +58,10 @@ vec4 doBloom(sampler2D texToBlur, vec2 pos, vec2 screenDim, int level){
     ivec2 texPos = ivec2(round(pos*screenDim*LIGHTING_RENDERSCALE-0.07));
     return doBlurSnapped(texToBlur, texPos,level,2/BLOOM_INTENSITY,0.5,0.25);
 #else
-    return doBlur(texToBlur, pos,(level*BLOOM_WIDTH)/screenDim,2/BLOOM_INTENSITY,0.5,0.25);
+    float bloomLevelWidth = level*BLOOM_WIDTH;
+    #ifdef BLOOM_SMART_ACTIVE
+    if(level==1); bloomLevelWidth=1.0;
+    #endif
+    return doBlur(texToBlur, pos,(bloomLevelWidth)/screenDim,2/BLOOM_INTENSITY,0.5,0.25);
 #endif
 }

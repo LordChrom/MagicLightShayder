@@ -136,6 +136,7 @@ void fillLightSeams(uvec3 workGroupID, uvec3 localID){
 bool isBlockOffScreen(ivec3 areaPos){
     vec3 pos = vec3(areaPos-(AREA_SIZE>>1))*scale+0.5;
     vec4 clipSpace = gbufferProjection*vec4((gbufferModelView*vec4(pos,1)).xyz,1);
+    clipSpace.w*=1.15;
 
     return (clipSpace.x<-clipSpace.w || clipSpace.x>clipSpace.w)||
         (clipSpace.y<-clipSpace.w || clipSpace.y>clipSpace.w)||

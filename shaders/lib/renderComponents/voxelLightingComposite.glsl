@@ -44,21 +44,23 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     vec4 normalAndMore = texelFetch(colortex2,sourceTexpos,0);
     float depth = texelFetch(depthtex0,sourceTexpos,0).x;
 
-#if MATERIALS_TYPE >= 0
-    uvec4 matInfo = texelFetch(colortex3,sourceTexpos,0);
-    float minNoL = clamp(float(matInfo.b-64)/190.0, 0.0,1.0);
-#else
-    float minNoL = 0;
-#endif
-
     float subsurface = 0;
-    vec3 ndcPos = vec3(vec3(sampleTexCoord,solidDepth)*2-1);
 
     vec3 normal = normalize(normalAndMore.xyz*2-1);
 
     bool isHand = normalAndMore.a>0.4 && normalAndMore.a<0.6;
-    if(isHand) //currently, normal.a only stores if it is or isnt the hand
-        ndcPos.z/=MC_HAND_DEPTH;
+    vec3 ndcPos = vec3(vec3(sampleTexCoord,solidDepth)*2-1);
+    if(isHand){
+        ndcPos.z=depth/MC_HAND_DEPTH;
+    }
+
+#if MATERIALS_TYPE >= 0
+    //TODO transparent materials info
+    uvec4 matInfo = isHand?uvec4(0):texelFetch(colortex3,sourceTexpos,0);
+    float minNoL = clamp(float(matInfo.b-64)/190.0, 0.0,1.0);
+#else
+    float minNoL = 0;
+#endif
 
     vec4 viewPos = gbufferProjectionInverse*vec4(ndcPos,1);
     viewPos/=viewPos.w;
@@ -123,7 +125,7 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 #elif DEBUG_SPECIAL_VIEW == 7
     funnyDebug = voxelFog.xyz;
 #elif DEBUG_SPECIAL_VIEW == 100
-    funnyDebug = vec3(clamp(0.03*sqrt(length(worldPosRelative)),0,1),bool(isHand),float(isSky));
+    funnyDebug = vec3(clamp(0.05*sqrt(length(worldPosRelative)),0,1),float(isHand)*0.1,float(isSky)*0.5);
 #elif DEBUG_SPECIAL_VIEW == 101
     funnyDebug = vec3(ditherValue);
 #elif DEBUG_SPECIAL_VIEW == 102

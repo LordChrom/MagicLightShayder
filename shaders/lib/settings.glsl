@@ -48,7 +48,7 @@
 #define LIGHTS_PER_FOG_SAMPLE 1 //[0 1 2 3 4]
 #define FOG_RANDOM_LESSER_SOURCE
 #define FOG_BIOME_TINT_STRENGTH 0.2 //[0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0]
-#define SUN_FOG_STRENGTH 0.5
+#define SUN_FOG_STRENGTH 0.5 //[0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0]
 
 #define LIGHTING_RENDERSCALE 1 //[0.01 0.1 0.15 0.2 0.25 0.3333 0.5 0.625 0.6666 0.75 0.8 0.9 1]
 #define BLOOM_INTENSITY 1.0 //[0.25 0.5 0.75 1.0 1.5 2.0 3.0]
@@ -160,14 +160,13 @@
 #define WORLD_MEM_SIZE_BIG 8192
 #endif
 
-#ifdef BLOOM_SMART
-#if LIGHTING_RENDERSCALE<1
+#if (defined BLOOM_SMART) && (LIGHTING_RENDERSCALE<1) && (BLOOM_LEVEL<2)
+    #define BLOOM_SMART_ACTIVE
     #if BLOOM_LEVEL==1
         #define BLOOM_LEVEL 2
     #elif BLOOM_LEVEL==0
         #define BLOOM_LEVEL 1
     #endif
-#endif
 #endif
 /////
 
@@ -210,9 +209,11 @@ const int shadowMapResolution = 1;
 const float translucentPrecedenceCutoff = 0.9;
 
 #if BLOOM>0
+#ifdef BLOOM_SMART
 #ifdef KEEP_FULLY_OCCLUDED_SAMPLES
 #ifdef TRANSLUCENT_SEPARATE_BUFFER
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
+#endif
 #endif
 #endif
 #endif
