@@ -77,33 +77,37 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
         voxelLighting = vec3(-1);
 
 #if VOLUMETRIC_FOG_SAMPLES > 0
-    voxelFog = vec4(0);
+    voxelFog = vec4(0,0,0,1);
 
-    if(length(worldPosRelative)>MAX_FOG_DEPTH || isSky)
-        worldPosRelative=normalize(worldPosRelative)*MAX_FOG_DEPTH;
+    if(length(worldPosRelative)>MAX_FOG_DEPTH || isSky){
+        worldPosRelative*=MAX_FOG_DEPTH/length(worldPosRelative);
+    }
 
     float hitDistance = length(worldPosRelative);
+    float previousSampleDist = hitDistance;
 
-//    int fogSamples = min(VOLUMETRIC_FOG_SAMPLES,int(2*length)); //theoretically saves work but in practice not really unless indoors
-    const int fogSamples = VOLUMETRIC_FOG_SAMPLES;
+    const float fogSampleLen = 1.0/VOLUMETRIC_FOG_SAMPLES;
+    const float fogDensityMult = FOG_THICKNESS*log(0.5)/FOG_HALF_LIFE;
+
     for(int i=0; i<VOLUMETRIC_FOG_SAMPLES; i++){
         //TODO better fog amount calc, and fix the banding, maybe smarter spacing
-        if(i>=fogSamples)
-            break;
-        float weight = 1-clamp(float(i+ditherValue)/fogSamples,0.001,0.999);
+        float weight = 1-(i+ditherValue)*fogSampleLen;
         vec3 fogSamplePos = cameraPosition +worldPosRelative*weight;
         if(!isVoxelInBounds(fogSamplePos))continue;
 
-        float density = FOG_DENSITY * (hitDistance/fogSamples);
-        density = min(1.0,density);
-        vec4 newSample = vec4(voxelSampleFog(fogSamplePos,ditherValue2),density);
+        float thisSampleDist = (weight)*hitDistance;
+        float fogExperienced = exp(fogDensityMult * (previousSampleDist-thisSampleDist));
+        previousSampleDist=thisSampleDist;
+
+
+
+        vec4 newSample = vec4(voxelSampleFog(fogSamplePos,ditherValue2),0);
         vec3 fogCol = max(fogColor,0.01);
         fogCol/=length(fogCol);
         newSample.rgb=mix(newSample.rgb,fogCol*length(newSample.rgb),FOG_BIOME_TINT_STRENGTH);
-        voxelFog = voxelFog*(1-density) + newSample*density;
+        voxelFog = voxelFog*fogExperienced + newSample*(1-fogExperienced);
     }
-
-    voxelFog.rgb*=FOG_BRIGHTNESS;
+    voxelFog*=exp(fogDensityMult * previousSampleDist);
 #endif
 
 #if DEBUG_SPECIAL_VIEW == 0

@@ -75,8 +75,12 @@ void main() {
 	vec3 color = albedo.xyz*light;
 
 #if VOLUMETRIC_FOG_SAMPLES > 0
+//	float fogThickness = clamp(voxelFog.a,0,0.7);
+//	color = color*(1-fogThickness) + voxelFog.rgb;
+
+
 	float fogThickness = clamp(voxelFog.a,0,0.7);
-	color = color*(1-fogThickness) + voxelFog.rgb;
+	color = color*voxelFog.a + voxelFog.rgb;
 #endif
 	outputColor=tonemap(color);
 

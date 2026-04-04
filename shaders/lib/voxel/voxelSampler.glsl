@@ -49,8 +49,6 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
         case 1: //sunlight
             const float sunStr = 1/float(MAX_LIGHT_STRENGTH);
             lightStrength = sunStr;
-            if(isForFog)
-                lightStrength*=SUN_FOG_STRENGTH;
             columnation=1;
             break;
         case 2: //steady blocklight
@@ -63,6 +61,9 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
             lightStrength = BLOCK_LIGHT_STRENGTH * flicker(blockPos);
             break;
     }
+
+    if(isForFog)
+        lightStrength*=(lightSrc.type==LIGHT_TYPE_SUN)?FOG_BRIGHTNESS_SUN:FOG_BRIGHTNESS_BLOCK;
 
 
     const float b = 1/float(MAX_LIGHT_STRENGTH*MAX_LIGHT_STRENGTH);
