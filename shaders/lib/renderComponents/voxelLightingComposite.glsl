@@ -136,9 +136,9 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     funnyDebug = abs(normal)*mult;
 #elif DEBUG_SPECIAL_VIEW == 3
     uvec4 mat = texture(colortex3,sampleTexCoord);
-    funnyDebug=mat.rgb*(1.0/255.0);
-    if(mat.a>0 && mat.a<255)
-        funnyDebug=0.5+0.5*funnyDebug;
+    float funnyEmissive = (mat.a==255)?0.0:(mat.a/254.0);
+        funnyDebug=funnyEmissive+mat.rgb*((1.0-funnyEmissive)/255.0);
+//        funnyDebug=funnyEmissive*mat.rgb*(1.0/255.0);
 #elif DEBUG_SPECIAL_VIEW == 4
     uvec4 mat = texture(colortex4,sampleTexCoord);
     funnyDebug=mat.rgb*(1.0/255.0);

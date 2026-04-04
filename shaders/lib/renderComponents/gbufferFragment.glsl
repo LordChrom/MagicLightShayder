@@ -1,13 +1,18 @@
-#ifdef VOXY_PATCH
+#ifndef VOXY_PATCH
+#version 430 compatibility
+#endif
+
 #include "/lib/settings.glsl"
+
+#ifdef VOXY_PATCH
 
 #ifdef VANILLA_FALLBACK
 layout(location = 2) out vec4 vanillaLighting;
 #endif
 
 #else
-#version 430 compatibility
-#include "/lib/settings.glsl"
+
+#include "/lib/util/materialId.glsl"
 
 #if MATERIALS_TYPE < 0
     #undef WRITE_MATERIALS
@@ -17,6 +22,9 @@ layout(location = 2) out vec4 vanillaLighting;
     #define NEEDS_MATERIAL_ID
     #define HARDCODED_MATERIAL
     flat in uvec4 hardcodedMaterialInfo;
+    #ifdef SELECTIVE_HARDCODED_EMISSIVE
+        #define NEEDS_MATERIAL_ID
+    #endif
 #endif
 
 #ifdef TEXTURED
@@ -168,9 +176,20 @@ void main()
     vanillaLighting=lighting;
 #endif
 
+    color = sampledColor;
+
 #ifdef WRITE_MATERIALS
     #if MATERIALS_TYPE == 0 //hardcoded
     materialInfo = hardcodedMaterialInfo;
+
+        #ifdef SELECTIVE_HARDCODED_EMISSIVE
+    if(materialInfo.a!=255){
+        vec3 lightColor = getMaterialColor(materialID);
+        float brightness=max(1-0.5*length(normalize(color.rgb)- normalize(lightColor)),0);
+        materialInfo.a=uint(brightness*materialInfo.a);
+    }
+        #endif
+
     #elif MATERIALS_TYPE == 1 //PBR pack
     materialInfo = uvec4(0);
     #endif
@@ -183,7 +202,6 @@ void main()
 #endif
 
 
-    color = sampledColor;
 
     #ifdef BONUS_STUFF
     doBonusStuff();

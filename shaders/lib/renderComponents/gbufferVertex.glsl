@@ -8,6 +8,9 @@
 #if (defined WRITE_MATERIALS) && (MATERIALS_TYPE == 0)
     #define HARDCODED_MATERIAL
     flat out uvec4 hardcodedMaterialInfo;
+    #ifdef SELECTIVE_HARDCODED_EMISSIVE
+        #define NEEDS_MATERIAL_ID
+    #endif
 #endif
 
 #ifdef BASIC
