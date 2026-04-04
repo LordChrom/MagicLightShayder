@@ -65,8 +65,10 @@ void nullify(ivec3 zonePos){
 void trimLight(ivec3 zonePos){
     lightVoxData light = noLight;
 
-    ivec3 upZonePos = (zonePos+(AREA_SIZE/2))/2;
-    vec3 zonePosRemnants = (vec3(zonePos&1)-0.5)*scale;
+    ivec3 upZonePos = (zonePos+(1&(thisShift))+(AREA_SIZE/2));
+    vec3 zonePosRemnants= -0.5+vec3(1&upZonePos);
+    upZonePos>>=1;
+
     //TODO check if position in higher volume hasnt been shifted out of bounds, but should only be an issue when moving *very* fast
     bool upsampleValid = bool(upperMemOffset);
     if(upsampleValid){
