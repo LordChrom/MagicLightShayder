@@ -15,10 +15,6 @@ ivec3 getAreaShift(float scale, vec3 origin){
 ivec3 getAreaShift(float scale){return getAreaShift(scale,getGlobalOrigin(scale));}
 ivec3 getPreviousAreaShift(float scale){return getAreaShift(scale,getPreviousGlobalOrigin(scale));}
 
-uint getAreaNum(vec3 worldPos){
-    return 0u;
-}
-
 
 
 
@@ -120,7 +116,7 @@ ivec3 toMemPos(ivec3 pos, ivec3 spaceShift, uint memOffset){
 
 //Data packing/unpacking
 struct areaMeta{//size 16
-    ivec3 areaOriginBADDONTUSE;
+    ivec3 areaShift;
 };
 
 struct lightVoxData{
@@ -334,6 +330,8 @@ uint getVariableCascadeLevel(int frame){
     return trailingZeroes;
 #endif
 }
+
+bool evenVisit(uint cascadeLevel);
 
 
 uint getVariableCascadeLevel(int frame, bool isAuxGroup){

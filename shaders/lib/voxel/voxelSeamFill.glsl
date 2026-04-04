@@ -46,7 +46,8 @@ const int workGroupZ = 6*PROC_MULT;
 
 
 layout(std430, binding = 0) restrict buffer areaData {
-    areaMeta[AREA_COUNT] areaMeta;
+    areaMeta[NUM_CASCADES] oddAreaMetas;
+    areaMeta[NUM_CASCADES] evenAreaMetas;
 } areaDataAccess;
 
 layout(std430, binding = 1) restrict buffer indirectDispatches {
@@ -55,7 +56,7 @@ layout(std430, binding = 1) restrict buffer indirectDispatches {
 
 float scale;
 uint thisMemOffset, upperMemOffset, axis, cascadeLevel;
-ivec3 thisShift, upperShift;
+ivec3 thisShift, upperShift, movement;
 
 
 void nullify(ivec3 zonePos){
@@ -93,11 +94,8 @@ void fillLightSeams(uvec3 workGroupID, uvec3 localID){
     axis = workGroupID.z/VOX_LAYERS;
 
     ivec3 zonePos = ivec3(ivec2(localID.x,workGroupID.y)-1, -1);
-    scale = getScale(cascadeLevel);
-    ivec3 areaShift = getAreaShift(scale);
-    thisShift = areaToZoneSpace(areaShift,axis);
-    //TODO SOON account for cascades that dont update every frame
-    ivec3 zoneMovement = areaToZoneSpaceRelative(areaShift - getPreviousAreaShift(scale),axis);
+    movement = areaToZoneSpaceRelative(movement,axis);
+    thisShift = areaToZoneSpace(thisShift,axis);
 
     thisMemOffset = zoneOffset(axis,layer,cascadeLevel);
     upperMemOffset = (cascadeLevel<NUM_CASCADES-1)?zoneOffset(axis,layer,cascadeLevel+1) : 0;
@@ -112,8 +110,8 @@ void fillLightSeams(uvec3 workGroupID, uvec3 localID){
     trimLight(ivec3(zonePos.x,         -1,zonePos.y));
 
 
-    ivec3 movementSigns = sign(zoneMovement);
-    ivec3 edgeToTrim = abs(zoneMovement);
+    ivec3 movementSigns = sign(movement);
+    ivec3 edgeToTrim = abs(movement);
 
     for(int i=0; i<edgeToTrim.z;i++){
         int L = movementSigns.z>0?63-i:i;
@@ -136,6 +134,7 @@ void fillLightSeams(uvec3 workGroupID, uvec3 localID){
 
 
 bool isBlockOffScreen(ivec3 areaPos){
+#if VOXELIZATION_MODE == 1
     vec3 pos = vec3(areaPos-(AREA_SIZE>>1))*scale+0.5;
     vec4 clipSpace = gbufferProjection*vec4((gbufferModelView*vec4(pos,1)).xyz,1);
     clipSpace.w*=1.15;
@@ -143,6 +142,11 @@ bool isBlockOffScreen(ivec3 areaPos){
     return (clipSpace.x<-clipSpace.w || clipSpace.x>clipSpace.w)||
         (clipSpace.y<-clipSpace.w || clipSpace.y>clipSpace.w)||
         (clipSpace.z<-clipSpace.w || clipSpace.z>clipSpace.w);
+#elif VOXELIZATION_MODE == 0
+    return false;
+#else
+    return false;
+#endif
 }
 
 void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
@@ -151,17 +155,11 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
     thisMemOffset = areaOffset(cascadeLevel);
     upperMemOffset = (cascadeLevel<NUM_CASCADES-1)?areaOffset(cascadeLevel+1):0;
 
-    thisShift = getAreaShift(scale);
-    upperShift = getAreaShift(scale*2);
-
 
     ivec2 posXY = ivec2(localID.x,workGroupID.y)-1;
 
-#ifdef VOXEL_MAP_DOESNT_CLEAR
-    //TODO SOON account for cascades that dont update every frame
-    ivec3 areaMovement = thisShift - getPreviousAreaShift(scale);
-    ivec3 movementSigns = sign(areaMovement);
-    ivec3 edgeToTrim = abs(areaMovement);
+    ivec3 movementSigns = sign(movement);
+    ivec3 edgeToTrim = abs(movement);
 
 
     for(ivec3 areaPos = ivec3(posXY,-1); areaPos.z<AREA_SIZE_MEM; areaPos.z++){
@@ -174,12 +172,13 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
             if(isBlockOffScreen(areaPos))
                 continue;
             whatToWrite=getRawVoxData(areaPos,thisShift,thisMemOffset);
+    #ifndef DEBUG_NOTHING_EXPIRES
             whatToWrite-=(1<<VOXEL_AGE_SHIFT);
             whatToWrite = bool(whatToWrite&VOXEL_AGE_MASK)?whatToWrite:0;
+    #endif
         }
         setVoxData(whatToWrite,areaPos,thisShift,thisMemOffset);
     }
-#endif
 
     if(0<=posXY.x && posXY.x<AREA_SIZE && 0<=posXY.y && posXY.y<AREA_SIZE){
         if(upperMemOffset==0) return;
@@ -204,6 +203,29 @@ void fillSeams(uvec3 workGroupID, uvec3 localID){
     if(cascadeLevel>=NUM_CASCADES) return;
 
     scale = getScale(cascadeLevel);
+
+    thisShift = getAreaShift(scale);
+    upperShift = getAreaShift(scale*2);
+
+#ifdef DOUBLE_PROC
+    bool isOddVisit = bool(frameCounter&(1<<cascadeLevel));
+#else
+    bool isOddVisit = bool(frameCounter&(2<<cascadeLevel));
+#endif
+
+    ivec3 previousAreaShift;
+
+    if(isOddVisit){
+        previousAreaShift = areaDataAccess.evenAreaMetas[cascadeLevel].areaShift;
+        if(localID.x==0)
+            areaDataAccess.oddAreaMetas[cascadeLevel].areaShift = thisShift;
+    }else{
+        previousAreaShift = areaDataAccess.oddAreaMetas[cascadeLevel].areaShift;
+        if(localID.x==0)
+            areaDataAccess.evenAreaMetas[cascadeLevel].areaShift = thisShift;
+    }
+
+    movement = thisShift-previousAreaShift;
 
     if(workGroupID.z==(AXIS_LAYER_WORLD_COUNT-1))
         fillVoxSeams(workGroupID, localID);

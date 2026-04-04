@@ -6,12 +6,6 @@
 
 
 
-
-layout(std430, binding = 0) readonly restrict buffer areaData {
-    areaMeta[AREA_COUNT] areaMeta;
-} areaDataAccess;
-
-
 //workGroups is indirect, determined in voxelSeamFill
 layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z = LOCAL_SIZE_Z) in;
 

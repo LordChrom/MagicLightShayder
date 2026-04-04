@@ -74,12 +74,11 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - maybe try switching from fixed number of samples per direction to fixed number per voxel + list of relevant samples per voxel
 - make bloom that's not awful
 - think of a name for approach to lighting
-- subsurface scattering
 - sky stuff & clouds
-- timekeeping method that advances proportionally to game ticks regardless of world time
 - PBR
 - reflections
 - water stuff
 - biome colored fog
 - make sun shadows better & respect angles
 - redo block.properties
+- hide flashes that occur when an area shift has changed but hasnt been gotten to by the seam filler

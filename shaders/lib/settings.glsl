@@ -18,6 +18,7 @@
 #define DEBUG_WHITE_LEVEL 0.5 //[0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1]
 
 #define DEBUG_SPECIAL_VIEW -1 //[-1 0 1 2 3 4 5 6 7 8 9 100 101 102 103 104 105]
+//#define DEBUG_NOTHING_EXPIRES
 
 #define FLICKER_INTENSITY 0.5
 #define BLOCK_LIGHT_STRENGTH 3
@@ -111,10 +112,6 @@
 #define PI 3.1419526535897932
 
 ///// The following to be copy pasted into shaders.properties
-#if VOXELIZATION_MODE==1
-    #define VOXEL_MAP_DOESNT_CLEAR
-#endif
-
 #define AREA_SIZE (AREA_WIDTH_SECTIONS*SECTION_SIZE)
 
 #if AREA_SIZE == 32
