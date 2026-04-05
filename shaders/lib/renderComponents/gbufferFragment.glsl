@@ -30,6 +30,11 @@ layout(location = 2) out vec4 vanillaLighting;
 #ifdef TEXTURED
 in vec2 texcoord;
 uniform sampler2D gtexture;
+    #if MATERIALS_TYPE ==1
+uniform sampler2D specular;
+uniform sampler2D normals;
+flat in mat3 normalRotator;
+    #endif
 #endif
 
 #ifdef LIT
@@ -162,10 +167,27 @@ void main()
 #endif
 
 #ifdef VERTEX_NORMALS
-    #ifdef TRANSLUCENT
-    if(sampledColor.a>translucentPrecedenceCutoff)
-    #endif
+    #if (defined TEXTURED) && (MATERIALS_TYPE == 1)
+    vec4 pbrNormalSample = texture(normals,texcoord);
+
+    pbrNormalSample.xy = (pbrNormalSample.xy-0.5)*(2*PBR_NORMALS_STRENGTH);
+    vec3 texNormal = vec3(pbrNormalSample.xy,sqrt(1.0 - dot(pbrNormalSample.xy, pbrNormalSample.xy)));
+
+    texNormal = normalRotator*texNormal;
+//    texNormal.z=max(0,texNormal.z);
+    texNormal=normalize(texNormal);
+//        texNormal=normalize(vec3(dot(texNormal,tangent.xyz),dot(texNormal,bitangent),dot(texNormal,normal)));
+
+
+    normalOut = vec4((texNormal+1)*0.5,NORMAL_A);
+    #else
     normalOut = vec4((normal+1)*0.5,NORMAL_A);
+    #endif
+
+    #ifdef TRANSLUCENT
+    if(sampledColor.a<=translucentPrecedenceCutoff)
+        normalOut.a=0;
+    #endif
 #endif
 
 
@@ -189,16 +211,15 @@ void main()
         #endif
 
     #elif MATERIALS_TYPE == 1 //PBR pack
-    materialInfo = uvec4(0);
+    materialInfo = uvec4(round(clamp(texture(specular,texcoord)*255.0,0,255)));
     #endif
 
     #ifdef TRANSLUCENT
 
-    if(sampledColor.a<0.99)
+    if(sampledColor.a<translucentPrecedenceCutoff)
         materialInfo.a=255;
     #endif
 #endif
-
 
 
     #ifdef BONUS_STUFF

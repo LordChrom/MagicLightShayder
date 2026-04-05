@@ -60,6 +60,7 @@
 #define TONEMAP_METHOD 0 //[-1 0 1 2]
 
 #define MATERIALS_TYPE 0 //[-1 0 1]
+#define PBR_NORMALS_STRENGTH 1.0
 
 #define NUM_CASCADES 6 //[1 2 3 4 6 8 12 16]
 #define MIN_SCALE 1 //[0.5 1 2]
@@ -203,7 +204,7 @@ const vec3 sectionCount = vec3(2);
 const float voxelDistance = 160.0;
 const float shadowDistance = 160.0;
 const int shadowMapResolution = 1;
-const float translucentPrecedenceCutoff = 0.9;
+const float translucentPrecedenceCutoff = 0.99;
 
 #if BLOOM>0
 #ifdef BLOOM_SMART

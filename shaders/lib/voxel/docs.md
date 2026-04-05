@@ -76,7 +76,7 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - make bloom that's not awful
 - think of a name for approach to lighting
 - sky stuff & clouds
-- PBR
+- make the emissive stuff not awful
 - reflections
 - water stuff
 - biome colored fog

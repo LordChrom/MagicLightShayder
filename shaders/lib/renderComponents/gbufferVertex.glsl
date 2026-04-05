@@ -21,6 +21,10 @@ out vec4 glcolor;
 
 #ifdef TEXTURED
 out vec2 texcoord;
+    #if MATERIALS_TYPE == 1
+    in vec4 at_tangent;
+    flat out mat3 normalRotator;
+    #endif
 #endif
 
 #ifdef VERTEX_NORMALS
@@ -74,10 +78,14 @@ void main() {
     normal = (gbufferModelViewInverse*vec4(gl_Normal,0)).xyz;
     #elif defined NORMALS_NOT_INCLUDED
     //TODO make these all subsurface
-//    normal = (gbufferModelViewInverse*vec4(0,0,-1,0)).xyz;
-    normal = (-gbufferModelViewInverse[2]).xyz;
+//    normal = (gbufferModelViewInverse*vec4(0,0,1,0)).xyz;
+    normal = (gbufferModelViewInverse[2]).xyz;
     #else
     normal = gl_Normal;
+    #endif
+
+    #if MATERIALS_TYPE == 1 && defined TEXTURED
+    normalRotator = mat3(at_tangent.xyz,normalize(cross(at_tangent.xyz,normal)*at_tangent.w),normal);
     #endif
 #endif
 
