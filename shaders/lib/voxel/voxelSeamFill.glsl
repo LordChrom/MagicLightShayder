@@ -75,7 +75,7 @@ void trimLight(ivec3 zonePos){
             outerLight.lightTravel+=zonePosRemnants;
         light=outerLight;
     }
-#ifdef ENABLE_THE_SUN
+#ifndef DEBUG_DISABLE_SUN
     if((!hasCeiling) && axis==2 && zonePos.z==-1){
         float height = getGlobalOrigin(scale).y+0.5*scale*AREA_SIZE;
         if(height>=(heightLimit+bedrockLevel) || (cascadeLevel==(NUM_CASCADES-1)))

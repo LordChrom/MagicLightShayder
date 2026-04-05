@@ -68,7 +68,7 @@ uniform float viewWidth, viewHeight;
 #include "/lib/renderComponents/endGateway.glsl"
 #endif
 
-#if defined TRANSLUCENT && defined TRANSLUCENT_SEPARATE_BUFFER
+#ifdef TRANSLUCENT
     #ifdef WRITE_MATERIALS
     /* RENDERTARGETS: 1,2,5,4 */
     #else
@@ -103,11 +103,9 @@ layout(location = 2) out vec4 vanillaLighting;
 layout(location = 3) out uvec4 materialInfo;
 #endif
 
-#ifdef TRANSLUCENT_SEPARATE_BUFFER
 /*
 const vec4 colortex1ClearColor = vec4(0.0,0.0,0.0,0.0);
 */
-#endif
 
 #ifdef VOXY_PATCH
 void handleFragment(vec4 glcolor,vec3 normal, vec2 lmcoord, vec4 voxySampledColor)
@@ -185,7 +183,7 @@ void main()
         #ifdef SELECTIVE_HARDCODED_EMISSIVE
     if(materialInfo.a!=255){
         vec3 lightColor = getMaterialColor(materialID);
-        float brightness=max(1-0.5*length(normalize(color.rgb)- normalize(lightColor)),0);
+        float brightness=clamp(dot(color.rgb,normalize(lightColor)),0,1);
         materialInfo.a=uint(brightness*materialInfo.a);
     }
         #endif

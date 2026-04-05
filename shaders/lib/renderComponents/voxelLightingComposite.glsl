@@ -13,9 +13,7 @@ uniform vec3 cameraPosition;
 
 #if MATERIALS_TYPE >= 0
 uniform usampler2D colortex3;
-#ifdef TRANSLUCENT_SEPARATE_BUFFER
 uniform usampler2D colortex4;
-#endif
 #endif
 
 #if DEBUG_SPECIAL_VIEW == 0
@@ -60,14 +58,9 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     uvec4 matInfo = uvec4(0);
 
     if(!isHand){
-        #ifdef TRANSLUCENT_SEPARATE_BUFFER
-
         matInfo = texelFetch(colortex4 ,sourceTexpos ,0);
         if((matInfo.a==255) || matInfo==uvec4(0))
-    #endif
-        {
             matInfo = texelFetch(colortex3, sourceTexpos, 0);
-        }
     }
 
     float minNoL = clamp(float(matInfo.b-64)/190.0, 0.0,1.0);

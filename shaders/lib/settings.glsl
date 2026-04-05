@@ -19,6 +19,7 @@
 
 #define DEBUG_SPECIAL_VIEW -1 //[-1 0 1 2 3 4 5 6 7 8 9 100 101 102 103 104 105]
 //#define DEBUG_NOTHING_EXPIRES
+//#define DEBUG_DISABLE_SUN
 
 #define FLICKER_INTENSITY 0.5
 #define BLOCK_LIGHT_STRENGTH 3
@@ -73,13 +74,11 @@
 #define LOCAL_SIZE_Z 1
 
 #define VANILLA_FALLBACK
-#define TRANSLUCENT_SEPARATE_BUFFER
 #define SELECTIVE_HARDCODED_EMISSIVE
 
 #define GATEWAYS_IN_GBUFFER
 #define PIXEL_LOCK -1 //[-1 16 32 64 128 256]
 
-#define ENABLE_THE_SUN
 #define VOXELIZATION_MODE 1 //[-1 0 1]
 
 /////
@@ -209,9 +208,7 @@ const float translucentPrecedenceCutoff = 0.9;
 #if BLOOM>0
 #ifdef BLOOM_SMART
 #ifdef KEEP_FULLY_OCCLUDED_SAMPLES
-#ifdef TRANSLUCENT_SEPARATE_BUFFER
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
-#endif
 #endif
 #endif
 #endif

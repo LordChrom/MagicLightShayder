@@ -11,6 +11,7 @@ uniform sampler2D colortex15;
 #endif
 
 uniform sampler2D colortex0;
+uniform sampler2D colortex1;
 uniform sampler2D colortex6;
 uniform sampler2D colortex7;
 
@@ -18,9 +19,6 @@ uniform sampler2D colortex7;
 uniform sampler2D colortex5;
 #endif
 
-#ifdef TRANSLUCENT_SEPARATE_BUFFER
-uniform sampler2D colortex1;
-#endif
 
 uniform float viewWidth;
 uniform float viewHeight;
@@ -40,17 +38,15 @@ layout(location = 0) out vec3 outputColor;
 void main() {
 	ivec2 texpos = ivec2(texcoord*vec2(viewWidth,viewHeight));
 	vec4 albedo = texelFetch(colortex0,texpos,0);
-	#ifdef TRANSLUCENT_SEPARATE_BUFFER
 	vec4 transColor = texelFetch(colortex1,texpos,0);
-//	albedo.xyz = albedo.xyz*(1-transColor.a)*transColor.xyz;
-	#endif
+	albedo.xyz = blend(vec4(albedo.xyz,1),transColor);
+
 #ifdef VANILLA_FALLBACK
 	vec3 light = texelFetch(colortex5,texpos,0).xyz;
 #else
 	vec3 light = vec3(1/15.0);
 #endif
 
-albedo.xyz = blend(vec4(albedo.xyz,1),transColor);
 
 
 #ifdef DEBUG_WHITEN
