@@ -56,11 +56,12 @@ out uvec4 frontVoxel, out uvec4 rearVoxel, out uvec4[VOX_LAYERS] packedLightSamp
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         packedLightSamples[layer] = uvec4(0);
-        if((rearVoxel.w&WORLDVOX_NOT_AIR)==0){
+        if(!bool(rearVoxel.w&WORLDVOX_OPAQUE)){
             packedLightSamples[layer] = sampleLightData(zonePos+ivec3(Aoffset, Boffset, -1), zoneShift, zoneMemOffsets[layer]);
 #if MAX_LIGHT_TRAVEL > 0
-            if(unpackLightData(packedLightSamples[layer]).lightTravel.z>MAX_LIGHT_TRAVEL)
-            packedLightSamples[layer] = uvec4(0);
+            lightVoxData peek = unpackLightData(packedLightSamples[layer]);
+            if((peek.lightTravel.z>MAX_LIGHT_TRAVEL) || ((bool(rearVoxel.w&WORLDVOX_TRANSLUCENT)) && !bool(peek.flags&1u)))
+                packedLightSamples[layer] = uvec4(0);
 #endif
         }
     }
@@ -93,7 +94,7 @@ void takeSamples(){
     // ↙←     i need samples adjacent to the main region, because an N wide square needs input of width N+2
     // ↙      this shows the direction of the offset for each square inside the corner region, shown for width 8
     // ↙  ↓
-    // ↙↙↙↙   (And yes I went out of my way to copypaste these arrows)
+    // ↙↙↙↙   (And yes I went out of my way to copypaste these arrows) Min section size is 6x6 because of this
     if(A==1 || A==SECTION_SIZE || B==1 || B==SECTION_SIZE){
         A2offset = A<=halfwayL?-1:1;
         B2offset = B<=halfwayL?-1:1;
@@ -178,7 +179,6 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
                     continue;
 
                 float lenSquared = dot(lightSrc.lightTravel, lightSrc.lightTravel);
-//                lenSquared = lenSquared*(1-lightSrc.columnation)+lightSrc.columnation;
                 float strength = length(lightSrc.color)/max(0.1, lenSquared);
 
 #ifdef SHORTLISTED_COMPARISON
@@ -286,7 +286,7 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
         }
     }
 
-    bool sampleFreshlyTranslucent = bool(bestSource.flags&WORLDVOX_OPAQUE);
+    bool sampleFreshlyTranslucent = bool(bestSource.flags&1u);
     uint obstructingTerrainMask = (sampleFreshlyTranslucent || translucentTerrain)?WORLDVOX_OPAQUE:WORLDVOX_NOT_AIR;
     bool cornerBlocked = !(alignment.x||alignment.y);
 

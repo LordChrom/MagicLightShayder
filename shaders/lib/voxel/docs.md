@@ -84,3 +84,6 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - make sun shadows better & respect angles
 - redo block.properties
 - hide flashes that occur when an area shift has changed but hasnt been gotten to by the seam filler
+- change how hardcoded subsurface works for mushrooms
+- TAAU
+- that pseudo WSRT idea

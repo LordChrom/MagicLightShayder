@@ -167,7 +167,7 @@ uvec4 packLightData(lightVoxData data){
     ret.x = (intTravel.x<<16) | (intTravel.y&0xffffu);
     ret.y = (intTravel.w<<16) | (intTravel.z&0xffffu);
     ret.z = packUnorm4x8(vec4(data.color,0));
-    ret.w = (packUnorm4x8(vec4(0,0,data.occlusionRay))&0xffff0000u) | (intOcclMap&0xf000u) | ((data.type&0xfu)<<8) | data.flags&0xffu;
+    ret.w = (packUnorm4x8(vec4(0,0,data.occlusionRay))&0xffff0000u) | (intOcclMap&0xf000u) | ((data.type&0xfu)<<8) | (data.flags&0xffu);
     return ret;
 }
 
