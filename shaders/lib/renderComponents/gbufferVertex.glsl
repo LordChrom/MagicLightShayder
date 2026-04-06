@@ -118,7 +118,7 @@ void main() {
     float porosity = 0;
 
     if(materialID>=0){
-        subsurface = ((materialID%10000)==15)?0.33:0;
+        subsurface = ((materialID%10000)==15)?1.0:0;
         emissive = bool(meta&4)?254:0;
     }
 

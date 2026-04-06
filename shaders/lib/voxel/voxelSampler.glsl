@@ -8,7 +8,7 @@
 struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;uint flags;};
 #endif
 
-vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset, vec3 normal, uint axis, float scale, float minNoL, bool isForFog){
+vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset, vec3 normal, uint axis, float scale, float subsurface, bool isForFog){
     lightVoxData lightSrc = unpackLightData(packedLightSrc);
     vec3 lightTravelWorld = lightSrc.lightTravel;
 
@@ -74,10 +74,12 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
     if( displacement.z>0)
         lightStrength==0;
 
-    float lightDotN = -dot(normalize(displacement),normal);
+    float lightDotN = isForFog?1.0:-dot(normalize(displacement),normal);
 
-    lightDotN=max(lightDotN,minNoL);
-
+//    if(lightDotN<=0)
+//        lightDotN=subsurface*1+0*max(1.0,0.5*(1+sqrt(-lightDotN)));
+    subsurface*=0.4;
+    lightDotN=clamp(max(lightDotN*(1-subsurface),0)+subsurface,0,1);
 
 
 #if EVERYTHING_FACING_SRC==1
@@ -147,7 +149,7 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
     lightStrength=isLit(displacement,lightSrc) ? lightStrength:0;
 #endif
 
-    vec3 outColor = lightSrc.color*(lightStrength*lightDotN);
+    vec3 outColor = lightSrc.color*(lightStrength*(max(lightDotN,0)));
 
 #ifdef DEBUG_OCCLUSION_MAP
     //Debug Coloring
@@ -233,15 +235,15 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
 }
 
 
-vec3 getDirectedLight(uint cascadeLevel, uint layer, uint axis, float scale, float minNoL, ivec3 areaShift, ivec3 areaPos, ivec3 blockPos, vec3 normal, vec3 subVoxelOffset, bool isForFog){
+vec3 getDirectedLight(uint cascadeLevel, uint layer, uint axis, float scale, float subsurface, ivec3 areaShift, ivec3 areaPos, ivec3 blockPos, vec3 normal, vec3 subVoxelOffset, bool isForFog){
     ivec3 zoneShift = areaToZoneSpace(areaShift, axis);
     ivec3 zonePos = areaToZoneSpace(areaPos, axis);
     uint zoneMemOffset = zoneOffset(axis, layer,cascadeLevel);
     uvec4 packedSrc = sampleLightData(zonePos, zoneShift, zoneMemOffset);
-    return getDirectedLight(packedSrc, blockPos, subVoxelOffset, normal, axis, scale,minNoL, isForFog);
+    return getDirectedLight(packedSrc, blockPos, subVoxelOffset, normal, axis, scale,subsurface, isForFog);
 }
 
-vec3 voxelSample(vec3 worldPos, vec3 normal, float minNoL){
+vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface){
 #if PIXEL_LOCK >0
     worldPos = pixelLock(worldPos+0.01*normal,1.0/PIXEL_LOCK);
 #endif
@@ -264,7 +266,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float minNoL){
 #endif
     for(uint layer = 0; layer<VOX_LAYERS; layer++)
     {
-        color+=getDirectedLight(cascadeLevel,layer,axis,scale,minNoL,areaShift,areaPos,blockPos,normal,subVoxelOffset,false);
+        color+=getDirectedLight(cascadeLevel,layer,axis,scale,subsurface,areaShift,areaPos,blockPos,normal,subVoxelOffset,false);
     }
 
     return color + MIN_LIGHT_AMOUNT*clamp(1-(color.x+color.y+color.z),0,1);

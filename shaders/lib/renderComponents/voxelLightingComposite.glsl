@@ -53,6 +53,8 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
         ndcPos.z=depth/MC_HAND_DEPTH;
     }
 
+    float subsurface = 0;
+    float emissive = 0;
 #if MATERIALS_TYPE >= 0
     //TODO transparent materials info
     uvec4 matInfo = uvec4(0);
@@ -63,11 +65,9 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
             matInfo = texelFetch(colortex3, sourceTexpos, 0);
     }
 
-    float minNoL = clamp(float(matInfo.b-64)/190.0, 0.0,1.0);
-    float emissive = (matInfo.a==255)?0.0:(matInfo.a/254.0); //TODO maybe selective based on lightness of pixels
-#else
-    float minNoL = 0;
-    float emissive = 0;
+    subsurface = clamp(float(matInfo.b-64)/190.0, 0.0,1.0);
+    if(matInfo.a!=255)
+        emissive = (matInfo.a/254.0); //TODO maybe selective based on lightness of pixels
 #endif
 
     vec4 viewPos = gbufferProjectionInverse*vec4(ndcPos,1);
@@ -80,7 +80,7 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 
     bool voxelLit = isVoxelInBounds(worldPos+normal*0.1) && !isSky;
     if(voxelLit)
-        voxelLighting = voxelSample(worldPos,normal,minNoL)+emissive;
+        voxelLighting = voxelSample(worldPos,normal,subsurface)+emissive;
     else
         voxelLighting = vec3(0);
 

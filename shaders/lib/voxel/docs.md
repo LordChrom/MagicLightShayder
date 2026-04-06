@@ -77,6 +77,7 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - think of a name for approach to lighting
 - sky stuff & clouds
 - make the emissive stuff not awful
+- make SSS not awful
 - reflections
 - water stuff
 - biome colored fog
