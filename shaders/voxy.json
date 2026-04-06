@@ -6,15 +6,15 @@
     "version": 1,
     "excludeLodsFromVanillaDepth": false,
     "opaqueDrawBuffers": [
-        0,2
-#ifdef VANILLA_FALLBACK
-        ,5
+        0,2,5
+#if MATERIALS_TYPE>=0
+        ,3
 #endif
     ],
     "translucentDrawBuffers": [
-        1,2
-#ifdef VANILLA_FALLBACK
-        ,5
+        1,2,5
+#if MATERIALS_TYPE>=0
+        ,4
 #endif
     ],
     "blending": {

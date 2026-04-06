@@ -137,7 +137,10 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
 
 float highSlope = round(1024*max(abs(displacement.x),abs(displacement.y))/max(1e-9,displacement.z))/1024;
 #ifdef PENUMBRAS_ENABLED
-    lightStrength*=clamp(0.5+(1-highSlope)*(1.0/PENUMBRA_WIDTH),0,1);
+    float sharpener =
+    (max(abs(lightSrc.lightTravel.x),abs(lightSrc.lightTravel.y))!=lightSrc.lightTravel.z)? 1e9:1.0;
+
+    lightStrength*=clamp(0.5+(1-highSlope)*(sharpener/PENUMBRA_WIDTH),0,1);
     lightStrength*=penumbralLightTest(displacement,lightSrc);
 #else
     lightStrength*=0.5*(int(highSlope<=1)+int(highSlope<1));
@@ -225,6 +228,12 @@ float highSlope = round(1024*max(abs(displacement.x),abs(displacement.y))/max(1e
     if((int(edgeNearness.x>=1)+int(edgeNearness.y>=1)+int(edgeNearness.z>=1))>=2){
         outColor.rgb=max(outColor.rgb*1.5,vec3(0.03));
     }
+#endif
+
+#ifdef DEBUG_HIT_DIST
+    outColor += 0.1*lightSrc.occlusionHitDistance;
+    float wavey = lightSrc.occlusionHitDistance*0.5+1;
+    outColor*=normalize(0.6+0.4*vec3(sin(wavey),sin(wavey+PI*2.0/3),sin(wavey+PI*4.0/3)));
 #endif
     return outColor;
 }

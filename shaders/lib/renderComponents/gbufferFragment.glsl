@@ -3,16 +3,20 @@
 #endif
 
 #include "/lib/settings.glsl"
+#include "/lib/util/materialId.glsl"
 
 #ifdef VOXY_PATCH
+    #if MATERIALS_TYPE>=1
+        #define NEEDS_MATERIAL_ID
+        #define HARDCODED_MATERIAL
+        #define MATERIALS_TYPE 0
+    #endif
 
-#ifdef VANILLA_FALLBACK
-layout(location = 2) out vec4 vanillaLighting;
-#endif
-
+    #if MATERIALS_TYPE < 0
+        #undef WRITE_MATERIALS
+    #endif
 #else
 
-#include "/lib/util/materialId.glsl"
 
 #if MATERIALS_TYPE < 0
     #undef WRITE_MATERIALS
@@ -113,7 +117,7 @@ const vec4 colortex1ClearColor = vec4(0.0,0.0,0.0,0.0);
 */
 
 #ifdef VOXY_PATCH
-void handleFragment(vec4 glcolor,vec3 normal, vec2 lmcoord, vec4 voxySampledColor)
+void handleFragment(vec4 glcolor,vec3 normal, vec2 lmcoord, vec4 voxySampledColor, int materialID)
 
 #if 0
 ;//for my IDE :/
@@ -200,7 +204,11 @@ void main()
 
 #ifdef WRITE_MATERIALS
     #if MATERIALS_TYPE == 0 //hardcoded
+        #ifdef VOXY_PATCH
+    materialInfo = getHardcodedMaterial(materialID);
+        #else
     materialInfo = hardcodedMaterialInfo;
+        #endif
 
         #ifdef SELECTIVE_HARDCODED_EMISSIVE
     if(materialInfo.a!=255){

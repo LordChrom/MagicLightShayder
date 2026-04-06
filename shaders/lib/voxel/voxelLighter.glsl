@@ -374,7 +374,6 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
 
     vec2 outRay=abs(lightTravel/lightSrc.lightTravel.z);
     bvec4 outMap = lightSrc.occlusionMap;
-    float occlHitDist = lightSrc.occlusionHitDistance;
 
 
 
@@ -423,8 +422,6 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
             if(j==0 && darkEdges.w && !darkEdges.y)   //bottom
                 shadedBounds.w = max(shadedBounds.w,ray.y);
 
-            occlHitDist=max(occlHitDist,samples[i][j].occlusionHitDistance);
-
             vec4 sX=ternary(map,vec4(2,-1,2,-1),vec4(ray.x)); //represents the ways this sample shadows the output's
             vec4 sY=ternary(map,vec4(2,2,-1,-1),vec4(ray.y)); //corners
 
@@ -453,8 +450,15 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
             }
 
 
-            anyRelevantSamples = anyRelevantSamples ||
-                (!shadowedCorners.x)||(!shadowedCorners.y)||(!shadowedCorners.z)||(!shadowedCorners.w);
+            bool thisSampleRelevant = (!shadowedCorners.x)||(!shadowedCorners.y)||(!shadowedCorners.z)||(!shadowedCorners.w);
+            anyRelevantSamples = anyRelevantSamples || thisSampleRelevant;
+
+            if(thisSampleRelevant &&
+                (((!(map.y&&map.w))&&ray.x>innerSlope.x)&&((!(map.z&&map.w))&&ray.y>innerSlope.y)))
+            {
+                lightSrc.occlusionHitDistance=max(lightSrc.occlusionHitDistance, samples[i][j].occlusionHitDistance);
+            }
+
         }
     }
 
@@ -493,7 +497,7 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
         }
     }
 
-    if(newObstruction){
+    if(newObstruction && (lightSrc.occlusionHitDistance==0)){  //TODO still needs work
         lightSrc.occlusionHitDistance=lightSrc.lightTravel.z-0.6*scale;
     }
 

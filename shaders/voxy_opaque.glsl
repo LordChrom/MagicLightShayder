@@ -4,6 +4,7 @@
 #define LIT
 #define VERTEX_NORMALS
 #define ALPHATEST
+#define WRITE_MATERIALS
 
 #if VOXY >=2
 vec4 voxyLighting(vec2 lightcoord){
@@ -43,6 +44,6 @@ void voxy_emitFragment(VoxyFragmentParameters parameters) {
     if((parameters.face&1)==0) normal=-normal;
 
 //    parameters.lightMap
-    handleFragment(parameters.tinting,normal, clamp(parameters.lightMap,vec2(0),vec2(0.5)), parameters.sampledColour);
+    handleFragment(parameters.tinting,normal, clamp(parameters.lightMap,vec2(0),vec2(0.5)), parameters.sampledColour, int(parameters.customId));
 
 }
