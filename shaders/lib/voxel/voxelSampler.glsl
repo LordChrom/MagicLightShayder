@@ -134,18 +134,13 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
     #endif
 #endif
 
-#ifdef PENUMBRAS_ENABLED
-    //TODO make it so light occluded at 45deg also has penumbra fuzzing past the 45deg boundary
 
-    if((abs(displacement.x)>displacement.z) || (abs(displacement.y)>displacement.z))
-        lightStrength=0;
-    if((abs(displacement.x)==displacement.z) || (abs(displacement.y)==displacement.z))
-        lightStrength*=0.5;
+float highSlope = round(1024*max(abs(displacement.x),abs(displacement.y))/max(1e-9,displacement.z))/1024;
+#ifdef PENUMBRAS_ENABLED
+    lightStrength*=clamp(0.5+(1-highSlope)*(1.0/PENUMBRA_WIDTH),0,1);
     lightStrength*=penumbralLightTest(displacement,lightSrc);
 #else
-    if((abs(displacement.x)>displacement.z) || (abs(displacement.y)>displacement.z))
-        lightStrength=0;
-
+    lightStrength*=0.5*(int(highSlope<=1)+int(highSlope<1));
     lightStrength=isLit(displacement,lightSrc) ? lightStrength:0;
 #endif
 
