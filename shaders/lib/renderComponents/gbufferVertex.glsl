@@ -42,7 +42,7 @@ uniform mat4 gbufferModelViewInverse;
 #endif
 
 
-#if ( VOXELIZATION_MODE ==1 ) && (defined IS_TERRAIN )
+#if ( VOXELIZATION_MODE >=1 ) && (defined IS_TERRAIN )
     #include "/lib/voxel/voxelMapper.glsl"
     uniform vec3 cameraPosition;
     in vec4 at_midBlock;

@@ -181,7 +181,7 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
                 float lenSquared = dot(lightSrc.lightTravel, lightSrc.lightTravel);
                 float strength = length(lightSrc.color)/max(0.1, lenSquared);
                 if(lightSrc.type==LIGHT_TYPE_SUN)
-                    strength=1e100;
+                    strength*=1e3;
 
 #ifdef SHORTLISTED_COMPARISON
                 bool newItem = true;

@@ -208,6 +208,11 @@ float highSlope = round(1024*max(abs(displacement.x),abs(displacement.y))/max(1e
         float outlineWidth = DEBUG_OUTLINE_WIDTH/displacement.z;
         if(slopeDif.x<outlineWidth || slopeDif.y<outlineWidth){
             outColor.rgb=vec3(0.6);
+            if(lightSrc.occlusionHitDistance!=0){
+                float wavey = lightSrc.occlusionHitDistance*0.5+1;
+                outColor*=normalize(0.6+0.4*vec3(sin(wavey), sin(wavey+PI*2.0/3), sin(wavey+PI*4.0/3)));
+            }
+
             outlineWidth*=0.5;
             if(slopeDif.x<outlineWidth || slopeDif.y<outlineWidth){
                 outColor.rgb=vec3(0);
@@ -239,11 +244,6 @@ float highSlope = round(1024*max(abs(displacement.x),abs(displacement.y))/max(1e
     }
 #endif
 
-#ifdef DEBUG_HIT_DIST
-    outColor += 0.1*lightSrc.occlusionHitDistance;
-    float wavey = lightSrc.occlusionHitDistance*0.5+1;
-    outColor*=normalize(0.6+0.4*vec3(sin(wavey),sin(wavey+PI*2.0/3),sin(wavey+PI*4.0/3)));
-#endif
     return outColor;
 }
 

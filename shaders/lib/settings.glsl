@@ -83,7 +83,8 @@
 #define GATEWAYS_IN_GBUFFER
 #define PIXEL_LOCK -1 //[-1 16 32 64 128 256]
 
-#define VOXELIZATION_MODE 1 //[-1 0 1]
+//-1 is none, 0 is shadow, 1 is culled vertex, 2 is unculled vertex
+#define VOXELIZATION_MODE 2 //[-1 0 1 2]
 
 /////
 #ifdef DOUBLE_PROC

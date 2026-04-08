@@ -7,8 +7,11 @@
 uniform int heightLimit;
 uniform int bedrockLevel;
 uniform bool hasCeiling;
-uniform mat4 gbufferModelView, gbufferProjection;
 uniform vec3 cameraPosition;
+#if VOXELIZATION_MODE==1
+uniform mat4 gbufferModelView, gbufferProjection;
+#endif
+
 
 #if false //dummy definition because intellij's best glsl plugin doesnt know includes exist
 struct lightVoxData{vec2 occlusionRay;uint occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;uint flags;};
@@ -129,7 +132,7 @@ void fillLightSeams(uvec3 workGroupID, uvec3 localID){
 
 
 
-bool isBlockOffScreen(ivec3 areaPos){
+bool isPosExpiryExempt(ivec3 areaPos){
 #if VOXELIZATION_MODE == 1
     vec3 pos = vec3(areaPos-(AREA_SIZE>>1))*scale+0.5;
     vec4 clipSpace = gbufferProjection*vec4((gbufferModelView*vec4(pos,1)).xyz,1);
@@ -138,8 +141,6 @@ bool isBlockOffScreen(ivec3 areaPos){
     return (clipSpace.x<-clipSpace.w || clipSpace.x>clipSpace.w)||
         (clipSpace.y<-clipSpace.w || clipSpace.y>clipSpace.w)||
         (clipSpace.z<-clipSpace.w || clipSpace.z>clipSpace.w);
-#elif VOXELIZATION_MODE == 0
-    return false;
 #else
     return false;
 #endif
@@ -165,7 +166,7 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
             (movementSigns.y>0?(areaPos.y>63-edgeToTrim.y):(areaPos.y<edgeToTrim.y)) ||
             (movementSigns.z>0?(areaPos.z>63-edgeToTrim.z):(areaPos.z<edgeToTrim.z))
         )){
-            if(isBlockOffScreen(areaPos))
+            if(isPosExpiryExempt(areaPos))
                 continue;
             whatToWrite=getRawVoxData(areaPos,thisShift,thisMemOffset);
     #ifndef DEBUG_NOTHING_EXPIRES
