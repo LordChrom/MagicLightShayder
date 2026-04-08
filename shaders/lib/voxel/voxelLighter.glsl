@@ -408,7 +408,7 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
             //this is mostly for when edges intersect at a corner to prevent the edges from continuing past that corner
 
             lightEdges = lightEdges & ~((lightEdges<<2)|(lightEdges>>2));
-            darkEdges = darkEdges & ~((lightEdges<<2)|(lightEdges>>2));
+            uint darkEdges2 = darkEdges & ~((darkEdges<<2)|(darkEdges>>2));
             if(i==1 && bool(lightEdges&8u))   //left
                 litBounds.x = min(litBounds.x,ray.x);
             if(j==1 && bool(lightEdges&4u))   //top
@@ -418,13 +418,13 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
             if(j==0 && bool(lightEdges&1u))   //bottom
                 litBounds.w = max(litBounds.w,ray.y);
 
-            if(i==1 && bool(darkEdges&8u))   //left
+            if(i==1 && bool(darkEdges2&8u))   //left
                 shadedBounds.x = min(shadedBounds.x,ray.x);
-            if(j==1 && bool(darkEdges&4u))   //top
+            if(j==1 && bool(darkEdges2&4u))   //top
                 shadedBounds.y = min(shadedBounds.y,ray.y);
-            if(i==0 && bool(darkEdges&2u))   //right
+            if(i==0 && bool(darkEdges2&2u))   //right
                 shadedBounds.z = max(shadedBounds.z,ray.x);
-            if(j==0 && bool(darkEdges&1u))   //bottom
+            if(j==0 && bool(darkEdges2&1u))   //bottom
                 shadedBounds.w = max(shadedBounds.w,ray.y);
 
             vec4 sX=ternary(map,vec4(2,-1,2,-1),vec4(ray.x)); //represents the ways this sample shadows the output's
@@ -459,9 +459,9 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
             anyRelevantSamples = anyRelevantSamples || thisSampleRelevant;
 
     #ifdef PENUMBRAS_ENABLED
-            if(thisSampleRelevant &&
-                (((!(bool(map&4u)&&bool(map&1u)))&&ray.x>innerSlope.x)&&((!(bool(map&2u)&&bool(map&1u)))&&ray.y>innerSlope.y)))
-            {
+            if(thisSampleRelevant
+//                &&bool(darkEdges&bvec4ToUint(bvec4(ray.x<outerSlope.x,ray.y<outerSlope.y,ray.x>innerSlope.x,ray.y>innerSlope.y)))
+            ){
                 lightSrc.occlusionHitDistance=max(lightSrc.occlusionHitDistance, samples[i][j].occlusionHitDistance);
             }
     #endif

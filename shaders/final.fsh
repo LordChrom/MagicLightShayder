@@ -49,21 +49,17 @@ void main() {
 
 
 
-#ifdef DEBUG_WHITEN
-	albedo.xyz=vec3(DEBUG_WHITE_LEVEL);
-#endif
-
 	vec2 screenDim = vec2(viewWidth,viewHeight);
 #if BLOOM_LEVEL > 0
 	vec3 voxelLighting = doBloom(colortex6,texcoord,screenDim,1).rgb;
 #else
-	vec3 voxelLighting = texture(colortex6,texcoord).rgb;
+	vec3 voxelLighting = texelFetch(colortex6,texpos,0).rgb;
 #endif
 
 #if FOG_BLUR>=1
 	vec4 voxelFog = doFogBlur(colortex7,texcoord,screenDim,1);
 #else
-	vec4 voxelFog = texture(colortex7,texcoord);
+	vec4 voxelFog = texelFetch(colortex7,texpos,0);
 #endif
 
 	if( voxelLighting.r>=0 && light!=vec3(1)){

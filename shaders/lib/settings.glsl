@@ -15,8 +15,6 @@
 #define DEBUG_SHOW_UPDATES -1 //[-1 0 1]
 #define UNOCCLUDED_INTO_BLOCKS
 #define LIGHT_SOURCES_BLOCK_CENTERIC
-//#define DEBUG_WHITEN
-#define DEBUG_WHITE_LEVEL 0.5 //[0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1]
 
 #define DEBUG_SPECIAL_VIEW -1 //[-1 0 1 2 3 4 5 6 7 8 9 100 101 102 103 104 105]
 //#define DEBUG_NOTHING_EXPIRES
@@ -41,7 +39,7 @@
 //#define WAVES_INORDER
 #define PARALLEL_UNPACK
 
-#define VOLUMETRIC_FOG_SAMPLES 2 //[0 1 2 4 8 16 32]
+#define VOLUMETRIC_FOG_SAMPLES 2 //[0 1 2 3 4 6 8 12 16 24 32]
 #define FOG_THICKNESS 1.0 //[0.125 0.25 0.5 0.75 1.0 1.25 1.5 1.75 2.0 2.5 3.0 3.5 4.0]
 #define MAX_FOG_DEPTH 128 //[1 2 4 8 16 32 48 64 96 128 256 512]
 #define FOG_DITHER_METHOD 32 //[1 2 4 8 16 32]
@@ -84,7 +82,7 @@
 #define PIXEL_LOCK -1 //[-1 16 32 64 128 256]
 
 //-1 is none, 0 is shadow, 1 is culled vertex, 2 is unculled vertex
-#define VOXELIZATION_MODE 2 //[-1 0 1 2]
+#define VOXELIZATION_MODE 0 //[-1 0 1 2]
 
 /////
 #ifdef DOUBLE_PROC
