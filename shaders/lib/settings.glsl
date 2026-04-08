@@ -67,7 +67,7 @@
 
 #define UPDATE_STRIDE 16 //[2 4 8 16 32]
 #define SECTION_SIZE 16 //[]
-#define AREA_WIDTH_SECTIONS 4 //[]
+#define AREA_WIDTH_SECTIONS 4 //[1 2 4 6 8]
 #define DOUBLE_PROC
 
 #define MAX_LIGHT_TRAVEL 64 //[-1 0 1 2 4 8 16 24 32 64 128 256 512 1024]
@@ -116,10 +116,18 @@
 ///// The following to be copy pasted into shaders.properties
 #define AREA_SIZE (AREA_WIDTH_SECTIONS*SECTION_SIZE)
 
-#if AREA_SIZE == 32
+#if AREA_SIZE == 16
+    #define AREA_SIZE_MEM 18
+#elif AREA_SIZE == 32
     #define AREA_SIZE_MEM 34
+#elif AREA_SIZE == 48
+    #define AREA_SIZE_MEM 50
 #elif AREA_SIZE == 64
     #define AREA_SIZE_MEM 66
+#elif AREA_SIZE == 96
+    #define AREA_SIZE_MEM 98
+#elif AREA_SIZE == 128
+    #define AREA_SIZE_MEM 130
 #else
 #endif
 
@@ -178,27 +186,11 @@ const int SECTIONS_PER_AREA_Z = 1;
 #else
 const int SECTIONS_PER_AREA_Z = AREA_SIZE/UPDATE_STRIDE;
 #endif
-const int AREA_POS_MASK = AREA_SIZE-1;
 
 
 //const int SECTIONS_PER_AREA = AREA_WIDTH_SECTIONS*AREA_WIDTH_SECTIONS*AREA_WIDTH_SECTIONS;
-const int AREA_WIDTH_SECTIONS_SHIFT = int(log2(AREA_WIDTH_SECTIONS));
-const int AREA_SHIFT = 3*AREA_WIDTH_SECTIONS_SHIFT;
 const int ZONE_OFFSET = AREA_SIZE_MEM;
 const int AREA_OFFSET = AREA_SIZE_MEM;
-const int AREA_COUNT = 1;
-const int AREA_HALF_SIZE = int(AREA_SIZE*0.5);
-
-
-//#define AREA_SIZE_MEM 66
-//#define VOX_SIZE_BIG 840
-
-const vec3 testVoxOriginOffset = vec3(-16,48,-16);
-const vec3 voxWorldSize = vec3(AREA_SIZE);
-const vec3 sectionCount = vec3(2);
-
-//a section is 16x16x16 voxels
-//a zone is a group of up to 4x4x4 sections, specifically limited to 1 axis/layer where it comes to faces
 
 
 

@@ -120,12 +120,18 @@ vec3 subVoxelOffset(vec3 pos, float scale){
 
 //works with either area pos or zone pos
 ivec3 toMemPos(ivec3 pos, ivec3 spaceShift, uint memOffset){
-    pos.x=(bool(pos.x&AREA_SIZE)?pos.x:((pos.x+spaceShift.x)&AREA_POS_MASK))+1;
-    pos.y=(bool(pos.y&AREA_SIZE)?pos.y:((pos.y+spaceShift.y)&AREA_POS_MASK))+1;
-    pos.z=(bool(pos.z&AREA_SIZE)?pos.z:((pos.z+spaceShift.z)&AREA_POS_MASK))+int(memOffset);
+    ivec3 shiftedPos = pos+spaceShift;
+
+#if (AREA_SIZE&(AREA_SIZE-1))
+    shiftedPos = ivec3(uvec3(shiftedPos+0x100000u)%AREA_SIZE); //TODO make faster, gets called a lot
+#else
+    shiftedPos&=(AREA_SIZE-1);
+#endif
+    pos.x=(uint(pos.x)>=AREA_SIZE?pos.x:shiftedPos.x)+1;
+    pos.y=(uint(pos.y)>=AREA_SIZE?pos.y:shiftedPos.y)+1;
+    pos.z=(uint(pos.z)>=AREA_SIZE?pos.z:shiftedPos.z)+int(memOffset);
     return pos;
 }
-
 
 
 //Data packing/unpacking

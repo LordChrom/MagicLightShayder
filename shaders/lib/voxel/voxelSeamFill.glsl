@@ -113,17 +113,17 @@ void fillLightSeams(uvec3 workGroupID, uvec3 localID){
     ivec3 edgeToTrim = abs(movement);
 
     for(int i=0; i<edgeToTrim.z;i++){
-        int L = movementSigns.z>0?63-i:i;
+        int L = movementSigns.z>0?(AREA_SIZE-1)-i:i;
         trimLight(ivec3(zonePos.xy,L));
     }
 
     for(int i=0; i<edgeToTrim.x;i++){
-        int A = movementSigns.x>0?63-i:i;
+        int A = movementSigns.x>0?(AREA_SIZE-1)-i:i;
         trimLight(ivec3(A,zonePos.xy));
     }
 
     for(int i=0; i<edgeToTrim.y;i++){
-        int B = movementSigns.y>0?63-i:i;
+        int B = movementSigns.y>0?(AREA_SIZE-1)-i:i;
         trimLight(ivec3(zonePos.x,B,zonePos.y));
     }
 
@@ -162,9 +162,9 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
     for(ivec3 areaPos = ivec3(posXY,-1); areaPos.z<AREA_SIZE_MEM; areaPos.z++){
         uint whatToWrite = 0u;
         if(!(
-            (movementSigns.x>0?(areaPos.x>63-edgeToTrim.x):(areaPos.x<edgeToTrim.x)) ||
-            (movementSigns.y>0?(areaPos.y>63-edgeToTrim.y):(areaPos.y<edgeToTrim.y)) ||
-            (movementSigns.z>0?(areaPos.z>63-edgeToTrim.z):(areaPos.z<edgeToTrim.z))
+            (movementSigns.x>0?(areaPos.x>(AREA_SIZE-1)-edgeToTrim.x):(areaPos.x<edgeToTrim.x)) ||
+            (movementSigns.y>0?(areaPos.y>(AREA_SIZE-1)-edgeToTrim.y):(areaPos.y<edgeToTrim.y)) ||
+            (movementSigns.z>0?(areaPos.z>(AREA_SIZE-1)-edgeToTrim.z):(areaPos.z<edgeToTrim.z))
         )){
             if(isPosExpiryExempt(areaPos))
                 continue;
