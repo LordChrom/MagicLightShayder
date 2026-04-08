@@ -187,7 +187,7 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
             uint sampledVox = getRawVoxData(areaPos+subPos, thisShift, thisMemOffset);
             representative = max(representative,sampledVox);
         }
-        //0-62, 0-31, 16-48
+
         areaPos=(areaPos>>1)+ivec3(1,1,1)*(AREA_SIZE>>2);
         updateVoxData(representative, areaPos, upperShift, upperMemOffset);
     }else{

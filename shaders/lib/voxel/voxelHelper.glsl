@@ -158,11 +158,6 @@ lightVoxData unpackLightData(uvec4 packedData){
 uvec4 packLightData(lightVoxData data){
     uvec4 ret;
     uvec4 intTravel = ivec4(round(vec4(data.lightTravel,data.occlusionHitDistance)*lightTravelScaleInv));
-//    uint intOcclMap =
-//        (int(data.occlusionMap.x)<<15)|
-//        (int(data.occlusionMap.y)<<14)|
-//        (int(data.occlusionMap.z)<<13)|
-//        (int(data.occlusionMap.w)<<12);
 
     ret.x = (intTravel.x<<16) | (intTravel.y&0xffffu);
     ret.y = (intTravel.w<<16) | (intTravel.z&0xffffu);
@@ -248,7 +243,7 @@ void setVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift, uint areaMemOff
 uint bvec4ToUint(bvec4 b){
     return (uint(b.x)<<3u)|(uint(b.y)<<2u)|(uint(b.z)<<1u)|(uint(b.w));
 }
-//bvec4
+
 vec4 ternary(uint conditions,vec4 ifTrue, vec4 ifFalse){
     return vec4(
         bool(conditions&8u)?ifTrue.x:ifFalse.x,
@@ -269,12 +264,13 @@ bool isLit(vec3 position, vec2 occlRay, uint occlMap){
 float penumbralLightTest(vec3 position, lightVoxData light){
     float width =(PENUMBRA_WIDTH)*((position.z/light.occlusionHitDistance)-1);
 
-    vec2 m = clamp((abs(position.xy/position.z)-light.occlusionRay)/width,-0.5,0.5);
+    vec2 m = clamp((abs(position.xy/position.z)-light.occlusionRay)/width+0.5,0,1);
 
-    vec4 mix = max(vec2(0.5+m.x,0.5-m.x),0).xyxy * max(vec2(0.5+m.y,0.5-m.y),0).xxyy;
-    mix*=1u&uvec4(light.occlusionMap>>3, light.occlusionMap>>2, light.occlusionMap>>1, light.occlusionMap);
-
-    return mix.x+mix.y+mix.z+mix.w;
+    vec2 mixX = mix(
+        vec2(1u&(light.occlusionMap>>0),1u&(light.occlusionMap>>2)),
+        vec2(1u&(light.occlusionMap>>1),1u&(light.occlusionMap>>3)),
+    m.x);
+    return mix(mixX.x,mixX.y,m.y);
 }
 #endif
 

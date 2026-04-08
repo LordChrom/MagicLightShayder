@@ -177,11 +177,7 @@ void main()
     pbrNormalSample.xy = (pbrNormalSample.xy-0.5)*(2*PBR_NORMALS_STRENGTH);
     vec3 texNormal = vec3(pbrNormalSample.xy,sqrt(1.0 - dot(pbrNormalSample.xy, pbrNormalSample.xy)));
 
-    texNormal = normalRotator*texNormal;
-//    texNormal.z=max(0,texNormal.z);
-    texNormal=normalize(texNormal);
-//        texNormal=normalize(vec3(dot(texNormal,tangent.xyz),dot(texNormal,bitangent),dot(texNormal,normal)));
-
+    texNormal = normalize(normalRotator*texNormal);
 
     normalOut = vec4((texNormal+1)*0.5,NORMAL_A);
     #else

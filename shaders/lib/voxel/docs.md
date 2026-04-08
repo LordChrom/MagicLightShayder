@@ -90,3 +90,4 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - multiple occlusion indicators per sample
 - underwater & underlava fog
 - proper system for unlit geometry
+- make pixel locked rendering actually only need one sample per pixel

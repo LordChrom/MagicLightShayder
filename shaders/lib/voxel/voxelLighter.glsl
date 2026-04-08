@@ -521,20 +521,16 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
 
     if(cornersY.z>=outerSlope.y && !bool(outMap&2u)){
         outMap&=7u;
-//        cornersY.z=0;
     }
     if(cornersY.w>=outerSlope.y && !bool(outMap&1u)){
         outMap&=11u;
-//        cornersY.w=0;
     }
 
     if(cornersX.y>=outerSlope.x && !bool(outMap&4u)){
         outMap&=7u;
-//        cornersX.y=0;
     }
     if(cornersX.w>=outerSlope.x && !bool(outMap&1u)){
         outMap&=13u;
-//        cornersX.w=0;
     }
 
 
@@ -553,19 +549,6 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
     if(outerSlope.y>min(litBounds.y,shadedBounds.y)){
         outMap = (outMap&3u)|(12u*uint(litBounds.y<shadedBounds.y));
     }
-
-//    if(outerSlope.x>litBounds.x){
-//        outMap.x=outMap.z=true;
-//    }
-//    if(litBounds.z>innerSlope.x){
-//        outMap.y=outMap.w=true;
-//    }
-//    if(outerSlope.y>litBounds.y){
-//        outMap.x=outMap.y=true;
-//    }
-//    if(litBounds.w>innerSlope.y){
-//        outMap.z=outMap.w=true;
-//    }
 
     uint edges = getOcclusionEdges(outMap); //left, top, right, bottom
     int edgeCount = anyRelevantSamples? bitCount(edges): 4;
@@ -596,25 +579,17 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
             outRay = bool(edges&1u)? //arranged by which corner is lit
                 (bool(edges&2u)?vec2(cornersX.y,cornersY.z):vec2(cornersX.x,cornersY.w)):
                 (bool(edges&2u)?vec2(cornersX.w,cornersY.x):vec2(cornersX.z,cornersY.y));
-//            outRay = vec2(
-//                edges.x?min(cornersX.x,cornersX.z):max(cornersX.y,cornersX.w),
-//                edges.y?min(cornersY.x,cornersY.y):max(cornersY.z,cornersY.w)
-//            );
-
-            break; //TODO: fix
-
+            break;
         default:
         case 4:
             outMap=0u;
     }
 
     if(alignment.x){
-//        outMap=and(outMap, outMap.zwxy);
         outMap = outMap&((outMap<<2) | (outMap>>2));
         outRay.y=0;
     }
     if(alignment.y){
-//        outMap=and(outMap, outMap.yxwz);
         outMap = outMap&(((outMap&5u)<<1) | ((outMap&10u)>>1));
         outRay.x=0;
     }

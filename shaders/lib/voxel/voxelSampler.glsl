@@ -182,7 +182,6 @@ float highSlope = round(1024*max(abs(displacement.x),abs(displacement.y))/max(1e
             outColor.g+=0.05;
 
         bool mapSpot = bool(lightSrc.occlusionMap & (debugQuadrant.x>0?10u:5u) & (debugQuadrant.y>0?12u:3u));
-//        bool mapSpot = isLit(vec3(sign(debugQuadrant)*0.99,1),lightSrc.occlusionRay,lightSrc.occlusionMap);
 
         if(mapSum<4){
             if(!mapSpot){
@@ -191,10 +190,6 @@ float highSlope = round(1024*max(abs(displacement.x),abs(displacement.y))/max(1e
             uint edges = getOcclusionEdges(lightSrc.occlusionMap);
             if(
                 bool(edges & ((debugQuadrant.x>0?8u:2u) | (debugQuadrant.y>0?4u:1u)))
-//            (debugQuadrant.x>0 && edges.x) ||
-//            (debugQuadrant.x<0 && edges.z) ||
-//            (debugQuadrant.y>0 && edges.y) ||
-//            (debugQuadrant.y<0 && edges.w)
             ){
                 outColor.r+=0.2;
             }
