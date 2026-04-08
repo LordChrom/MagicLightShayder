@@ -9,43 +9,32 @@ struct lightVoxData{vec2 occlusionRay;uint occlusionMap;vec3 color;vec3 lightTra
 #endif
 
 vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset, vec3 normal, uint axis, float scale, float subsurface, bool isForFog){
-    lightVoxData lightSrc = unpackLightData(packedLightSrc);
-    vec3 lightTravelWorld = lightSrc.lightTravel;
+    vec3 travel = unpackLightTravel(packedLightSrc);
+    blockPos-=zoneToAreaSpaceRelative(ivec3(round(travel)),axis);
 
-    if((axis&1u)==0)
-    lightTravelWorld.z=-lightTravelWorld.z;
+    subVoxelOffset = bool(axis&6u)?subVoxelOffset:subVoxelOffset.yzx;
+    normal = bool(axis&6u)?normal:normal.yzx;
 
-    if(axis>>1==0){
-        subVoxelOffset=subVoxelOffset.yzx;
-        normal = normal.yzx;
-        lightTravelWorld = lightTravelWorld.zxy;
-    }
-    if(axis>>1==1){
-        subVoxelOffset=subVoxelOffset.zxy;
-        normal = normal.zxy;
-        lightTravelWorld = lightTravelWorld.yzx;
-    }
+    subVoxelOffset = (axis&6u)==2u?subVoxelOffset.zxy:subVoxelOffset;
+    normal = (axis&6u)==2u?normal.zxy:normal;
 
-    if((axis&1u)==0){
-        subVoxelOffset.z=-subVoxelOffset.z;
-        normal.z=-normal.z;
-    }
-
-    blockPos-=ivec3(round(lightTravelWorld));
+    subVoxelOffset.z=bool(axis&1u)?subVoxelOffset.z:-subVoxelOffset.z;
+    normal.z=bool(axis&1u)?normal.z:-normal.z;
 
 
-    vec3 displacement = lightSrc.lightTravel + subVoxelOffset;
+    vec3 displacement = travel + subVoxelOffset;
     float lengthSquared = dot(displacement,displacement);
     float columnation = MIN_COLUMNATION;
     lengthSquared = lengthSquared*(1-columnation)+columnation;
 
     float lightStrength=BLOCK_LIGHT_STRENGTH;
 
+    uint type = unpackLightType(packedLightSrc);
 #ifdef EVERYTHING_IS_THE_SUN
-    if(lightSrc.type>0)
-        lightSrc.type=1;
+    if(type>0)
+        type=1;
 #endif
-    switch(lightSrc.type){
+    switch(type){
         case 1: //sunlight
             const float sunStr = 1/float(MAX_LIGHT_STRENGTH);
             lightStrength = sunStr;
@@ -63,7 +52,7 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
     }
 
     if(isForFog)
-        lightStrength*=(lightSrc.type==LIGHT_TYPE_SUN)?FOG_BRIGHTNESS_SUN:FOG_BRIGHTNESS_BLOCK;
+        lightStrength*=(type==LIGHT_TYPE_SUN)?FOG_BRIGHTNESS_SUN:FOG_BRIGHTNESS_BLOCK;
 
 
     const float b = 1/float(MAX_LIGHT_STRENGTH*MAX_LIGHT_STRENGTH);
@@ -90,39 +79,40 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
 #endif
 
 
+    vec3 color = unpackLightColor(packedLightSrc);
 #ifdef PRIDE_LIGHTING
     float len = sqrt(lengthSquared);
-    vec3 normalColor = normalize(lightSrc.color);
+    vec3 normalColor = normalize(color);
     if(length(normalColor-normalize(vec3(8,7,4)))<0.1){
 
         if(2<=len && len<=2.5){
-            lightSrc.color=vec3(1);
+            color=vec3(1);
         }else if(1.5<=len && len<=3){
-            lightSrc.color=vec3(1,0.5,0.8);
+            color=vec3(1,0.5,0.8);
         }else{
-            lightSrc.color=vec3(0.3,0.3,1);
+            color=vec3(0.3,0.3,1);
             if(len>3)
                 lightStrength*=2;
         }
     }else if(length(normalColor-normalize(vec3(8,5,2)))<0.15){
         switch(int(floor(len*2-1))){
             case 0:
-                lightSrc.color=vec3(1,0,0);
+                color=vec3(1,0,0);
                 break;
             case 1:
-                lightSrc.color=vec3(1,0.5,0);
+                color=vec3(1,0.5,0);
                 break;
             case 2:
-                lightSrc.color=vec3(1,1,0);
+                color=vec3(1,1,0);
                 break;
             case 3:
-                lightSrc.color=vec3(0,1,0);
+                color=vec3(0,1,0);
                 break;
             case 4:
-                lightSrc.color=vec3(0,0,1);
+                color=vec3(0,0,1);
                 break;
             default:
-                lightSrc.color=vec3(1.3,0,1.3);
+                color=vec3(1.3,0,1.3);
 
         }
     }
@@ -130,12 +120,15 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
 
 #ifdef DEBUG_DECOLOR
     #ifdef DEBUG_OCCLUSION_MAP
-    lightSrc.color=vec3(0.3);
+    color=vec3(0.3);
     #endif
 #endif
 
 
 float highSlope = round(1024*max(abs(displacement.x),abs(displacement.y))/max(1e-9,displacement.z))/1024;
+
+vec2 ray = unpackLightOcclusionRay(packedLightSrc);
+uint map = unpackLightOcclusionMap(packedLightSrc);
 #ifdef PENUMBRAS_ENABLED
     #ifdef FOG_PENUMBRAS
     bool doPenumbra = true;
@@ -145,72 +138,74 @@ float highSlope = round(1024*max(abs(displacement.x),abs(displacement.y))/max(1e
 
     if(doPenumbra)
     {
-        float sharpener = (max(abs(lightSrc.lightTravel.x),abs(lightSrc.lightTravel.y))!=lightSrc.lightTravel.z)? 1e9:1.0;
+        float sharpener = (max(abs(travel.x),abs(travel.y))!=travel.z)? 1e9:1.0;
+        float occHitDist = unpackLightOccusionlHitDist(packedLightSrc);
 
         lightStrength*=clamp(0.5+(1-highSlope)*(sharpener/PENUMBRA_WIDTH),0,1);
-        lightStrength*=penumbralLightTest(displacement,lightSrc);
+        lightStrength*=penumbralLightTest(displacement,ray,map,occHitDist);
     }
     else
 #endif
     {
         lightStrength*=0.5*(int(highSlope<=1)+int(highSlope<1));
-        lightStrength=isLit(displacement,lightSrc.occlusionRay,lightSrc.occlusionMap) ? lightStrength:0;
+        lightStrength=isLit(displacement,ray,map) ? lightStrength:0;
     }
 
 
-    vec3 outColor = lightSrc.color*(lightStrength*(max(lightDotN,0)));
+    color *= (lightStrength*(max(lightDotN,0)));
 
 #ifdef DEBUG_OCCLUSION_MAP
     //Debug Coloring
     //green = fully lit,
     //bright red = fully unlit (should never happen)
     //blue = partially lit
-    if(bool(lightSrc.type)){
+    if(bool(type)){
         vec2 debugQuadrant = subVoxelOffset.xy;
 
     #ifdef UNFLIP_DEBUG_MAPS
-        if(lightSrc.lightTravel.x<0)
+        if(travel.x<0)
             debugQuadrant.x*=-1;
-        if(lightSrc.lightTravel.y<0)
+        if(travel.y<0)
             debugQuadrant.y*=-1;
     #endif
 
-        int mapSum = bitCount(lightSrc.occlusionMap);
+        int mapSum = bitCount(map);
         if(mapSum==0)
-            outColor.r=1;
+            color.r=1;
         if(mapSum==4)
-            outColor.g+=0.05;
+            color.g+=0.05;
 
-        bool mapSpot = bool(lightSrc.occlusionMap & (debugQuadrant.x>0?10u:5u) & (debugQuadrant.y>0?12u:3u));
+        bool mapSpot = bool(map & (debugQuadrant.x>0?10u:5u) & (debugQuadrant.y>0?12u:3u));
 
         if(mapSum<4){
             if(!mapSpot){
-                outColor.b+=0.2;
+                color.b+=0.2;
             }
-            uint edges = getOcclusionEdges(lightSrc.occlusionMap);
+            uint edges = getOcclusionEdges(map);
             if(
                 bool(edges & ((debugQuadrant.x>0?8u:2u) | (debugQuadrant.y>0?4u:1u)))
             ){
-                outColor.r+=0.2;
+                color.r+=0.2;
             }
         }
     }
 #endif
 #ifdef DEBUG_OCCLUSION_RAYS
-    if(bool(lightSrc.type)){
-        vec2 slopeDif = abs(lightSrc.occlusionRay-abs(displacement.xy/displacement.z));
+    if(bool(type)){
+        vec2 slopeDif = abs(ray-abs(displacement.xy/displacement.z));
 
         float outlineWidth = DEBUG_OUTLINE_WIDTH/displacement.z;
         if(slopeDif.x<outlineWidth || slopeDif.y<outlineWidth){
-            outColor.rgb=vec3(0.6);
-            if(lightSrc.occlusionHitDistance!=0){
-                float wavey = lightSrc.occlusionHitDistance*0.5+1;
-                outColor*=normalize(0.6+0.4*vec3(sin(wavey), sin(wavey+PI*2.0/3), sin(wavey+PI*4.0/3)));
+            color.rgb=vec3(0.6);
+            float occHitDist = unpackLightOccusionlHitDist(packedLightSrc);
+            if(occHitDist!=0){
+                float wavey = occHitDist*0.5+1;
+                color*=normalize(0.6+0.4*vec3(sin(wavey), sin(wavey+PI*2.0/3), sin(wavey+PI*4.0/3)));
             }
 
             outlineWidth*=0.5;
             if(slopeDif.x<outlineWidth || slopeDif.y<outlineWidth){
-                outColor.rgb=vec3(0);
+                color.rgb=vec3(0);
             }
 
         }
@@ -223,23 +218,23 @@ float highSlope = round(1024*max(abs(displacement.x),abs(displacement.y))/max(1e
     #endif
     {
         uint frameIndicator = (frameCounter&0x3fu);
-        uint frameIndicatorLight = (lightSrc.flags>>2)&0x3fu;
+        uint frameIndicatorLight = (unpackLightFlags(packedLightSrc)>>2)&0x3fu;
         vec3 axisColor = ivec3(areaToZoneSpaceMats[axis][2]);
         if ((axis&1u)==0)
             axisColor=abs(axisColor)*0.3+0.1;
         if (frameIndicator==frameIndicatorLight)
-            outColor.rgb+=DEBUG_UPDATES_INTENSITY*(axisColor);
+            color.rgb+=DEBUG_UPDATES_INTENSITY*(axisColor);
     }
 #endif
 
 #if DEBUG_GRID_OUTLINE >0
     vec3 edgeNearness = abs(subVoxelOffset*2/scale)+(DEBUG_GRID_OUTLINE/(64*scale));
     if((int(edgeNearness.x>=1)+int(edgeNearness.y>=1)+int(edgeNearness.z>=1))>=2){
-        outColor.rgb=max(outColor.rgb*1.5,vec3(0.03));
+        color.rgb=max(color.rgb*1.5,vec3(0.03));
     }
 #endif
 
-    return outColor;
+    return color;
 }
 
 

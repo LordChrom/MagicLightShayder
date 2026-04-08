@@ -11,13 +11,7 @@ layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z =
 
 
 
-#if 0 //dummy definition because intellij's best glsl plugin doesnt know includes exist
-struct lightVoxData{vec2 occlusionRay;uint occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;uint flags;};
-#endif
-
-
 #ifdef PARALLEL_UNPACK
-//shared lightVoxData[SECTION_SIZE+2][SECTION_SIZE+2][VOX_LAYERS] sharedSamples;
 shared uvec4[SECTION_SIZE+2][SECTION_SIZE+2][VOX_LAYERS] sharedPackedSamples;
 shared uint[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedFrontVoxels;
 shared uint[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedRearVoxels;
@@ -37,15 +31,14 @@ uint A,B,areaMemOffset; //1 to SECTION_SIZE
 
 
 #ifdef PARALLEL_UNPACK
-lightVoxData getInputSample(int a, int b, uint layer){  return unpackLightData(sharedPackedSamples[A+a][B+b][layer]); }
+uvec4 getInputSample(int a, int b, uint layer){  return sharedPackedSamples[A+a][B+b][layer]; }
 uint getFrontVoxel(int a, int b){  return sharedPackedFrontVoxels[A+a][B+b]; }
 uint getRearVoxel(int a, int b){  return sharedPackedRearVoxels[A+a][B+b]; }
 #else
-lightVoxData getInputSample(int a, int b, uint layer){  return unpackLightData(packedInputSamples[a+1][b+1][layer]); }
+uvec4 getInputSample(int a, int b, uint layer){  return packedInputSamples[a+1][b+1][layer]; }
 uint getFrontVoxel(int a, int b){  return frontVoxels[a+1][b+1]; }
 uint getRearVoxel(int a, int b){  return rearVoxels[a+1][b+1]; }
 #endif
-
 
 
 void takeSingleSample(int Aoffset, int Boffset,
@@ -59,8 +52,8 @@ out uvec4 frontVoxel, out uvec4 rearVoxel, out uvec4[VOX_LAYERS] packedLightSamp
         if(!bool(rearVoxel.w&WORLDVOX_OPAQUE)){
             packedLightSamples[layer] = sampleLightData(zonePos+ivec3(Aoffset, Boffset, -1), zoneShift, zoneMemOffsets[layer]);
 #if MAX_LIGHT_TRAVEL > 0
-            lightVoxData peek = unpackLightData(packedLightSamples[layer]);
-            if((peek.lightTravel.z>MAX_LIGHT_TRAVEL) || ((bool(rearVoxel.w&WORLDVOX_TRANSLUCENT)) && !bool(peek.flags&1u)))
+            uvec4 peek = packedLightSamples[layer];
+            if((unpackLightTravel(peek).z>MAX_LIGHT_TRAVEL) || ((bool(rearVoxel.w&WORLDVOX_TRANSLUCENT)) && !bool(unpackLightFlags(peek)&1u)))
                 packedLightSamples[layer] = uvec4(0);
 #endif
         }
@@ -137,22 +130,22 @@ void takeSamples(){
 
 const uint shortListLen = 2*VOX_LAYERS;
 
-lightVoxData[VOX_LAYERS] determineBestLightSources(){
-    lightVoxData[VOX_LAYERS] bestLights;
+uvec4[VOX_LAYERS] determineBestLightSources(){
+    uvec4[VOX_LAYERS] bestLights;
     float[VOX_LAYERS] bestStrengths;
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-        bestLights[layer].type=0;
+        bestLights[layer]=uvec4(0);
         bestStrengths[layer] = 0;
     }
 
     float halfScale = 0.5*scale;
 
 #ifdef SHORTLISTED_COMPARISON
-    lightVoxData[shortListLen] shortList;
+    uvec4[shortListLen] shortList;
     float[shortListLen] shortListStr;
 
     for(int i = 0; i<VOX_LAYERS; i++){
-        bestLights[i].type=0;
+        bestLights[i]=uvec4(0);
         shortListStr[i]=0;
     }
     int shortListOccupation=0;
@@ -171,16 +164,20 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
             }
 
             for(int layer = 0; layer<VOX_LAYERS; layer++){
-                lightVoxData lightSrc = getInputSample(a,b,layer);
-                if(lightSrc.type!=LIGHT_TYPE_SUN)
-                    lightSrc.lightTravel+=vec3(-a, -b, 1)*scale;
+                uvec4 lightSrc = getInputSample(a,b,layer);
+                uint type = unpackLightType(lightSrc);
+                vec3 travel = unpackLightTravel(lightSrc);
+                if(type!=LIGHT_TYPE_SUN){
+                    travel+=vec3(-a, -b, 1)*scale;
+                    setPackedLightTravel(lightSrc,travel);
+                }
 
-                if((lightSrc.type==0) || (lightSrc.lightTravel.x*a>0) || (lightSrc.lightTravel.y*b>0))
+                if((type==0) || (travel.x*a>0) || (travel.y*b>0))
                     continue;
 
-                float lenSquared = dot(lightSrc.lightTravel, lightSrc.lightTravel);
-                float strength = length(lightSrc.color)/max(0.1, lenSquared);
-                if(lightSrc.type==LIGHT_TYPE_SUN)
+                float lenSquared = dot(travel, travel);
+                float strength = length(unpackLightColor(lightSrc))/max(0.1, lenSquared);
+                if(type==LIGHT_TYPE_SUN)
                     strength*=1e3;
 
 #ifdef SHORTLISTED_COMPARISON
@@ -218,7 +215,7 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
 
 
     for(int i=0;i<shortListOccupation;i++){ { {
-                lightVoxData lightSrc = shortList[i];
+                uvec4 lightSrc = shortList[i];
                 float strength = shortListStr[i];
 
 #endif
@@ -227,12 +224,12 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
         //if its false, the following code is nested within the previous loop instead of the section starting with indexToUse
         //its a little messy, but the alternative is just 95% duplicated code and would be hard to keep synced
         //I could also easily remove all this later
-                vec3 lightTravel = lightSrc.lightTravel;
-                vec2 xy = abs(lightTravel.xy);
-                vec2 outerSlope  = (xy+halfScale) * abs(scale/(lightTravel.z-halfScale));
-                vec2 innerSlope  = (xy-halfScale) * abs(scale/(lightTravel.z+halfScale));
+//                vec3 lightTravel = lightSrc.lightTravel;
+                vec2 xy = abs(travel.xy);
+                vec2 outerSlope  = (xy+halfScale) * abs(scale/(travel.z-halfScale));
+                vec2 innerSlope  = (xy-halfScale) * abs(scale/(travel.z+halfScale));
 
-                if(!canIlluminateInBounds(vec4(outerSlope,innerSlope),lightSrc.occlusionRay,lightSrc.occlusionMap))
+                if(!canIlluminateInBounds(vec4(outerSlope,innerSlope),unpackLightOcclusionRay(lightSrc),unpackLightOcclusionMap(lightSrc)))
                     continue;
 
 
@@ -244,7 +241,7 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
 
                     if (strength>bestStrengths[rank]){
                         float tmpStr = bestStrengths[rank];
-                        lightVoxData tmpSrc = bestLights[rank];
+                        uvec4 tmpSrc = bestLights[rank];
 
                         bestLights[rank]=lightSrc;
                         bestStrengths[rank]=strength;
@@ -266,10 +263,10 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
 //for all 2x2 selected sample arrays, corner closest to source at [0][0], output sample at [1][1]
 //newObstructions is flipped to match this, with [2][2] being the firthest corner from source
 //alignment.x means it is on the a axis,
-void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
-    out lightVoxData[2][2] samples, out bool[2][2] relevance, out bvec2 alignment, out bool[2][2] newObstructions){
+void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
+    out uvec4[2][2] samples, out bool[2][2] relevance, out bvec2 alignment, out bool[2][2] newObstructions){
 
-    vec3 lightTravel = bestSource.lightTravel;
+    vec3 lightTravel = unpackLightTravel(bestSource);
     int aSignSrc = int(sign(lightTravel.x));
     int bSignSrc = int(sign(lightTravel.y));
     alignment = bvec2(bSignSrc==0,aSignSrc==0);
@@ -281,14 +278,14 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
         int a = (i-1)*aSignSrc;
         for (int j=0; j<2; j++){
             int b = (j-1)*bSignSrc;
-            samples[i][j].type=0;
+            samples[i][j]=uvec4(0);
             relevance[i][j]=false;
             localFronts[i][j]=getFrontVoxel(a,b);
             localRears[i][j]=getRearVoxel(a,b);
         }
     }
 
-    bool sampleFreshlyTranslucent = bool(bestSource.flags&1u);
+    bool sampleFreshlyTranslucent = bool(unpackLightFlags(bestSource)&1u);
     uint obstructingTerrainMask = (sampleFreshlyTranslucent || translucentTerrain)?WORLDVOX_OPAQUE:WORLDVOX_NOT_AIR;
     bool cornerBlocked = !(alignment.x||alignment.y);
 
@@ -340,10 +337,13 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
 
 
             for(int layer = 0; layer<VOX_LAYERS; layer++){
-                lightVoxData relevantSample = getInputSample(a,b,layer);
+                uvec4 relevantSample = getInputSample(a,b,layer);
                 if(lightTravel.x*a>0 || lightTravel.y*b>0)
                     continue;
-                relevantSample.lightTravel+=vec3(-a, -b, 1)*scale;
+
+                setPackedLightTravel(relevantSample,
+                    unpackLightTravel(relevantSample) + vec3(-a, -b, 1)*scale
+                );
 
                 if (sameLight(relevantSample,bestSource)){
                     relevance[i][j] = true;
@@ -357,26 +357,27 @@ void pickRelevantInputSamples(lightVoxData bestSource, bool translucentTerrain,
 
     newObstructions[0][0] = newObstructions[0][0] || cornerBlocked;
     relevance[0][0]=relevance[0][0]&&!cornerBlocked;
-
 }
 
 
 
 //i'll be calling the +b direction "top" and the +a direction "left", both of these directions are away from src
 //as though you're looking along the +z direction, with light traveling along L=+z and also somewhat +x+y
-void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignment, bool[2][2] relevantObstructions,
-    inout lightVoxData lightSrc
+void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, bool[2][2] relevantObstructions,
+    inout uvec4 lightSrc
 ){
-    vec2 lightTravel= abs(lightSrc.lightTravel.xy);
-    float slopeScaleNear = abs(1/(lightSrc.lightTravel.z-halfScale));
-    float slopeScaleFar  = abs(1/(lightSrc.lightTravel.z+halfScale));
-    vec2 outerSlope  = (lightTravel.xy+halfScale)*slopeScaleNear;  //anything more than this will not be visible
-    vec2 middleSlope = (lightTravel.xy-halfScale)*slopeScaleNear;  //ray going to the center corner of the 4 relevant samples
-    vec2 innerSlope  = (lightTravel.xy-halfScale)*slopeScaleFar;   //anything less than this will not be visible
+    vec3 travel = unpackLightTravel(lightSrc);
+    vec2 travel2d= abs(travel.xy);
+    float slopeScaleNear = abs(1/(travel.z-halfScale));
+    float slopeScaleFar  = abs(1/(travel.z+halfScale));
+    vec2 outerSlope  = (travel2d.xy+halfScale)*slopeScaleNear;  //anything more than this will not be visible
+    vec2 middleSlope = (travel2d.xy-halfScale)*slopeScaleNear;  //ray going to the center corner of the 4 relevant samples
+    vec2 innerSlope  = (travel2d.xy-halfScale)*slopeScaleFar;   //anything less than this will not be visible
 
     vec2 outRay = vec2(0);
-    outRay=abs(lightTravel/lightSrc.lightTravel.z);
-    uint outMap = lightSrc.occlusionMap;
+    outRay=abs(travel2d/travel.z);
+    uint outMap = unpackLightOcclusionMap(lightSrc);
+    float outHitDist = unpackLightOccusionlHitDist(lightSrc);
 
 
 
@@ -397,8 +398,8 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
                 continue;
 
 
-            uint map = samples[i][j].occlusionMap;
-            vec2 ray = samples[i][j].occlusionRay;
+            uint map = unpackLightOcclusionMap(samples[i][j]);
+            vec2 ray = unpackLightOcclusionRay(samples[i][j]);
 
             uint lightEdges = getLightEdges(map); //left, top, right, bottom
             uint darkEdges = getOcclusionEdges(map);
@@ -460,9 +461,9 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
 
     #ifdef PENUMBRAS_ENABLED
             if(thisSampleRelevant
-//                &&bool(darkEdges&bvec4ToUint(bvec4(ray.x<outerSlope.x,ray.y<outerSlope.y,ray.x>innerSlope.x,ray.y>innerSlope.y)))
+                &&bool(darkEdges&bvec4ToUint(bvec4(ray.x<outerSlope.x,ray.y<outerSlope.y,ray.x>innerSlope.x,ray.y>innerSlope.y)))
             ){
-                lightSrc.occlusionHitDistance=max(lightSrc.occlusionHitDistance, samples[i][j].occlusionHitDistance);
+                outHitDist=max(outHitDist, unpackLightOccusionlHitDist(samples[i][j]));
             }
     #endif
         }
@@ -504,9 +505,10 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
     }
 
     #ifdef PENUMBRAS_ENABLED
-    if(newObstruction && (lightSrc.occlusionHitDistance==0)){  //TODO still needs work
-        lightSrc.occlusionHitDistance=lightSrc.lightTravel.z-0.6*scale;
+    if(newObstruction && (outHitDist==0)){  //TODO still needs work
+        outHitDist=travel.z-0.6*scale;
     }
+    setPackedOcclusionHitDist(lightSrc,outHitDist);
     #endif
 
     outerSlope=min(outerSlope,0.999);
@@ -594,14 +596,13 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
         outRay.x=0;
     }
 
-    lightSrc.occlusionMap=outMap;
-    lightSrc.occlusionRay=outRay;
+    setPackedOcclusionInfo(lightSrc,outRay,outMap);
 }
 
 
 
-void doLightPassage(inout lightVoxData bestLight, bool translucentTerrain){
-    lightVoxData[2][2] relevantSamples;
+void doLightPassage(inout uvec4 bestLight, bool translucentTerrain){
+    uvec4[2][2] relevantSamples;
     bool[2][2] relevance;
     bvec2 alignment;
     bool[2][2] newObstructions;
@@ -613,8 +614,8 @@ void doLightPassage(inout lightVoxData bestLight, bool translucentTerrain){
     doOcclusion(relevantSamples, relevance, alignment, newObstructions, bestLight);
 
 #if !(defined KEEP_FULLY_OCCLUDED_SAMPLES && defined DEBUG_OCCLUSION_MAP)
-    if ( !bool(bestLight.occlusionMap)){
-        bestLight.type=0;
+    if ( !bool(unpackLightOcclusionMap(bestLight))){
+        bestLight=uvec4(0);
     }
 #endif
 }
@@ -624,13 +625,13 @@ void doLightPassage(inout lightVoxData bestLight, bool translucentTerrain){
 //based on the 9 adjacent voxel faces in the previous plane & the nearby terrain voxels
 void lightVoxelFace(){
     takeSamples();
-    lightVoxData[VOX_LAYERS] bestLights = determineBestLightSources();
+    uvec4[VOX_LAYERS] bestLights = determineBestLightSources();
 
 
 #ifdef COLORED_TRANSLUCENTS
-    lightVoxData transucentPassage = bestLights[0];
+    uvec4 translucentPassage = bestLights[0];
 
-    ivec2 travelDirSign = ivec2(sign(transucentPassage.lightTravel.xy));
+    ivec2 travelDirSign = ivec2(sign(unpackLightTravel(translucentPassage).xy));
 
     int translucentBlocksInSample = 0;
     vec3 color = vec3(0);
@@ -657,12 +658,12 @@ void lightVoxelFace(){
     if(translucentBlocksInSample>0){
         color/=translucentBlocksInSample;
 
-        doLightPassage(transucentPassage,true);
-        if(bool(transucentPassage.occlusionMap)){
-            transucentPassage.color*=color;
-            transucentPassage.flags|=1u;
+        doLightPassage(translucentPassage,true);
+        if(bool(unpackLightOcclusionMap(translucentPassage))){
+            setPackedLightColor(translucentPassage,unpackLightColor(translucentPassage)*color);
+            setPackedLightFlags(translucentPassage,unpackLightFlags(translucentPassage)|1u); //TODO make this not dumb
 
-            bestLights[VOX_LAYERS-1]=transucentPassage;
+            bestLights[VOX_LAYERS-1]=translucentPassage;
         }else{
             translucentBlocksInSample=0;
         }
@@ -674,26 +675,24 @@ void lightVoxelFace(){
         if(translucentBlocksInSample>0 && layer==VOX_LAYERS-1) break;
 #endif
         doLightPassage(bestLights[layer],false);
-        bestLights[layer].flags&=0xfeu;
+        setPackedLightFlags(bestLights[layer],unpackLightFlags(bestLights[layer])&0xfeu);
     }
 
     //could maybe be at the top, not sure how much it'd actually help though TODO test later
     uint front = getFrontVoxel(0,0);
     if (bool(front&(0xfu<<VOXEL_TYPE_SHIFT))){
+        vec3 lightTravel;
 #ifdef LIGHT_SOURCES_BLOCK_CENTERIC
         if(scale<1){
             vec3 worldPos = vec3(areaPos.xyz)*scale-halfScale+globalOrigin;
             vec3 subBlockOffset = areaToZoneSpaceRelative((worldPos-round(worldPos)),axis);
-            bestLights[VOX_LAYERS-1].lightTravel = subBlockOffset;
+            lightTravel = subBlockOffset;
         }else
 #endif
         {
-            bestLights[VOX_LAYERS-1].lightTravel = vec3(0);
+            lightTravel = vec3(0);
         }
-        bestLights[VOX_LAYERS-1].color = unpackUnorm4x8(front).wzy;
-        bestLights[VOX_LAYERS-1].type = (front>>VOXEL_TYPE_SHIFT)&0xfu;
-        bestLights[VOX_LAYERS-1].occlusionMap=15u;
-        bestLights[VOX_LAYERS-1].occlusionHitDistance=0;
+        bestLights[VOX_LAYERS-1] = packLightData(vec2(0),15u,unpackUnorm4x8(front).wzy,lightTravel,0,(front>>VOXEL_TYPE_SHIFT)&0xfu,0);
     }
 
 
