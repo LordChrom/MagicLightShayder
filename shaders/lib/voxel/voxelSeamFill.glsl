@@ -205,19 +205,23 @@ void fillSeams(uvec3 workGroupID, uvec3 localID){
     upperShift = getAreaShift(scale*2);
 
 #ifdef DOUBLE_PROC
-    bool isOddVisit = bool(frameCounter&(1<<cascadeLevel));
+    int nextCascade = (1<<cascadeLevel);
 #else
-    bool isOddVisit = bool(frameCounter&(2<<cascadeLevel));
+    int nextCascade = (2<<cascadeLevel);
 #endif
+    bool isOddVisit = bool(frameCounter&nextCascade);
 
-    ivec3 previousAreaShift;
+
+    ivec3 previousAreaShift = ivec3(0);
 
     if(isOddVisit){
-        previousAreaShift = areaDataAccess.evenAreaMetas[cascadeLevel].areaShift;
+        if(frameCounter>nextCascade)
+            previousAreaShift = areaDataAccess.evenAreaMetas[cascadeLevel].areaShift;
         if(localID.x==0)
             areaDataAccess.oddAreaMetas[cascadeLevel].areaShift = thisShift;
     }else{
-        previousAreaShift = areaDataAccess.oddAreaMetas[cascadeLevel].areaShift;
+        if(frameCounter>nextCascade)
+            previousAreaShift = areaDataAccess.oddAreaMetas[cascadeLevel].areaShift;
         if(localID.x==0)
             areaDataAccess.evenAreaMetas[cascadeLevel].areaShift = thisShift;
     }
