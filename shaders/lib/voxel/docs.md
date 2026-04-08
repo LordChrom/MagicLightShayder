@@ -69,8 +69,9 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 
 
 # General TODO List
-- Merge adjacent unoccluded lights of same type
+- make sun shadows not ass
 - fix corner cases of occlusion system
+- Merge adjacent unoccluded lights of same type
 - ambient light
 - maybe try switching from fixed number of samples per direction to fixed number per voxel + list of relevant samples per voxel
 - make bloom that's not awful
@@ -81,9 +82,11 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - reflections
 - water stuff
 - biome colored fog
-- make sun shadows better & respect angles
 - redo block.properties
 - hide flashes that occur when an area shift has changed but hasnt been gotten to by the seam filler
 - change how hardcoded subsurface works for mushrooms
 - TAAU
 - that pseudo WSRT idea
+- multiple occlusion indicators per sample
+- underwater & underlava fog
+- proper system for unlit geometry

@@ -5,7 +5,7 @@
 #include "/lib/util/misc.glsl"
 
 #if false //dummy definition because my intellij's best glsl plugin doesnt know includes exist
-struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;uint flags;};
+struct lightVoxData{vec2 occlusionRay;uint occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;uint flags;};
 #endif
 
 vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset, vec3 normal, uint axis, float scale, float subsurface, bool isForFog){
@@ -137,15 +137,26 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
 
 float highSlope = round(1024*max(abs(displacement.x),abs(displacement.y))/max(1e-9,displacement.z))/1024;
 #ifdef PENUMBRAS_ENABLED
-    float sharpener =
-    (max(abs(lightSrc.lightTravel.x),abs(lightSrc.lightTravel.y))!=lightSrc.lightTravel.z)? 1e9:1.0;
+    #ifdef FOG_PENUMBRAS
+    bool doPenumbra = true;
+    #else
+    bool doPenumbra = !isForFog;
+    #endif
 
-    lightStrength*=clamp(0.5+(1-highSlope)*(sharpener/PENUMBRA_WIDTH),0,1);
-    lightStrength*=penumbralLightTest(displacement,lightSrc);
-#else
-    lightStrength*=0.5*(int(highSlope<=1)+int(highSlope<1));
-    lightStrength=isLit(displacement,lightSrc) ? lightStrength:0;
+    if(doPenumbra)
+    {
+        float sharpener = (max(abs(lightSrc.lightTravel.x),abs(lightSrc.lightTravel.y))!=lightSrc.lightTravel.z)? 1e9:1.0;
+
+        lightStrength*=clamp(0.5+(1-highSlope)*(sharpener/PENUMBRA_WIDTH),0,1);
+        lightStrength*=penumbralLightTest(displacement,lightSrc);
+    }
+    else
 #endif
+    {
+        lightStrength*=0.5*(int(highSlope<=1)+int(highSlope<1));
+        lightStrength=isLit(displacement,lightSrc.occlusionRay,lightSrc.occlusionMap) ? lightStrength:0;
+    }
+
 
     vec3 outColor = lightSrc.color*(lightStrength*(max(lightDotN,0)));
 
@@ -164,35 +175,34 @@ float highSlope = round(1024*max(abs(displacement.x),abs(displacement.y))/max(1e
             debugQuadrant.y*=-1;
     #endif
 
-        ivec4 intMap = ivec4(lightSrc.occlusionMap);
-        int mapSum = intMap.x+intMap.y+intMap.z+intMap.w;
+        int mapSum = bitCount(lightSrc.occlusionMap);
         if(mapSum==0)
             outColor.r=1;
         if(mapSum==4)
             outColor.g+=0.05;
 
-        bvec2 mapHalf = lightSrc.occlusionMap.yw;
-        if(debugQuadrant.x>0)
-            mapHalf=lightSrc.occlusionMap.xz;
-        bool mapSpot = mapHalf.y;
-        if(debugQuadrant.y>0)
-            mapSpot = mapHalf.x;
+        bool mapSpot = bool(lightSrc.occlusionMap & (debugQuadrant.x>0?10u:5u) & (debugQuadrant.y>0?12u:3u));
+//        bool mapSpot = isLit(vec3(sign(debugQuadrant)*0.99,1),lightSrc.occlusionRay,lightSrc.occlusionMap);
 
         if(mapSum<4){
             if(!mapSpot){
                 outColor.b+=0.2;
             }
-            bvec4 edges = getOcclusionEdges(lightSrc.occlusionMap);
+            uint edges = getOcclusionEdges(lightSrc.occlusionMap);
             if(
-            (debugQuadrant.x>0 && edges.x) ||
-            (debugQuadrant.x<0 && edges.z) ||
-            (debugQuadrant.y>0 && edges.y) ||
-            (debugQuadrant.y<0 && edges.w)
+                bool(edges & ((debugQuadrant.x>0?8u:2u) | (debugQuadrant.y>0?4u:1u)))
+//            (debugQuadrant.x>0 && edges.x) ||
+//            (debugQuadrant.x<0 && edges.z) ||
+//            (debugQuadrant.y>0 && edges.y) ||
+//            (debugQuadrant.y<0 && edges.w)
             ){
                 outColor.r+=0.2;
             }
         }
-
+    }
+#endif
+#ifdef DEBUG_OCCLUSION_RAYS
+    if(bool(lightSrc.type)){
         vec2 slopeDif = abs(lightSrc.occlusionRay-abs(displacement.xy/displacement.z));
 
         float outlineWidth = DEBUG_OUTLINE_WIDTH/displacement.z;
@@ -204,7 +214,6 @@ float highSlope = round(1024*max(abs(displacement.x),abs(displacement.y))/max(1e
             }
 
         }
-
     }
 #endif
 

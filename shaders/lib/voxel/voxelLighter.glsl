@@ -12,7 +12,7 @@ layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z =
 
 
 #if 0 //dummy definition because intellij's best glsl plugin doesnt know includes exist
-struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;uint flags;};
+struct lightVoxData{vec2 occlusionRay;uint occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;uint flags;};
 #endif
 
 
@@ -180,6 +180,8 @@ lightVoxData[VOX_LAYERS] determineBestLightSources(){
 
                 float lenSquared = dot(lightSrc.lightTravel, lightSrc.lightTravel);
                 float strength = length(lightSrc.color)/max(0.1, lenSquared);
+                if(lightSrc.type==LIGHT_TYPE_SUN)
+                    strength=1e100;
 
 #ifdef SHORTLISTED_COMPARISON
                 bool newItem = true;
@@ -372,8 +374,9 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
     vec2 middleSlope = (lightTravel.xy-halfScale)*slopeScaleNear;  //ray going to the center corner of the 4 relevant samples
     vec2 innerSlope  = (lightTravel.xy-halfScale)*slopeScaleFar;   //anything less than this will not be visible
 
-    vec2 outRay=abs(lightTravel/lightSrc.lightTravel.z);
-    bvec4 outMap = lightSrc.occlusionMap;
+    vec2 outRay = vec2(0);
+    outRay=abs(lightTravel/lightSrc.lightTravel.z);
+    uint outMap = lightSrc.occlusionMap;
 
 
 
@@ -394,71 +397,74 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
                 continue;
 
 
-            bvec4 map = samples[i][j].occlusionMap;
+            uint map = samples[i][j].occlusionMap;
             vec2 ray = samples[i][j].occlusionRay;
 
-            bvec4 lightEdges = getLightEdges(map); //left, top, right, bottom
-            bvec4 darkEdges = getOcclusionEdges(map);
+            uint lightEdges = getLightEdges(map); //left, top, right, bottom
+            uint darkEdges = getOcclusionEdges(map);
 
             //for all of these, it will truncate the outer bounds if both samples on that edge are lit,
             //but one or both of the inner samples are obstructed.
             //this is mostly for when edges intersect at a corner to prevent the edges from continuing past that corner
 
-            if(i==1 && lightEdges.x && !lightEdges.z)   //left
+            lightEdges = lightEdges & ~((lightEdges<<2)|(lightEdges>>2));
+            darkEdges = darkEdges & ~((lightEdges<<2)|(lightEdges>>2));
+            if(i==1 && bool(lightEdges&8u))   //left
                 litBounds.x = min(litBounds.x,ray.x);
-            if(j==1 && lightEdges.y && !lightEdges.w)   //top
+            if(j==1 && bool(lightEdges&4u))   //top
                 litBounds.y = min(litBounds.y,ray.y);
-            if(i==0 && lightEdges.z && !lightEdges.x)   //right
+            if(i==0 && bool(lightEdges&2u))   //right
                 litBounds.z = max(litBounds.z,ray.x);
-            if(j==0 && lightEdges.w && !lightEdges.y)   //bottom
+            if(j==0 && bool(lightEdges&1u))   //bottom
                 litBounds.w = max(litBounds.w,ray.y);
 
-            if(i==1 && darkEdges.x && !darkEdges.z)   //left
+            if(i==1 && bool(darkEdges&8u))   //left
                 shadedBounds.x = min(shadedBounds.x,ray.x);
-            if(j==1 && darkEdges.y && !darkEdges.w)   //top
+            if(j==1 && bool(darkEdges&4u))   //top
                 shadedBounds.y = min(shadedBounds.y,ray.y);
-            if(i==0 && darkEdges.z && !darkEdges.x)   //right
+            if(i==0 && bool(darkEdges&2u))   //right
                 shadedBounds.z = max(shadedBounds.z,ray.x);
-            if(j==0 && darkEdges.w && !darkEdges.y)   //bottom
+            if(j==0 && bool(darkEdges&1u))   //bottom
                 shadedBounds.w = max(shadedBounds.w,ray.y);
 
             vec4 sX=ternary(map,vec4(2,-1,2,-1),vec4(ray.x)); //represents the ways this sample shadows the output's
             vec4 sY=ternary(map,vec4(2,2,-1,-1),vec4(ray.y)); //corners
 
-            bvec4 shadowedCorners = and(not(map),bvec4(
+            uint shadowedCorners = (~map)&bvec4ToUint(bvec4(
                 sX.x<outerSlope.x && sY.x<outerSlope.y,
                 sX.y>innerSlope.x && sY.y<outerSlope.y,
                 sX.z<outerSlope.x && sY.z>innerSlope.y,
                 sX.w>innerSlope.x && sY.w>innerSlope.y
             ));
 
-            if(shadowedCorners.x){
+            if(bool(shadowedCorners&8u)){
                 cornersX.x=min(cornersX.x,(sX.x>=innerSlope.x)?ray.x:2);
                 cornersY.x=min(cornersY.x,(sY.x>=innerSlope.y)?ray.y:2);
             }
-            if(shadowedCorners.y){
+            if(bool(shadowedCorners&4u)){
                 cornersX.y=max(cornersX.y,ray.x);
                 cornersY.y=min(cornersY.y,(sY.y>=innerSlope.y)?ray.y:2);
             }
-            if(shadowedCorners.z){
+            if(bool(shadowedCorners&2u)){
                 cornersX.z=min(cornersX.z,(sX.z>=innerSlope.x)?ray.x:2);
                 cornersY.z=max(cornersY.z,ray.y);
             }
-            if(shadowedCorners.w){
+            if(bool(shadowedCorners&1u)){
                 cornersX.w=max(cornersX.w,ray.x);
                 cornersY.w=max(cornersY.w,ray.y);
             }
 
 
-            bool thisSampleRelevant = (!shadowedCorners.x)||(!shadowedCorners.y)||(!shadowedCorners.z)||(!shadowedCorners.w);
+            bool thisSampleRelevant = bool(15u^shadowedCorners);
             anyRelevantSamples = anyRelevantSamples || thisSampleRelevant;
 
+    #ifdef PENUMBRAS_ENABLED
             if(thisSampleRelevant &&
-                (((!(map.y&&map.w))&&ray.x>innerSlope.x)&&((!(map.z&&map.w))&&ray.y>innerSlope.y)))
+                (((!(bool(map&4u)&&bool(map&1u)))&&ray.x>innerSlope.x)&&((!(bool(map&2u)&&bool(map&1u)))&&ray.y>innerSlope.y)))
             {
                 lightSrc.occlusionHitDistance=max(lightSrc.occlusionHitDistance, samples[i][j].occlusionHitDistance);
             }
-
+    #endif
         }
     }
 
@@ -497,30 +503,37 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
         }
     }
 
+    #ifdef PENUMBRAS_ENABLED
     if(newObstruction && (lightSrc.occlusionHitDistance==0)){  //TODO still needs work
         lightSrc.occlusionHitDistance=lightSrc.lightTravel.z-0.6*scale;
     }
+    #endif
 
     outerSlope=min(outerSlope,0.999);
 
-    outMap = bvec4( !(cornersX.x<outerSlope.x && cornersY.x<outerSlope.y), !(cornersX.y>innerSlope.x && cornersY.y<outerSlope.y),
-                    !(cornersX.z<outerSlope.x && cornersY.z>innerSlope.y), !(cornersX.w>innerSlope.x && cornersY.w>innerSlope.y));
+    outMap = 15^(bvec4ToUint(bvec4(
+        cornersX.x<outerSlope.x, cornersX.y>innerSlope.x,
+        cornersX.z<outerSlope.x, cornersX.w>innerSlope.x
+    )) & bvec4ToUint(bvec4(
+        cornersY.x<outerSlope.y, cornersY.y<outerSlope.y,
+        cornersY.z>innerSlope.y, cornersY.w>innerSlope.y
+    )));
 
-    if(cornersY.z>=outerSlope.y && !outMap.z){
-        outMap.x=false;
+    if(cornersY.z>=outerSlope.y && !bool(outMap&2u)){
+        outMap&=7u;
 //        cornersY.z=0;
     }
-    if(cornersY.w>=outerSlope.y && !outMap.w){
-        outMap.y=false;
+    if(cornersY.w>=outerSlope.y && !bool(outMap&1u)){
+        outMap&=11u;
 //        cornersY.w=0;
     }
 
-    if(cornersX.y>=outerSlope.x && !outMap.y){
-        outMap.x=false;
+    if(cornersX.y>=outerSlope.x && !bool(outMap&4u)){
+        outMap&=7u;
 //        cornersX.y=0;
     }
-    if(cornersX.w>=outerSlope.x && !outMap.w){
-        outMap.z=false;
+    if(cornersX.w>=outerSlope.x && !bool(outMap&1u)){
+        outMap&=13u;
 //        cornersX.w=0;
     }
 
@@ -528,17 +541,17 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
     //TODO better way of combining these at corners of conflicting types
     //the inner ones before the outer ones helps stuff like corners of glass shadows
     if(innerSlope.x<max(litBounds.z,shadedBounds.z)){
-        outMap.y=outMap.w= (litBounds.z>shadedBounds.z);
+        outMap = (outMap&10u)|(5u*uint(litBounds.z>shadedBounds.z));
     }
     if(innerSlope.y<max(litBounds.w,shadedBounds.w)){
-        outMap.z=outMap.w= (litBounds.w>shadedBounds.w);
+        outMap = (outMap&12u)|(3u*uint(litBounds.w>shadedBounds.w));
     }
 
     if(outerSlope.x>min(litBounds.x,shadedBounds.x)){
-        outMap.x=outMap.z= (litBounds.x<shadedBounds.x);
+        outMap = (outMap&5u)|(10u*uint(litBounds.x<shadedBounds.x));
     }
     if(outerSlope.y>min(litBounds.y,shadedBounds.y)){
-        outMap.x=outMap.y= (litBounds.y<shadedBounds.y);
+        outMap = (outMap&3u)|(12u*uint(litBounds.y<shadedBounds.y));
     }
 
 //    if(outerSlope.x>litBounds.x){
@@ -554,35 +567,35 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
 //        outMap.z=outMap.w=true;
 //    }
 
-    bvec4 edges = getOcclusionEdges(outMap); //left, top, right, bottom
-    int edgeCount = anyRelevantSamples? int(edges.x)+int(edges.y)+int(edges.z)+int(edges.w) : 4;
+    uint edges = getOcclusionEdges(outMap); //left, top, right, bottom
+    int edgeCount = anyRelevantSamples? bitCount(edges): 4;
 
     switch(edgeCount){
         //TODO improve the opposite corners one (esp. with one glass one solid)
         case 0: //no corner, 1 corner, or opposite corners
-            if(!(edges.x||edges.z)) outRay.x=0;
-            if(!(edges.y||edges.w)) outRay.y=0;
-            if(!outMap.x) outRay=vec2(cornersX.x,cornersY.x);
-            if(!outMap.y) outRay=vec2(cornersX.y,cornersY.y);
-            if(!outMap.z) outRay=vec2(cornersX.z,cornersY.z);
-            if(!outMap.w) outRay=vec2(cornersX.w,cornersY.w);
+            uint notOutMap = ~outMap;
+            outRay=vec2(0);
+            if(bool(notOutMap&8u)) outRay=vec2(cornersX.x,cornersY.x);
+            if(bool(notOutMap&4u)) outRay=vec2(cornersX.y,cornersY.y);
+            if(bool(notOutMap&2u)) outRay=vec2(cornersX.z,cornersY.z);
+            if(bool(notOutMap&1u)) outRay=vec2(cornersX.w,cornersY.w);
             break;
 
         case 1: //one edge
-            if(edges.x)
+            if(bool(edges&8u))
                 outRay.x=min(cornersX.z,cornersX.x);
-            if(edges.y)
+            if(bool(edges&4u))
                 outRay.y=min(cornersY.x,cornersY.y);
-            if(edges.z)
+            if(bool(edges&2u))
                 outRay.x=max(cornersX.y,cornersX.w);
-            if(edges.w)
+            if(bool(edges&1u))
                 outRay.y=max(cornersY.w,cornersY.z);
             break;
 
         case 2: //L shape
-            outRay = edges.w? //arranged by which corner is lit
-                (edges.z?vec2(cornersX.y,cornersY.z):vec2(cornersX.x,cornersY.w)):
-                (edges.z?vec2(cornersX.w,cornersY.x):vec2(cornersX.z,cornersY.y));
+            outRay = bool(edges&1u)? //arranged by which corner is lit
+                (bool(edges&2u)?vec2(cornersX.y,cornersY.z):vec2(cornersX.x,cornersY.w)):
+                (bool(edges&2u)?vec2(cornersX.w,cornersY.x):vec2(cornersX.z,cornersY.y));
 //            outRay = vec2(
 //                edges.x?min(cornersX.x,cornersX.z):max(cornersX.y,cornersX.w),
 //                edges.y?min(cornersY.x,cornersY.y):max(cornersY.z,cornersY.w)
@@ -592,15 +605,17 @@ void doOcclusion(lightVoxData[2][2] samples, bool[2][2] relevance, bvec2 alignme
 
         default:
         case 4:
-            outMap=bvec4(false);
+            outMap=0u;
     }
 
     if(alignment.x){
-        outMap=and(outMap, outMap.zwxy);
+//        outMap=and(outMap, outMap.zwxy);
+        outMap = outMap&((outMap<<2) | (outMap>>2));
         outRay.y=0;
     }
     if(alignment.y){
-        outMap=and(outMap, outMap.yxwz);
+//        outMap=and(outMap, outMap.yxwz);
+        outMap = outMap&(((outMap&5u)<<1) | ((outMap&10u)>>1));
         outRay.x=0;
     }
 
@@ -623,7 +638,7 @@ void doLightPassage(inout lightVoxData bestLight, bool translucentTerrain){
     doOcclusion(relevantSamples, relevance, alignment, newObstructions, bestLight);
 
 #if !(defined KEEP_FULLY_OCCLUDED_SAMPLES && defined DEBUG_OCCLUSION_MAP)
-    if ( !(bestLight.occlusionMap.x||bestLight.occlusionMap.y||bestLight.occlusionMap.z||bestLight.occlusionMap.w)){
+    if ( !bool(bestLight.occlusionMap)){
         bestLight.type=0;
     }
 #endif
@@ -668,7 +683,7 @@ void lightVoxelFace(){
         color/=translucentBlocksInSample;
 
         doLightPassage(transucentPassage,true);
-        if(any(transucentPassage.occlusionMap)){
+        if(bool(transucentPassage.occlusionMap)){
             transucentPassage.color*=color;
             transucentPassage.flags|=1u;
 
@@ -702,7 +717,7 @@ void lightVoxelFace(){
         }
         bestLights[VOX_LAYERS-1].color = unpackUnorm4x8(front).wzy;
         bestLights[VOX_LAYERS-1].type = (front>>VOXEL_TYPE_SHIFT)&0xfu;
-        bestLights[VOX_LAYERS-1].occlusionMap=bvec4(true);
+        bestLights[VOX_LAYERS-1].occlusionMap=15u;
         bestLights[VOX_LAYERS-1].occlusionHitDistance=0;
     }
 

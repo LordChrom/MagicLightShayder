@@ -11,7 +11,7 @@ uniform mat4 gbufferModelView, gbufferProjection;
 uniform vec3 cameraPosition;
 
 #if false //dummy definition because intellij's best glsl plugin doesnt know includes exist
-struct lightVoxData{vec2 occlusionRay;bvec4 occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;uint flags;};
+struct lightVoxData{vec2 occlusionRay;uint occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;uint flags;};
 #endif
 
 
@@ -39,7 +39,7 @@ layout (local_size_x = AREA_SIZE_MEM, local_size_y = 1, local_size_z = 1) in;
 
 const vec3 sunColor = vec3(242,242,242)/255;
 const vec3 sunPos = vec3(0,0,1000);
-const lightVoxData defaultSunLight = {vec2(0,0),bvec4(true),sunColor,ivec3(0,0,10),0,1,0};
+const lightVoxData defaultSunLight = {vec2(0,0),0xf,sunColor,ivec3(0,0,10),0,1,0};
 
 const int workGroupZ = 6*PROC_MULT;
 

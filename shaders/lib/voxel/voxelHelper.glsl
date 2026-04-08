@@ -121,7 +121,7 @@ struct areaMeta{//size 16
 
 struct lightVoxData{
     vec2 occlusionRay;// ( |da/dL|, |db/dL| ), range [0,1], sign implicitly same as lightTravel.xy
-    bvec4 occlusionMap;//quadrants in which occlusion occurs, lit if true----> map.( x y )   ( +|a,b|  +|0,b| )
+    uint occlusionMap;//quadrants in which occlusion occurs, lit if true----> map.( x y )   ( +|a,b|  +|0,b| )
     vec3 color;                                                                  //( z w ) = ( +|b,0|  +|0,0| )
     vec3 lightTravel;//zone space. the displacement from the light source voxel center to the sample's voxel center
     float occlusionHitDistance; //distance from the light source to the edge which caused a shadow, for penumbra sharpness
@@ -129,7 +129,7 @@ struct lightVoxData{
     uint flags; //7 free, 1 for whether the light just had translucency applied
 };
 
-const lightVoxData noLight = {vec2(0),bvec4(false),vec3(0),vec3(0),0,0,0};
+const lightVoxData noLight = {vec2(0),0u,vec3(0),vec3(0),0,0,0};
 
 const float lightTravelScaleInv = 16.0; //most voxels per block representable for lightTravel
 const float lightTravelScale = 1.0/lightTravelScaleInv;
@@ -149,7 +149,7 @@ lightVoxData unpackLightData(uvec4 packedData){
     vec4 colorEtc = unpackUnorm4x8(packedData.z);
     ret.color=colorEtc.xyz;
     ret.occlusionRay=unpackUnorm4x8(packedData.w).zw; //higher bits are later vec elements
-    ret.occlusionMap = bvec4(packedData.w&0x8000u,packedData.w&0x4000u,packedData.w&0x2000u,packedData.w&0x1000u);
+    ret.occlusionMap = (packedData.w>>12)&0xfu;
     ret.type = (packedData.w>>8)&0xfu;
     ret.flags = packedData.w&0xffu;
     return ret;
@@ -158,16 +158,16 @@ lightVoxData unpackLightData(uvec4 packedData){
 uvec4 packLightData(lightVoxData data){
     uvec4 ret;
     uvec4 intTravel = ivec4(round(vec4(data.lightTravel,data.occlusionHitDistance)*lightTravelScaleInv));
-    uint intOcclMap =
-        (int(data.occlusionMap.x)<<15)|
-        (int(data.occlusionMap.y)<<14)|
-        (int(data.occlusionMap.z)<<13)|
-        (int(data.occlusionMap.w)<<12);
+//    uint intOcclMap =
+//        (int(data.occlusionMap.x)<<15)|
+//        (int(data.occlusionMap.y)<<14)|
+//        (int(data.occlusionMap.z)<<13)|
+//        (int(data.occlusionMap.w)<<12);
 
     ret.x = (intTravel.x<<16) | (intTravel.y&0xffffu);
     ret.y = (intTravel.w<<16) | (intTravel.z&0xffffu);
     ret.z = packUnorm4x8(vec4(data.color,0));
-    ret.w = (packUnorm4x8(vec4(0,0,data.occlusionRay))&0xffff0000u) | (intOcclMap&0xf000u) | ((data.type&0xfu)<<8) | (data.flags&0xffu);
+    ret.w = (packUnorm4x8(vec4(0,0,data.occlusionRay))&0xffff0000u) | ((data.occlusionMap&0xfu)<<12) | ((data.type&0xfu)<<8) | (data.flags&0xffu);
     return ret;
 }
 
@@ -245,53 +245,47 @@ void setVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift, uint areaMemOff
 #endif
 
 
-
-//boolean operations
-bvec4 and(bvec4 a, bvec4 b){return bvec4(a.x&&b.x,a.y&&b.y,a.z&&b.z,a.w&&b.w);}
-bvec4 or(bvec4 a, bvec4 b){return bvec4(a.x||b.x,a.y||b.y,a.z||b.z,a.w||b.w);}
-bvec4 not(bvec4 a){return bvec4(!a.x,!a.y,!a.z,!a.w);}
-vec4 ternary(bvec4 conditions,vec4 ifTrue, vec4 ifFalse){
-    return vec4(conditions.x?ifTrue.x:ifFalse.x, conditions.y?ifTrue.y:ifFalse.y, conditions.z?ifTrue.z:ifFalse.z, conditions.w?ifTrue.w:ifFalse.w);
+uint bvec4ToUint(bvec4 b){
+    return (uint(b.x)<<3u)|(uint(b.y)<<2u)|(uint(b.z)<<1u)|(uint(b.w));
 }
-bool any(bvec4 a){return (a.x||a.y)||(a.z||a.w);}
+//bvec4
+vec4 ternary(uint conditions,vec4 ifTrue, vec4 ifFalse){
+    return vec4(
+        bool(conditions&8u)?ifTrue.x:ifFalse.x,
+        bool(conditions&4u)?ifTrue.y:ifFalse.y,
+        bool(conditions&2u)?ifTrue.z:ifFalse.z,
+        bool(conditions&1u)?ifTrue.w:ifFalse.w
+    );
+}
 
 
 
 //occlusion map stuff
-bool isLit(vec2 slope, vec2 ray, bvec4 map){
-    ivec2 pos = ivec2(slope.x<ray.x,slope.y<ray.y);
-    return map[pos.x+(pos.y<<1)];
-}
-
-bool isLit(vec3 position, lightVoxData light){
-    return isLit(abs(position.xy/position.z),light.occlusionRay,light.occlusionMap);
+bool isLit(vec3 position, vec2 occlRay, uint occlMap){
+    return bool(occlMap & (abs(position.x)>occlRay.x*position.z?10u:5u) & (abs(position.y)>occlRay.y*position.z?12u:3u));
 }
 
 #ifdef PENUMBRAS_ENABLED
 float penumbralLightTest(vec3 position, lightVoxData light){
-    vec2 slope = abs(position.xy/position.z);
-    vec2 ray = light.occlusionRay;
-    bvec4 map = light.occlusionMap;
-    float lightSrcWidth = PENUMBRA_WIDTH;
-    float widthInv = light.occlusionHitDistance/(lightSrcWidth *(position.z-light.occlusionHitDistance));
+    float width =(PENUMBRA_WIDTH)*((position.z/light.occlusionHitDistance)-1);
 
-    vec2 m = clamp((slope-ray)*widthInv,-0.5,0.5);
+    vec2 m = clamp((abs(position.xy/position.z)-light.occlusionRay)/width,-0.5,0.5);
+
     vec4 mix = max(vec2(0.5+m.x,0.5-m.x),0).xyxy * max(vec2(0.5+m.y,0.5-m.y),0).xxyy;
-    float totalLevel = (int(map.x)*mix.x+int(map.y)*mix.y+int(map.z)*mix.z+int(map.w)*mix.w);
-    return totalLevel;
+    mix*=1u&uvec4(light.occlusionMap>>3, light.occlusionMap>>2, light.occlusionMap>>1, light.occlusionMap);
+
+    return mix.x+mix.y+mix.z+mix.w;
 }
 #endif
 
 
 
 //outer x,y, inner xy
-bool canIlluminateInBounds(vec4 edges, vec2 ray, bvec4 occlusionMap){
-    return any(and(occlusionMap,
-    and(
-    bvec2(ray.x<edges.x,ray.x>edges.z).xyxy,
-    bvec2(ray.y<edges.y,ray.y>edges.w).xxyy
-    )
-    ));
+bool canIlluminateInBounds(vec4 edges, vec2 ray, uint occlusionMap){
+    return bool( occlusionMap &
+        ((int(ray.x<edges.x)*10u)|(int(ray.x>edges.z)*5u)) &
+        ((int(ray.y<edges.y)*12u)|(int(ray.y>edges.w)*3u))
+    );
 }
 
 
@@ -302,12 +296,16 @@ bool sameLight(lightVoxData a, lightVoxData b){
 }
 
 //left, top, right, bottom
-bvec4 getLightEdges(bvec4 occlusionMap){
-    return and(occlusionMap.zxyw,occlusionMap.xywz);
+uint getLightEdges(uint map){
+    uint xyww = (map&13u) | ((map&1u)<<1);
+    uint zxyz = (map>>1) | ((map&2u)<<2);
+    return xyww&zxyz;
 }
 
-bvec4 getOcclusionEdges(bvec4 occlusionMap){
-    return not(or(occlusionMap.zxyw,occlusionMap.xywz));
+uint getOcclusionEdges(uint map){
+    uint xyww = (map&13u) | ((map&1u)<<1);
+    uint zxyz = (map>>1) | ((map&2u)<<2);
+    return 15u&~(xyww|zxyz);
 }
 
 //caps out at 31 but its whatever
