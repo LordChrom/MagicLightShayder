@@ -215,18 +215,16 @@ void fillSeams(uvec3 workGroupID, uvec3 localID){
     ivec3 previousAreaShift = ivec3(0);
 
     if(isOddVisit){
-        if(frameCounter>nextCascade)
-            previousAreaShift = areaDataAccess.evenAreaMetas[cascadeLevel].areaShift;
+        previousAreaShift = areaDataAccess.evenAreaMetas[cascadeLevel].areaShift;
         if(localID.x==0)
             areaDataAccess.oddAreaMetas[cascadeLevel].areaShift = thisShift;
     }else{
-        if(frameCounter>nextCascade)
-            previousAreaShift = areaDataAccess.oddAreaMetas[cascadeLevel].areaShift;
+        previousAreaShift = areaDataAccess.oddAreaMetas[cascadeLevel].areaShift;
         if(localID.x==0)
             areaDataAccess.evenAreaMetas[cascadeLevel].areaShift = thisShift;
     }
 
-    movement = thisShift-previousAreaShift;
+    movement = clamp(thisShift-previousAreaShift,-AREA_SIZE_MEM,AREA_SIZE_MEM);
 
     if(workGroupID.z==(AXIS_LAYER_WORLD_COUNT-1))
         fillVoxSeams(workGroupID, localID);
