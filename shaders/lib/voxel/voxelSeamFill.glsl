@@ -168,7 +168,7 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
         )){
             if(isPosExpiryExempt(areaPos))
                 continue;
-            whatToWrite=getRawVoxData(areaPos,thisShift,thisMemOffset);
+            whatToWrite=getVoxData(areaPos,thisShift,thisMemOffset);
     #ifndef DEBUG_NOTHING_EXPIRES
             whatToWrite-=(uint(bool(whatToWrite))<<VOXEL_AGE_SHIFT);
             whatToWrite = bool(whatToWrite&VOXEL_AGE_MASK)?whatToWrite:0;
@@ -184,7 +184,7 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
         uint representative = 0;
         for(int i=0; i<8; i++){
             ivec3 subPos = ivec3(i,i>>1,i>>2)&1;
-            uint sampledVox = getRawVoxData(areaPos+subPos, thisShift, thisMemOffset);
+            uint sampledVox = getVoxData(areaPos+subPos, thisShift, thisMemOffset);
             representative = max(representative,sampledVox);
         }
 

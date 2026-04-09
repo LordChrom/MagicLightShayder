@@ -22,7 +22,7 @@ void writeVoxelMap(vec3 worldPos, int blockID, vec3 toMidblock, vec3 normal, uin
         if(emission>0){
             color*=float(emission)*0.06666; //1/15
             metadata&=0xfeu;
-            metadata |= ((blockID/10000u)%10u)<<VOXEL_TYPE_SHIFT;
+            metadata |= ((blockID/10000u)%10u)<<(VOXEL_TYPE_SHIFT-WORLDVOX_SHIFT);
         }
 
     }else{

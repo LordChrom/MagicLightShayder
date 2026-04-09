@@ -249,7 +249,7 @@ uint packBytes(uvec4 data){
 }
 
 uvec4 unpackWorldVox(uint packedData){
-    uvec4 ret = uvec4((packedData>>14),(packedData>>7)&0x7fu,packedData&0x7fu,packedData>>21);
+    uvec4 ret = uvec4((packedData>>14)&0x7fu,(packedData>>7)&0x7fu,packedData&0x7fu,packedData>>21);
     ret.rgb<<=1;
     return ret;
 }
@@ -257,6 +257,10 @@ uvec4 unpackWorldVox(uint packedData){
 uint packWorldVox(uvec4 data){
     data.rgb=(data.rgb>>=1)&0x7fu;
     return ((data.w<<21)|(data.x<<14))|((data.y<<7)|(data.z));
+}
+
+vec3 worldVoxColor(uint packedData){
+    return vec3(uvec3(packedData>>14,packedData>>7,packedData)&0x7fu)*1.0/127;
 }
 
 
@@ -298,12 +302,8 @@ void setLightData(lightVoxData light, ivec3 zonePos, ivec3 zoneShift, uint zoneM
 #ifdef SAMPLES_VOX
 uniform usampler3D worldVoxSampler;
 
-uint getRawVoxData(ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
+uint getVoxData(ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
     return texelFetch(worldVoxSampler,toMemPos(areaPos,areaShift,areaMemOffset),0).x;
-}
-
-uvec4 getVoxData(ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
-    return unpackWorldVox(getRawVoxData(areaPos,areaShift,areaMemOffset));
 }
 #endif
 

@@ -28,15 +28,12 @@
 #define PENUMBRA_WIDTH 0.04 //[0.01 0.015 0.02 0.03 0.04 0.06 0.08 0.12 0.16 0.2 0.3]
 #define PENUMBRAS_ENABLED
 
-#define VOX_LAYERS 2 //[1 2 3 4]
+#define VOX_LAYERS 2 //[1 2 3 4 8]
 
 #define COLORED_TRANSLUCENTS
 //#define PRIDE_LIGHTING
 
-//TODO probably remove, after speeding up isLit this seems just like, unambigously worse
-//#define SHORTLISTED_COMPARISON
 //#define WAVES_INORDER
-#define PARALLEL_UNPACK
 
 #define VOLUMETRIC_FOG_SAMPLES 2 //[0 1 2 3 4 6 8 12 16 24 32]
 #define FOG_THICKNESS 1.0 //[0.125 0.25 0.5 0.75 1.0 1.25 1.5 1.75 2.0 2.5 3.0 3.5 4.0]
@@ -102,10 +99,11 @@
 #define LIGHT_TYPE_SUN 1
 
 
-#define VOXEL_TYPE_SHIFT 2
-#define WORLDVOX_OPAQUE 1u
-#define WORLDVOX_TRANSLUCENT 2u
-#define WORLDVOX_NOT_AIR 3u
+#define WORLDVOX_SHIFT 21
+#define VOXEL_TYPE_SHIFT (2+WORLDVOX_SHIFT)
+#define WORLDVOX_OPAQUE (1u<<WORLDVOX_SHIFT)
+#define WORLDVOX_TRANSLUCENT (2u<<WORLDVOX_SHIFT)
+#define WORLDVOX_NOT_AIR (3u<<WORLDVOX_SHIFT)
 #define VOXEL_AGE_SHIFT 27
 #define VOXEL_AGE_MASK (0xffffffff<<VOXEL_AGE_SHIFT)
 #define VOXEL_INITIAL_TIME 10
