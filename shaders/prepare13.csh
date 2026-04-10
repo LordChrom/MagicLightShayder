@@ -1,5 +1,5 @@
 #version 430
-#define LIGHTER_PASS 0
+#define LIGHTER_PASS 3
 #include "lib/voxel/voxelLighter.glsl"
 
 void main(){

@@ -3,8 +3,8 @@
 #define SAMPLES_VOX
 #include "/lib/voxel/voxelHelper.glsl"
 
-#if (defined WAVES_INORDER) && (UPDATE_STRIDE==1)
-    #define CONTINUAL_WAVES
+#if (((defined WAVES_INORDER) && (UPDATE_STRIDE==1)) || (CONSECUTIVE_WAVES>1)) && (defined SEQUENTIAL_WAVE_PROCESSING_ALLOWED)
+    #define SEQUENTIAL_WAVE_PROCESSING
 #endif
 
 //workGroups is indirect, determined in voxelSeamFill
@@ -21,8 +21,8 @@ ivec3 zoneShift,areaShift;
 ivec3 aVec, bVec, LVec;
 float scale,halfScale;
 uint axis, areaMemOffset;
-#ifdef CONTINUAL_WAVES
-    bool hasPreviousIteration;
+#ifdef SEQUENTIAL_WAVE_PROCESSING
+    bool hasPreviousIteration, hasNextIteration;
 #endif
 
 //different per invocation
@@ -30,36 +30,39 @@ ivec3 areaPos, zonePos;
 uint A,B; //1 to SECTION_SIZE
 
 
-uvec4 getInputSample(int a, int b, uint layer){  return sharedPackedSamples[A+a][B+b][layer]; }
-uint getFrontVoxel(int a, int b){  return sharedPackedFrontVoxels[A+a][B+b]; }
-uint getRearVoxel(int a, int b){  return sharedPackedRearVoxels[A+a][B+b]; }
+uvec4 getInputSample(int a, int b, uint layer){
+    return sharedPackedSamples[A+a][B+b][layer];
+}
+uint getFrontVoxel(int a, int b){
+    return sharedPackedFrontVoxels[A+a][B+b];
+}
+uint getRearVoxel(int a, int b){
+    return sharedPackedRearVoxels[A+a][B+b];
+}
 
+uvec4 maybeBlockLight(uvec4 light, uint voxel){
+    return (
+        bool(voxel&WORLDVOX_OPAQUE)
+        || ((bool(voxel&WORLDVOX_TRANSLUCENT)) &&!bool(unpackLightFlags(light)&1u))
+#if MAX_LIGHT_TRAVEL > 0
+        || (unpackLightTravel(light).z>MAX_LIGHT_TRAVEL)
+#endif
+    )? uvec4(0):light;
+}
 
 void saveSharedSample(int a, int b, bool isBonusSample){
     ivec3 voxelPos = areaPos.xyz+ivec3(aVec*a + bVec*b);
 
-#ifdef CONTINUAL_WAVES
+#ifdef SEQUENTIAL_WAVE_PROCESSING
     if(hasPreviousIteration && !isBonusSample){
         uint rearVoxel = sharedPackedRearVoxels[A+a][B+b] = sharedPackedFrontVoxels[A+a][B+b];
-        for(int layer = 0; layer<VOX_LAYERS; layer++){
-            uvec4 light = sharedPackedSamples[A+a][B+b][layer];
-            if ((unpackLightTravel(light).z>MAX_LIGHT_TRAVEL) || ((bool(rearVoxel&WORLDVOX_TRANSLUCENT)) && !bool(unpackLightFlags(light)&1u)))
-            sharedPackedSamples[A+a][B+b][layer] = uvec4(0);
-        }
     }else
 #endif
     {
         uint rearVoxel = sharedPackedRearVoxels[A+a][B+b] = getVoxData(voxelPos-LVec,areaShift,areaMemOffset);
         for(int layer = 0; layer<VOX_LAYERS; layer++){
-            uvec4 light = uvec4(0);
-            if(!bool(rearVoxel&WORLDVOX_OPAQUE)){
-                light = sampleLightData(zonePos+ivec3(a, b, -1), zoneShift, zoneMemOffsets[layer]);
-#if MAX_LIGHT_TRAVEL > 0
-                if((unpackLightTravel(light).z>MAX_LIGHT_TRAVEL) || ((bool(rearVoxel&WORLDVOX_TRANSLUCENT)) && !bool(unpackLightFlags(light)&1u)))
-                    light = uvec4(0);
-#endif
-            }
-            sharedPackedSamples[A+a][B+b][layer] = light;
+            uvec4 light = sampleLightData(zonePos+ivec3(a, b, -1), zoneShift, zoneMemOffsets[layer]);
+            sharedPackedSamples[A+a][B+b][layer] = maybeBlockLight(light,rearVoxel);
         }
     }
     sharedPackedFrontVoxels[A+a][B+b] = getVoxData(voxelPos,areaShift,areaMemOffset);
@@ -598,12 +601,14 @@ void lightVoxelFace(){
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         setLightData(bestLights[layer], zonePos, zoneShift, zoneMemOffsets[layer]);
-#ifdef CONTINUAL_WAVES
-        sharedPackedSamples[A][B][layer] = bestLights[layer];
+#ifdef SEQUENTIAL_WAVE_PROCESSING
+        if(hasNextIteration){
+            sharedPackedSamples[A][B][layer] = maybeBlockLight(bestLights[layer],front);
+        }
 #endif
     }
 
-#ifdef CONTINUAL_WAVES
+#ifdef SEQUENTIAL_WAVE_PROCESSING
     barrier();
 #endif
 }
@@ -648,23 +653,26 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
     LVec = ivec3(areaToZoneSpaceMats[axis][2]);
     zoneShift = areaToZoneSpace(areaShift,axis);
 
-    frameBasedOffset = (frameBasedOffset-zoneShift.z)%UPDATE_STRIDE;
+    frameBasedOffset = (frameBasedOffset*CONSECUTIVE_WAVES-zoneShift.z + LIGHTER_PASS)%UPDATE_STRIDE;
 
-#ifdef CONTINUAL_WAVES
-    hasPreviousIteration = false;
-#endif
 
 #ifdef WAVES_INORDER
     for(;frameBasedOffset<AREA_SIZE;frameBasedOffset+=UPDATE_STRIDE)
 #endif
     {
-        zonePos = ivec3(zoneBasePos.xy,zoneBasePos.z+frameBasedOffset);
-        areaPos = zoneToAreaSpace(zonePos,axis);
+        int offset = frameBasedOffset;
+    #ifdef SEQUENTIAL_WAVE_PROCESSING
+        for(int i=0; i<CONSECUTIVE_WAVES; i++){
+            hasPreviousIteration = i>0;
+            hasNextIteration = i<(CONSECUTIVE_WAVES-1);
+            offset = frameBasedOffset+i;
+    #endif
+            zonePos = ivec3(zoneBasePos.xy, zoneBasePos.z+offset);
+            areaPos = zoneToAreaSpace(zonePos, axis);
 
-        lightVoxelFace();
-
-#ifdef CONTINUAL_WAVES
-        hasPreviousIteration = true;
-#endif
+            lightVoxelFace();
+    #ifdef SEQUENTIAL_WAVE_PROCESSING
+        }
+    #endif
     }
 }

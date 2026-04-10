@@ -3,6 +3,7 @@
 
 //#define DEBUG_OCCLUSION_MAP
 //#define DEBUG_OCCLUSION_RAYS
+//#define DEBUG_OCCLUSION_HIT_DIST
 #define UNFLIP_DEBUG_MAPS
 #define DEBUG_OUTLINE_WIDTH 0.04 //[0 0.01 0.02 0.04 0.08 0.16]
 #define DEBUG_AXIS -1 //[-1 0 1 2 3 4 5]
@@ -62,11 +63,12 @@
 #define NUM_CASCADES 6 //[1 2 3 4 6 8 12 16]
 #define MIN_SCALE 1 //[0.5 1 2]
 
-#define UPDATE_STRIDE 16 //[1 2 4 8 16 32]
-#define SECTION_SIZE 16 //[]
+#define UPDATE_STRIDE 16 //[1 2 4 8 16 32 64]
+#define CONSECUTIVE_WAVES 1 //[1 2 4 8 16 32 64]
+#define SECTION_SIZE 16 //[4 8 16 32]
 #define AREA_WIDTH_SECTIONS 4 //[1 2 4 6 8]
 #define DOUBLE_PROC
-#define ALLOW_CONTINUAL_WAVES
+#define SEQUENTIAL_WAVE_PROCESSING_ALLOWED
 
 #define MAX_LIGHT_TRAVEL 64 //[-1 0 1 2 4 8 16 24 32 64 128 256 512 1024]
 
@@ -201,7 +203,9 @@ const float translucentPrecedenceCutoff = 0.99;
 #if BLOOM>0
 #ifdef BLOOM_SMART
 #ifdef KEEP_FULLY_OCCLUDED_SAMPLES
+#ifdef SEQUENTIAL_WAVE_PROCESSING_ALLOWED
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
+#endif
 #endif
 #endif
 #endif

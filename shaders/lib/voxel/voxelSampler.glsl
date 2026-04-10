@@ -209,6 +209,14 @@ uint map = unpackLightOcclusionMap(packedLightSrc);
     }
 #endif
 
+#ifdef DEBUG_OCCLUSION_HIT_DIST
+    float occHitDist = unpackLightOccusionlHitDist(packedLightSrc);
+    if(occHitDist!=0){
+        float wavey = occHitDist*0.5+1;
+        color*=normalize(0.6+0.4*vec3(sin(wavey), sin(wavey+PI*2.0/3), sin(wavey+PI*4.0/3)));
+    }
+#endif
+
 #if DEBUG_SHOW_UPDATES >= 0
     #if DEBUG_SHOW_UPDATES==0
     if(abs(normal.z)<0.9)
