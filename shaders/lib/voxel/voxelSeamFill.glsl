@@ -38,8 +38,8 @@ layout (local_size_x = AREA_SIZE_MEM, local_size_y = 1, local_size_z = 1) in;
 
 const vec3 sunColor = vec3(242,242,242)/255;
 const vec3 sunPos = vec3(0,0,1000);
-const uvec4 noLight = packLightData(vec2(0),0u,vec3(0),vec3(0),0,0,0);
-const uvec4 defaultSunLight = packLightData(vec2(0),0xfu,sunColor,vec3(0,0,10),0f,LIGHT_TYPE_SUN,0xfeu);
+const uvec4 noLight = uvec4(0);
+uvec4 defaultSunLight = packLightData(vec2(0),0xfu,sunColor,vec3(0,0,10),0f,1,0xfeu);
 
 const int workGroupZ = 6*PROC_MULT;
 

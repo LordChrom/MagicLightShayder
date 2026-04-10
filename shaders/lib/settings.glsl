@@ -64,11 +64,10 @@
 #define MIN_SCALE 1 //[0.5 1 2]
 
 #define UPDATE_STRIDE 16 //[1 2 4 8 16 32 64]
-#define CONSECUTIVE_WAVES 1 //[1 2 4 8 16 32 64]
+#define LIGHTING_SYSTEM_PASSES 1 //[1 2 3 4 5 6 7 8]
 #define SECTION_SIZE 16 //[4 8 16 32]
 #define AREA_WIDTH_SECTIONS 4 //[1 2 4 6 8]
 #define DOUBLE_PROC
-#define SEQUENTIAL_WAVE_PROCESSING_ALLOWED
 
 #define MAX_LIGHT_TRAVEL 64 //[-1 0 1 2 4 8 16 24 32 64 128 256 512 1024]
 
@@ -203,9 +202,7 @@ const float translucentPrecedenceCutoff = 0.99;
 #if BLOOM>0
 #ifdef BLOOM_SMART
 #ifdef KEEP_FULLY_OCCLUDED_SAMPLES
-#ifdef SEQUENTIAL_WAVE_PROCESSING_ALLOWED
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
-#endif
 #endif
 #endif
 #endif

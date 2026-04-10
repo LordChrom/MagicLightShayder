@@ -3,10 +3,6 @@
 #define SAMPLES_VOX
 #include "/lib/voxel/voxelHelper.glsl"
 
-#if (((defined WAVES_INORDER) && (UPDATE_STRIDE==1)) || (CONSECUTIVE_WAVES>1)) && (defined SEQUENTIAL_WAVE_PROCESSING_ALLOWED)
-    #define SEQUENTIAL_WAVE_PROCESSING
-#endif
-
 //workGroups is indirect, determined in voxelSeamFill
 layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z = LOCAL_SIZE_Z) in;
 
@@ -21,24 +17,15 @@ ivec3 zoneShift,areaShift;
 ivec3 aVec, bVec, LVec;
 float scale,halfScale;
 uint axis, areaMemOffset;
-#ifdef SEQUENTIAL_WAVE_PROCESSING
-    bool hasPreviousIteration, hasNextIteration;
-#endif
 
 //different per invocation
 ivec3 areaPos, zonePos;
 uint A,B; //1 to SECTION_SIZE
 
 
-uvec4 getInputSample(int a, int b, uint layer){
-    return sharedPackedSamples[A+a][B+b][layer];
-}
-uint getFrontVoxel(int a, int b){
-    return sharedPackedFrontVoxels[A+a][B+b];
-}
-uint getRearVoxel(int a, int b){
-    return sharedPackedRearVoxels[A+a][B+b];
-}
+uvec4 getInputSample(int a, int b, uint layer){return sharedPackedSamples[A+a][B+b][layer];}
+uint getFrontVoxel(int a, int b){return sharedPackedFrontVoxels[A+a][B+b];}
+uint getRearVoxel(int a, int b){return sharedPackedRearVoxels[A+a][B+b];}
 
 uvec4 maybeBlockLight(uvec4 light, uint voxel){
     return (
@@ -53,18 +40,12 @@ uvec4 maybeBlockLight(uvec4 light, uint voxel){
 void saveSharedSample(int a, int b, bool isBonusSample){
     ivec3 voxelPos = areaPos.xyz+ivec3(aVec*a + bVec*b);
 
-#ifdef SEQUENTIAL_WAVE_PROCESSING
-    if(hasPreviousIteration && !isBonusSample){
-        uint rearVoxel = sharedPackedRearVoxels[A+a][B+b] = sharedPackedFrontVoxels[A+a][B+b];
-    }else
-#endif
-    {
-        uint rearVoxel = sharedPackedRearVoxels[A+a][B+b] = getVoxData(voxelPos-LVec,areaShift,areaMemOffset);
-        for(int layer = 0; layer<VOX_LAYERS; layer++){
-            uvec4 light = sampleLightData(zonePos+ivec3(a, b, -1), zoneShift, zoneMemOffsets[layer]);
-            sharedPackedSamples[A+a][B+b][layer] = maybeBlockLight(light,rearVoxel);
-        }
+    uint rearVoxel = sharedPackedRearVoxels[A+a][B+b] = getVoxData(voxelPos-LVec,areaShift,areaMemOffset);
+    for(int layer = 0; layer<VOX_LAYERS; layer++){
+        uvec4 light = sampleLightData(zonePos+ivec3(a, b, -1), zoneShift, zoneMemOffsets[layer]);
+        sharedPackedSamples[A+a][B+b][layer] = maybeBlockLight(light,rearVoxel);
     }
+
     sharedPackedFrontVoxels[A+a][B+b] = getVoxData(voxelPos,areaShift,areaMemOffset);
 }
 
@@ -601,16 +582,8 @@ void lightVoxelFace(){
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         setLightData(bestLights[layer], zonePos, zoneShift, zoneMemOffsets[layer]);
-#ifdef SEQUENTIAL_WAVE_PROCESSING
-        if(hasNextIteration){
-            sharedPackedSamples[A][B][layer] = maybeBlockLight(bestLights[layer],front);
-        }
-#endif
     }
 
-#ifdef SEQUENTIAL_WAVE_PROCESSING
-    barrier();
-#endif
 }
 
 void lightVoxelFaces(uvec3 groupId, uvec3 localId){
@@ -653,7 +626,7 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
     LVec = ivec3(areaToZoneSpaceMats[axis][2]);
     zoneShift = areaToZoneSpace(areaShift,axis);
 
-    frameBasedOffset = (frameBasedOffset*CONSECUTIVE_WAVES-zoneShift.z + LIGHTER_PASS)%UPDATE_STRIDE;
+    frameBasedOffset = (frameBasedOffset*LIGHTING_SYSTEM_PASSES-zoneShift.z + LIGHTER_PASS)%UPDATE_STRIDE;
 
 
 #ifdef WAVES_INORDER
@@ -661,18 +634,9 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 #endif
     {
         int offset = frameBasedOffset;
-    #ifdef SEQUENTIAL_WAVE_PROCESSING
-        for(int i=0; i<CONSECUTIVE_WAVES; i++){
-            hasPreviousIteration = i>0;
-            hasNextIteration = i<(CONSECUTIVE_WAVES-1);
-            offset = frameBasedOffset+i;
-    #endif
-            zonePos = ivec3(zoneBasePos.xy, zoneBasePos.z+offset);
-            areaPos = zoneToAreaSpace(zonePos, axis);
+        zonePos = ivec3(zoneBasePos.xy, zoneBasePos.z+offset);
+        areaPos = zoneToAreaSpace(zonePos, axis);
 
-            lightVoxelFace();
-    #ifdef SEQUENTIAL_WAVE_PROCESSING
-        }
-    #endif
+        lightVoxelFace();
     }
 }
