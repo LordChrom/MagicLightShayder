@@ -4,9 +4,6 @@
 #include "/lib/util/flicker.glsl"
 #include "/lib/util/misc.glsl"
 
-#if false //dummy definition because my intellij's best glsl plugin doesnt know includes exist
-struct lightVoxData{vec2 occlusionRay;uint occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;uint flags;};
-#endif
 
 vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset, vec3 normal, uint axis, float scale, float subsurface, bool isForFog){
     vec3 travel = unpackLightTravel(packedLightSrc);
@@ -227,13 +224,6 @@ uint map = unpackLightOcclusionMap(packedLightSrc);
     }
 #endif
 
-#if DEBUG_GRID_OUTLINE >0
-    vec3 edgeNearness = abs(subVoxelOffset*2/scale)+(DEBUG_GRID_OUTLINE/(64*scale));
-    if((int(edgeNearness.x>=1)+int(edgeNearness.y>=1)+int(edgeNearness.z>=1))>=2){
-        color.rgb=max(color.rgb*1.5,vec3(0.03));
-    }
-#endif
-
     return color;
 }
 
@@ -261,6 +251,16 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface){
 
 
     vec3 color = vec3(0);
+
+#if DEBUG_GRID_OUTLINE >0
+    vec3 edgeNearness = abs(subVoxelOffset*2/scale)+(DEBUG_GRID_OUTLINE/(64*scale));
+    if((int(edgeNearness.x>=1)+int(edgeNearness.y>=1)+int(edgeNearness.z>=1))>=2){
+        color = vec3(0.4);
+    }
+#endif
+
+    if(!isVoxelInBounds(worldPos))
+        return color*0.15;
 
 #if DEBUG_AXIS>=0
     uint axis = DEBUG_AXIS;

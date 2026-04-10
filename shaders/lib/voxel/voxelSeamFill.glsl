@@ -13,10 +13,6 @@ uniform mat4 gbufferModelView, gbufferProjection;
 #endif
 
 
-#if false //dummy definition because intellij's best glsl plugin doesnt know includes exist
-struct lightVoxData{vec2 occlusionRay;uint occlusionMap;vec3 color;vec3 lightTravel;float occlusionHitDistance;uint type;uint flags;};
-#endif
-
 
 //one for each axis * layer combo, and also one for the world
 #if VOX_LAYERS==1
@@ -42,7 +38,8 @@ layout (local_size_x = AREA_SIZE_MEM, local_size_y = 1, local_size_z = 1) in;
 
 const vec3 sunColor = vec3(242,242,242)/255;
 const vec3 sunPos = vec3(0,0,1000);
-const lightVoxData defaultSunLight = {vec2(0,0),0xf,sunColor,ivec3(0,0,10),0,1,0};
+const uvec4 noLight = packLightData(vec2(0),0u,vec3(0),vec3(0),0,0,0);
+const uvec4 defaultSunLight = packLightData(vec2(0),0xfu,sunColor,vec3(0,0,10),0f,LIGHT_TYPE_SUN,0xfeu);
 
 const int workGroupZ = 6*PROC_MULT;
 
@@ -63,7 +60,7 @@ ivec3 thisShift, upperShift, movement;
 
 
 void trimLight(ivec3 zonePos){
-    lightVoxData light = noLight;
+    uvec4 light = noLight;
 
     ivec3 upZonePos = (zonePos+(1&(thisShift))+(AREA_SIZE/2));
     vec3 zonePosRemnants= -0.5+vec3(1&upZonePos);
@@ -72,14 +69,12 @@ void trimLight(ivec3 zonePos){
     //TODO check if position in higher volume hasnt been shifted out of bounds, but should only be an issue when moving *very* fast
     bool upsampleValid = bool(upperMemOffset);
     if(upsampleValid){
-        uvec4 packedUpsample = sampleLightData(upZonePos,upperShift,upperMemOffset);
-        lightVoxData outerLight =  unpackLightData(packedUpsample); //TODO operate only on the light travel
-        if(outerLight.type!=LIGHT_TYPE_SUN)
-            outerLight.lightTravel+=zonePosRemnants;
-        light=outerLight;
+        light = sampleLightData(upZonePos,upperShift,upperMemOffset);
+        if(unpackLightType(light)!=LIGHT_TYPE_SUN)
+            setPackedLightTravel(light,unpackLightTravel(light)+zonePosRemnants);
     }
 #ifndef DEBUG_DISABLE_SUN
-    if((!hasCeiling) && axis==2 && zonePos.z==-1){
+    if((!hasCeiling) && axis==2 && zonePos.z<=0){
         float height = getGlobalOrigin(scale).y+0.5*scale*AREA_SIZE;
         if(height>=(heightLimit+bedrockLevel) || (cascadeLevel==(NUM_CASCADES-1)))
             light = defaultSunLight;

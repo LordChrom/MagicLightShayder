@@ -407,10 +407,9 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
         }
     }
 
-    if(newObstruction && (outHitDist==0)){  //TODO still needs work
+    if(newObstruction && (outHitDist<=0)){  //TODO still needs work
         outHitDist=travel.z-0.6*scale;
     }
-    setPackedOcclusionHitDist(lightSrc,outHitDist);
 
     outerSlope=min(outerSlope,0.999);
 
@@ -497,7 +496,7 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
         outRay.x=0;
     }
 
-    setPackedOcclusionInfo(lightSrc,outRay,outMap);
+    setPackedOcclusionInfo(lightSrc,outRay,outMap, outHitDist);
 }
 
 

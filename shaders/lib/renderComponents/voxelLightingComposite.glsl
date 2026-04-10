@@ -78,11 +78,9 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 
     bool isSky = depth==1;
 
-    bool voxelLit = isVoxelInBounds(worldPos+normal*0.1) && !isSky;
-    if(voxelLit)
+    voxelLighting = vec3(0);
+    if(!isSky)
         voxelLighting = voxelSample(worldPos,normal,subsurface)+emissive;
-    else
-        voxelLighting = vec3(0);
 
 #if VOLUMETRIC_FOG_SAMPLES > 0
     voxelFog = vec4(0,0,0,1);

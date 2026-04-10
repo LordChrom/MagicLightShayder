@@ -1,5 +1,4 @@
 # Terminology
-
 - Direction - The 6 main directions along the positive or negative extents of each axis.
 - Voxel - you know what a voxel is. In this project specifically, it refers to all the data associated with one voxel position
 - Light Sample - a light sample stores information regarding the light entering a voxel from a particular source through a specific face
@@ -13,6 +12,8 @@
 - - eg a 64x64x64 area has 66x66x66 representation in memory, with area pos = -1 or 64 (mem pos 0 or 65) being the boundary
 
 Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x64 voxels. This is subject to change
+
+
 
 # Spaces
 | space | axes  | range                        | unit scale | 
@@ -40,12 +41,16 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 | -z        | 4      | x,y,-z |
 | +z        | 5      | x,y,z  |
 
+
+
 # light types
 - 0: no lighting
 - 1: sunlight
 - 2: steady blocklight
 - 3: pulsating blocklight (like amethyst crystals)
 - 4: analog flickering blocklight (like fire, trial spawners)
+
+
 
 # Colortexes
 - 0: opaque albedo & main output
@@ -58,6 +63,8 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - 7: additive light
 - 15: debug (optional)
 
+
+
 # Layouts
 ### Voxel map
 - RGB are color (7 bits)
@@ -66,6 +73,34 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - - 4 bits its emission type
 - - a bit that's 1 for translucent blocks like stained glass
 - - a bit that's 1 for surfaces that block light
+
+
+
+### Light sample
+- Attributes
+- - vec3 color
+- - vec3 lightTravel,   In zone space. the displacement from the light source voxel center to the sample's voxel center
+- - uint type 
+- - uint flags          see below
+- - occlusion info      see below
+
+- Occlusion data
+- - vec2 occlusionRay           ray to corner of occlusion, range [0,1], sign implicitly same as lightTravel.xy
+- - uint occlusionMap           quadrants in which occlusion occurs, lit if 1, bits in order of most significant to least, represent quadrants with
+                                (+,+), (-,+), (+,-), (-,-) signs for a and b, multiplied by signs of lightTravel.xy.
+- - float occlusionHitDistance  distance from the light source to the source of occlusion, for penumbra sharpness
+
+- Packing
+- - x is 2x16 a,b of travel
+- - y is 12 free, 1x4 light type, 1x16 z of travel
+- - z is 3x8 color, 8 flags
+- - w 2x8 occlusion ray (b then a), 4x1 occlusion map, 1x12 occlusion hit distance
+
+- flags
+- - 6 bits currently used only for DEBUG_SHOW_UPDATES
+- - 1 bit unused 
+- - 1 bit for if its in a translucent
+
 
 
 # General TODO List
@@ -90,6 +125,7 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - make bloom that's not awful
 
 ### Potential additions
+- speed of light properly adjustable
 - make pixel locked rendering actually only need one sample per pixel
 - redo block.properties
 - water stuff
