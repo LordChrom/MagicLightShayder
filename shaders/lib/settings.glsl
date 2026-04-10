@@ -62,10 +62,11 @@
 #define NUM_CASCADES 6 //[1 2 3 4 6 8 12 16]
 #define MIN_SCALE 1 //[0.5 1 2]
 
-#define UPDATE_STRIDE 16 //[2 4 8 16 32]
+#define UPDATE_STRIDE 16 //[1 2 4 8 16 32]
 #define SECTION_SIZE 16 //[]
 #define AREA_WIDTH_SECTIONS 4 //[1 2 4 6 8]
 #define DOUBLE_PROC
+#define ALLOW_CONTINUAL_WAVES
 
 #define MAX_LIGHT_TRAVEL 64 //[-1 0 1 2 4 8 16 24 32 64 128 256 512 1024]
 

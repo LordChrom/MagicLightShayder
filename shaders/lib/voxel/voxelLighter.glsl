@@ -3,7 +3,9 @@
 #define SAMPLES_VOX
 #include "/lib/voxel/voxelHelper.glsl"
 
-
+#if (defined WAVES_INORDER) && (UPDATE_STRIDE==1)
+    #define CONTINUAL_WAVES
+#endif
 
 //workGroups is indirect, determined in voxelSeamFill
 layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z = LOCAL_SIZE_Z) in;
@@ -19,6 +21,9 @@ ivec3 zoneShift,areaShift;
 ivec3 aVec, bVec, LVec;
 float scale,halfScale;
 uint axis, areaMemOffset;
+#ifdef CONTINUAL_WAVES
+    bool hasPreviousIteration;
+#endif
 
 //different per invocation
 ivec3 areaPos, zonePos;
@@ -30,47 +35,62 @@ uint getFrontVoxel(int a, int b){  return sharedPackedFrontVoxels[A+a][B+b]; }
 uint getRearVoxel(int a, int b){  return sharedPackedRearVoxels[A+a][B+b]; }
 
 
-void saveSharedSample(int a, int b){
+void saveSharedSample(int a, int b, bool isBonusSample){
     ivec3 voxelPos = areaPos.xyz+ivec3(aVec*a + bVec*b);
-    uint rearVoxel = sharedPackedRearVoxels[A+a][B+b] = getVoxData(voxelPos-LVec,areaShift,areaMemOffset);
-    sharedPackedFrontVoxels[A+a][B+b] = getVoxData(voxelPos,areaShift,areaMemOffset);
 
-    for(int layer = 0; layer<VOX_LAYERS; layer++){
-        uvec4 light = uvec4(0);
-        if(!bool(rearVoxel&WORLDVOX_OPAQUE)){
-            light = sampleLightData(zonePos+ivec3(a, b, -1), zoneShift, zoneMemOffsets[layer]);
-#if MAX_LIGHT_TRAVEL > 0
-            if((unpackLightTravel(light).z>MAX_LIGHT_TRAVEL) || ((bool(rearVoxel&WORLDVOX_TRANSLUCENT)) && !bool(unpackLightFlags(light)&1u)))
-                light = uvec4(0);
-#endif
+#ifdef CONTINUAL_WAVES
+    if(hasPreviousIteration && !isBonusSample){
+        uint rearVoxel = sharedPackedRearVoxels[A+a][B+b] = sharedPackedFrontVoxels[A+a][B+b];
+        for(int layer = 0; layer<VOX_LAYERS; layer++){
+            uvec4 light = sharedPackedSamples[A+a][B+b][layer];
+            if ((unpackLightTravel(light).z>MAX_LIGHT_TRAVEL) || ((bool(rearVoxel&WORLDVOX_TRANSLUCENT)) && !bool(unpackLightFlags(light)&1u)))
+            sharedPackedSamples[A+a][B+b][layer] = uvec4(0);
         }
-        sharedPackedSamples[A+a][B+b][layer] = light;
+    }else
+#endif
+    {
+        uint rearVoxel = sharedPackedRearVoxels[A+a][B+b] = getVoxData(voxelPos-LVec,areaShift,areaMemOffset);
+        for(int layer = 0; layer<VOX_LAYERS; layer++){
+            uvec4 light = uvec4(0);
+            if(!bool(rearVoxel&WORLDVOX_OPAQUE)){
+                light = sampleLightData(zonePos+ivec3(a, b, -1), zoneShift, zoneMemOffsets[layer]);
+#if MAX_LIGHT_TRAVEL > 0
+                if((unpackLightTravel(light).z>MAX_LIGHT_TRAVEL) || ((bool(rearVoxel&WORLDVOX_TRANSLUCENT)) && !bool(unpackLightFlags(light)&1u)))
+                    light = uvec4(0);
+#endif
+            }
+            sharedPackedSamples[A+a][B+b][layer] = light;
+        }
     }
+    sharedPackedFrontVoxels[A+a][B+b] = getVoxData(voxelPos,areaShift,areaMemOffset);
 }
 
-void takeSamples(){
+ivec2 getBonusPosOffset(){
     const int halfwayL = SECTION_SIZE / 2;
     const int halfwayH = halfwayL+1;
-
-    int A2offset=0;
-    int B2offset=0;
 
     // ↙←     i need samples adjacent to the main region, because an N wide square needs input of width N+2
     // ↙      this shows the direction of the offset for each square inside the corner region, shown for width 8
     // ↙  ↓
     // ↙↙↙↙   (And yes I went out of my way to copypaste these arrows) Min section size is 6x6 because of this
     if(A==1 || A==SECTION_SIZE || B==1 || B==SECTION_SIZE){
-        A2offset = A<=halfwayL?-1:1;
-        B2offset = B<=halfwayL?-1:1;
+        return ivec2(
+            A<=halfwayL?-1:1,
+            B<=halfwayL?-1:1
+        );
     }else if((A==halfwayL || A==halfwayH) && (B==2 || B==(SECTION_SIZE-1))){
-        B2offset = B<=halfwayL?-2:2;
+        return ivec2(0, B<=halfwayL?-2:2);
     }else if((B==halfwayL || B==halfwayH) && (A==2 || A==(SECTION_SIZE-1))){
-        A2offset = A<=halfwayL?-2:2;
-    }
+        return ivec2(A<=halfwayL?-2:2,0);
+    }else
+        return ivec2(0);
+}
 
-    saveSharedSample(0,0);
-    if ((A2offset|B2offset) !=0){
-        saveSharedSample(A2offset,B2offset);
+void takeSamples(){
+    saveSharedSample(0,0,false);
+    ivec2 bonusPos = getBonusPosOffset();
+    if (bonusPos!=ivec2(0)){
+        saveSharedSample(bonusPos.x,bonusPos.y,true);
     }
 
     barrier(); //disable for fun party :)
@@ -579,7 +599,14 @@ void lightVoxelFace(){
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         setLightData(bestLights[layer], zonePos, zoneShift, zoneMemOffsets[layer]);
+#ifdef CONTINUAL_WAVES
+        sharedPackedSamples[A][B][layer] = bestLights[layer];
+#endif
     }
+
+#ifdef CONTINUAL_WAVES
+    barrier();
+#endif
 }
 
 void lightVoxelFaces(uvec3 groupId, uvec3 localId){
@@ -624,6 +651,10 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 
     frameBasedOffset = (frameBasedOffset-zoneShift.z)%UPDATE_STRIDE;
 
+#ifdef CONTINUAL_WAVES
+    hasPreviousIteration = false;
+#endif
+
 #ifdef WAVES_INORDER
     for(;frameBasedOffset<AREA_SIZE;frameBasedOffset+=UPDATE_STRIDE)
 #endif
@@ -632,5 +663,9 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
         areaPos = zoneToAreaSpace(zonePos,axis);
 
         lightVoxelFace();
+
+#ifdef CONTINUAL_WAVES
+        hasPreviousIteration = true;
+#endif
     }
 }
