@@ -49,11 +49,10 @@
 #define FOG_BRIGHTNESS_BLOCK 2.5 //[0.0 0.5 1.0 1.5 2.0 2.5 3.0 4.0 6.0 8.0 12.0 16.0]
 //#define FOG_PENUMBRAS
 
-#define LIGHTING_RENDERSCALE 1 //[0.01 0.015 0.02 0.1 0.15 0.2 0.25 0.3333 0.5 0.625 0.6666 0.75 0.8 0.9 1]
+#define LIGHTING_RENDERSCALE 1 //[0.01 0.15 0.2 0.25 0.3333 0.5 0.625 0.6666 0.75 0.8 0.9 1]
 #define BLOOM_INTENSITY 1.0 //[0.25 0.5 0.75 1.0 1.5 2.0 3.0]
 #define BLOOM_WIDTH 2.0 //[0.5 1.0 1.5 2.0 3.0 4.0]
 #define BLOOM_LEVEL 0 //[0 1 2]
-#define BLOOM_SMART
 
 #define TONEMAP_METHOD 0 //[-1 0 1 2]
 
@@ -61,7 +60,7 @@
 #define TAA_JITTER_INTERVAL 64 //[-1 4 16 64]
 #define TAA_SPATIALITY 1.75 //[0.0 0.25 0.5 0.75 1.0 1.25 1.50 1.75 2.0 4.0]
 #define TAA_MAX_ACCUMULATION_RATE 0.95 //[0.5 0.6 0.7 0.8 0.85 0.9 0.95 0.96 0.97 0.98 0.99 1.0]
-#define TAA_MIN_ACCUMULATION_RATE 0.1 //[0 0.01 0.05 0.1 0.15 0.2 0.3 0.4 0.5]
+#define TAA_MIN_ACCUMULATION_RATE 0.15 //[0 0.01 0.05 0.1 0.15 0.2 0.3 0.4 0.5]
 #define TAA_MOTION_REJECTION 10 //[0 2 4 6 8 10 12 14 16 20 24 28 32]
 
 
@@ -122,7 +121,7 @@
 #define PI 3.1419526535897932
 
 ///// The following to be copy pasted into shaders.properties
-#if (TAA_MODE == 1) || ((TAA_MODE==0) && LIGHTING_RENDERSCALE<1)
+#if (TAA_MODE == 1) || ((TAA_MODE==0) && !(LIGHTING_RENDERSCALE==1))
     #define TAA
 #endif
 
@@ -178,15 +177,6 @@
 #else
 #define WORLD_MEM_SIZE_BIG 8192
 #endif
-
-#if (defined BLOOM_SMART) && (LIGHTING_RENDERSCALE<1) && (BLOOM_LEVEL<2)
-    #define BLOOM_SMART_ACTIVE
-    #if BLOOM_LEVEL==1
-        #define BLOOM_LEVEL 2
-    #elif BLOOM_LEVEL==0
-        #define BLOOM_LEVEL 1
-    #endif
-#endif
 /////
 
 
@@ -212,10 +202,8 @@ const int shadowMapResolution = 1;
 const float translucentPrecedenceCutoff = 0.99;
 
 #if BLOOM>0
-#ifdef BLOOM_SMART
 #ifdef KEEP_FULLY_OCCLUDED_SAMPLES
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
-#endif
 #endif
 #endif
 

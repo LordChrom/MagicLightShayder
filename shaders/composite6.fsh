@@ -1,4 +1,7 @@
 #version 430 compatibility
+uniform vec2 scaledScreenDim;
+uniform float viewWidth, viewHeight;
+
 #include "/lib/renderComponents/blur.glsl"
 
 #if BLOOM_LEVEL>=2
@@ -22,18 +25,15 @@ layout(location = 0) out vec4 lighting;
 layout(location = 0) out vec4 fog;
 #endif
 
-uniform float viewWidth;
-uniform float viewHeight;
-
 in vec2 texcoord;
 
 
 void main() {
 #if BLOOM_LEVEL>=2
-    lighting = doBloom(colortex6,texcoord,vec2(viewWidth,viewHeight),2);
+    lighting = doBloom(colortex6,texcoord,2);
 #endif
 
 #if FOG_BLUR>=2
-    fog = doFogBlur(colortex7,texcoord,vec2(viewWidth,viewHeight),2);
+    fog = doFogBlur(colortex7,texcoord,2);
 #endif
 }

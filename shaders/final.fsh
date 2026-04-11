@@ -2,6 +2,8 @@
 #include "/lib/settings.glsl"
 
 uniform float viewWidth, viewHeight;
+uniform vec2 scaledScreenDim;
+
 #include "/lib/renderComponents/blur.glsl"
 #include "/lib/util/blend.glsl"
 #include "/lib/util/tonemap.glsl"
@@ -53,7 +55,6 @@ void main() {
 	ivec2 texpos = ivec2(texcoord*vec2(viewWidth,viewHeight));
 	vec4 albedo = texelFetch(colortex0,texpos,0);
 	vec4 transColor = texelFetch(colortex1,texpos,0);
-	albedo.xyz = blend(vec4(albedo.xyz,1),transColor);
 
 #ifdef VANILLA_FALLBACK
 	vec3 light = texelFetch(colortex5,texpos,0).xyz;
@@ -65,13 +66,13 @@ void main() {
 
 	vec2 screenDim = vec2(viewWidth,viewHeight);
 #if (BLOOM_LEVEL > 0) && !(defined TAA)
-	vec3 voxelLighting = doBloom(multiplicativeLightTex,texcoord,screenDim,1).rgb;
+	vec3 voxelLighting = doBloom(multiplicativeLightTex,texcoord,1).rgb;
 #else
 	vec3 voxelLighting = texture(multiplicativeLightTex,texcoord).rgb;
 #endif
 
 #if (FOG_BLUR > 0) && !(defined TAA)
-	vec4 voxelFog = doFogBlur(additiveLightTex,texcoord,screenDim,1);
+	vec4 voxelFog = doFogBlur(additiveLightTex,texcoord,1);
 #else
 	vec4 voxelFog = texture(additiveLightTex,texcoord);
 #endif
@@ -80,8 +81,15 @@ void main() {
 		light=voxelLighting.xyz;
 	}
 
+	vec3 color;
+	if(transColor.a>=1){
+		color=transColor.xyz*light;
+	}else{
+		color=albedo.xyz*light;
+		transColor.xyz*=mix(vec3(0.5),light,0.5);
+		color = blend(vec4(color,1),transColor);
+	}
 
-	vec3 color = albedo.xyz*light;
 
 #if VOLUMETRIC_FOG_SAMPLES > 0
 	color = color*voxelFog.a + voxelFog.rgb;
@@ -92,7 +100,7 @@ void main() {
 	#if DEBUG_SPECIAL_VIEW == 200
 	outputColor = voxelLighting;
 	#elif DEBUG_SPECIAL_VIEW != 201
-	outputColor = texelFetch(colortex15,ivec2(floor(0.1+texcoord*LIGHTING_RENDERSCALE*vec2(viewWidth,viewHeight))),0).xyz;
+	outputColor = texelFetch(colortex15,ivec2(floor(0.1+texcoord*scaledScreenDim)),0).xyz;
 	#endif
 #endif
 }

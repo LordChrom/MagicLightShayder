@@ -116,6 +116,7 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - SSS
 - Emissive
 - TAAU response to blinking lights
+- proper lighting on translucents OR have that part of local fog density system
 
 ### Necessary additions
 - multiple occlusion indicators per sample
@@ -128,7 +129,6 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - make voxel map a lower bit size
 
 ### Potential additions
-- speed of light properly adjustable
 - make pixel locked rendering actually only need one sample per pixel
 - redo block.properties
 - water stuff

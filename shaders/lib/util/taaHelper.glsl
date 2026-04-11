@@ -1,5 +1,3 @@
-uniform vec2 scaledScreenDim;
-
 //from -0.5 to 0.5
 vec2 jitter2(int entropy){
     return vec2(ivec2(entropy,entropy>>1)&1)-0.5;

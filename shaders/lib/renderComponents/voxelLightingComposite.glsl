@@ -4,6 +4,7 @@ uniform float viewWidth, viewHeight;
 uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
 uniform mat4 gbufferPreviousProjection,  gbufferPreviousModelView;
 uniform vec3 cameraPosition, previousCameraPosition;
+uniform vec2 scaledScreenDim;
 
 #include "/lib/voxel/voxelSampler.glsl"
 #include "/lib/util/dither.glsl"
