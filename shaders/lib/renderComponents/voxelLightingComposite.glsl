@@ -1,18 +1,17 @@
 #include "/lib/settings.glsl"
 
-#include "/lib/voxel/voxelSampler.glsl"
-
-#include "/lib/util/dither.glsl"
-
 uniform float viewWidth, viewHeight;
+uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
+uniform mat4 gbufferPreviousProjection,  gbufferPreviousModelView;
+uniform vec3 cameraPosition, previousCameraPosition;
+
+#include "/lib/voxel/voxelSampler.glsl"
+#include "/lib/util/dither.glsl"
 #include "/lib/util/taaHelper.glsl"
 
 uniform sampler2D colortex2;
 uniform sampler2D depthtex0;
 uniform sampler2D depthtex2;
-uniform mat4 gbufferProjectionInverse;
-uniform mat4 gbufferModelViewInverse;
-uniform vec3 cameraPosition;
 
 #if MATERIALS_TYPE >= 0
 uniform usampler2D colortex3;
@@ -25,7 +24,7 @@ uniform sampler2D colortex0;
 uniform sampler2D colortex1;
 #elif DEBUG_SPECIAL_VIEW == 5
 uniform sampler2D colortex5;
-#elif DEBUG_SPECIAL_VIEW == 10
+#elif (DEBUG_SPECIAL_VIEW == 10)  || (DEBUG_SPECIAL_VIEW == 200)
 uniform sampler2D colortex10;
 #elif DEBUG_SPECIAL_VIEW == 11
 uniform sampler2D colortex11;
@@ -163,7 +162,7 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     funnyDebug = voxelLighting.xyz;
 #elif DEBUG_SPECIAL_VIEW == 7
     funnyDebug = voxelFog.xyz;
-#elif DEBUG_SPECIAL_VIEW == 10
+#elif (DEBUG_SPECIAL_VIEW == 10) || (DEBUG_SPECIAL_VIEW == 200)
     funnyDebug = texture(colortex10,sampleTexCoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 11
     funnyDebug = texture(colortex11,sampleTexCoord).rgb;

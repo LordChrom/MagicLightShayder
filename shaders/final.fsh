@@ -90,6 +90,10 @@ void main() {
 	outputColor=tonemap(color);
 
 #if DEBUG_SPECIAL_VIEW >= 0
+	#if DEBUG_SPECIAL_VIEW == 200
+	outputColor = voxelLighting;
+	#elif DEBUG_SPECIAL_VIEW != 201
 	outputColor = texelFetch(colortex15,ivec2(floor(0.1+texcoord*LIGHTING_RENDERSCALE*vec2(viewWidth,viewHeight))),0).xyz;
+	#endif
 #endif
 }

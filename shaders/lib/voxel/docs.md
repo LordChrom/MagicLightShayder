@@ -61,8 +61,8 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - 5: vanilla fallback (optional)
 - 6: multiplicative lighting
 - 7: additive light
-- 10: multiplicative accumulation (optional)
-- 11: additive accumulation
+- 10: multiplicative accumulation. w holds prev depth if present (optional)
+- 11: additive accumulation. w holds previous depth if 10 not present
 - 15: debug (optional)
 
 
@@ -115,10 +115,10 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - proper system for unlit geometry
 - SSS
 - Emissive
+- TAAU response to blinking lights
 
 ### Necessary additions
 - multiple occlusion indicators per sample
-- TAAU
 - ambient light
 - Merge adjacent unoccluded lights of same type
 - underwater & underlava fog
@@ -132,6 +132,7 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - make pixel locked rendering actually only need one sample per pixel
 - redo block.properties
 - water stuff
+- dither positive/negative axes with TAA on
 - reflections
 - sky stuff & clouds
 - alternate mode using visibility samples rather than the oclusion info

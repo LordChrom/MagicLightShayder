@@ -17,7 +17,7 @@
 #define UNOCCLUDED_INTO_BLOCKS
 #define LIGHT_SOURCES_BLOCK_CENTERIC
 
-#define DEBUG_SPECIAL_VIEW -1 //[-1 0 1 2 3 4 5 6 7 8 9 10 11 100 101 102 103 104 105]
+#define DEBUG_SPECIAL_VIEW -1 //[-1 0 1 2 3 4 5 6 7 8 9 10 11 100 101 102 103 104 105 200 201]
 //#define DEBUG_NOTHING_EXPIRES
 //#define DEBUG_DISABLE_SUN
 
@@ -53,11 +53,17 @@
 #define BLOOM_INTENSITY 1.0 //[0.25 0.5 0.75 1.0 1.5 2.0 3.0]
 #define BLOOM_WIDTH 2.0 //[0.5 1.0 1.5 2.0 3.0 4.0]
 #define BLOOM_LEVEL 0 //[0 1 2]
-#define BLOOM_SMART
+//#define BLOOM_SMART
 
 #define TONEMAP_METHOD 0 //[-1 0 1 2]
-#define TAA
-#define TAA_JITTER_INTERVAL 4 //[-1 4 16]
+
+#define TAA_MODE 0 //[-1 0 1]
+#define TAA_JITTER_INTERVAL 64 //[-1 4 16 64]
+#define TAA_SPATIALITY 1.75 //[0.0 0.25 0.5 0.75 1.0 1.25 1.50 1.75 2.0 4.0]
+#define TAA_MAX_ACCUMULATION_RATE 0.95 //[0.5 0.6 0.7 0.8 0.85 0.9 0.95 0.96 0.97 0.98 0.99 1.0]
+#define TAA_MIN_ACCUMULATION_RATE 0.1 //[0 0.01 0.05 0.1 0.15 0.2 0.3 0.4 0.5]
+#define TAA_MOTION_REJECTION 10 //[0 2 4 6 8 10 12 14 16 20 24 28 32]
+
 
 #define MATERIALS_TYPE 0 //[-1 0 1]
 #define PBR_NORMALS_STRENGTH 1.0
@@ -116,6 +122,10 @@
 #define PI 3.1419526535897932
 
 ///// The following to be copy pasted into shaders.properties
+#if (TAA_MODE == 1) || ((TAA_MODE==0) && LIGHTING_RENDERSCALE<1)
+    #define TAA
+#endif
+
 #define AREA_SIZE (AREA_WIDTH_SECTIONS*SECTION_SIZE)
 
 #if AREA_SIZE == 16
