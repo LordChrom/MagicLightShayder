@@ -1,9 +1,6 @@
 #version 430 compatibility
 #include "/lib/renderComponents/voxelLightingComposite.glsl"
 
-uniform float viewWidth;
-uniform float viewHeight;
-
 in vec2 texcoord;
 
 #if DEBUG_SPECIAL_VIEW >= 0

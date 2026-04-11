@@ -250,7 +250,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface){
 #endif
     uint cascadeLevel = getCascadeLevel(worldPos+normal*0.1);
     float scale = getScale(cascadeLevel);
-    vec3 voxelCenter = (floor(worldPos/scale+normal*(scale/64))+0.5) * scale;
+    vec3 voxelCenter = (floor(worldPos/scale+normalize(normal)*(scale/20))+0.5) * scale;
 
     ivec3 areaPos = worldPosToArea(voxelCenter,scale).xyz;
     vec3 subVoxelOffset = worldPos-voxelCenter;

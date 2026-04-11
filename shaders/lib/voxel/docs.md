@@ -61,6 +61,8 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - 5: vanilla fallback (optional)
 - 6: multiplicative lighting
 - 7: additive light
+- 10: multiplicative accumulation (optional)
+- 11: additive accumulation
 - 15: debug (optional)
 
 

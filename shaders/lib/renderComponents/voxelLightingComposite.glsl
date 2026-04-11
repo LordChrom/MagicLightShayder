@@ -4,6 +4,9 @@
 
 #include "/lib/util/dither.glsl"
 
+uniform float viewWidth, viewHeight;
+#include "/lib/util/taaHelper.glsl"
+
 uniform sampler2D colortex2;
 uniform sampler2D depthtex0;
 uniform sampler2D depthtex2;
@@ -22,6 +25,10 @@ uniform sampler2D colortex0;
 uniform sampler2D colortex1;
 #elif DEBUG_SPECIAL_VIEW == 5
 uniform sampler2D colortex5;
+#elif DEBUG_SPECIAL_VIEW == 10
+uniform sampler2D colortex10;
+#elif DEBUG_SPECIAL_VIEW == 11
+uniform sampler2D colortex11;
 #endif
 
 #if VOLUMETRIC_FOG_SAMPLES > 0
@@ -35,15 +42,27 @@ vec3 voxelLighting;
 vec4 voxelFog;
 
 void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
-    ivec2 texpos = ivec2(round(vec2(sampleTexCoord)*screenDims*LIGHTING_RENDERSCALE-0.07));
-    ivec2 sourceTexpos = ivec2(round(vec2(sampleTexCoord)*screenDims-0.07));
-
+    ivec2 texpos = ivec2(floor(vec2(sampleTexCoord)*scaledScreenDim-0.01));
     float ditherValue = dither(texpos);
     float ditherValue2 = fract(ditherValue*7+0.3);
 
+#ifdef TAA
+    sampleTexCoord+=jitter();
+#endif
+    ivec2 sourceTexpos = ivec2(floor(vec2(sampleTexCoord)*screenDims-0.01));
+
+
+
+
+#if 0
     float solidDepth = texelFetch(depthtex2,sourceTexpos,0).x;
     vec4 normalAndMore = texelFetch(colortex2,sourceTexpos,0);
     float depth = texelFetch(depthtex0,sourceTexpos,0).x;
+#else
+    float solidDepth = texture(depthtex2,sampleTexCoord).x;
+    vec4 normalAndMore = texture(colortex2,sampleTexCoord);
+    float depth = texture(depthtex0,sampleTexCoord).x;
+#endif
 
     vec3 normal = normalize(normalAndMore.xyz*2-1);
 
@@ -116,6 +135,9 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     voxelFog*=exp(fogDensityMult * previousSampleDist);
 #endif
 
+
+//    voxelLighting=vec3((texpos.x^texpos.y)&1);
+
 #if DEBUG_SPECIAL_VIEW == 0
     funnyDebug=texture(colortex0,sampleTexCoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 1
@@ -141,6 +163,10 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     funnyDebug = voxelLighting.xyz;
 #elif DEBUG_SPECIAL_VIEW == 7
     funnyDebug = voxelFog.xyz;
+#elif DEBUG_SPECIAL_VIEW == 10
+    funnyDebug = texture(colortex10,sampleTexCoord).rgb;
+#elif DEBUG_SPECIAL_VIEW == 11
+    funnyDebug = texture(colortex11,sampleTexCoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 100
     funnyDebug = vec3(clamp(0.05*sqrt(length(worldPosRelative)),0,1),float(isHand)*0.1,float(isSky)*0.5);
 #elif DEBUG_SPECIAL_VIEW == 101
