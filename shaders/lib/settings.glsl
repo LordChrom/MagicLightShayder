@@ -53,7 +53,7 @@
 #define BLOOM_INTENSITY 1.0 //[0.25 0.5 0.75 1.0 1.5 2.0 3.0]
 #define BLOOM_WIDTH 2.0 //[0.5 1.0 1.5 2.0 3.0 4.0]
 #define BLOOM_LEVEL 0 //[0 1 2]
-//#define BLOOM_SMART
+#define BLOOM_SMART
 
 #define TONEMAP_METHOD 0 //[-1 0 1 2]
 

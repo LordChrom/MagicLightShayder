@@ -64,14 +64,13 @@ void main() {
 
 
 	vec2 screenDim = vec2(viewWidth,viewHeight);
-#if BLOOM_LEVEL > 0
+#if (BLOOM_LEVEL > 0) && !(defined TAA)
 	vec3 voxelLighting = doBloom(multiplicativeLightTex,texcoord,screenDim,1).rgb;
 #else
 	vec3 voxelLighting = texture(multiplicativeLightTex,texcoord).rgb;
-//	vec3 voxelLighting = texelFetch(colortex6,scaledTexpos,0).rgb;
 #endif
 
-#if FOG_BLUR>=1
+#if (FOG_BLUR > 0) && !(defined TAA)
 	vec4 voxelFog = doFogBlur(additiveLightTex,texcoord,screenDim,1);
 #else
 	vec4 voxelFog = texture(additiveLightTex,texcoord);

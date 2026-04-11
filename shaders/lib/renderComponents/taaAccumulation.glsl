@@ -5,6 +5,8 @@ uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
 uniform mat4 gbufferPreviousProjection, gbufferPreviousModelView;
 uniform vec3 cameraPosition, previousCameraPosition;
 #include "/lib/util/taaHelper.glsl"
+#include "/lib/renderComponents/blur.glsl"
+
 
 uniform float viewWidth,viewHeight;
 
@@ -22,11 +24,24 @@ layout(location = 0) out vec4 multAccumulation;
 layout(location = 1) out vec4 addAccumulation;
 
 void taaAccumulate(){
+    vec2 screenDim = vec2(viewWidth,viewHeight);
+
     vec2 jitteredTexcoord = texcoord-jitter();
     ivec2 jitteredTexpos = ivec2(floor((jitteredTexcoord)*scaledScreenDim));
 
-    vec3 multContribution = texture(colortex6,jitteredTexcoord,0).rgb;
+#if (FOG_BLUR > 0)
+    vec4 addContribution = doFogBlur(colortex7,jitteredTexcoord,screenDim,1);
+#else
     vec4 addContribution  = texture(colortex7,jitteredTexcoord,0);
+#endif
+
+#if (BLOOM_LEVEL > 0)
+    vec3 multContribution = doBloom(colortex6,jitteredTexcoord,screenDim,1).rgb;
+#else
+    vec3 multContribution = texture(colortex6,jitteredTexcoord,0).rgb;
+#endif
+
+//    vec3 multContribution = texture(colortex6,jitteredTexcoord,0).rgb;
 
     bool reprojectValid = false;
     vec3 screenPos = vec3(texcoord,0);
