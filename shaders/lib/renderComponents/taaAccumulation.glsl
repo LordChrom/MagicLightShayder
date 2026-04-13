@@ -10,44 +10,55 @@ uniform vec3 cameraPosition, previousCameraPosition;
 #include "/lib/util/taaHelper.glsl"
 #include "/lib/renderComponents/blur.glsl"
 
+#if VOLUMETRIC_FOG_SAMPLES == 0
+    #undef TAA_FOG
+#endif
 
-uniform sampler2D colortex2;
-uniform sampler2D colortex6;
-uniform sampler2D colortex7;
-uniform sampler2D colortex10;
+#ifdef TAA_FOG
+layout(location = 1) out vec4 addAccumulation;
 uniform sampler2D colortex11;
+uniform sampler2D colortex7;
+/* RENDERTARGETS: 10,11*/
+#else
+/* RENDERTARGETS: 10*/
+#endif
 
+uniform sampler2D colortex6;
+uniform sampler2D colortex10;
 uniform sampler2D depthtex0;
 
-/* RENDERTARGETS: 10,11*/
 
 layout(location = 0) out vec4 multAccumulation;
-layout(location = 1) out vec4 addAccumulation;
 
 void taaAccumulate(){
     vec2 screenDim = vec2(viewWidth,viewHeight);
 
     vec2 jitteredTexcoord = texcoord-jitter();
 
+#ifdef TAA_FOG
     vec4 addContribution = cheapBlur(colortex7,jitteredTexcoord,1);
+#endif
     vec3 multContribution = cheapBlur(colortex6,jitteredTexcoord,LIGHTING_RENDERSCALE).rgb;
 
     bool reprojectValid = false;
     vec3 screenPos = vec3(texcoord,0);
     float depth = screenPos.z = texture(depthtex0,screenPos.xy,0).x;
 
-    float normalsAndMoreA = texture(colortex2,texcoord).a;
-    bool isHand = normalsAndMoreA>0.4 && normalsAndMoreA<0.6;
+//    float normalsAndMoreA = texture(colortex2,texcoord).a;
+    bool isHand = depth<0.56;
 
 
     vec4 previousMultAccumulation = vec4(0);
+#ifdef TAA_FOG
     vec4 previousAddAccumulation = vec4(0);
+#endif
     vec3 prevScreenPos = reproject(screenPos);
 
     if(prevScreenPos.x>=0 && prevScreenPos.y>=0 && prevScreenPos.x<=1 && prevScreenPos.y<=1){
         previousMultAccumulation = texture(colortex10,prevScreenPos.xy);
+#ifdef TAA_FOG
         previousAddAccumulation = texture(colortex11,prevScreenPos.xy);
-
+#endif
         prevScreenPos.z = previousMultAccumulation.a;
         float len = length(screenPos);
         float prevLen = length(prevScreenPos);
@@ -57,7 +68,10 @@ void taaAccumulate(){
 
     float weight = reprojectValid?lightSampleWeight(jitteredTexcoord):1;
     multAccumulation=vec4(mix(previousMultAccumulation.xyz,multContribution,weight),isHand?100:depth);
-    addAccumulation =mix(previousAddAccumulation, addContribution,weight);
+#ifdef TAA_FOG
+    float fogWeight = reprojectValid?fogSampleWeight(jitteredTexcoord):1;
+    addAccumulation =mix(previousAddAccumulation, addContribution,fogWeight);
+#endif
 
 
 #if DEBUG_SPECIAL_VIEW == 200

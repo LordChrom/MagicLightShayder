@@ -14,10 +14,16 @@ uniform sampler2D colortex15;
 
 
 #ifdef TAA
-uniform sampler2D colortex10;
-uniform sampler2D colortex11;
-#define multiplicativeLightTex colortex10
-#define additiveLightTex colortex11
+	uniform sampler2D colortex10;
+	#define multiplicativeLightTex colortex10
+
+	#ifdef TAA_FOG
+		uniform sampler2D colortex11;
+		#define additiveLightTex colortex11
+	#else
+		uniform sampler2D colortex7;
+		#define additiveLightTex colortex7
+	#endif
 #else
 uniform sampler2D colortex6;
 uniform sampler2D colortex7;
