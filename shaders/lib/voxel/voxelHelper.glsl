@@ -139,16 +139,6 @@ struct areaMeta{//size 16
     ivec3 areaShift;
 };
 
-struct lightVoxData{
-    vec2 occlusionRay;// ( |da/dL|, |db/dL| ), range [0,1], sign implicitly same as lightTravel.xy
-    uint occlusionMap;//quadrants in which occlusion occurs, lit if true----> map.( x y )   ( +|a,b|  +|0,b| )
-    vec3 color;                                                                  //( z w ) = ( +|b,0|  +|0,0| )
-    vec3 lightTravel;//zone space. the displacement from the light source voxel center to the sample's voxel center
-    float occlusionHitDistance; //distance from the light source to the edge which caused a shadow, for penumbra sharpness
-    uint type;
-    uint flags; //7 free, 1 for whether the light just had translucency applied
-};
-
 
 const float lightTravelScaleInv = 16.0; //most voxels per block representable for lightTravel
 const float lightTravelScale = 1.0/lightTravelScaleInv;
@@ -159,6 +149,7 @@ const float lightTravelScale = 1.0/lightTravelScaleInv;
 //according to graphing on desmos, these values work from just below 1e-4 to about 6.7e9
 const float packScale = 128.0;
 const int packBias = 1200;
+#define NO_OCCLUSION 0x80fu
 uint packFloat12(float x){
     if(x<=0)
         return 0x80u;
@@ -177,7 +168,7 @@ float unpackFloat12(uint x){
 }
 
 uint packOcclusionInfo(vec2 ray, uint map, float hitDist){
-    return (packUnorm4x8(vec4(0,0,ray))&0xffff0000u) | ((map&0xfu)<<12) | packFloat12(hitDist);
+    return (packUnorm4x8(vec4(0,0,ray))) | (packFloat12(hitDist)<<4) | (map);
 }
 
 vec3 unpackLightColor(uvec4 packedData){
@@ -188,12 +179,12 @@ vec3 unpackLightTravel(uvec4 packedData){
     return vec3(ivec3(packedData.x,packedData.x<<16,packedData.y<<16)>>16)*lightTravelScale;
 }
 
-float unpackLightOccusionlHitDist(uvec4 packedData){
-    return unpackFloat12(packedData.w&0xfffu);
+float unpackOcclusionHitDist(uint occlusionInfo){
+    return unpackFloat12((occlusionInfo>>4)&0xfffu);
 }
 
-uint unpackLightOcclusionMap(uvec4 packedData){
-    return (packedData.w>>12)&0xfu;
+uint unpackOcclusionMap(uint occlusionInfo){
+    return occlusionInfo&0xfu;
 }
 
 uint unpackLightFlags(uvec4 packedData){
@@ -204,8 +195,8 @@ uint unpackLightType(uvec4 packedData){
     return (packedData.y>>16)&0xfu;
 }
 
-vec2 unpackLightOcclusionRay(uvec4 packedData){
-    return unpackUnorm4x8(packedData.w).zw;
+vec2 unpackOcclusionRay(uint occlusionInfo){
+    return unpackUnorm4x8(occlusionInfo).zw;
 }
 
 void setPackedLightTravel(inout uvec4 packedData, vec3 travel){
@@ -213,10 +204,6 @@ void setPackedLightTravel(inout uvec4 packedData, vec3 travel){
 
     packedData.x = (intTravel.x<<16) | (intTravel.y&0xffffu);
     packedData.y = (packedData.y&0xffff0000u) | (intTravel.z&0xffffu);
-}
-
-void setPackedOcclusionInfo(inout uvec4 packedData, vec2 ray, uint map, float hitDist){
-    packedData.w = packOcclusionInfo(ray,map,hitDist);
 }
 
 void setPackedLightColor(inout uvec4 packedData, vec3 color){
@@ -227,19 +214,6 @@ void setPackedLightFlags(inout uvec4 packedData, uint flags){
     packedData.z = (packedData.z&0xffffff00u) | (flags&0xffu);
 }
 
-lightVoxData unpackLightData(uvec4 packedData){
-    lightVoxData ret = {
-        unpackLightOcclusionRay(packedData),
-        unpackLightOcclusionMap(packedData),
-        unpackLightColor(packedData),
-        unpackLightTravel(packedData),
-        unpackLightOccusionlHitDist(packedData),
-        unpackLightType(packedData),
-        unpackLightFlags(packedData)
-    };
-    return ret;
-}
-
 uvec4 packLightData(vec2 occlusionRay,uint occlusionMap,vec3 color,vec3 lightTravel,float occlusionHitDistance,uint type,uint flags){
     uvec4 ret;
     uvec3 intTravel = ivec3(round(lightTravel*lightTravelScaleInv));
@@ -247,12 +221,8 @@ uvec4 packLightData(vec2 occlusionRay,uint occlusionMap,vec3 color,vec3 lightTra
     ret.x = (intTravel.x<<16) | (intTravel.y&0xffffu);
     ret.y = ((type&0xfu)<<16) | (intTravel.z&0xffffu);
     ret.z = packUnorm4x8(vec4(0,color)) | (flags&0xffu);
-    ret.w = (packUnorm4x8(vec4(0,0,occlusionRay))&0xffff0000u) | ((occlusionMap&0xfu)<<12) | packFloat12(occlusionHitDistance);
+    ret.w = packOcclusionInfo(occlusionRay, occlusionMap, occlusionHitDistance);
     return ret;
-}
-
-uvec4 packLightData(lightVoxData data){
-    return packLightData(data.occlusionRay,data.occlusionMap,data.color,data.lightTravel,data.occlusionHitDistance,data.type,data.flags);
 }
 
 uvec4 unpackBytes(uint packedData){
@@ -371,14 +341,6 @@ bool canIlluminateInBounds(vec4 edges, vec2 ray, uint occlusionMap){
         ((int(ray.x<edges.x)*10u)|(int(ray.x>edges.z)*5u)) &
         ((int(ray.y<edges.y)*12u)|(int(ray.y>edges.w)*3u))
     );
-}
-
-
-
-//misc
-bool sameLight(lightVoxData a, lightVoxData b){
-    return (a.color==b.color) && (a.lightTravel==b.lightTravel) && (a.type==b.type)
-        || (a.type==LIGHT_TYPE_SUN && b.type==LIGHT_TYPE_SUN);
 }
 
 //- - x is 2x16 a,b of travel

@@ -120,11 +120,11 @@
 #define FOG_HALF_LIFE 128
 #define PI 3.1419526535897932
 
-///// The following to be copy pasted into shaders.properties
 #if (TAA_MODE == 1) || ((TAA_MODE==0) && !(LIGHTING_RENDERSCALE==1))
     #define TAA
 #endif
 
+///// The following to be copy pasted into shaders.properties
 #define AREA_SIZE (AREA_WIDTH_SECTIONS*SECTION_SIZE)
 
 #if AREA_SIZE == 16

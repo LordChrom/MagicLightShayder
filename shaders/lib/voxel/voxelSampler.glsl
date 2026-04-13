@@ -124,8 +124,8 @@ vec3 getDirectedLight(uvec4 packedLightSrc, ivec3 blockPos, vec3 subVoxelOffset,
 
 float highSlope = round(1024*max(abs(displacement.x),abs(displacement.y))/max(1e-9,displacement.z))/1024;
 
-vec2 ray = unpackLightOcclusionRay(packedLightSrc);
-uint map = unpackLightOcclusionMap(packedLightSrc);
+vec2 ray = unpackOcclusionRay(packedLightSrc.w);
+uint map = unpackOcclusionMap(packedLightSrc.w);
 #ifdef PENUMBRAS_ENABLED
     #ifdef FOG_PENUMBRAS
     bool doPenumbra = true;
@@ -136,7 +136,7 @@ uint map = unpackLightOcclusionMap(packedLightSrc);
     if(doPenumbra)
     {
         float sharpener = (max(abs(travel.x),abs(travel.y))!=travel.z)? 1e9:1.0;
-        float occHitDist = unpackLightOccusionlHitDist(packedLightSrc);
+        float occHitDist = unpackOcclusionHitDist(packedLightSrc.w);
 
         lightStrength*=clamp(0.5+(1-highSlope)*(sharpener/PENUMBRA_WIDTH),0,1);
         lightStrength*=penumbralLightTest(displacement,ray,map,occHitDist);
@@ -194,7 +194,7 @@ uint map = unpackLightOcclusionMap(packedLightSrc);
         float outlineWidth = DEBUG_OUTLINE_WIDTH/displacement.z;
         if(slopeDif.x<outlineWidth || slopeDif.y<outlineWidth){
             color.rgb=vec3(0.6);
-            float occHitDist = unpackLightOccusionlHitDist(packedLightSrc);
+            float occHitDist = unpackOcclusionHitDist(packedLightSrc.w);
             if(occHitDist!=0){
                 float wavey = occHitDist*0.5+1;
                 color*=normalize(0.6+0.4*vec3(sin(wavey), sin(wavey+PI*2.0/3), sin(wavey+PI*4.0/3)));
@@ -210,7 +210,7 @@ uint map = unpackLightOcclusionMap(packedLightSrc);
 #endif
 
 #ifdef DEBUG_OCCLUSION_HIT_DIST
-    float occHitDist = unpackLightOccusionlHitDist(packedLightSrc);
+    float occHitDist = unpackOcclusionHitDist(packedLightSrc.w);
     if(occHitDist!=0){
         float wavey = occHitDist*0.5+1;
         color*=normalize(0.6+0.4*vec3(sin(wavey), sin(wavey+PI*2.0/3), sin(wavey+PI*4.0/3)));

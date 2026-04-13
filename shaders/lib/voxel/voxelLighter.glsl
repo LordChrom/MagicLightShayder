@@ -121,7 +121,7 @@ uvec4[VOX_LAYERS] determineBestLightSources(){
                 vec2 outerSlope  = (xy+halfScale) * abs(scale/(travel.z-halfScale));
                 vec2 innerSlope  = (xy-halfScale) * abs(scale/(travel.z+halfScale));
 
-                if(!canIlluminateInBounds(vec4(outerSlope,innerSlope),unpackLightOcclusionRay(lightSrc),unpackLightOcclusionMap(lightSrc)))
+                if(!canIlluminateInBounds(vec4(outerSlope,innerSlope),unpackOcclusionRay(lightSrc.w),unpackOcclusionMap(lightSrc.w)))
                     continue;
 
                 for(int rank = 0; rank<VOX_LAYERS; rank++){
@@ -252,7 +252,7 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
 
 //i'll be calling the +b direction "top" and the +a direction "left", both of these directions are away from src
 //as though you're looking along the +z direction, with light traveling along L=+z and also somewhat +x+y
-void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, bool[2][2] relevantObstructions,
+void doOcclusionOld(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, bool[2][2] relevantObstructions,
     inout uvec4 lightSrc
 ){
     vec3 travel = unpackLightTravel(lightSrc);
@@ -265,8 +265,8 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
 
     vec2 outRay = vec2(0);
     outRay=abs(travel2d/travel.z);
-    uint outMap = unpackLightOcclusionMap(lightSrc);
-    float outHitDist = unpackLightOccusionlHitDist(lightSrc);
+    uint outMap = unpackOcclusionMap(lightSrc.w);
+    float outHitDist = unpackOcclusionHitDist(lightSrc.w);
 
 
 
@@ -287,8 +287,8 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
                 continue;
 
 
-            uint map = unpackLightOcclusionMap(samples[i][j]);
-            vec2 ray = unpackLightOcclusionRay(samples[i][j]);
+            uint map = unpackOcclusionMap(samples[i][j].w);
+            vec2 ray = unpackOcclusionRay(samples[i][j].w);
 
             uint lightEdges = getLightEdges(map); //left, top, right, bottom
             uint darkEdges = getOcclusionEdges(map);
@@ -351,7 +351,7 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
             if(thisSampleRelevant
                 &&bool(darkEdges&bvec4ToUint(bvec4(ray.x<outerSlope.x,ray.y<outerSlope.y,ray.x>innerSlope.x,ray.y>innerSlope.y)))
             ){
-                outHitDist=max(outHitDist, unpackLightOccusionlHitDist(samples[i][j]));
+                outHitDist=max(outHitDist, unpackOcclusionHitDist(samples[i][j].w));
             }
         }
     }
@@ -480,8 +480,63 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
         outRay.x=0;
     }
 
-    setPackedOcclusionInfo(lightSrc,outRay,outMap, outHitDist);
+    lightSrc.w=packOcclusionInfo(outRay,outMap, outHitDist);
 }
+
+
+//TODO after this is all done, test removing all the packing/unpacking
+//also replace the bool arrays with uints
+uint getTerrainOcclusion(vec3 travel, bool[2][2] relevantObstructions, bvec2 alignment){
+    vec2 ray = (abs(travel.xy)-halfScale)/abs(travel.z-halfScale);
+    uint map = 15u^bvec4ToUint(bvec4(relevantObstructions[1][1],relevantObstructions[0][1],relevantObstructions[1][0],relevantObstructions[0][0]));
+    float hitDist = travel.z-0.6*scale;
+
+    if(alignment.x){
+        map = map&((map<<2) | (map>>2));
+        ray.y=0;
+    }
+    if(alignment.y){
+        map = map&(((map&5u)<<1) | ((map&10u)>>1));
+        ray.x=0;
+    }
+
+    return (map==15u)?NO_OCCLUSION:packOcclusionInfo(ray, map, hitDist);
+}
+
+bool occlusionsPerfectlyCombinable(uint mapA, uint mapB){
+    uint edgesA = getOcclusionEdges(mapA);
+    uint edgesB = getOcclusionEdges(mapB);
+    uint typeA = bitCount(mapA);
+    uint typeB = bitCount(mapB);
+
+    return false;
+}
+
+uint combineOcclusions(uint occlusionA, uint occlusionB){
+    vec2 rayA = unpackOcclusionRay(occlusionA);
+    vec2 rayB = unpackOcclusionRay(occlusionB);
+    uint mapA = unpackOcclusionMap(occlusionA);
+    uint mapB = unpackOcclusionMap(occlusionB);
+    return occlusionB;
+}
+
+void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, bool[2][2] relevantObstructions,
+    inout uvec4 lightSrc
+){
+//#define NEW_OCCLUSION
+#ifndef NEW_OCCLUSION
+    if(true){
+        doOcclusionOld(samples,relevance,alignment,relevantObstructions,lightSrc);
+        return;
+    }
+#endif
+
+    vec3 travel = unpackLightTravel(lightSrc);
+    uint terrainOcclusion = getTerrainOcclusion(travel,relevantObstructions,alignment);
+    lightSrc.w=combineOcclusions(lightSrc.w,terrainOcclusion);
+}
+
+
 
 
 
@@ -498,7 +553,7 @@ void doLightPassage(inout uvec4 bestLight, bool translucentTerrain){
     doOcclusion(relevantSamples, relevance, alignment, newObstructions, bestLight);
 
 #if !(defined KEEP_FULLY_OCCLUDED_SAMPLES && defined DEBUG_OCCLUSION_MAP)
-    if ( !bool(unpackLightOcclusionMap(bestLight))){
+    if ( !bool(unpackOcclusionMap(bestLight.w))){
         bestLight=uvec4(0);
     }
 #endif
@@ -543,7 +598,7 @@ void lightVoxelFace(){
         color/=translucentBlocksInSample;
 
         doLightPassage(translucentPassage,true);
-        if(bool(unpackLightOcclusionMap(translucentPassage))){
+        if(bool(unpackOcclusionMap(translucentPassage.w))){
             setPackedLightColor(translucentPassage,unpackLightColor(translucentPassage)*color);
             setPackedLightFlags(translucentPassage,unpackLightFlags(translucentPassage)|1u); //TODO make this not dumb
 

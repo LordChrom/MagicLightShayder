@@ -96,7 +96,7 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - - x is 2x16 a,b of travel
 - - y is 12 free, 1x4 light type, 1x16 z of travel
 - - z is 3x8 color, 8 flags
-- - w 2x8 occlusion ray (b then a), 4x1 occlusion map, 1x12 occlusion hit distance
+- - w 2x8 occlusion ray (b then a), 1x12 occlusion hit distance, 4x1 occlusion map
 
 - flags
 - - 6 bits currently used only for DEBUG_SHOW_UPDATES
@@ -111,11 +111,11 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - hide flashes that occur when an area shift has changed but hasnt been gotten to by the seam filler
 
 ### Needs Improvement
+- TAA unoptimized
 - change how hardcoded subsurface works for mushrooms
 - proper system for unlit geometry
 - SSS
 - Emissive
-- TAAU response to blinking lights
 - proper lighting on translucents OR have that part of local fog density system
 
 ### Necessary additions
@@ -127,6 +127,7 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - think of a name for approach to lighting
 - make bloom that's not awful
 - make voxel map a lower bit size
+- halftones
 
 ### Potential additions
 - make pixel locked rendering actually only need one sample per pixel

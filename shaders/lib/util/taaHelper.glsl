@@ -1,3 +1,5 @@
+#ifdef TAA
+
 //from -0.5 to 0.5
 vec2 jitter2(int entropy){
     return vec2(ivec2(entropy,entropy>>1)&1)-0.5;
@@ -55,3 +57,4 @@ vec3 reproject(vec3 screenPos){
     tmp.xyz/=tmp.w;
     return tmp.xyz*0.5+0.5;
 }
+#endif
