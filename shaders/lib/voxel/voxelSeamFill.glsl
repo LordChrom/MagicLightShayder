@@ -33,7 +33,11 @@ uniform mat4 gbufferModelView, gbufferProjection;
     #define AXIS_LAYER_WORLD_COUNT 49
 #endif
 
-const ivec3 workGroups = ivec3(PROC_MULT,AREA_SIZE_MEM,AXIS_LAYER_WORLD_COUNT);
+#ifdef LAZY_SEAMFILLER
+    const ivec3 workGroups = ivec3(PROC_MULT,AREA_SIZE_MEM,AXIS_LAYER_WORLD_COUNT);
+#else
+    const ivec3 workGroups = ivec3(NUM_CASCADES,AREA_SIZE_MEM,AXIS_LAYER_WORLD_COUNT);
+#endif
 layout (local_size_x = AREA_SIZE_MEM, local_size_y = 1, local_size_z = 1) in;
 
 const vec3 sunColor = vec3(242,242,242)/255;
@@ -57,7 +61,7 @@ layout(std430, binding = 1) restrict buffer indirectDispatches {
 float scale;
 uint thisMemOffset, upperMemOffset, axis, cascadeLevel;
 ivec3 thisShift, upperShift, movement;
-
+bool cascadeVisitedThisFrame;
 
 void trimLight(ivec3 zonePos){
     uvec4 light = noLight;
@@ -95,7 +99,7 @@ void fillLightSeams(uvec3 workGroupID, uvec3 localID){
     upperMemOffset = (cascadeLevel<NUM_CASCADES-1)?zoneOffset(axis,layer,cascadeLevel+1) : 0;
     upperShift = areaToZoneSpace(getAreaShift(scale*2),axis);
 
-    //TODO consider making only do the recetnly updated ones, but TBH this part takes 0.03ms so its not a big deal
+    //TODO consider only do the recetnly updated ones
     //TODO make do outward light
     trimLight(ivec3(zonePos.xy,-1));
     trimLight(ivec3(AREA_SIZE+1,zonePos.xy));
@@ -191,20 +195,35 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
 }
 
 void fillSeams(uvec3 workGroupID, uvec3 localID){
+#ifdef LAZY_SEAMFILLER
     cascadeLevel = getVariableCascadeLevel(bool(workGroupID.x&1u));
     if(cascadeLevel>=NUM_CASCADES) return;
+#else
+    cascadeLevel = workGroupID.x;
+    uint bonusCascadeLevel = getVariableCascadeLevel(false);
+#endif
 
     scale = getScale(cascadeLevel);
 
     thisShift = getAreaShift(scale);
     upperShift = getAreaShift(scale*2);
 
-#ifdef DOUBLE_PROC
+#ifdef LAZY_SEAMFILLER
+    #ifdef DOUBLE_PROC
     int nextCascade = (1<<cascadeLevel);
-#else
+    #else
     int nextCascade = (2<<cascadeLevel);
-#endif
+    #endif
     bool isOddVisit = bool(frameCounter&nextCascade);
+    cascadeVisitedThisFrame=true;
+#else
+    cascadeVisitedThisFrame = cascadeLevel==bonusCascadeLevel;
+    #ifdef DOUBLE_PROC
+    if(cascadeLevel==0)
+        cascadeVisitedThisFrame=true;
+    #endif
+    bool isOddVisit = bool(frameCounter&1);
+#endif
 
 
     ivec3 previousAreaShift = ivec3(0);
@@ -221,8 +240,10 @@ void fillSeams(uvec3 workGroupID, uvec3 localID){
 
     movement = clamp(thisShift-previousAreaShift,-AREA_SIZE_MEM,AREA_SIZE_MEM);
 
-    if(workGroupID.z==(AXIS_LAYER_WORLD_COUNT-1))
+    if(workGroupID.z==(AXIS_LAYER_WORLD_COUNT-1)){
+        if(!cascadeVisitedThisFrame)
+            return;
         fillVoxSeams(workGroupID, localID);
-    else
+    }else
         fillLightSeams(workGroupID,localID);
 }
