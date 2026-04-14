@@ -113,7 +113,7 @@ uvec4[VOX_LAYERS] determineBestLightSources(){
                     continue;
 
                 float lenSquared = dot(travel, travel);
-                float strength = length(unpackLightColor(lightSrc))/max(0.1, lenSquared);
+                float strength = (1+length(unpackLightColor(lightSrc)))/max(0.1, lenSquared);
                 if(type==LIGHT_TYPE_SUN)
                     strength*=1e3;
 

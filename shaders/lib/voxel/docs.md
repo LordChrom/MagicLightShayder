@@ -108,7 +108,6 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 # General TODO List
 ### Needs fixing
 - sun shadows
-- hide flashes that occur when an area shift has changed but hasnt been gotten to by the seam filler
 
 ### Needs Improvement
 - TAA unoptimized

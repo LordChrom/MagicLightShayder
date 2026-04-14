@@ -30,10 +30,10 @@ void writeVoxelMap(vec3 worldPos, int blockID, vec3 toMidblock, vec3 normal, uin
         metadata=1;
     }
 
-    const float midblockWeight = MIN_SCALE* 15.0/16.0;
+    const float midblockWeight = MIN_SCALE* 12.0/16.0;
     const float normalWeight = -MIN_SCALE*3.0/64.0;
 
-    worldPos += midblockWeight*toMidblock -0.015625*normal;
+    worldPos += midblockWeight*toMidblock +normalWeight*normal;
 
     uint cascadeLevel = getCascadeLevel(worldPos);
 

@@ -67,7 +67,9 @@ void trimLight(ivec3 zonePos){
     uvec4 light = noLight;
 
     ivec3 upZonePos = (zonePos+(1&(thisShift))+(AREA_SIZE/2));
+    upZonePos.z-=1;
     vec3 zonePosRemnants= -0.5+vec3(1&upZonePos);
+    zonePosRemnants.z+=1;
     upZonePos>>=1;
 
     //TODO check if position in higher volume hasnt been shifted out of bounds, but should only be an issue when moving *very* fast
@@ -79,8 +81,8 @@ void trimLight(ivec3 zonePos){
     }
 #ifndef DEBUG_DISABLE_SUN
     if((!hasCeiling) && axis==2 && zonePos.z<=0){
-        float height = getGlobalOrigin(scale).y+0.5*scale*AREA_SIZE;
-        if(height>=(heightLimit+bedrockLevel) || (cascadeLevel==(NUM_CASCADES-1)))
+        float height = getGlobalOrigin(scale).y+scale*(0.5*AREA_SIZE-zonePos.z);
+        if((height>=(heightLimit+bedrockLevel)) || (cascadeLevel==(NUM_CASCADES-1)))
             light = defaultSunLight;
     }
 #endif
@@ -90,8 +92,11 @@ void trimLight(ivec3 zonePos){
 void fillLightSeams(uvec3 workGroupID, uvec3 localID){
     uint layer = workGroupID.z%VOX_LAYERS;
     axis = workGroupID.z/VOX_LAYERS;
+#if DEBUG_AXIS>=0
+    axis = DEBUG_AXIS;
+#endif
 
-    ivec3 zonePos = ivec3(ivec2(localID.x,workGroupID.y)-1, -1);
+    ivec2 zonePos = ivec2(localID.x,workGroupID.y)-1;
     movement = areaToZoneSpaceRelative(movement,axis);
     thisShift = areaToZoneSpace(thisShift,axis);
 
@@ -102,9 +107,9 @@ void fillLightSeams(uvec3 workGroupID, uvec3 localID){
     //TODO consider only do the recetnly updated ones
     //TODO make do outward light
     trimLight(ivec3(zonePos.xy,-1));
-    trimLight(ivec3(AREA_SIZE+1,zonePos.xy));
+    trimLight(ivec3(AREA_SIZE,zonePos.xy));
     trimLight(ivec3(         -1,zonePos.xy));
-    trimLight(ivec3(zonePos.x,AREA_SIZE+1,zonePos.y));
+    trimLight(ivec3(zonePos.x,AREA_SIZE,zonePos.y));
     trimLight(ivec3(zonePos.x,         -1,zonePos.y));
 
 
@@ -158,23 +163,34 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
     ivec3 edgeToTrim = abs(movement);
 
 
-    for(ivec3 areaPos = ivec3(posXY,-1); areaPos.z<AREA_SIZE_MEM; areaPos.z++){
-        uint whatToWrite = 0u;
-        if(!(
-            (movementSigns.x>0?(areaPos.x>(AREA_SIZE-1)-edgeToTrim.x):(areaPos.x<edgeToTrim.x)) ||
-            (movementSigns.y>0?(areaPos.y>(AREA_SIZE-1)-edgeToTrim.y):(areaPos.y<edgeToTrim.y)) ||
-            (movementSigns.z>0?(areaPos.z>(AREA_SIZE-1)-edgeToTrim.z):(areaPos.z<edgeToTrim.z))
-        )){
-            if(isPosExpiryExempt(areaPos))
-                continue;
-            whatToWrite=getVoxData(areaPos,thisShift,thisMemOffset);
-    #ifndef DEBUG_NOTHING_EXPIRES
-            whatToWrite-=(uint(bool(whatToWrite))<<VOXEL_AGE_SHIFT);
-            whatToWrite = bool(whatToWrite&VOXEL_AGE_MASK)?whatToWrite:0;
-    #endif
+    //TODO still fails to clean off some lights
+#ifndef DEBUG_NOTHING_EXPIRES
+    if(cascadeVisitedThisFrame){
+        for (ivec3 areaPos = ivec3(posXY, 0); areaPos.z<AREA_SIZE; areaPos.z++){
+            if (isPosExpiryExempt(areaPos))
+            continue;
+            uint voxel=getVoxData(areaPos, thisShift, thisMemOffset);
+            voxel-=(uint(bool(voxel))<<VOXEL_AGE_SHIFT);
+            voxel = bool(voxel&VOXEL_AGE_MASK)?voxel:0u;
+            setVoxData(voxel, areaPos, thisShift, thisMemOffset);
         }
-        setVoxData(whatToWrite,areaPos,thisShift,thisMemOffset);
     }
+#endif
+
+
+    for(int i=0; i<edgeToTrim.x;i++){
+        int x = movementSigns.x>0?(AREA_SIZE-1)-i:i;
+        setVoxData(0u,ivec3(x,posXY.xy),thisShift,thisMemOffset);
+    }
+    for(int i=0; i<edgeToTrim.y;i++){
+        int y = movementSigns.y>0?(AREA_SIZE-1)-i:i;
+        setVoxData(0u,ivec3(posXY.x,y,posXY.y),thisShift,thisMemOffset);
+    }
+    for(int i=0; i<edgeToTrim.z;i++){
+        int z = movementSigns.z>0?(AREA_SIZE-1)-i:i;
+        setVoxData(0u,ivec3(posXY.xy,z),thisShift,thisMemOffset);
+    }
+
 
     if(0<=posXY.x && posXY.x<AREA_SIZE && 0<=posXY.y && posXY.y<AREA_SIZE){
         if(upperMemOffset==0) return;
@@ -188,6 +204,7 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
         }
 
         areaPos=(areaPos>>1)+ivec3(1,1,1)*(AREA_SIZE>>2);
+        representative = (representative&~VOXEL_AGE_MASK) | ((representative&(VOXEL_AGE_MASK<<1))>>1);
         updateVoxData(representative, areaPos, upperShift, upperMemOffset);
     }else{
         //TODO make it do the inward blocks
@@ -241,8 +258,6 @@ void fillSeams(uvec3 workGroupID, uvec3 localID){
     movement = clamp(thisShift-previousAreaShift,-AREA_SIZE_MEM,AREA_SIZE_MEM);
 
     if(workGroupID.z==(AXIS_LAYER_WORLD_COUNT-1)){
-        if(!cascadeVisitedThisFrame)
-            return;
         fillVoxSeams(workGroupID, localID);
     }else
         fillLightSeams(workGroupID,localID);
