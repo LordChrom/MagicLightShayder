@@ -192,7 +192,7 @@ void main()
 
 
 //TODO the translucent part is for viewing fully lit stuff thru transparents, prolly a better solution tho
-#if defined VANILLA_FALLBACK && !defined TRANSLUCENT
+#if defined VANILLA_FALLBACK && ((!defined TRANSLUCENT) || (defined FAKE_TRANSLUCENT))
     vanillaLighting=lighting;
 #endif
 
