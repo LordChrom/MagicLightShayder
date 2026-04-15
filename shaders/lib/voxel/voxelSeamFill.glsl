@@ -104,14 +104,14 @@ void fillLightSeams(uvec3 workGroupID, uvec3 localID){
     upperMemOffset = (cascadeLevel<NUM_CASCADES-1)?zoneOffset(axis,layer,cascadeLevel+1) : 0;
     upperShift = areaToZoneSpace(getAreaShift(scale*2),axis);
 
-    //TODO consider only do the recetnly updated ones
     //TODO make do outward light
+if(cascadeVisitedThisFrame){
     trimLight(ivec3(zonePos.xy,-1));
     trimLight(ivec3(AREA_SIZE,zonePos.xy));
     trimLight(ivec3(         -1,zonePos.xy));
     trimLight(ivec3(zonePos.x,AREA_SIZE,zonePos.y));
     trimLight(ivec3(zonePos.x,         -1,zonePos.y));
-
+}
 
     ivec3 movementSigns = sign(movement);
     ivec3 edgeToTrim = abs(movement);
@@ -151,8 +151,8 @@ bool isPosExpiryExempt(ivec3 areaPos){
 }
 
 void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
-    indirectDispatchesAccess.lighterDispatches=uvec3(SECTIONS_PER_AREA_XY,SECTIONS_PER_AREA_Z,workGroupZ);
-
+    if(workGroupID.x==0)
+        indirectDispatchesAccess.lighterDispatches=uvec3(SECTIONS_PER_AREA_XY,SECTIONS_PER_AREA_Z,workGroupZ);
     thisMemOffset = areaOffset(cascadeLevel);
     upperMemOffset = (cascadeLevel<NUM_CASCADES-1)?areaOffset(cascadeLevel+1):0;
 
@@ -163,12 +163,11 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
     ivec3 edgeToTrim = abs(movement);
 
 
-    //TODO still fails to clean off some lights
 #ifndef DEBUG_NOTHING_EXPIRES
     if(cascadeVisitedThisFrame){
         for (ivec3 areaPos = ivec3(posXY, 0); areaPos.z<AREA_SIZE; areaPos.z++){
             if (isPosExpiryExempt(areaPos))
-            continue;
+                continue;
             uint voxel=getVoxData(areaPos, thisShift, thisMemOffset);
             voxel-=(uint(bool(voxel))<<VOXEL_AGE_SHIFT);
             voxel = bool(voxel&VOXEL_AGE_MASK)?voxel:0u;
