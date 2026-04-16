@@ -6,7 +6,6 @@
 
 uniform int heightLimit;
 uniform int bedrockLevel;
-uniform bool hasCeiling;
 uniform vec3 cameraPosition;
 #if VOXELIZATION_MODE==1
 uniform mat4 gbufferModelView, gbufferProjection;
@@ -33,17 +32,9 @@ uniform mat4 gbufferModelView, gbufferProjection;
     #define AXIS_LAYER_WORLD_COUNT 49
 #endif
 
-#ifdef LAZY_SEAMFILLER
-    const ivec3 workGroups = ivec3(PROC_MULT,AREA_SIZE_MEM,AXIS_LAYER_WORLD_COUNT);
-#else
-    const ivec3 workGroups = ivec3(NUM_CASCADES,AREA_SIZE_MEM,AXIS_LAYER_WORLD_COUNT);
-#endif
+const ivec3 workGroups = ivec3(NUM_CASCADES,AREA_SIZE_MEM,AXIS_LAYER_WORLD_COUNT);
 layout (local_size_x = AREA_SIZE_MEM, local_size_y = 1, local_size_z = 1) in;
 
-const vec3 sunColor = vec3(242,242,242)/255;
-const vec3 sunPos = vec3(0,0,1000);
-const uvec4 noLight = uvec4(0);
-uvec4 defaultSunLight = packLightData(vec2(0),0xfu,sunColor,vec3(0,0,10),0f,1,0xfeu);
 
 const int workGroupZ = 6*PROC_MULT;
 
@@ -66,11 +57,8 @@ bool cascadeVisitedThisFrame;
 void trimLight(ivec3 zonePos){
     uvec4 light = noLight;
 
-    ivec3 upZonePos = (zonePos+(1&(thisShift))+(AREA_SIZE/2));
-    upZonePos.z-=1;
-    vec3 zonePosRemnants= -0.5+vec3(1&upZonePos);
-    zonePosRemnants.z+=1;
-    upZonePos>>=1;
+    vec3 zonePosRemnants;
+    ivec3 upZonePos = uppperCascadeZonePos(zonePos,thisShift,axis,scale,zonePosRemnants);
 
     //TODO check if position in higher volume hasnt been shifted out of bounds, but should only be an issue when moving *very* fast
     bool upsampleValid = bool(upperMemOffset);
@@ -105,13 +93,6 @@ void fillLightSeams(uvec3 workGroupID, uvec3 localID){
     upperShift = areaToZoneSpace(getAreaShift(scale*2),axis);
 
     //TODO make do outward light
-if(cascadeVisitedThisFrame){
-    trimLight(ivec3(zonePos.xy,-1));
-    trimLight(ivec3(AREA_SIZE,zonePos.xy));
-    trimLight(ivec3(         -1,zonePos.xy));
-    trimLight(ivec3(zonePos.x,AREA_SIZE,zonePos.y));
-    trimLight(ivec3(zonePos.x,         -1,zonePos.y));
-}
 
     ivec3 movementSigns = sign(movement);
     ivec3 edgeToTrim = abs(movement);
@@ -194,6 +175,7 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
     if(0<=posXY.x && posXY.x<AREA_SIZE && 0<=posXY.y && posXY.y<AREA_SIZE){
         if(upperMemOffset==0) return;
 
+        //TODO account for area shift
         ivec3 areaPos = ivec3(posXY&~1,(((posXY.x&1)<<1)+((posXY.y&1)<<2)+(frameCounter<<3))%AREA_SIZE);
         uint representative = 0;
         for(int i=0; i<8; i++){
@@ -202,7 +184,7 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
             representative = max(representative,sampledVox);
         }
 
-        areaPos=(areaPos>>1)+ivec3(1,1,1)*(AREA_SIZE>>2);
+        areaPos=(areaPos>>1)+ivec3(AREA_SIZE>>2);
         representative = (representative&~VOXEL_AGE_MASK) | ((representative&(VOXEL_AGE_MASK<<1))>>1);
         updateVoxData(representative, areaPos, upperShift, upperMemOffset);
     }else{
@@ -211,35 +193,20 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
 }
 
 void fillSeams(uvec3 workGroupID, uvec3 localID){
-#ifdef LAZY_SEAMFILLER
-    cascadeLevel = getVariableCascadeLevel(bool(workGroupID.x&1u));
-    if(cascadeLevel>=NUM_CASCADES) return;
-#else
     cascadeLevel = workGroupID.x;
     uint bonusCascadeLevel = getVariableCascadeLevel(false);
-#endif
 
     scale = getScale(cascadeLevel);
 
     thisShift = getAreaShift(scale);
     upperShift = getAreaShift(scale*2);
 
-#ifdef LAZY_SEAMFILLER
-    #ifdef DOUBLE_PROC
-    int nextCascade = (1<<cascadeLevel);
-    #else
-    int nextCascade = (2<<cascadeLevel);
-    #endif
-    bool isOddVisit = bool(frameCounter&nextCascade);
-    cascadeVisitedThisFrame=true;
-#else
     cascadeVisitedThisFrame = cascadeLevel==bonusCascadeLevel;
-    #ifdef DOUBLE_PROC
+#ifdef DOUBLE_PROC
     if(cascadeLevel==0)
         cascadeVisitedThisFrame=true;
-    #endif
-    bool isOddVisit = bool(frameCounter&1);
 #endif
+    bool isOddVisit = bool(frameCounter&1);
 
 
     ivec3 previousAreaShift = ivec3(0);
@@ -254,7 +221,7 @@ void fillSeams(uvec3 workGroupID, uvec3 localID){
             areaDataAccess.evenAreaMetas[cascadeLevel].areaShift = thisShift;
     }
 
-    movement = clamp(thisShift-previousAreaShift,-AREA_SIZE_MEM,AREA_SIZE_MEM);
+    movement = clamp(thisShift-previousAreaShift,-AREA_SIZE,AREA_SIZE);
 
     if(workGroupID.z==(AXIS_LAYER_WORLD_COUNT-1)){
         fillVoxSeams(workGroupID, localID);

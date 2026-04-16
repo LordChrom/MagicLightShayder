@@ -192,6 +192,17 @@ uint map = unpackOcclusionMap(packedLightSrc.w);
         vec2 slopeDif = abs(ray-abs(displacement.xy/displacement.z));
 
         float outlineWidth = DEBUG_OUTLINE_WIDTH/displacement.z;
+
+    #ifdef DEBUG_LIGHT_TRAVEL
+        vec2 slopeDifSigns = sign(ray*sign(displacement.xy)-(displacement.xy/displacement.z));
+        float len = length(displacement);
+        if(slopeDifSigns.x*slopeDifSigns.y>0)
+            outlineWidth*=1+ (1+sin(2*len)) + 0.3*(1+sin(30*len));
+        else{
+            outlineWidth*=1+displacement.z;
+        }
+    #endif
+
         if(slopeDif.x<outlineWidth || slopeDif.y<outlineWidth){
             color.rgb=vec3(0.6);
             float occHitDist = unpackOcclusionHitDist(packedLightSrc.w);

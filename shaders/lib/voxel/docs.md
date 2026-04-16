@@ -8,10 +8,8 @@
 - Zone - refers to one portion of the data in an area, mapped the entirety of the physical space, 
   but not all types of data. Eg: the light samples in an area in the east direction on the first layer
 - Layer - Each zone stores only one sample per voxel, so adding layers allows multiple samples in the same position and direction
-- Boundary - zones and areas, in memory, have an additional voxel in every direction to represent incoming light from bordering areas
-- - eg a 64x64x64 area has 66x66x66 representation in memory, with area pos = -1 or 64 (mem pos 0 or 65) being the boundary
 
-Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x64 voxels. This is subject to change
+By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x64 voxels, but this can be changed
 
 
 
@@ -19,16 +17,15 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 | space | axes  | range                        | unit scale | 
 |:------|:------|:-----------------------------|:-----------|
 | World | mc    | inf                          | block      |
-| Area  | mc    | [-1,AREA_SIZE]               | voxel      |
-| Zone  | light | [-1,AREA_SIZE]               | voxel      |
-| Mem   | mixed | xy=[0,AREA_SIZE+1],z=[0,TBD) | mixed      |
+| Area  | mc    | [0,AREA_SIZE-1]              | voxel      |
+| Zone  | light | [0,AREA_SIZE-1]              | voxel      |
+| Mem   | mixed | xy=[0,AREA_SIZE-1],z=[0,TBD) | mixed      |
 
 - world space is always in floats, mem space is always ints, zone and area space are usually ints
 - area positions may be bundled with a 4th element representing which area number the position belongs to
 - the spaces are all continuous mapping from themself to the world, except for mem space
-- mem space, per-element, will map boundary positions 1:1, but internal positions will be shuffled around relative to
-- area/zone space to allow the samples to be moved without mass copying.
-- the TBD max size of mem's z will be (AREA_SIZE+2)\*6\*VOX_LAYERS\*(max number of zones). depends on me figuring out a good way to resize the custom uimage3d in iris
+- mem space will be shuffled around relative to area/zone space to allow the area to be moved without mass copying.
+- the TBD max size of mem's z will be (AREA_SIZE)\*6\*VOX_LAYERS\*(max number of zones). depends on me figuring out a good way to resize the custom uimage3d in iris
 - axes in zone space are represented as a,b,L, with L positive in the direction light travels. examples are shown in the table
 - - Yes it fails to preserve handedness, no that doesnt matter here
 
@@ -126,6 +123,7 @@ Currently a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x6
 - think of a name for approach to lighting
 - make bloom that's not awful
 - make voxel map a lower bit size
+- light sampling from lower cascades when possible
 - halftones
 
 ### Potential additions

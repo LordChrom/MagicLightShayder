@@ -2,6 +2,7 @@
 
 uniform vec3 globalOrigin, previousGlobalOrigin;
 uniform int frameCounter;
+uniform bool hasCeiling;
 
 vec3 getGlobalOrigin(float scale){
     return floor(globalOrigin/scale)*scale;
@@ -120,18 +121,31 @@ vec3 subVoxelOffset(vec3 pos, float scale){
 
 //works with either area pos or zone pos
 ivec3 toMemPos(ivec3 pos, ivec3 spaceShift, uint memOffset){
-    ivec3 shiftedPos = pos+spaceShift;
+    pos += spaceShift;
 
 #if (AREA_SIZE&(AREA_SIZE-1))
-    shiftedPos = ivec3(uvec3(shiftedPos+0x100000u)%AREA_SIZE); //TODO make faster, gets called a lot
+    pos = ivec3(uvec3(pos+0x100000u)%AREA_SIZE); //TODO make faster, gets called a lot
 #else
-    shiftedPos&=(AREA_SIZE-1);
+    pos&=(AREA_SIZE-1);
 #endif
-    pos.x=(uint(pos.x)>=AREA_SIZE?pos.x:shiftedPos.x)+1;
-    pos.y=(uint(pos.y)>=AREA_SIZE?pos.y:shiftedPos.y)+1;
-    pos.z=(uint(pos.z)>=AREA_SIZE?pos.z:shiftedPos.z)+int(memOffset);
+    pos.z+=int(memOffset);
     return pos;
 }
+
+ivec3 upperCascadeAreaPos(ivec3 areaPos, ivec3 areaShift){
+    return ((areaPos+(areaShift&1))>>1)+(AREA_SIZE>>2);
+}
+
+ivec3 uppperCascadeZonePos(ivec3 zonePos, ivec3 zoneShift, uint axis, float scale, out vec3 lightTravelAdj){
+    zonePos+=zoneShift&1;
+//    zonePos.z+=i;
+    zonePos.z+=int(axis&1u)-1;
+
+    lightTravelAdj= scale* (vec3(zonePos&1)-0.5);
+//    lightTravelAdj.z-=scale;
+    return (zonePos>>1)+(AREA_SIZE>>2);
+}
+
 
 
 //Data packing/unpacking
@@ -400,3 +414,7 @@ uint getVariableCascadeLevel(bool isAuxGroup){
     return getVariableCascadeLevel(frameCounter,isAuxGroup);
 }
 
+const vec3 sunColor = vec3(242,242,242)/255;
+const vec3 sunPos = vec3(0,0,1000);
+const uvec4 noLight = uvec4(0);
+uvec4 defaultSunLight = packLightData(vec2(0),0xfu,sunColor,vec3(0,0,10),0f,1,0xfeu);

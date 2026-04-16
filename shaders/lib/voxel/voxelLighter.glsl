@@ -12,11 +12,10 @@ shared uint[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedFrontVoxels;
 shared uint[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedRearVoxels;
 
 //same accross group
-uint[VOX_LAYERS] zoneMemOffsets;
-ivec3 zoneShift,areaShift;
+ivec3 zoneShift,areaShift, upZoneShift, upAreaShift;
 ivec3 aVec, bVec, LVec;
 float scale,halfScale;
-uint axis, areaMemOffset;
+uint axis, cascadeLevel;
 
 //different per invocation
 ivec3 areaPos, zonePos;
@@ -37,17 +36,59 @@ uvec4 maybeBlockLight(uvec4 light, uint voxel){
     )? uvec4(0):light;
 }
 
-void saveSharedSample(int a, int b, bool isBonusSample){
-    ivec3 voxelPos = areaPos.xyz+ivec3(aVec*a + bVec*b);
+void saveSharedSample(int a, int b){
+    ivec3 sampleZonePos = zonePos+ivec3(a, b, -1);
+    bool oob = (
+        (sampleZonePos.x<0) || (sampleZonePos.x>=AREA_SIZE) ||
+        (sampleZonePos.y<0) || (sampleZonePos.y>=AREA_SIZE) ||
+        (sampleZonePos.z<0) || (sampleZonePos.z>=AREA_SIZE)
+    );
+    uint sampleCascade = cascadeLevel;
+    ivec3 sampleZoneShift = zoneShift;
+    ivec3 sampleAreaShift = areaShift;
+    ivec3 frontVoxelPos = areaPos.xyz+ivec3(aVec*a + bVec*b);
+    ivec3 rearVoxelPos = frontVoxelPos-LVec;
 
-    uint rearVoxel = sharedPackedRearVoxels[A+a][B+b] = getVoxData(voxelPos-LVec,areaShift,areaMemOffset);
+    vec3 zonePosRemnants;
+    if(oob){
+        sampleZonePos = uppperCascadeZonePos(zonePos,zoneShift,axis,scale,zonePosRemnants);
+        zonePosRemnants.z-=scale;
+        sampleCascade++;
+        sampleZoneShift=upZoneShift;
+        sampleAreaShift=upAreaShift;
+
+        frontVoxelPos=upperCascadeAreaPos(frontVoxelPos,areaShift);
+        rearVoxelPos=upperCascadeAreaPos(rearVoxelPos,areaShift);
+
+        if(cascadeLevel>=(NUM_CASCADES-1)){
+            sharedPackedRearVoxels[A+a][B+b]=sharedPackedFrontVoxels[A+a][B+b]=0u;
+            uvec4 defaultLight = ((!hasCeiling) && axis==2 && zonePos.z<=0) ? defaultSunLight : noLight;
+    #ifdef DEBUG_DISABLE_SUN
+            defaultLight=noLight;
+    #endif
+            for(int layer = 0; layer<VOX_LAYERS; layer++){
+                sharedPackedSamples[A+a][B+b][layer] = defaultLight;
+            }
+            return;
+        }
+    }
+
+    uint areaMemOffset = areaOffset(sampleCascade);
+
+    uint rearVoxel = sharedPackedRearVoxels[A+a][B+b] = getVoxData(rearVoxelPos,sampleAreaShift,areaMemOffset);
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-        uvec4 light = sampleLightData(zonePos+ivec3(a, b, -1), zoneShift, zoneMemOffsets[layer]);
+        uvec4 light = sampleLightData(sampleZonePos, sampleZoneShift, zoneOffset(axis,layer,sampleCascade));
+        if(oob && (unpackLightType(light)!=LIGHT_TYPE_SUN)){
+            setPackedLightTravel(light,unpackLightTravel(light)+zonePosRemnants);
+        }
+
         sharedPackedSamples[A+a][B+b][layer] = maybeBlockLight(light,rearVoxel);
     }
 
-    sharedPackedFrontVoxels[A+a][B+b] = getVoxData(voxelPos,areaShift,areaMemOffset);
+    sharedPackedFrontVoxels[A+a][B+b] = getVoxData(frontVoxelPos,sampleAreaShift,areaMemOffset);
 }
+
+
 
 ivec2 getBonusPosOffset(){
     const int halfwayL = SECTION_SIZE / 2;
@@ -71,10 +112,10 @@ ivec2 getBonusPosOffset(){
 }
 
 void takeSamples(){
-    saveSharedSample(0,0,false);
+    saveSharedSample(0,0);
     ivec2 bonusPos = getBonusPosOffset();
     if (bonusPos!=ivec2(0)){
-        saveSharedSample(bonusPos.x,bonusPos.y,true);
+        saveSharedSample(bonusPos.x,bonusPos.y);
     }
 
     barrier(); //disable for fun party :)
@@ -636,7 +677,7 @@ void lightVoxelFace(){
 
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-        setLightData(bestLights[layer], zonePos, zoneShift, zoneMemOffsets[layer]);
+        setLightData(bestLights[layer], zonePos, zoneShift, zoneOffset(axis,layer,cascadeLevel));
     }
 
 }
@@ -649,7 +690,7 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
     );
 
     int frameBasedOffset = frameCounter;
-    uint cascadeLevel = getVariableCascadeLevel(frameBasedOffset,bool(groupId.z&1u));
+    cascadeLevel = getVariableCascadeLevel(frameBasedOffset,bool(groupId.z&1u));
     if(cascadeLevel>=NUM_CASCADES) return;
 #ifdef DOUBLE_PROC
     frameBasedOffset=(frameBasedOffset>>cascadeLevel);
@@ -661,9 +702,9 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
     B = localId.y+1;
 
 
-    areaMemOffset = areaOffset(cascadeLevel);
     scale = getScale(cascadeLevel);
     areaShift = getAreaShift(scale);
+    upAreaShift = getAreaShift(scale*2);
     halfScale=0.5*scale;
 
 #if DEBUG_AXIS>=0
@@ -672,14 +713,11 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
     axis = groupId.z/PROC_MULT;
 #endif
 
-    for(int layer = 0; layer<VOX_LAYERS; layer++){
-        zoneMemOffsets[layer] = zoneOffset(axis,layer,cascadeLevel);
-    }
-
     aVec = ivec3(areaToZoneSpaceMats[axis][0]);
     bVec = ivec3(areaToZoneSpaceMats[axis][1]);
     LVec = ivec3(areaToZoneSpaceMats[axis][2]);
     zoneShift = areaToZoneSpace(areaShift,axis);
+    upZoneShift = areaToZoneSpace(upAreaShift,axis);
 
     frameBasedOffset = (frameBasedOffset*LIGHTING_SYSTEM_PASSES-zoneShift.z + LIGHTER_PASS)%UPDATE_STRIDE;
 
