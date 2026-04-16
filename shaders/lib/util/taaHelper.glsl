@@ -6,14 +6,16 @@ vec2 jitter2(int entropy){
 }
 
 vec2 jitter(){
-#if TAA_JITTER_INTERVAL == 4
-    vec2 jitter=0.5*jitter2(frameCounter);
-#elif TAA_JITTER_INTERVAL == 16
-    vec2 jitter=0.5*jitter2(frameCounter)+0.25*jitter2(-(frameCounter>>2));
-#elif TAA_JITTER_INTERVAL == 64
-    vec2 jitter=0.5*jitter2(frameCounter)+0.25*jitter2(-(frameCounter>>2))+ 0.125*jitter2(frameCounter>>4);
-#else
     vec2 jitter = vec2(0);
+
+#if TAA_JITTER_INTERVAL >= 4
+    jitter  = 0.5*jitter2(frameCounter);
+#endif
+#if TAA_JITTER_INTERVAL >= 16
+    jitter += 0.25*jitter2(frameCounter^(frameCounter>>2));
+#endif
+#if TAA_JITTER_INTERVAL >= 64
+    jitter += 0.125*jitter2(frameCounter^(frameCounter>>4));
 #endif
 
 #if DEBUG_SPECIAL_VIEW == 200

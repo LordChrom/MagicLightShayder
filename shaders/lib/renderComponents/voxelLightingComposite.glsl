@@ -54,7 +54,7 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 
 
 
-#if 0
+#if 1
     float solidDepth = texelFetch(depthtex2,sourceTexpos,0).x;
     vec4 normalAndMore = texelFetch(colortex2,sourceTexpos,0);
     float depth = texelFetch(depthtex0,sourceTexpos,0).x;

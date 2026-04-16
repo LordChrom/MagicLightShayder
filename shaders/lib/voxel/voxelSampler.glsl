@@ -206,14 +206,16 @@ uint map = unpackOcclusionMap(packedLightSrc.w);
         if(slopeDif.x<outlineWidth || slopeDif.y<outlineWidth){
             color.rgb=vec3(0.6);
             float occHitDist = unpackOcclusionHitDist(packedLightSrc.w);
-            if(occHitDist!=0){
+            if(occHitDist>0){
                 float wavey = occHitDist*0.5+1;
                 color*=normalize(0.6+0.4*vec3(sin(wavey), sin(wavey+PI*2.0/3), sin(wavey+PI*4.0/3)));
+                if(isnan(color.x)||isnan(color.y)||isnan(color.z)) color=vec3(0);
             }
+
 
             outlineWidth*=0.5;
             if(slopeDif.x<outlineWidth || slopeDif.y<outlineWidth){
-                color.rgb=vec3(0);
+                color.rgb=vec3(0.01);
             }
 
         }

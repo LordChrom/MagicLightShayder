@@ -26,7 +26,10 @@ uniform sampler2D colortex7;
 uniform sampler2D colortex6;
 uniform sampler2D colortex10;
 uniform sampler2D depthtex0;
-
+#ifdef TAA_BETTER_REJECTION
+uniform sampler2D colortex2;
+uniform sampler2D depthtex2;
+#endif
 
 layout(location = 0) out vec4 multAccumulation;
 
@@ -42,10 +45,21 @@ void taaAccumulate(){
 
     bool reprojectValid = false;
     vec3 screenPos = vec3(texcoord,0);
-    float depth = screenPos.z = texture(depthtex0,screenPos.xy,0).x;
+#ifdef TAA_BETTER_REJECTION
 
-//    float normalsAndMoreA = texture(colortex2,texcoord).a;
+    float normalsAndMoreA = texelFetch(colortex2,ivec2(floor(screenDim*texcoord)),0).a;
+    bool isHand = 0.4<normalsAndMoreA && normalsAndMoreA<0.6;
+
+    float depth;
+    if(normalsAndMoreA>0.4)
+        depth = screenPos.z = texture(depthtex0,screenPos.xy,0).x;
+    else
+        depth = screenPos.z = texture(depthtex2,screenPos.xy,0).x;
+
+#else
+    float depth = screenPos.z = texture(depthtex0,screenPos.xy,0).x;
     bool isHand = depth<0.56;
+#endif
 
 
     vec4 previousMultAccumulation = vec4(0);
