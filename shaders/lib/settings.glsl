@@ -67,6 +67,7 @@
 #define TAA_FOG_FACTOR 1.75 //[1.0 1.25 1.5 1.75 2.0
 #define TAA_FOG
 
+#define POST_DITHER
 
 #define MATERIALS_TYPE 0 //[-1 0 1]
 #define PBR_NORMALS_STRENGTH 1.0

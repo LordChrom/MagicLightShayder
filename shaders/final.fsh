@@ -3,11 +3,13 @@
 
 uniform float viewWidth, viewHeight;
 uniform vec2 scaledScreenDim;
+uniform int frameCounter;
 
 #include "/lib/renderComponents/blur.glsl"
 #include "/lib/renderComponents/bonusHudElements.glsl"
 #include "/lib/util/blend.glsl"
 #include "/lib/util/tonemap.glsl"
+#include "/lib/util/dither.glsl"
 
 #if DEBUG_SPECIAL_VIEW >= 0
 uniform sampler2D colortex15;
@@ -105,6 +107,10 @@ void main() {
 	color = color*voxelFog.a + voxelFog.rgb;
 #endif
 	outputColor=tonemap(color);
+
+#ifdef POST_DITHER
+	outputColor+=(bayer4(texpos)-0.5)/255;
+#endif
 
 #if DEBUG_SPECIAL_VIEW >= 0
 	#if DEBUG_SPECIAL_VIEW == 200
