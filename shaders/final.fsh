@@ -5,6 +5,7 @@ uniform float viewWidth, viewHeight;
 uniform vec2 scaledScreenDim;
 
 #include "/lib/renderComponents/blur.glsl"
+#include "/lib/renderComponents/bonusHudElements.glsl"
 #include "/lib/util/blend.glsl"
 #include "/lib/util/tonemap.glsl"
 
@@ -96,6 +97,9 @@ void main() {
 		color = blend(vec4(color,1),transColor);
 	}
 
+#ifdef AXIS_GIZMO
+	renderAxisGizmo(color,texcoord);
+#endif
 
 #if VOLUMETRIC_FOG_SAMPLES > 0
 	color = color*voxelFog.a + voxelFog.rgb;
