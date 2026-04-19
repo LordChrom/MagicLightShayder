@@ -84,7 +84,7 @@ void fillLightSeams(uvec3 workGroupID, uvec3 localID){
     axis = DEBUG_AXIS;
 #endif
 
-    ivec2 zonePos = ivec2(localID.x,workGroupID.y)-1;
+    ivec2 zonePos = ivec2(localID.x,workGroupID.y);
     movement = areaToZoneSpaceRelative(movement,axis);
     thisShift = areaToZoneSpace(thisShift,axis);
 
@@ -138,7 +138,7 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
     upperMemOffset = (cascadeLevel<NUM_CASCADES-1)?areaOffset(cascadeLevel+1):0;
 
 
-    ivec2 posXY = ivec2(localID.x,workGroupID.y)-1;
+    ivec2 posXY = ivec2(localID.x,workGroupID.y);
 
     ivec3 movementSigns = sign(movement);
     ivec3 edgeToTrim = abs(movement);
@@ -173,7 +173,7 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
 
 
     if(0<=posXY.x && posXY.x<AREA_SIZE && 0<=posXY.y && posXY.y<AREA_SIZE){
-        if(upperMemOffset==0) return;
+        if(!bool(upperMemOffset)) return;
 
         //TODO account for area shift
         ivec3 areaPos = ivec3(posXY&~1,(((posXY.x&1)<<1)+((posXY.y&1)<<2)+(frameCounter<<3))%AREA_SIZE);
@@ -184,8 +184,9 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
             representative = max(representative,sampledVox);
         }
 
-        areaPos=(areaPos>>1)+ivec3(AREA_SIZE>>2);
-        representative = (representative&~VOXEL_AGE_MASK) | ((representative&(VOXEL_AGE_MASK<<1))>>1);
+//        areaPos=(areaPos>>1)+ivec3(AREA_SIZE>>2);
+        areaPos = upperCascadeAreaPos(areaPos, thisShift);
+//        representative = (representative&~VOXEL_AGE_MASK) | ((representative&(VOXEL_AGE_MASK<<1))>>1);
         updateVoxData(representative, areaPos, upperShift, upperMemOffset);
     }else{
         //TODO make it do the inward blocks

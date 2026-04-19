@@ -38,26 +38,31 @@ uvec4 maybeBlockLight(uvec4 light, uint voxel){
 
 void saveSharedSample(int a, int b){
     ivec3 sampleZonePos = zonePos+ivec3(a, b, -1);
-    bool oob = (
+    bool sideOob =
         (sampleZonePos.x<0) || (sampleZonePos.x>=AREA_SIZE) ||
-        (sampleZonePos.y<0) || (sampleZonePos.y>=AREA_SIZE) ||
-        (sampleZonePos.z<0) || (sampleZonePos.z>=AREA_SIZE)
-    );
+        (sampleZonePos.y<0) || (sampleZonePos.y>=AREA_SIZE) ;
+    bool rearOob = (sampleZonePos.z<0) || (sampleZonePos.z>=AREA_SIZE) ;
     uint sampleCascade = cascadeLevel;
+    uint areaMemOffset = areaOffset(cascadeLevel);
+    uint sampleAreaMemOffset = areaMemOffset;
     ivec3 sampleZoneShift = zoneShift;
     ivec3 sampleAreaShift = areaShift;
     ivec3 frontVoxelPos = areaPos.xyz+ivec3(aVec*a + bVec*b);
     ivec3 rearVoxelPos = frontVoxelPos-LVec;
 
     vec3 zonePosRemnants;
-    if(oob){
+
+
+    if(sideOob || rearOob){
         sampleZonePos = uppperCascadeZonePos(zonePos,zoneShift,axis,scale,zonePosRemnants);
         zonePosRemnants.z-=scale;
         sampleCascade++;
         sampleZoneShift=upZoneShift;
         sampleAreaShift=upAreaShift;
+        sampleAreaMemOffset = areaOffset(sampleCascade);
 
-        frontVoxelPos=upperCascadeAreaPos(frontVoxelPos,areaShift);
+        if(sideOob)
+            frontVoxelPos=upperCascadeAreaPos(frontVoxelPos,areaShift);
         rearVoxelPos=upperCascadeAreaPos(rearVoxelPos,areaShift);
 
         if(cascadeLevel>=(NUM_CASCADES-1)){
@@ -73,19 +78,18 @@ void saveSharedSample(int a, int b){
         }
     }
 
-    uint areaMemOffset = areaOffset(sampleCascade);
+    sharedPackedFrontVoxels[A+a][B+b] = getVoxData(frontVoxelPos,sideOob?sampleAreaShift:areaShift,sideOob?sampleAreaMemOffset:areaMemOffset);
 
-    uint rearVoxel = sharedPackedRearVoxels[A+a][B+b] = getVoxData(rearVoxelPos,sampleAreaShift,areaMemOffset);
+    uint rearVoxel = sharedPackedRearVoxels[A+a][B+b] = getVoxData(rearVoxelPos,sampleAreaShift,sampleAreaMemOffset);
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         uvec4 light = sampleLightData(sampleZonePos, sampleZoneShift, zoneOffset(axis,layer,sampleCascade));
-        if(oob && (unpackLightType(light)!=LIGHT_TYPE_SUN)){
+        if(rearOob && (unpackLightType(light)!=LIGHT_TYPE_SUN)){
             setPackedLightTravel(light,unpackLightTravel(light)+zonePosRemnants);
         }
 
         sharedPackedSamples[A+a][B+b][layer] = maybeBlockLight(light,rearVoxel);
     }
 
-    sharedPackedFrontVoxels[A+a][B+b] = getVoxData(frontVoxelPos,sampleAreaShift,areaMemOffset);
 }
 
 
