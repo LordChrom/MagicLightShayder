@@ -105,6 +105,8 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 # General TODO List
 ### Needs fixing
 - sun shadows
+- light source duplication at seams
+- seam filler not working due to the voxel split changes
 
 ### Needs Improvement
 - TAA unoptimized

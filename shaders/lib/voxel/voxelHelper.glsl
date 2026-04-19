@@ -16,8 +16,22 @@ ivec3 getAreaShift(float scale, vec3 origin){
 ivec3 getAreaShift(float scale){return getAreaShift(scale,getGlobalOrigin(scale));}
 ivec3 getPreviousAreaShift(float scale){return getAreaShift(scale,getPreviousGlobalOrigin(scale));}
 
-
-
+uint modAreaSize(uint x){
+    #if (AREA_SIZE&(AREA_SIZE-1))
+    return (x+0x10000u*AREA_SIZE)%AREA_SIZE;
+    #else
+    return x&(AREA_SIZE-1);
+    #endif
+}
+uvec3 modAreaSize(uvec3 x){
+    #if (AREA_SIZE&(AREA_SIZE-1))
+    return (x+0x10000u*AREA_SIZE)%AREA_SIZE;
+    #else
+    return x&(AREA_SIZE-1);
+    #endif
+}
+int modAreaSize(int x){ return int(modAreaSize(uint(x)));}
+ivec3 modAreaSize(ivec3 x){ return ivec3(modAreaSize(uvec3(x)));}
 
 const mat3[] areaToZoneSpaceMats = {
 mat3(0,1,0, 0,0,1, -1,0,0),
@@ -43,19 +57,39 @@ ivec3 worldPosToArea(vec3 pos, float scale){
     return ivec3(pos);
 }
 
-uint getCascadeLevel(vec3 worldPos){
-    worldPos-=globalOrigin;
-    worldPos = abs(worldPos/(0.25*MIN_SCALE*AREA_SIZE));
-    float maxDist = max(max(worldPos.x,worldPos.y),worldPos.z);
-    return uint(max(0,floor(log2(maxDist))));
-}
-
-uint getCascadeLevel(vec3 worldPos, vec3 normal){
-    return getCascadeLevel(worldPos+0.1*normal);
-}
-
 float getScale(uint cascadeLevel){
     return MIN_SCALE*float(1<<cascadeLevel);
+}
+
+uint getCascadeLevel(vec3 worldPos){
+    vec3 pos = worldPos - globalOrigin;
+    pos = abs(pos/(0.25*MIN_SCALE*AREA_SIZE));
+    float maxDist = max(max(pos.x,pos.y),pos.z);
+    uint cascade = uint(max(0,floor(log2(maxDist))));
+    float scale = getScale(int(cascade));
+
+    //TODO make more efficient
+    pos = worldPos - getGlobalOrigin(scale);
+    pos = abs(floor(pos/scale));
+    if((scale>1) && (max(max(pos.x,pos.y),pos.z)>=(AREA_SIZE*0.5))){
+        #ifdef DEBUG_SPLIT_VOXELS
+        if(frameCounter%100<=50)
+        #endif
+        cascade++;
+        ;
+    }
+    return cascade;
+}
+
+bool voxelIsSplit(ivec3 areaPos, ivec3 areaShift, uint cascadeLevel){
+    if(int(cascadeLevel)<=BLOCK_SCALE_CASCADE)
+        return false;
+    areaPos = modAreaSize(areaPos);
+    return (
+        (areaPos.x==0)||
+        (areaPos.y==0)||
+        (areaPos.z==0)
+    );
 }
 
 bool isVoxelInBounds(vec3 worldPos){
@@ -122,12 +156,7 @@ vec3 subVoxelOffset(vec3 pos, float scale){
 //works with either area pos or zone pos
 ivec3 toMemPos(ivec3 pos, ivec3 spaceShift, uint memOffset){
     pos += spaceShift;
-
-#if (AREA_SIZE&(AREA_SIZE-1))
-    pos = ivec3(uvec3(pos+0x100000u)%AREA_SIZE); //TODO make faster, gets called a lot
-#else
-    pos&=(AREA_SIZE-1);
-#endif
+    pos = modAreaSize(pos);
     pos.z+=int(memOffset);
     return pos;
 }
@@ -136,13 +165,17 @@ ivec3 upperCascadeAreaPos(ivec3 areaPos, ivec3 areaShift){
     return ((areaPos+(areaShift&1))>>1)+(AREA_SIZE>>2);
 }
 
+//sets innerAreaPos to be the least voxel that maps to the upper cascade voxel
+ivec3 upperCascadeAreaPosForSeamFiller(inout ivec3 areaPos, ivec3 areaShift){
+    ivec3 ret = (areaPos+(areaShift&1))+(AREA_SIZE>>1);
+    areaPos-=ret&1;
+    return ret>>1;
+}
+
 ivec3 uppperCascadeZonePos(ivec3 zonePos, ivec3 zoneShift, uint axis, float scale, out vec3 lightTravelAdj){
     zonePos+=zoneShift&1;
-//    zonePos.z+=i;
     zonePos.z+=int(axis&1u)-1;
-
     lightTravelAdj= scale* (vec3(zonePos&1)-0.5);
-//    lightTravelAdj.z-=scale;
     return (zonePos>>1)+(AREA_SIZE>>2);
 }
 
@@ -173,6 +206,7 @@ uint packFloat12(float x){
     return (clamp(int(floor(sig)),0,15)<<8)|(clamp(exponent,-128,127)&0xff);
 }
 
+//TODO investigate if ldexp/frexp is actually fast
 float unpackFloat12(uint x){
     if(x==0x80u)
         return 0;

@@ -5,6 +5,7 @@
 //#define DEBUG_OCCLUSION_RAYS
 //#define DEBUG_LIGHT_TRAVEL
 //#define DEBUG_OCCLUSION_HIT_DIST
+//#define DEBUG_SPLIT_VOXELS
 #define UNFLIP_DEBUG_MAPS
 #define DEBUG_OUTLINE_WIDTH 0.04 //[0 0.01 0.02 0.04 0.08 0.16]
 #define DEBUG_AXIS -1 //[-1 0 1 2 3 4 5]
@@ -74,11 +75,11 @@
 #define PBR_NORMALS_STRENGTH 1.0
 
 #define NUM_CASCADES 4 //[1 2 3 4 5 6 7 8 9 10]
-#define MIN_SCALE 1 //[0.5 1 2]
+#define MIN_SCALE 1.0 //[0.5 1.0 2.0 4.0]
 
 #define UPDATE_STRIDE 16 //[1 2 4 8 16 32 64]
 #define LIGHTING_SYSTEM_PASSES 1 //[1 2 3 4 5 6 7 8]
-#define SECTION_SIZE 16 //[4 8 16 32]
+#define SECTION_SIZE 16 //[8 16]
 #define AREA_WIDTH_SECTIONS 4 //[1 2 4 6 8]
 #define DOUBLE_PROC
 
@@ -133,7 +134,9 @@
 ///// The following to be copy pasted into shaders.properties
 #define AREA_SIZE (AREA_WIDTH_SECTIONS*SECTION_SIZE)
 
-#if AREA_SIZE == 16
+#if AREA_SIZE == 8
+    #define AREA_SIZE_MEM 8
+#elif AREA_SIZE == 16
     #define AREA_SIZE_MEM 16
 #elif AREA_SIZE == 32
     #define AREA_SIZE_MEM 32
@@ -199,6 +202,7 @@ const int SECTIONS_PER_AREA_Z = AREA_SIZE/UPDATE_STRIDE;
 //const int SECTIONS_PER_AREA = AREA_WIDTH_SECTIONS*AREA_WIDTH_SECTIONS*AREA_WIDTH_SECTIONS;
 const int ZONE_OFFSET = AREA_SIZE;
 const int AREA_OFFSET = AREA_SIZE;
+const int BLOCK_SCALE_CASCADE = -int(round(log2(MIN_SCALE)));
 
 
 

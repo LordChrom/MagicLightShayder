@@ -38,10 +38,6 @@ uvec4 maybeBlockLight(uvec4 light, uint voxel){
 
 void saveSharedSample(int a, int b){
     ivec3 sampleZonePos = zonePos+ivec3(a, b, -1);
-    bool sideOob =
-        (sampleZonePos.x<0) || (sampleZonePos.x>=AREA_SIZE) ||
-        (sampleZonePos.y<0) || (sampleZonePos.y>=AREA_SIZE) ;
-    bool rearOob = (sampleZonePos.z<0) || (sampleZonePos.z>=AREA_SIZE) ;
     uint sampleCascade = cascadeLevel;
     uint areaMemOffset = areaOffset(cascadeLevel);
     uint sampleAreaMemOffset = areaMemOffset;
@@ -49,6 +45,11 @@ void saveSharedSample(int a, int b){
     ivec3 sampleAreaShift = areaShift;
     ivec3 frontVoxelPos = areaPos.xyz+ivec3(aVec*a + bVec*b);
     ivec3 rearVoxelPos = frontVoxelPos-LVec;
+
+    bool sideOob = voxelIsSplit(frontVoxelPos,areaShift,cascadeLevel) ||
+        (sampleZonePos.x<0) || (sampleZonePos.x>=AREA_SIZE) ||
+        (sampleZonePos.y<0) || (sampleZonePos.y>=AREA_SIZE) ;
+    bool rearOob = voxelIsSplit(rearVoxelPos,areaShift,cascadeLevel) || (sampleZonePos.z<0) || (sampleZonePos.z>=AREA_SIZE) ;
 
     vec3 zonePosRemnants;
 

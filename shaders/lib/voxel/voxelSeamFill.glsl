@@ -172,11 +172,13 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
     }
 
 
-    if(0<=posXY.x && posXY.x<AREA_SIZE && 0<=posXY.y && posXY.y<AREA_SIZE){
-        if(!bool(upperMemOffset)) return;
+    if(!bool(upperMemOffset)) return;
 
-        //TODO account for area shift
-        ivec3 areaPos = ivec3(posXY&~1,(((posXY.x&1)<<1)+((posXY.y&1)<<2)+(frameCounter<<3))%AREA_SIZE);
+    ivec3 areaPos = ivec3(posXY&~1,(((posXY.x&1)<<2)+((posXY.y&1)<<3)+((frameCounter>>cascadeLevel)<<1))%AREA_SIZE);
+    ivec3 upperAreaPos = upperCascadeAreaPosForSeamFiller(areaPos,thisShift);
+
+    if(0<=areaPos.x && areaPos.x<AREA_SIZE && 0<=areaPos.y && areaPos.y<AREA_SIZE && 0<=areaPos.z && areaPos.z<AREA_SIZE){
+
         uint representative = 0;
         for(int i=0; i<8; i++){
             ivec3 subPos = ivec3(i,i>>1,i>>2)&1;
@@ -184,12 +186,8 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
             representative = max(representative,sampledVox);
         }
 
-//        areaPos=(areaPos>>1)+ivec3(AREA_SIZE>>2);
-        areaPos = upperCascadeAreaPos(areaPos, thisShift);
 //        representative = (representative&~VOXEL_AGE_MASK) | ((representative&(VOXEL_AGE_MASK<<1))>>1);
-        updateVoxData(representative, areaPos, upperShift, upperMemOffset);
-    }else{
-        //TODO make it do the inward blocks
+        updateVoxData(representative, upperAreaPos, upperShift, upperMemOffset);
     }
 }
 

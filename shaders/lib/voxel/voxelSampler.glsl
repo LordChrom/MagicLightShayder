@@ -277,6 +277,10 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface){
     vec3 edgeNearness = abs(subVoxelOffset*2/scale)+(DEBUG_GRID_OUTLINE/(64*scale));
     if((int(edgeNearness.x>=1)+int(edgeNearness.y>=1)+int(edgeNearness.z>=1))>=2){
         color = vec3(0.4);
+    #ifdef DEBUG_SPLIT_VOXELS
+        if(voxelIsSplit(areaPos,areaShift,cascadeLevel))
+            color=vec3(0.5,0,0);
+    #endif
     }
 #endif
 
