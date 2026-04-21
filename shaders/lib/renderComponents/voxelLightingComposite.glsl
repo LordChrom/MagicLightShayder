@@ -44,8 +44,6 @@ vec4 voxelFog;
 void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     ivec2 texpos = ivec2(floor(vec2(sampleTexCoord)*scaledScreenDim-0.01));
     float ditherValue = dither(texpos);
-    float ditherValue2 = fract(ditherValue*7+0.3);
-    float ditherValue3 = bayer8(texpos);
 
 #ifdef TAA
     sampleTexCoord+=jitter();
@@ -100,7 +98,7 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 
     voxelLighting = vec3(0);
     if(!isSky)
-        voxelLighting = voxelSample(worldPos,normal,subsurface,ditherValue3)+emissive;
+        voxelLighting = voxelSample(worldPos,normal,subsurface,ditherValue)+emissive;
 
 #if VOLUMETRIC_FOG_SAMPLES > 0
     voxelFog = vec4(0,0,0,1);
@@ -115,9 +113,15 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     const float fogSampleLen = 1.0/VOLUMETRIC_FOG_SAMPLES;
     const float fogDensityMult = FOG_THICKNESS*log(0.5)/FOG_HALF_LIFE;
 
+
+    #ifdef FOG_TEMPORAL_NOISE
+    ditherValue = temporalNoise(ditherValue);
+    #endif
+    float ditherValue2 = fract(ditherValue*-13+1.3);
+
     for(int i=0; i<VOLUMETRIC_FOG_SAMPLES; i++){
         //TODO better fog amount calc, and fix the banding, maybe smarter spacing
-        float weight = 1-(i+ditherValue)*fogSampleLen;
+        float weight = 1-(float(i)+ditherValue)*fogSampleLen;
         vec3 fogSamplePos = cameraPosition +worldPosRelative*weight;
         if(!isVoxelInBounds(fogSamplePos))continue;
 

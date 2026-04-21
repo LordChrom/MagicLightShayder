@@ -265,8 +265,8 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
     float scale = getScale(cascadeLevel);
 
 #if !(AREA_TRANSITION_DIST==-1)
-    vec3 tmp = abs(worldPos-getGlobalOrigin(scale));
-    float areaBorderNearness = max(max(tmp.x,tmp.y),tmp.z)/(AREA_SIZE*scale*0.5);
+    vec3 tmp = abs(worldPos-cameraPosition);
+    float areaBorderNearness = max(max(tmp.x,tmp.y),tmp.z)/((AREA_SIZE-1)*0.5*scale);
     areaBorderNearness = clamp((areaBorderNearness-AREA_TRANSITION_DIST)/(1-AREA_TRANSITION_DIST),0,1);
 
     if(cascadeLevel<NUM_CASCADES-1 && areaBorderNearness+ditherValue>1)
