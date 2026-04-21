@@ -45,6 +45,7 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     ivec2 texpos = ivec2(floor(vec2(sampleTexCoord)*scaledScreenDim-0.01));
     float ditherValue = dither(texpos);
     float ditherValue2 = fract(ditherValue*7+0.3);
+    float ditherValue3 = bayer8(texpos);
 
 #ifdef TAA
     sampleTexCoord+=jitter();
@@ -99,7 +100,7 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 
     voxelLighting = vec3(0);
     if(!isSky)
-        voxelLighting = voxelSample(worldPos,normal,subsurface)+emissive;
+        voxelLighting = voxelSample(worldPos,normal,subsurface,ditherValue3)+emissive;
 
 #if VOLUMETRIC_FOG_SAMPLES > 0
     voxelFog = vec4(0,0,0,1);

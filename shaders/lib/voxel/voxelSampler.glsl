@@ -257,12 +257,23 @@ vec3 getDirectedLight(uint cascadeLevel, uint layer, uint axis, float scale, flo
     return getDirectedLight(packedSrc, blockPos, subVoxelOffset, normal, axis, scale,subsurface, isForFog);
 }
 
-vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface){
+vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue){
 #if PIXEL_LOCK >0
     worldPos = pixelLock(worldPos+0.01*normal,1.0/PIXEL_LOCK);
 #endif
     uint cascadeLevel = getCascadeLevel(worldPos+normal*0.1);
     float scale = getScale(cascadeLevel);
+
+#if !(AREA_TRANSITION_DIST==-1)
+    vec3 tmp = abs(worldPos-getGlobalOrigin(scale));
+    float areaBorderNearness = max(max(tmp.x,tmp.y),tmp.z)/(AREA_SIZE*scale*0.5);
+    areaBorderNearness = clamp((areaBorderNearness-AREA_TRANSITION_DIST)/(1-AREA_TRANSITION_DIST),0,1);
+
+    if(cascadeLevel<NUM_CASCADES-1 && areaBorderNearness+ditherValue>1)
+        cascadeLevel++;
+#endif
+
+    scale = getScale(cascadeLevel);
     vec3 voxelCenter = (floor(worldPos/scale+normalize(normal)*(scale/20))+0.5) * scale;
 
     ivec3 areaPos = worldPosToArea(voxelCenter,scale).xyz;
