@@ -27,10 +27,7 @@ vec3 screenToView(vec3 screenPos) {
 
 
 void doBonusStuff(){
-	if (renderStage == MC_RENDER_STAGE_STARS) {
-		color = glcolor;
-	} else {
-		vec3 pos = screenToView(vec3(gl_FragCoord.xy / vec2(viewWidth, viewHeight), 1.0));
-		color = vec4(calcSkyColor(normalize(pos)), 1.0);
-	}
+	vec3 pos = screenToView(vec3(gl_FragCoord.xy / vec2(viewWidth, viewHeight), 1.0));
+	bool isStars = renderStage==MC_RENDER_STAGE_STARS;
+	color = vec4(mix(calcSkyColor(normalize(pos)),glcolor.rgb,glcolor.a*float(isStars)), 1.0);
 }
