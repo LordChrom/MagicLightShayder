@@ -271,9 +271,9 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
 
     if(cascadeLevel<NUM_CASCADES-1 && areaBorderNearness+ditherValue>1)
         cascadeLevel++;
+    scale = getScale(cascadeLevel);
 #endif
 
-    scale = getScale(cascadeLevel);
     vec3 voxelCenter = (floor(worldPos/scale+normalize(normal)*(scale/20))+0.5) * scale;
 
     ivec3 areaPos = worldPosToArea(voxelCenter,scale).xyz;
@@ -312,10 +312,21 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
 }
 
 
-vec3 voxelSampleFog(vec3 worldPos, float fogNoise){
+vec3 voxelSampleFog(vec3 worldPos, float fogNoise, float ditherValue){
     //TODO add a computationally cheap option and an option that weights based on how much of the fog line thru the voxel is lit
     uint cascadeLevel = getCascadeLevel(worldPos);
     float scale = getScale(cascadeLevel);
+
+#if !(AREA_TRANSITION_DIST==-1)
+    vec3 tmp = abs(worldPos-cameraPosition);
+    float areaBorderNearness = max(max(tmp.x,tmp.y),tmp.z)/((AREA_SIZE-1)*0.5*scale);
+    areaBorderNearness = clamp((areaBorderNearness-AREA_TRANSITION_DIST)/(1-AREA_TRANSITION_DIST),0,1);
+
+    if(cascadeLevel<NUM_CASCADES-1 && areaBorderNearness+ditherValue>1)
+        cascadeLevel++;
+    scale = getScale(cascadeLevel);
+#endif
+
     vec3 voxelCenter = (floor(worldPos/scale)+0.5) * scale;
 
     ivec3 areaPos = worldPosToArea(voxelCenter,scale).xyz;

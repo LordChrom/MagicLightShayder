@@ -50,7 +50,7 @@ layout(std430, binding = 1) restrict buffer indirectDispatches {
 } indirectDispatchesAccess;
 
 float scale;
-uint thisMemOffset, upperMemOffset, axis, cascadeLevel;
+uint thisMemOffset, upperMemOffset, axis, cascadeLevel, frameOffset;
 ivec3 thisShift, upperShift, movement;
 bool cascadeVisitedThisFrame;
 
@@ -172,28 +172,39 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
     }
 
 
-    if(!bool(upperMemOffset)) return;
+    if(bool(upperMemOffset)&&bool((frameOffset^cascadeLevel)&1u)){
+        ivec3 areaPosBase;
+        areaPosBase.xz = posXY&~1;
+        areaPosBase.y= ((((posXY.x&1)<<1)+posXY.y&1)<<1);
+        for(int j=AREA_SIZE/8;j>=0;j--){
+            ivec3 areaPos = ivec3(areaPosBase.x,(areaPosBase.y&7)|(j<<3),areaPosBase.z);
+            if(areaPos.y<0 || areaPos.y>=AREA_SIZE) continue;
 
-    ivec3 areaPos = ivec3(posXY&~1,(((posXY.x&1)<<2)+((posXY.y&1)<<3)+((frameCounter>>cascadeLevel)<<1))%AREA_SIZE);
-    ivec3 upperAreaPos = upperCascadeAreaPosForSeamFiller(areaPos,thisShift);
+            ivec3 upperAreaPos = upperCascadeAreaPosForSeamFiller(areaPos,thisShift);
 
-    if(0<=areaPos.x && areaPos.x<AREA_SIZE && 0<=areaPos.y && areaPos.y<AREA_SIZE && 0<=areaPos.z && areaPos.z<AREA_SIZE){
+            if(areaPos.x<0 || areaPos.y<0 || areaPos.z<0)
+                upperAreaPos = upperCascadeAreaPosForSeamFiller(modAreaSize(areaPos+AREA_SIZE),thisShift);
 
-        uint representative = 0;
-        for(int i=0; i<8; i++){
-            ivec3 subPos = ivec3(i,i>>1,i>>2)&1;
-            uint sampledVox = getVoxData(areaPos+subPos, thisShift, thisMemOffset);
-            representative = max(representative,sampledVox);
+
+            if(voxelIsSplit(upperAreaPos,upperShift, cascadeLevel+1))
+                continue;
+            uint representative = 0;
+            for(int i=0; i<8; i++){
+                ivec3 subPos = ivec3(i,i>>1,i>>2)&1;
+                uint sampledVox = getVoxData(areaPos+subPos, thisShift, thisMemOffset);
+                representative = max(representative,sampledVox&~VOXEL_AGE_MASK);
+            }
+
+            representative = representative | (VOXEL_INITIAL_TIME<<VOXEL_AGE_SHIFT);
+            updateVoxData(representative, upperAreaPos, upperShift, upperMemOffset);
         }
-
-//        representative = (representative&~VOXEL_AGE_MASK) | ((representative&(VOXEL_AGE_MASK<<1))>>1);
-        updateVoxData(representative, upperAreaPos, upperShift, upperMemOffset);
     }
 }
 
 void fillSeams(uvec3 workGroupID, uvec3 localID){
     cascadeLevel = workGroupID.x;
-    uint bonusCascadeLevel = getVariableCascadeLevel(false);
+    frameOffset = frameCounter;
+    uint bonusCascadeLevel = getVariableCascadeLevel(frameOffset,false);
 
     scale = getScale(cascadeLevel);
 
@@ -205,7 +216,7 @@ void fillSeams(uvec3 workGroupID, uvec3 localID){
     if(cascadeLevel==0)
         cascadeVisitedThisFrame=true;
 #endif
-    bool isOddVisit = bool(frameCounter&1);
+    bool isOddVisit = bool(frameOffset&1u);
 
 
     ivec3 previousAreaShift = ivec3(0);

@@ -424,7 +424,7 @@ uint countTrailingZeroes(uint x){
     return ret;
 }
 
-uint getVariableCascadeLevel(int frame){
+uint getVariableCascadeLevel(uint frame){
     uint trailingZeroes = countTrailingZeroes(frame);
 #ifdef DOUBLE_PROC
     return trailingZeroes+1;
@@ -433,10 +433,7 @@ uint getVariableCascadeLevel(int frame){
 #endif
 }
 
-bool evenVisit(uint cascadeLevel);
-
-
-uint getVariableCascadeLevel(int frame, bool isAuxGroup){
+uint getVariableCascadeLevel(uint frame, bool isAuxGroup){
 #ifdef DOUBLE_PROC
     return isAuxGroup?0:getVariableCascadeLevel(frame);
 #else

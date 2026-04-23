@@ -45,7 +45,6 @@ void writeVoxelMap(vec3 worldPos, int blockID, vec3 toMidblock, vec3 normal, uin
     ivec3 areaShift = getAreaShift(scale);
     uint areaMemOffset = areaOffset(cascadeLevel);
 
-//TODO Comedian: What's the deal with end rods? *laugh track*
 
     uint packedData = packWorldVox(uvec4(255*color, metadata)) | (VOXEL_INITIAL_TIME<<VOXEL_AGE_SHIFT);
     updateVoxData(packedData, areaPos, areaShift, areaMemOffset);

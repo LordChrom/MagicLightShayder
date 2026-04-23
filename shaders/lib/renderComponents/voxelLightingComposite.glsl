@@ -131,7 +131,7 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 
 
 
-        vec4 newSample = vec4(voxelSampleFog(fogSamplePos,ditherValue2),0);
+        vec4 newSample = vec4(voxelSampleFog(fogSamplePos,ditherValue2,ditherValue),0);
         vec3 fogCol = max(fogColor,0.01);
         fogCol/=length(fogCol);
         newSample.rgb=mix(newSample.rgb,fogCol*length(newSample.rgb),FOG_BIOME_TINT_STRENGTH);
