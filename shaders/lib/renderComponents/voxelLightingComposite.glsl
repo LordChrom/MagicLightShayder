@@ -101,17 +101,13 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
         voxelLighting = mix(voxelSample(worldPos,normal,subsurface,ditherValue),vec3(EMISSIVE_BRIGHTNESS),emissive);
 
 #if VOLUMETRIC_FOG_SAMPLES > 0
-    voxelFog = vec4(0,0,0,1);
-
-    if(length(worldPosRelative)>MAX_FOG_DEPTH || isSky){
-        worldPosRelative*=MAX_FOG_DEPTH/length(worldPosRelative);
-    }
-
-    float hitDistance = length(worldPosRelative);
-    float previousSampleDist = hitDistance;
-
+    const float maxFogDepth = min(MAX_FOG_DEPTH,MIN_SCALE*0.5*AREA_SIZE*(1<<NUM_CASCADES));
     const float fogSampleLen = 1.0/VOLUMETRIC_FOG_SAMPLES;
     const float fogDensityMult = FOG_THICKNESS*log(0.5)/FOG_HALF_LIFE;
+
+    if(length(worldPosRelative)>maxFogDepth || isSky){
+        worldPosRelative*=maxFogDepth/length(worldPosRelative);
+    }
 
 
     #ifdef FOG_TEMPORAL_NOISE
@@ -119,29 +115,31 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     #endif
     float ditherValue2 = fract(ditherValue*-13+1.3);
 
+    voxelFog = vec4(0,0,0,1);
+    float hitDistance = length(worldPosRelative);
+    float previousExp = exp(fogDensityMult*hitDistance);
+
+
     for(int i=0; i<VOLUMETRIC_FOG_SAMPLES; i++){
         //TODO better fog amount calc, and fix the banding, maybe smarter spacing
         float weight = 1-(float(i)+ditherValue)*fogSampleLen;
         vec3 fogSamplePos = cameraPosition +worldPosRelative*weight;
-        if(!isVoxelInBounds(fogSamplePos))continue;
+        vec3 newSample = voxelSampleFog(fogSamplePos,ditherValue2*0,ditherValue);
 
-        float thisSampleDist = (weight)*hitDistance;
-        float fogExperienced = exp(fogDensityMult * (previousSampleDist-thisSampleDist));
-        previousSampleDist=thisSampleDist;
+        float fogExp = (i==VOLUMETRIC_FOG_SAMPLES-1)? 1 : exp(fogDensityMult*hitDistance*weight);
 
-
-
-        vec4 newSample = vec4(voxelSampleFog(fogSamplePos,ditherValue2,ditherValue),0);
-        vec3 fogCol = max(fogColor,0.01);
-        fogCol/=length(fogCol);
-        newSample.rgb=mix(newSample.rgb,fogCol*length(newSample.rgb),FOG_BIOME_TINT_STRENGTH);
-        voxelFog = voxelFog*fogExperienced + newSample*(1-fogExperienced);
+        voxelFog *= previousExp/fogExp;
+        voxelFog.rgb += newSample*(fogExp-previousExp);
+        previousExp=fogExp;
     }
-    voxelFog*=exp(fogDensityMult * previousSampleDist);
+
+    vec3 fogCol = max(fogColor,0.01);
+    fogCol=fogCol*(FOG_BIOME_TINT_STRENGTH/length(fogCol)) + (1-FOG_BIOME_TINT_STRENGTH);
+    voxelFog.rgb*=fogCol.rgb;
+
 #endif
 
 
-//    voxelLighting=vec3((texpos.x^texpos.y)&1);
 
 #if DEBUG_SPECIAL_VIEW == 0
     funnyDebug=texture(colortex0,sampleTexCoord).rgb;
