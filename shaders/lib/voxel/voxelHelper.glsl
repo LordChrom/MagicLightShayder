@@ -367,7 +367,6 @@ bool isLit(vec3 position, vec2 occlRay, uint occlMap){
     return bool(occlMap & (abs(position.x)>occlRay.x*position.z?10u:5u) & (abs(position.y)>occlRay.y*position.z?12u:3u));
 }
 
-#ifdef PENUMBRAS_ENABLED
 float penumbralLightTest(vec3 position, vec2 ray, uint map, float occlHitDist){
     float width =(PENUMBRA_WIDTH)*((position.z/occlHitDist)-1);
 
@@ -379,7 +378,6 @@ float penumbralLightTest(vec3 position, vec2 ray, uint map, float occlHitDist){
     m.x);
     return mix(mixX.x,mixX.y,m.y);
 }
-#endif
 
 
 

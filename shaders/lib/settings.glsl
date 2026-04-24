@@ -225,7 +225,9 @@ const float translucentPrecedenceCutoff = 0.99;
 
 #if BLOOM>0
 #ifdef KEEP_FULLY_OCCLUDED_SAMPLES
+#ifdef FOG_PENUMBRAS
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
+#endif
 #endif
 #endif
 
