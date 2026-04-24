@@ -150,7 +150,7 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
         && (posXY.y>=validLo.y && posXY.y<=validHi.y)
     ){
         for (ivec3 areaPos = ivec3(posXY, 0); areaPos.z<AREA_SIZE; areaPos.z++){
-            if (isPosExpiryExempt(areaPos) || (areaPos.z>=validLo.z && areaPos.z<=validHi.z))
+            if (isPosExpiryExempt(areaPos) || !(areaPos.z>=validLo.z && areaPos.z<=validHi.z))
                 continue;
             uint voxel=getVoxData(areaPos, thisShift, thisMemOffset);
             voxel-=(uint(bool(voxel))<<VOXEL_AGE_SHIFT);
