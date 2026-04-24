@@ -98,7 +98,7 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 
     voxelLighting = vec3(0);
     if(!isSky)
-        voxelLighting = voxelSample(worldPos,normal,subsurface,ditherValue)+emissive;
+        voxelLighting = mix(voxelSample(worldPos,normal,subsurface,ditherValue),vec3(EMISSIVE_BRIGHTNESS),emissive);
 
 #if VOLUMETRIC_FOG_SAMPLES > 0
     voxelFog = vec4(0,0,0,1);
