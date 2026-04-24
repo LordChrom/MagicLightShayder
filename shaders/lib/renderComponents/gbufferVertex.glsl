@@ -45,7 +45,6 @@ uniform mat4 gbufferModelViewInverse;
 #if ( VOXELIZATION_MODE >=1 ) && (defined IS_TERRAIN )
     #include "/lib/voxel/voxelMapper.glsl"
     uniform vec3 cameraPosition;
-    in vec4 at_midBlock;
     #define UPDATE_VOXEL_MAP
     #define NEEDS_MC_ENTITY
 #endif
@@ -65,6 +64,7 @@ flat out int materialID;
 #ifdef NEEDS_MC_ENTITY
 in vec2 mc_Entity;
 #endif
+in vec4 at_midBlock;
 
 void main() {
     gl_Position = ftransform();
@@ -111,7 +111,7 @@ void main() {
 #endif
 
 #ifdef HARDCODED_MATERIAL
-    hardcodedMaterialInfo = getHardcodedMaterial(materialID);
+    hardcodedMaterialInfo = getHardcodedMaterial(materialID,int(at_midBlock.w));
 #endif
 
 #ifdef UPDATE_VOXEL_MAP

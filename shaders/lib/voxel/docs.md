@@ -110,7 +110,6 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 
 ### Needs Improvement
 - TAA unoptimized
-- change how hardcoded subsurface works for mushrooms
 - proper system for unlit geometry
 - SSS
 - Emissive
