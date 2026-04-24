@@ -40,10 +40,8 @@ const int workGroupZ = 6*PROC_MULT;
 
 
 
-layout(std430, binding = 0) restrict buffer areaData {
-    areaMeta[NUM_CASCADES] oddAreaMetas;
-    areaMeta[NUM_CASCADES] evenAreaMetas;
-} areaDataAccess;
+//layout(std430, binding = 0) restrict buffer areaData {
+//} areaDataAccess;
 
 layout(std430, binding = 1) restrict buffer indirectDispatches {
     uvec3 lighterDispatches;
@@ -132,7 +130,7 @@ bool isPosExpiryExempt(ivec3 areaPos){
 }
 
 void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
-    if(workGroupID.x==0)
+    if(workGroupID.xy==uvec2(0) && localID==uvec3(0))
         indirectDispatchesAccess.lighterDispatches=uvec3(SECTIONS_PER_AREA_XY,SECTIONS_PER_AREA_Z,workGroupZ);
     thisMemOffset = areaOffset(cascadeLevel);
     upperMemOffset = (cascadeLevel<NUM_CASCADES-1)?areaOffset(cascadeLevel+1):0;
@@ -143,11 +141,16 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
     ivec3 movementSigns = sign(movement);
     ivec3 edgeToTrim = abs(movement);
 
+    ivec3 validHi = min(AREA_SIZE-1-movement,AREA_SIZE-1);
+    ivec3 validLo = max(-movement,0);
 
 #ifndef DEBUG_NOTHING_EXPIRES
-    if(cascadeVisitedThisFrame){
+    if(cascadeVisitedThisFrame
+        && (posXY.x>=validLo.x && posXY.x<=validHi.x)
+        && (posXY.y>=validLo.y && posXY.y<=validHi.y)
+    ){
         for (ivec3 areaPos = ivec3(posXY, 0); areaPos.z<AREA_SIZE; areaPos.z++){
-            if (isPosExpiryExempt(areaPos))
+            if (isPosExpiryExempt(areaPos) || (areaPos.z>=validLo.z && areaPos.z<=validHi.z))
                 continue;
             uint voxel=getVoxData(areaPos, thisShift, thisMemOffset);
             voxel-=(uint(bool(voxel))<<VOXEL_AGE_SHIFT);
@@ -182,16 +185,19 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
 
             ivec3 upperAreaPos = upperCascadeAreaPosForSeamFiller(areaPos,thisShift);
 
-            if(areaPos.x<0 || areaPos.y<0 || areaPos.z<0)
-                upperAreaPos = upperCascadeAreaPosForSeamFiller(modAreaSize(areaPos+AREA_SIZE),thisShift);
-
+            if(areaPos.x<validLo.x || areaPos.y<validLo.y || areaPos.z<validLo.z)
+                continue;
 
             if(voxelIsSplit(upperAreaPos,upperShift, cascadeLevel+1))
                 continue;
+
             uint representative = 0;
             for(int i=0; i<8; i++){
-                ivec3 subPos = ivec3(i,i>>1,i>>2)&1;
-                uint sampledVox = getVoxData(areaPos+subPos, thisShift, thisMemOffset);
+                ivec3 subPos = (ivec3(i,i>>1,i>>2)&1)+areaPos;
+                if(subPos.x>validHi.x || subPos.y>validHi.y || subPos.z>validHi.z)
+                    continue;
+                uint sampledVox = getVoxData(subPos, thisShift, thisMemOffset);
+                if((sampledVox>>VOXEL_AGE_SHIFT)<=2) continue;
                 representative = max(representative,sampledVox&~VOXEL_AGE_MASK);
             }
 
@@ -216,20 +222,8 @@ void fillSeams(uvec3 workGroupID, uvec3 localID){
     if(cascadeLevel==0)
         cascadeVisitedThisFrame=true;
 #endif
-    bool isOddVisit = bool(frameOffset&1u);
 
-
-    ivec3 previousAreaShift = ivec3(0);
-
-    if(isOddVisit){
-        previousAreaShift = areaDataAccess.evenAreaMetas[cascadeLevel].areaShift;
-        if(localID.x==0)
-            areaDataAccess.oddAreaMetas[cascadeLevel].areaShift = thisShift;
-    }else{
-        previousAreaShift = areaDataAccess.oddAreaMetas[cascadeLevel].areaShift;
-        if(localID.x==0)
-            areaDataAccess.evenAreaMetas[cascadeLevel].areaShift = thisShift;
-    }
+    ivec3 previousAreaShift = getPreviousAreaShift(scale);
 
     movement = clamp(thisShift-previousAreaShift,-AREA_SIZE,AREA_SIZE);
 
