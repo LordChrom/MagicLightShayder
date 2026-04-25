@@ -34,6 +34,12 @@
 #define PENUMBRAS_ENABLED
 #define AREA_TRANSITION_DIST 0.85 //[-1 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.85 0.9 0.95]
 
+//#define SSAO
+#define SSAO_SAMPLES 8 //[1 2 3 4 6 8 12 16 24 32]
+#define SSAO_RADIUS 0.01 //[0.0025 0.005 0.0075 0.01 0.015 0.02 0.03 0.04 0.06 0.08 0.12 0.16]
+#define SSAO_STRENGTH 1.0 //[0.25 0.5 0.75 1.0 1.25 1.5 1.75 2.0 2.5 3.0 3.5 4.0]
+const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
+
 #define VOX_LAYERS 2 //[1 2 3 4 8]
 
 #define COLORED_TRANSLUCENTS

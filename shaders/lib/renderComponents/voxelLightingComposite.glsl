@@ -14,6 +14,11 @@ uniform sampler2D colortex2;
 uniform sampler2D depthtex0;
 uniform sampler2D depthtex2;
 
+#ifdef SSAO
+uniform mat4 gbufferModelView;
+#include "/lib/renderComponents/ssao.glsl"
+#endif
+
 #if MATERIALS_TYPE >= 0
 uniform usampler2D colortex3;
 uniform usampler2D colortex4;
@@ -100,6 +105,16 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     if(!isSky)
         voxelLighting = mix(voxelSample(worldPos,normal,subsurface,ditherValue),vec3(EMISSIVE_BRIGHTNESS),emissive);
 
+    #ifdef SSAO
+    float ssao;
+    if(emissive==0 && !isHand && !isSky){
+        vec2 worldNormalDir = (gbufferModelView*vec4(normal, 0)).xy;
+//        worldNormalDir=normalize(worldNormalDir);
+        ssao = doSsao(sampleTexCoord, worldNormalDir, solidDepth, ditherValue);
+        voxelLighting*=ssao;
+    }
+    #endif
+
 #if VOLUMETRIC_FOG_SAMPLES > 0
     const float maxFogDepth = min(MAX_FOG_DEPTH,MIN_SCALE*0.5*AREA_SIZE*(1<<NUM_CASCADES));
     const float fogSampleLen = 1.0/VOLUMETRIC_FOG_SAMPLES;
@@ -136,6 +151,8 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     vec3 fogCol = max(fogColor,0.01);
     fogCol=fogCol*(FOG_BIOME_TINT_STRENGTH/length(fogCol)) + (1-FOG_BIOME_TINT_STRENGTH);
     voxelFog.rgb*=fogCol.rgb;
+
+
 
 #endif
 
@@ -176,5 +193,7 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     funnyDebug = vec3(ditherValue);
 #elif DEBUG_SPECIAL_VIEW == 102
     funnyDebug = vec3((texpos.x^texpos.y)&4,(texpos.x^texpos.y)&2,(texpos.x^texpos.y)&1);
+#elif (DEBUG_SPECIAL_VIEW == 103) && (defined SSAO)
+    funnyDebug = vec3(ssao);
 #endif
 }
