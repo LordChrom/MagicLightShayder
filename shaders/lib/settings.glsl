@@ -79,11 +79,10 @@
 #define NUM_CASCADES 4 //[1 2 3 4 5 6 7 8 9 10]
 #define MIN_SCALE 1.0 //[0.5 1.0 2.0 4.0]
 
-#define UPDATE_STRIDE 16 //[1 2 4 8 16 32 64]
-#define LIGHTING_SYSTEM_PASSES 1 //[1 2 3 4 5 6 7 8]
+#define UPDATE_FREQ 16 //[1 2 4 8 16 32 64]
+#define LIGHTING_SYSTEM_PASSES 2 //[0 1 2 3 4 5 6 7 8]
 #define SECTION_SIZE 16 //[8 16]
-#define AREA_WIDTH_SECTIONS 4 //[1 2 4 6 8]
-#define DOUBLE_PROC
+#define AREA_SIZE 64 //[16 32 48 64 96 128]
 
 #define MAX_LIGHT_TRAVEL 64 //[-1 0 1 2 4 8 16 24 32 64 128 256 512 1024]
 
@@ -99,6 +98,19 @@
 #define VOXELIZATION_MODE 0 //[-1 0 1 2]
 
 /////
+#define AREA_WIDTH_SECTIONS (AREA_SIZE/SECTION_SIZE)
+#define DOUBLE_PROC
+
+#if (LIGHTING_SYSTEM_PASSES == 0)
+    #define LIGHTING_SYSTEM_PASSES 1
+    #undef DOUBLE_PROC
+#endif
+
+#define UPDATE_STRIDE (LIGHTING_SYSTEM_PASSES*UPDATE_FREQ)
+#if UPDATE_STRIDE<=1
+    #define UPDATE_STRIDE 2
+#endif
+
 #ifdef DOUBLE_PROC
 #define PROC_MULT 2
 #else
@@ -134,25 +146,6 @@
 #endif
 
 ///// The following to be copy pasted into shaders.properties
-#define AREA_SIZE (AREA_WIDTH_SECTIONS*SECTION_SIZE)
-
-#if AREA_SIZE == 8
-    #define AREA_SIZE_MEM 8
-#elif AREA_SIZE == 16
-    #define AREA_SIZE_MEM 16
-#elif AREA_SIZE == 32
-    #define AREA_SIZE_MEM 32
-#elif AREA_SIZE == 48
-    #define AREA_SIZE_MEM 48
-#elif AREA_SIZE == 64
-    #define AREA_SIZE_MEM 64
-#elif AREA_SIZE == 96
-    #define AREA_SIZE_MEM 96
-#elif AREA_SIZE == 128
-    #define AREA_SIZE_MEM 128
-#else
-#endif
-
 #define MEM_SIZE_BIG_EXACT (AREA_SIZE*6*VOX_LAYERS*NUM_CASCADES)
 
 #if MEM_SIZE_BIG_EXACT  <=256
@@ -207,7 +200,7 @@ const int SECTIONS_PER_AREA_XY = AREA_WIDTH_SECTIONS*AREA_WIDTH_SECTIONS;
 #ifdef WAVES_INORDER
 const int SECTIONS_PER_AREA_Z = 1;
 #else
-const int SECTIONS_PER_AREA_Z = AREA_SIZE/UPDATE_STRIDE;
+const int SECTIONS_PER_AREA_Z = max(1,AREA_SIZE/UPDATE_STRIDE);
 #endif
 
 

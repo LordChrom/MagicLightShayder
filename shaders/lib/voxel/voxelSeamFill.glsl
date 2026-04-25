@@ -32,8 +32,8 @@ uniform mat4 gbufferModelView, gbufferProjection;
     #define AXIS_LAYER_WORLD_COUNT 49
 #endif
 
-const ivec3 workGroups = ivec3(NUM_CASCADES,AREA_SIZE_MEM,AXIS_LAYER_WORLD_COUNT);
-layout (local_size_x = AREA_SIZE_MEM, local_size_y = 1, local_size_z = 1) in;
+const ivec3 workGroups = ivec3(NUM_CASCADES,AREA_SIZE,AXIS_LAYER_WORLD_COUNT);
+layout (local_size_x = AREA_SIZE, local_size_y = 1, local_size_z = 1) in;
 
 
 const int workGroupZ = 6*PROC_MULT;

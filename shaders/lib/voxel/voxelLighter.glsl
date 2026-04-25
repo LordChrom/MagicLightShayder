@@ -734,6 +734,8 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
     {
         int offset = frameBasedOffset;
         zonePos = ivec3(zoneBasePos.xy, zoneBasePos.z+offset);
+        if(zonePos.z>=AREA_SIZE)
+            return;
         areaPos = zoneToAreaSpace(zonePos, axis);
 
         lightVoxelFace();
