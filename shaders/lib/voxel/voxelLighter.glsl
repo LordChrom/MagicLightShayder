@@ -132,7 +132,7 @@ const uint shortListLen = 2*VOX_LAYERS;
 
 uvec4[VOX_LAYERS] determineBestLightSources(){
     uvec4[VOX_LAYERS] bestLights;
-    float[VOX_LAYERS] bestStrengths;
+    uint[VOX_LAYERS] bestStrengths;
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         bestLights[layer]=uvec4(0);
         bestStrengths[layer] = 0;
@@ -157,11 +157,12 @@ uvec4[VOX_LAYERS] determineBestLightSources(){
 
                 if((type==0) || (travel.x*a>0) || (travel.y*b>0))
                     continue;
+                uint strength = getLightStrength(lightSrc);
 
-                float lenSquared = dot(travel, travel);
-                float strength = (1+length(unpackLightColor(lightSrc)))/max(0.1, lenSquared);
-                if(type==LIGHT_TYPE_SUN)
-                    strength*=1e3;
+//                float lenSquared = dot(travel, travel);
+//                uint strength = uint(1000*(1+length(unpackLightColor(lightSrc)))/max(0.1, lenSquared));
+//                if(type==LIGHT_TYPE_SUN)
+//                    strength*=100;
 
                 vec2 xy = abs(travel.xy);
                 vec2 outerSlope  = (xy+halfScale) * abs(scale/(travel.z-halfScale));
@@ -175,7 +176,7 @@ uvec4[VOX_LAYERS] determineBestLightSources(){
                         break;
 
                     if (strength>bestStrengths[rank]){
-                        float tmpStr = bestStrengths[rank];
+                        uint tmpStr = bestStrengths[rank];
                         uvec4 tmpSrc = bestLights[rank];
 
                         bestLights[rank]=lightSrc;

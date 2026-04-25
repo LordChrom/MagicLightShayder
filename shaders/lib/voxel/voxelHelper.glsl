@@ -247,6 +247,19 @@ vec2 unpackOcclusionRay(uint occlusionInfo){
     return unpackUnorm4x8(occlusionInfo).zw;
 }
 
+uint getLightStrength(uvec4 lightSrc){
+    uint type = unpackLightType(lightSrc);
+    if(type==LIGHT_TYPE_SUN)
+        return 0xffffff00;
+    if(type==0)
+        return 0;
+    ivec3 travel = ivec3(lightSrc.x,lightSrc.x<<16,lightSrc.y<<16)>>18;
+    float lenSquared = float(dot(travel, travel)+1);
+    float strength = (1+length(unpackLightColor(lightSrc)))/lenSquared;
+
+    return uint(clamp(strength*1e7,0,1e9));
+}
+
 void setPackedLightTravel(inout uvec4 packedData, vec3 travel){
     uvec3 intTravel = ivec3(round(travel*lightTravelScaleInv));
 
