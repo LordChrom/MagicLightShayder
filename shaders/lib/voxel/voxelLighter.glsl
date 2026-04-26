@@ -141,10 +141,14 @@ uvec4[VOX_LAYERS] determineBestLightSources(){
 
     for (int a=-1; a<=1;a++){
         for (int b=-1; b<=1;b++){
+
+#ifndef UNOCCLUDED_INTO_BLOCKS
             if(bool((getRearVoxel(a,b)|getFrontVoxel(a,b))&WORLDVOX_OPAQUE) || //block in front
-                ( bool(getFrontVoxel(a,0)&WORLDVOX_OPAQUE) && bool(getFrontVoxel(0,b)&WORLDVOX_OPAQUE) && ((a|b)!=0))){ //neighboring blocks between src and center
+                ( bool(getFrontVoxel(a,0)&WORLDVOX_OPAQUE) && bool(getFrontVoxel(0,b)&WORLDVOX_OPAQUE) && ((a|b)!=0))
+            ){ //neighboring blocks between src and center
                 continue;
             }
+#endif
 
             for(int layer = 0; layer<VOX_LAYERS; layer++){
                 uvec4 lightSrc = getInputSample(a,b,layer);
@@ -159,10 +163,6 @@ uvec4[VOX_LAYERS] determineBestLightSources(){
                     continue;
                 uint strength = getLightStrength(lightSrc);
 
-//                float lenSquared = dot(travel, travel);
-//                uint strength = uint(1000*(1+length(unpackLightColor(lightSrc)))/max(0.1, lenSquared));
-//                if(type==LIGHT_TYPE_SUN)
-//                    strength*=100;
 
                 vec2 xy = abs(travel.xy);
                 vec2 outerSlope  = (xy+halfScale) * abs(scale/(travel.z-halfScale));

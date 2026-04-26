@@ -22,10 +22,13 @@ float normalFactor(vec3 normal, vec3 displacement, uint axis, float subsurface){
 }
 
 
-float baseLightStrength(uint type, vec3 displacement, ivec3 blockPos, vec3 travel, uint axis){
-    if(type==4) blockPos-=zoneToAreaSpaceRelative(ivec3(round(travel)),axis);
+const float b = 1/float(MAX_LIGHT_STRENGTH*MAX_LIGHT_STRENGTH);
+const float sunStr = 1/float(MAX_LIGHT_STRENGTH)*inversesqrt(b);
 
-    float columnation = MIN_COLUMNATION;
+float baseLightStrength(uint type, vec3 displacement, ivec3 blockPos, vec3 travel, uint axis){
+    if(type==LIGHT_TYPE_SUN) return sunStr;
+
+    blockPos-=zoneToAreaSpaceRelative(ivec3(round(travel)),axis);
 
     #ifdef EVERYTHING_IS_THE_SUN
     if(type>0) type=1;
@@ -33,17 +36,11 @@ float baseLightStrength(uint type, vec3 displacement, ivec3 blockPos, vec3 trave
 
     float lightStrength=BLOCK_LIGHT_STRENGTH;
 
-    if(type==1u){ //sunlight
-        const float sunStr = 1/float(MAX_LIGHT_STRENGTH);
-        lightStrength = sunStr;
-        columnation=1;
-    }
     if(type==3u) lightStrength *= pulsate();
     if(type==4u) lightStrength *= flicker(blockPos);
 
-
-    const float b = 1/float(MAX_LIGHT_STRENGTH*MAX_LIGHT_STRENGTH);
     float lengthSquared = dot(displacement,displacement);
+    float columnation = MIN_COLUMNATION;
     lengthSquared = lengthSquared*(1-columnation)+columnation;
     return lightStrength*inversesqrt(lengthSquared*lengthSquared*(1-columnation)+b);
 }
@@ -251,15 +248,21 @@ vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 b
     subVoxelOffset = areaToZoneSpaceRelative(subVoxelOffset,axis);
     vec3 displacement = travel + subVoxelOffset;
 
-    float lightStrength= baseLightStrength(type,displacement,blockPos, travel, axis);
+    float lightStrength;
 
     if(isForFog){
-        lightStrength*=(type==LIGHT_TYPE_SUN)?FOG_BRIGHTNESS_SUN:FOG_BRIGHTNESS_BLOCK;
+        lightStrength =(type==LIGHT_TYPE_SUN)?FOG_BRIGHTNESS_SUN:FOG_BRIGHTNESS_BLOCK;
         doFogOcclusion(lightStrength,displacement,travel,packedLightSrc.w);
     }else {
-        lightStrength*=normalFactor(normal, displacement, axis, subsurface);
+        lightStrength =normalFactor(normal, displacement, axis, subsurface);
         doTerrainOcclusion(lightStrength,displacement,travel,packedLightSrc.w);
     }
+
+    //TODO okay so ive tested and its like a 1% improvement but it seems stupid so im leaving it off
+//    if(lightStrength<=0)return vec3(0);
+
+
+    lightStrength*= baseLightStrength(type,displacement,blockPos, travel, axis);
 
     vec3 color = unpackLightColor(packedLightSrc) * lightStrength;
 

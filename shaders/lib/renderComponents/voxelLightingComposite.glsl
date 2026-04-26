@@ -50,6 +50,9 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     ivec2 texpos = ivec2(floor(vec2(sampleTexCoord)*scaledScreenDim-0.01));
     float ditherValue = dither(texpos);
 
+#ifdef SSAO
+    vec2 unjitteredTexCoord = sampleTexCoord;
+#endif
 #ifdef TAA
     sampleTexCoord+=jitter();
 #endif
@@ -107,10 +110,10 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 
     #ifdef SSAO
     float ssao;
-    if(emissive==0 && !isHand && !isSky){
+    if(emissive<0.4 && !isHand && !isSky){
         vec2 worldNormalDir = (gbufferModelView*vec4(normal, 0)).xy;
-//        worldNormalDir=normalize(worldNormalDir);
-        ssao = doSsao(sampleTexCoord, worldNormalDir, solidDepth, ditherValue);
+        worldNormalDir=normalize(worldNormalDir);
+        ssao = doSsao(unjitteredTexCoord, worldNormalDir, solidDepth, ditherValue);
         voxelLighting*=ssao;
     }
     #endif

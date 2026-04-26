@@ -26,34 +26,37 @@ vec2 jitter(){
     return jitter/scaledScreenDim;
 }
 
+
 float lightSampleWeight(vec2 jitteredTexpos){
+#if !(LIGHTING_RENDERSCALE == 1)
     vec2 diffPx = abs(jitteredTexpos*scaledScreenDim-round(jitteredTexpos*scaledScreenDim+0.5)+0.5);
     float spatialFactor =(diffPx.x+diffPx.y);
     spatialFactor *= (TAA_SPATIALITY*(1.2-LIGHTING_RENDERSCALE));
     spatialFactor -= (TAA_SPATIALITY*TAA_MOTION_REJECTION)*length(cameraPosition-previousCameraPosition);
 
-#if LIGHTING_RENDERSCALE == 1
-    spatialFactor=0;
-#endif
     float weight = clamp(1-spatialFactor,0,1);
     weight*=weight;
-
     return clamp(weight,TAA_MIN_ACCUMULATION_RATE,TAA_MAX_ACCUMULATION_RATE);
+#else
+    const float rate = (TAA_MAX_ACCUMULATION_RATE+TAA_MIN_ACCUMULATION_RATE)*0.5;
+    return rate;
+#endif
 }
 
 float fogSampleWeight(vec2 jitteredTexpos){
+#if !(LIGHTING_RENDERSCALE == 1)
     vec2 diffPx = abs(jitteredTexpos*scaledScreenDim-round(jitteredTexpos*scaledScreenDim+0.5)+0.5);
     float spatialFactor =(diffPx.x+diffPx.y);
     spatialFactor *= (TAA_FOG_FACTOR*TAA_SPATIALITY*(1.2-LIGHTING_RENDERSCALE));
     spatialFactor -= (TAA_SPATIALITY*TAA_MOTION_REJECTION/TAA_FOG_FACTOR)*length(cameraPosition-previousCameraPosition);
-
-    #if LIGHTING_RENDERSCALE == 1
-    spatialFactor=0;
-    #endif
     float weight = clamp(1-spatialFactor,0,1);
     weight*=weight;
 
     return clamp(weight,0,TAA_MAX_ACCUMULATION_RATE);
+#else
+    const float rate = TAA_FOG_FACTOR*(TAA_MAX_ACCUMULATION_RATE+TAA_MIN_ACCUMULATION_RATE)*0.5;
+    return rate;
+#endif
 }
 
 vec3 toWorldPos(vec3 screenPos){
