@@ -406,8 +406,12 @@ bool canIlluminateInBounds(vec4 edges, vec2 ray, uint occlusionMap){
 //- - y is 12 free, 1x4 light type, 1x16 z of travel
 //- - z is 3x8 color, 8 flags
 bool sameLight(uvec4 a, uvec4 b){
-    return (((a.xyz^b.xyz)&uvec3(0xffffffff,0x000fffffu,0xffffff00u))==uvec3(0))
-        || (unpackLightType(a)==LIGHT_TYPE_SUN && unpackLightType(b) == LIGHT_TYPE_SUN);
+    bool sameColor = !bool((a.z^b.z)&0xffffff00u);
+
+    return sameColor && (
+        ((a.x==b.x)&&((a.y&0x000fffffu)==(b.y&0x000fffffu)))
+        || (unpackLightType(a)==LIGHT_TYPE_SUN && unpackLightType(b) == LIGHT_TYPE_SUN)
+    );
 }
 
 //left, top, right, bottom
