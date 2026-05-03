@@ -4,6 +4,8 @@
 uniform float viewWidth, viewHeight;
 uniform vec2 scaledScreenDim;
 uniform int frameCounter;
+uniform mat4 gbufferProjectionInverse;
+uniform sampler2D depthtex1;
 
 #include "/lib/renderComponents/blur.glsl"
 #include "/lib/renderComponents/bonusHudElements.glsl"

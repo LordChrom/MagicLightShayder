@@ -7,6 +7,9 @@ uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
 uniform mat4 gbufferPreviousProjection, gbufferPreviousModelView;
 uniform vec3 cameraPosition, previousCameraPosition;
 
+uniform sampler2D depthtex1;
+uniform sampler2D depthtex2;
+
 #include "/lib/util/taaHelper.glsl"
 #include "/lib/renderComponents/blur.glsl"
 
@@ -28,7 +31,6 @@ uniform sampler2D colortex10;
 uniform sampler2D depthtex0;
 #ifdef TAA_BETTER_REJECTION
 uniform sampler2D colortex2;
-uniform sampler2D depthtex2;
 #endif
 
 layout(location = 0) out vec4 multAccumulation;

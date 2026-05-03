@@ -6,6 +6,7 @@
 //#define DEBUG_LIGHT_TRAVEL
 //#define DEBUG_OCCLUSION_HIT_DIST
 //#define DEBUG_SPLIT_VOXELS
+//#define DEBUG_FOG_BLUR_EDGES
 #define UNFLIP_DEBUG_MAPS
 #define DEBUG_OUTLINE_WIDTH 0.04 //[0 0.01 0.02 0.04 0.08 0.16]
 #define DEBUG_AXIS -1 //[-1 0 1 2 3 4 5]
@@ -53,6 +54,7 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 #define FOG_DITHER_METHOD 32 //[1 2 4 8 16 32 64 128]
 #define FOG_TEMPORAL_NOISE
 #define FOG_BLUR 2 //[0 1 2]
+#define FOG_BLUR_EDGE_REJECTION 4 //[-1 0.5 1 2 3 4 5 6 7]
 #define LIGHTS_PER_FOG_SAMPLE 2 //[1 2 3 4 5 6 7 8]
 #define FOG_RANDOM_LESSER_SOURCE
 #define FOG_BIOME_TINT_STRENGTH 0.4 //[0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0]
