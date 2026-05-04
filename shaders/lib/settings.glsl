@@ -41,7 +41,7 @@
 #define SSAO_STRENGTH 2.5 //[0.25 0.5 0.75 1.0 1.25 1.5 1.75 2.0 2.5 3.0 3.5 4.0 5.0 6.0 8.0 12.0 16.0]
 const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 
-#define VOX_LAYERS 2 //[1 2 3 4 8]
+#define VOX_LAYERS 2 //[1 2 3 4 5 6 7 8]
 
 #define COLORED_TRANSLUCENTS
 //#define PRIDE_LIGHTING
@@ -74,7 +74,7 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 #define TAA_SPATIALITY 1.75 //[0.0 0.25 0.5 0.75 1.0 1.25 1.50 1.75 2.0 2.5 3.0 10.0]
 #define TAA_MAX_ACCUMULATION_RATE 0.95 //[0.5 0.6 0.7 0.8 0.85 0.9 0.95 0.96 0.97 0.98 0.99 1.0]
 #define TAA_MIN_ACCUMULATION_RATE 0.05 //[0 0.01 0.025 0.05 0.075 0.1 0.15 0.2 0.3 0.4 0.5]
-#define TAA_MOTION_REJECTION 1 //[0 0.1 0.5 1 2 3 4 6 8 10 12 14 16 20 24 28 32]
+#define TAA_MOTION_REJECTION 4 //[0 0.1 0.5 1 2 3 4 6 8 10 12 14 16 20 24 28 32]
 #define TAA_FOG_FACTOR 1.75 //[1.0 1.25 1.5 1.75 2.0
 #define TAA_BETTER_REJECTION
 #define TAA_FOG
