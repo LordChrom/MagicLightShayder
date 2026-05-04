@@ -17,6 +17,9 @@ vec2 jitter(){
 #if TAA_JITTER_INTERVAL >= 64
     jitter += 0.125*jitter2(frameCounter^(frameCounter>>4));
 #endif
+#if TAA_JITTER_INTERVAL >= 128
+    jitter += 0.0625*jitter2(frameCounter^(frameCounter>>6));
+#endif
 
 #if DEBUG_SPECIAL_VIEW == 200
     float timer = fract(frameCounter*0.01);

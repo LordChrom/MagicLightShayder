@@ -29,9 +29,7 @@ uniform sampler2D colortex7;
 uniform sampler2D colortex6;
 uniform sampler2D colortex10;
 uniform sampler2D depthtex0;
-#ifdef TAA_BETTER_REJECTION
 uniform sampler2D colortex2;
-#endif
 
 layout(location = 0) out vec4 multAccumulation;
 
@@ -47,21 +45,15 @@ void taaAccumulate(){
 
     bool reprojectValid = false;
     vec3 screenPos = vec3(texcoord,0);
-#ifdef TAA_BETTER_REJECTION
 
     float normalsAndMoreA = texelFetch(colortex2,ivec2(floor(screenDim*texcoord)),0).a;
     bool isHand = 0.4<normalsAndMoreA && normalsAndMoreA<0.6;
 
-    float depth;
     if(normalsAndMoreA>0.4)
-        depth = screenPos.z = texture(depthtex0,screenPos.xy,0).x;
+        screenPos.z = texture(depthtex0,screenPos.xy,0).x;
     else
-        depth = screenPos.z = texture(depthtex2,screenPos.xy,0).x;
+        screenPos.z = texture(depthtex2,screenPos.xy,0).x;
 
-#else
-    float depth = screenPos.z = texture(depthtex0,screenPos.xy,0).x;
-    bool isHand = depth<0.56;
-#endif
 
 
     vec4 previousMultAccumulation = vec4(0);
@@ -75,15 +67,13 @@ void taaAccumulate(){
 #ifdef TAA_FOG
         previousAddAccumulation = texture(colortex11,prevScreenPos.xy);
 #endif
-        prevScreenPos.z = previousMultAccumulation.a;
-        float len = length(screenPos);
-        float prevLen = length(prevScreenPos);
 
-        reprojectValid = (!isHand) && (abs(len-prevLen)/len<0.01);
+        const float depthSensitivity = exp2(-10);
+        reprojectValid = (!isHand) && (abs(screenPos.z-previousMultAccumulation.a)<=depthSensitivity);
     }
 
     float weight = reprojectValid?lightSampleWeight(jitteredTexcoord):1;
-    multAccumulation=vec4(mix(previousMultAccumulation.xyz,multContribution,weight),isHand?100:depth);
+    multAccumulation=vec4(mix(previousMultAccumulation.xyz,multContribution,weight),isHand?100:screenPos.z);
 #ifdef TAA_FOG
     float fogWeight = reprojectValid?fogSampleWeight(jitteredTexcoord):1;
     addAccumulation =mix(previousAddAccumulation, addContribution,fogWeight);
@@ -97,6 +87,6 @@ void taaAccumulate(){
     multAccumulation.xyz=mix(multContribution,vec3(weight),
         weight>=0.95?0.5:0.2);
 #elif DEBUG_SPECIAL_VIEW == 201
-    multAccumulation.xyz=mix(multAccumulation.xyz,vec3(0,0.3*float(reprojectValid),0),0.1);
+    addAccumulation.xyz+=vec3(float(!reprojectValid),0.1*float(reprojectValid),0);
 #endif
 }

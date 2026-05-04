@@ -50,7 +50,7 @@ vec4 doFogBlur(sampler2D texToBlur, vec2 pos, int level){
 #else
     bool depthAware = true;
 #endif
-    return doBlur(texToBlur, pos,(level*FOG_BLUR_WIDTH),1,0.75,0.5,depthAware);
+    return doBlur(texToBlur, pos,(level*FOG_BLUR_WIDTH),1,0.5,0.25,depthAware);
 }
 
 vec4 doBloom(sampler2D texToBlur, vec2 pos, int level){
@@ -59,6 +59,6 @@ vec4 doBloom(sampler2D texToBlur, vec2 pos, int level){
 }
 
 vec4 cheapBlur(sampler2D texToBlur, vec2 pos, float strength){
-    pos = mix(pos,round(pos*scaledScreenDim+0.5)/scaledScreenDim,strength);
+    pos = mix(pos,(floor(pos*scaledScreenDim)+0.5)/scaledScreenDim,strength);
     return texture(texToBlur,pos);
 }
