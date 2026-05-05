@@ -1,4 +1,5 @@
 #include "/lib/settings.glsl"
+
 uniform int frameCounter;
 uniform vec2 scaledScreenDim;
 uniform float viewWidth,viewHeight;
@@ -39,7 +40,11 @@ void taaAccumulate(){
     vec2 jitteredTexcoord = texcoord-jitter();
 
 #ifdef TAA_FOG
+    #ifdef TAA_HQ_BLUR
+    vec4 addContribution = doFogBlur(colortex7,jitteredTexcoord,1);
+    #else
     vec4 addContribution = cheapBlur(colortex7,jitteredTexcoord,1);
+    #endif
 #endif
     vec3 multContribution = cheapBlur(colortex6,jitteredTexcoord,LIGHTING_RENDERSCALE).rgb;
 

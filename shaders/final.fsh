@@ -19,22 +19,18 @@ uniform sampler2D colortex15;
 
 
 #ifdef TAA
-	uniform sampler2D colortex10;
 	#define multiplicativeLightTex colortex10
 
 	#ifdef TAA_FOG
-		uniform sampler2D colortex11;
 		#define additiveLightTex colortex11
 	#else
-		uniform sampler2D colortex7;
 		#define additiveLightTex colortex7
 	#endif
 #else
-uniform sampler2D colortex6;
-uniform sampler2D colortex7;
-#define multiplicativeLightTex colortex6
-#define additiveLightTex colortex7
+	#define multiplicativeLightTex colortex6
+	#define additiveLightTex colortex7
 #endif
+uniform sampler2D additiveLightTex, multiplicativeLightTex;
 
 uniform sampler2D colortex0;
 uniform sampler2D colortex1;
@@ -76,13 +72,13 @@ void main() {
 
 
 	vec2 screenDim = vec2(viewWidth,viewHeight);
-#if (BLOOM_LEVEL > 0)
+#if (BLOOM_LEVEL > 0) && !defined TAA
 	vec3 voxelLighting = doBloom(multiplicativeLightTex,texcoord,1).rgb;
 #else
 	vec3 voxelLighting = texture(multiplicativeLightTex,texcoord).rgb;
 #endif
 
-#if (FOG_BLUR > 0)
+#if (FOG_BLUR > 0) && !(defined TAA && defined TAA_FOG)
 	vec4 voxelFog = doFogBlur(additiveLightTex,texcoord,1);
 #else
 	vec4 voxelFog = texture(additiveLightTex,texcoord);

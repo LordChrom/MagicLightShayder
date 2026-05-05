@@ -1,2 +1,2 @@
-#define BLUR_PASS 4
+#define BLUR_PASS 3
 #include "/lib/renderComponents/blurPass.glsl"

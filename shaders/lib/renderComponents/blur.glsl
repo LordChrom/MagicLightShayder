@@ -1,6 +1,17 @@
 #include "/lib/settings.glsl"
 #include "/lib/util/conversions.glsl"
 
+//#define SNAPPED_BLUR
+
+#ifdef SNAPPED_BLUR
+vec4 fetchForBlur(sampler2D tex, vec2 coord, vec2 screenDim){
+    return texelFetch(tex,ivec2(floor(coord*screenDim)),0);
+}
+#else
+vec4 fetchForBlur(sampler2D tex, vec2 coord, vec2 screenDim){
+    return texture(tex,coord);
+}
+#endif
 
 vec4 multifetch(sampler2D texToBlur, vec2 texCoord, vec2 screenDisplacement, float centerDepth, bool depthAware, out int weight){
     weight=0;
@@ -13,7 +24,7 @@ vec4 multifetch(sampler2D texToBlur, vec2 texCoord, vec2 screenDisplacement, flo
         for(int sign=-1; sign<=1;sign+=2){
             vec2 coord = texCoord+sign*offset;
             if(depthAware){
-                float depth = depthToLinear(texture(depthtex1, coord).x);
+                float depth = depthToLinear(fetchForBlur(depthtex1, coord,vec2(viewWidth,viewHeight)).x);
                 if (abs(depth-centerDepth)>maxDepthDif){
                     #ifdef DEBUG_FOG_BLUR_EDGES
                         ret.r++;
@@ -23,7 +34,7 @@ vec4 multifetch(sampler2D texToBlur, vec2 texCoord, vec2 screenDisplacement, flo
             }
 
             weight++;
-            ret+=texture(texToBlur,coord);
+            ret+=fetchForBlur(texToBlur,coord,scaledScreenDim);
         }
     }
 
