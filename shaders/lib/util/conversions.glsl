@@ -1,6 +1,8 @@
 float depthToLinear(float sampleDepth){
     sampleDepth = sampleDepth*2-1;
 
-    vec2 awa = (gbufferProjectionInverse*vec4(0.5,0.5,sampleDepth,1)).yw;
-    return awa.x/awa.y;
+    return  (gbufferProjectionInverse[1].y + gbufferProjectionInverse[2].y*sampleDepth)/ (gbufferProjectionInverse[3].w + gbufferProjectionInverse[2].w*sampleDepth);
+
+//    return  (gbufferProjectionInverse[0].y+gbufferProjectionInverse[1].y+gbufferProjectionInverse[3].y + gbufferProjectionInverse[2].y*sampleDepth)/
+//    (gbufferProjectionInverse[0].w+gbufferProjectionInverse[1].w+gbufferProjectionInverse[3].w + gbufferProjectionInverse[2].w*sampleDepth);
 }
