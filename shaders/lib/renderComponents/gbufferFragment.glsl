@@ -209,7 +209,7 @@ void main()
         #if !(HARDCODED_EMISSIVE_SELECTIVITY==-1)
     if(materialInfo.a!=255){
         vec3 lightColor = getMaterialColor(materialID);
-        float brightness = dot(color.rgb,normalize(lightColor));
+        float brightness = dot(color.rgb/glcolor.rgb,normalize(lightColor));
         brightness*=brightness;
         brightness = brightness*HARDCODED_EMISSIVE_SELECTIVITY + (1-HARDCODED_EMISSIVE_SELECTIVITY);
         materialInfo.a=uint(clamp(brightness,0,1)*materialInfo.a);

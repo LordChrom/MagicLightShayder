@@ -98,7 +98,7 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 #define LOCAL_SIZE_Z 1
 
 #define VANILLA_FALLBACK
-#define HARDCODED_EMISSIVE_SELECTIVITY 1.25 //[-1 0.5 1.0 1.25 1.5 1.75 2.0 2.5 3.0]
+#define HARDCODED_EMISSIVE_SELECTIVITY 1.5 //[-1 0.5 1.0 1.25 1.5 1.75 2.0 2.5 3.0 4.0 5.0]
 
 #define GATEWAYS_IN_GBUFFER
 #define PIXEL_LOCK -1 //[-1 16 32 64 128 256]
