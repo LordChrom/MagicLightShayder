@@ -36,9 +36,9 @@
 #define AREA_TRANSITION_DIST 0.85 //[-1 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.85 0.9 0.95]
 
 //#define SSAO
-#define SSAO_SAMPLES 6 //[1 2 3 4 6 8 12 16 24 32]
-#define SSAO_RADIUS 0.4 //[0.025 0.05 0.075 0.1 0.15 0.2 0.3 0.4 0.5 0.6 0.8 1.0 1.2 1.6 2.0]
-#define SSAO_STRENGTH 2.5 //[0.25 0.5 0.75 1.0 1.25 1.5 1.75 2.0 2.5 3.0 3.5 4.0 5.0 6.0 8.0 12.0 16.0]
+#define SSAO_QUALITY 3 //[1 2 3 4 6 8 10 16]
+#define SSAO_RADIUS 0.5 //[0.025 0.05 0.075 0.1 0.15 0.2 0.3 0.4 0.5 0.6 0.8 1.0 1.2 1.6 2.0]
+#define SSAO_STRENGTH 0.8 //[0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0 1.25 1.5 1.75 2.0]
 const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 
 #define VOX_LAYERS 2 //[1 2 3 4 5 6 7 8]
