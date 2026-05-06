@@ -15,7 +15,7 @@ vec4 fetchForBlur(sampler2D tex, vec2 coord, vec2 screenDim){
 
 vec4 multifetch(sampler2D texToBlur, vec2 texCoord, vec2 screenDisplacement, float centerDepth, bool depthAware, out int weight){
     weight=0;
-    vec4 ret;
+    vec4 ret = vec4(0);
     const float mul = exp(- (FOG_BLUR_EDGE_REJECTION));
     float maxDepthDif = clamp(centerDepth*centerDepth*mul,0.1,1000);
 
