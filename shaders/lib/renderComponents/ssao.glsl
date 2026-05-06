@@ -2,6 +2,9 @@
 
 
 float doSsao(vec2 texcoord, vec2 normalDir, float solidDepth, float dither){
+#ifdef TAA
+    dither=temporalNoise(dither);
+#endif
     float totalWeight = 0;
     float total = 0;
 
@@ -24,14 +27,16 @@ float doSsao(vec2 texcoord, vec2 normalDir, float solidDepth, float dither){
 
             offset = offset*radius + texcoord;
 
-            if(offset.x>1.0 || offset.y>1.0 || offset.x<0 || offset.y<0)
-                continue;
             float sampledDepth = depthToLinear(texture(depthtex2,offset).x);
 
             sampledDepth+=0.01*dot(offset,offset);
 
             if(abs(sampledDepth-solidDepth)<0.001)
                 continue;
+
+#ifdef SSAO_DELBEED
+            weight*=clamp((sampledDepth-solidDepth)+SSAO_RADIUS,0,1);
+#endif
 
             totalWeight+=weight;
             if(sampledDepth>solidDepth)
