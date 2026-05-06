@@ -7,7 +7,7 @@
 layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z = LOCAL_SIZE_Z) in;
 
 
-shared uvec4[SECTION_SIZE+2][SECTION_SIZE+2][VOX_LAYERS] sharedPackedSamples;
+shared uvec4[SECTION_SIZE+2][SECTION_SIZE+2][MEM_LAYERS] sharedPackedSamples;
 shared uint[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedFrontVoxels;
 shared uint[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedRearVoxels;
 
@@ -21,6 +21,9 @@ uint axis, cascadeLevel;
 ivec3 areaPos, zonePos;
 uint A,B; //1 to SECTION_SIZE
 
+#ifdef FALLBACK_RADIANCE
+uvec4 radiance = uvec4(0);
+#endif
 
 uvec4 getInputSample(int a, int b, uint layer){return sharedPackedSamples[A+a][B+b][layer];}
 uint getFrontVoxel(int a, int b){return sharedPackedFrontVoxels[A+a][B+b];}
@@ -91,6 +94,10 @@ void saveSharedSample(int a, int b){
         sharedPackedSamples[A+a][B+b][layer] = maybeBlockLight(light,rearVoxel);
     }
 
+#ifdef FALLBACK_RADIANCE
+    sharedPackedSamples[A+a][B+b][RADIANCE_LAYER] = sampleLightData(sampleZonePos, sampleZoneShift, zoneOffset(axis,RADIANCE_LAYER,sampleCascade));
+#endif
+
 }
 
 
@@ -128,7 +135,22 @@ void takeSamples(){
 
 
 
-const uint shortListLen = 2*VOX_LAYERS;
+uvec4 convertToRadiance(uvec4 lightSrc){
+    uint color = packUnorm4x8(0.25*vec4(unpackLightColor(lightSrc).rgb,0));
+    return uvec4(color);
+}
+
+uvec4 combineRadiance(uvec4 a, uvec4 b, float weight){
+    uvec4 ret;
+    for(int i=0; i<4; i++){
+        vec4 r = 4*(unpackUnorm4x8(a[i])+weight*unpackUnorm4x8(b[i]));
+        float len = length(r);
+        if(len>2)
+        r*=(0.3*(len-2)+2)/len;
+        ret[i]=packUnorm4x8(0.25*r);
+    }
+    return ret;
+}
 
 uvec4[VOX_LAYERS] determineBestLightSources(){
     uvec4[VOX_LAYERS] bestLights;
@@ -162,6 +184,9 @@ uvec4[VOX_LAYERS] determineBestLightSources(){
                 if((type==0) || (travel.x*a>0) || (travel.y*b>0))
                     continue;
                 uint strength = getLightStrength(lightSrc);
+#ifdef FALLBACK_RADIANCE
+                strength = (strength&~1u)|uint(a==0&&b==0);
+#endif
 
 
                 vec2 xy = abs(travel.xy);
@@ -171,7 +196,21 @@ uvec4[VOX_LAYERS] determineBestLightSources(){
                 if(!canIlluminateInBounds(vec4(outerSlope,innerSlope),unpackOcclusionRay(lightSrc.w),unpackOcclusionMap(lightSrc.w)))
                     continue;
 
-                for(int rank = 0; rank<VOX_LAYERS; rank++){
+#ifdef FALLBACK_RADIANCE
+                const int lastRank = VOX_LAYERS+1;
+#else
+                const int lastRank = VOX_LAYERS;
+#endif
+
+                for(int rank = 0; rank<lastRank; rank++){
+#ifdef FALLBACK_RADIANCE
+                    if(rank==VOX_LAYERS){
+                        if(bool(strength&1u))
+                            radiance=combineRadiance(radiance,convertToRadiance(lightSrc),1);
+                        break;
+                    }
+#endif
+
                     if(sameLight(lightSrc,bestLights[rank]))
                         break;
 
@@ -685,6 +724,10 @@ void lightVoxelFace(){
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         setLightData(bestLights[layer], zonePos, zoneShift, zoneOffset(axis,layer,cascadeLevel));
     }
+
+#ifdef FALLBACK_RADIANCE
+    setLightData(radiance, zonePos, zoneShift, zoneOffset(axis,RADIANCE_LAYER,cascadeLevel));
+#endif
 
 }
 

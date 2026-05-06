@@ -7,6 +7,7 @@
 //#define DEBUG_OCCLUSION_HIT_DIST
 //#define DEBUG_SPLIT_VOXELS
 //#define DEBUG_FOG_BLUR_EDGES
+//#define DEBUG_RADIANCE_ONLY
 #define UNFLIP_DEBUG_MAPS
 #define DEBUG_OUTLINE_WIDTH 0.04 //[0 0.01 0.02 0.04 0.08 0.16]
 #define DEBUG_AXIS -1 //[-1 0 1 2 3 4 5]
@@ -25,6 +26,7 @@
 //#define DEBUG_DISABLE_SUN
 //#define AXIS_GIZMO
 
+//#define FALLBACK_RADIANCE
 #define EMISSIVE_BRIGHTNESS 1.75 //[1.0 1.25 1.5 1.75 2.0 2.25 2.5 2.75 3.0 3.5 4.0 4.5 5.0]
 #define FLICKER_INTENSITY 0.5
 #define BLOCK_LIGHT_STRENGTH 3
@@ -156,7 +158,13 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 #endif
 
 ///// The following to be copy pasted into shaders.properties
-#define MEM_SIZE_BIG_EXACT (AREA_SIZE*6*VOX_LAYERS*NUM_CASCADES)
+#ifdef FALLBACK_RADIANCE
+    #define RADIANCE_LAYER VOX_LAYERS
+    #define MEM_LAYERS (VOX_LAYERS+1)
+#else
+    #define MEM_LAYERS VOX_LAYERS
+#endif
+#define MEM_SIZE_BIG_EXACT (AREA_SIZE*6*MEM_LAYERS*NUM_CASCADES)
 
 #if MEM_SIZE_BIG_EXACT  <=256
     #define MEM_SIZE_BIG  256

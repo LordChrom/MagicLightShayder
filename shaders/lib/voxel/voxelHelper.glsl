@@ -99,7 +99,7 @@ bool isVoxelInBounds(vec3 worldPos){
 }
 
 uint zoneOffset(uint axis, uint layer, uint cascadeLevel){
-    return 1+int((ZONE_OFFSET)*(VOX_LAYERS*axis+layer+(6*VOX_LAYERS)*cascadeLevel));
+    return 1+int((ZONE_OFFSET)*(MEM_LAYERS*axis+layer+(6*MEM_LAYERS)*cascadeLevel));
 }
 
 uint areaOffset(uint cascadeLevel){
