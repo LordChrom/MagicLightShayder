@@ -108,15 +108,15 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     if(!isSky)
         voxelLighting = voxelSample(worldPos,normal,0,ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
 
-    #ifdef SSAO
+#ifdef SSAO
     float ssao;
-    if(emissive<1.4 && !isHand && !isSky){
+    if(emissive<0.4 && !isHand && !isSky){
         vec2 worldNormalDir = (gbufferModelView*vec4(normal, 0)).xy;
         worldNormalDir=normalize(worldNormalDir);
         ssao = doSsao(sampleTexCoord, worldNormalDir, solidDepth, ditherValue);
         voxelLighting*=ssao;
     }
-    #endif
+#endif
 
 #if VOLUMETRIC_FOG_SAMPLES > 0
     const float maxFogDepth = min(MAX_FOG_DEPTH,MIN_SCALE*0.5*AREA_SIZE*(1<<NUM_CASCADES));

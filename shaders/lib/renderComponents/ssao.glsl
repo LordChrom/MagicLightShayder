@@ -13,7 +13,7 @@ float doSsao(vec2 texcoord, vec2 normalDir, float solidDepth, float dither){
     const int anglesPerLevel = 2;
     for(int r = 1; r<=SSAO_QUALITY; r++){
         float tempRadius = (r-dither)/(SSAO_QUALITY);
-        int angles = (anglesPerLevel*r)|1;
+        int angles = (anglesPerLevel*r-1)|1;
 
         for(int a = 0; a<angles;a++){
             float angle = (a+dither)*(6.28318530718/angles);
@@ -27,6 +27,8 @@ float doSsao(vec2 texcoord, vec2 normalDir, float solidDepth, float dither){
             if(offset.x>1.0 || offset.y>1.0 || offset.x<0 || offset.y<0)
                 continue;
             float sampledDepth = depthToLinear(texture(depthtex2,offset).x);
+
+            sampledDepth+=0.01*dot(offset,offset);
 
             if(abs(sampledDepth-solidDepth)<0.001)
                 continue;

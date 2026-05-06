@@ -111,7 +111,6 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 ### Needs Improvement
 - TAA unoptimized
 - proper system for unlit geometry
-- SSAO looking straight down
 - SSS
 - proper lighting on translucents OR have that part of local fog density system
 - particles on fog
