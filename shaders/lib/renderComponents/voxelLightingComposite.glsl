@@ -113,7 +113,7 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     if(emissive<0.4 && !isHand && !isSky){
         vec2 worldNormalDir = (gbufferModelView*vec4(normal, 0)).xy;
         worldNormalDir=normalize(worldNormalDir);
-        ssao = doSsao(unjitteredTexCoord, worldNormalDir, solidDepth, ditherValue);
+        ssao = doSsao(sampleTexCoord, worldNormalDir, solidDepth, ditherValue);
         voxelLighting*=ssao;
     }
     #endif
