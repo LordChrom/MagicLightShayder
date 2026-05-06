@@ -106,11 +106,11 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 
     voxelLighting = vec3(0);
     if(!isSky)
-        voxelLighting = mix(voxelSample(worldPos,normal,subsurface,ditherValue),vec3(EMISSIVE_BRIGHTNESS),emissive);
+        voxelLighting = voxelSample(worldPos,normal,0,ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
 
     #ifdef SSAO
     float ssao;
-    if(emissive<0.4 && !isHand && !isSky){
+    if(emissive<1.4 && !isHand && !isSky){
         vec2 worldNormalDir = (gbufferModelView*vec4(normal, 0)).xy;
         worldNormalDir=normalize(worldNormalDir);
         ssao = doSsao(sampleTexCoord, worldNormalDir, solidDepth, ditherValue);

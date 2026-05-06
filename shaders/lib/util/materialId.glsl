@@ -14,7 +14,7 @@ uvec4 getHardcodedMaterial(int materialID, int blockEmission){
     float porosity = 0;
 
     if(materialID>=0){
-        subsurface = ((materialID%10000)==15) || (materialID==24565 )?1.0:0;
+        subsurface = ((materialID%10000)==15) || (materialID==24565 ) || (materialID==24431)?1.0:0;
         emissive = bool(meta&4)?int(floor(16.93*blockEmission)):0;
     }
 

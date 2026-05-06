@@ -26,7 +26,7 @@
     #define NEEDS_MATERIAL_ID
     #define HARDCODED_MATERIAL
     flat in uvec4 hardcodedMaterialInfo;
-    #ifdef SELECTIVE_HARDCODED_EMISSIVE
+    #if !(HARDCODED_EMISSIVE_SELECTIVITY==-1)
         #define NEEDS_MATERIAL_ID
     #endif
 #endif
@@ -206,11 +206,13 @@ void main()
     materialInfo = hardcodedMaterialInfo;
         #endif
 
-        #ifdef SELECTIVE_HARDCODED_EMISSIVE
+        #if !(HARDCODED_EMISSIVE_SELECTIVITY==-1)
     if(materialInfo.a!=255){
         vec3 lightColor = getMaterialColor(materialID);
-        float brightness=clamp(dot(color.rgb,normalize(lightColor)),0,1);
-        materialInfo.a=uint(brightness*materialInfo.a);
+        float brightness = dot(color.rgb,normalize(lightColor));
+        brightness*=brightness;
+        brightness = brightness*HARDCODED_EMISSIVE_SELECTIVITY + (1-HARDCODED_EMISSIVE_SELECTIVITY);
+        materialInfo.a=uint(clamp(brightness,0,1)*materialInfo.a);
     }
         #endif
 

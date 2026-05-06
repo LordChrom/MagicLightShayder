@@ -9,7 +9,7 @@
 #if (defined WRITE_MATERIALS) && (MATERIALS_TYPE == 0)
     #define HARDCODED_MATERIAL
     flat out uvec4 hardcodedMaterialInfo;
-    #ifdef SELECTIVE_HARDCODED_EMISSIVE
+    #if !(HARDCODED_EMISSIVE_SELECTIVITY==-1)
         #define NEEDS_MATERIAL_ID
     #endif
 #endif
