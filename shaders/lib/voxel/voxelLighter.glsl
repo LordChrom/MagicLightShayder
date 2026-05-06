@@ -78,6 +78,9 @@ void saveSharedSample(int a, int b){
             for(int layer = 0; layer<VOX_LAYERS; layer++){
                 sharedPackedSamples[A+a][B+b][layer] = defaultLight;
             }
+        #ifdef FALLBACK_RADIANCE
+            sharedPackedSamples[A+a][B+b][RADIANCE_LAYER] = uvec4(0);
+        #endif
             return;
         }
     }
@@ -94,8 +97,14 @@ void saveSharedSample(int a, int b){
         sharedPackedSamples[A+a][B+b][layer] = maybeBlockLight(light,rearVoxel);
     }
 
+
 #ifdef FALLBACK_RADIANCE
-    sharedPackedSamples[A+a][B+b][RADIANCE_LAYER] = sampleLightData(sampleZonePos, sampleZoneShift, zoneOffset(axis,RADIANCE_LAYER,sampleCascade));
+    uvec4 r = uvec4(0);
+    //TOOD recoloring radiance
+    if(bool(rearVoxel&WORLDVOX_OPAQUE)){
+       r = sampleLightData(sampleZonePos, sampleZoneShift, zoneOffset(axis,RADIANCE_LAYER,sampleCascade));
+    }
+    sharedPackedSamples[A+a][B+b][RADIANCE_LAYER] = r;
 #endif
 
 }
@@ -136,8 +145,17 @@ void takeSamples(){
 
 
 uvec4 convertToRadiance(uvec4 lightSrc){
-    uint color = packUnorm4x8(0.25*vec4(unpackLightColor(lightSrc).rgb,0));
-    return uvec4(color);
+    vec3 color = unpackLightColor(lightSrc).rgb;
+    color*=0.3; //TODO unfudge after proper sampling
+
+    vec3 displacement = unpackLightTravel(lightSrc);
+    float lengthSquared = dot(displacement,displacement);
+    float columnation = MIN_COLUMNATION;
+    lengthSquared = lengthSquared*(1-columnation)+columnation;
+    const float b = 1/float(MAX_LIGHT_STRENGTH*MAX_LIGHT_STRENGTH);
+
+    color*=inversesqrt(lengthSquared*lengthSquared*(1-columnation)+b);
+    return uvec4(packUnorm4x8(0.25*vec4(color,0)));
 }
 
 uvec4 combineRadiance(uvec4 a, uvec4 b, float weight){
@@ -146,7 +164,7 @@ uvec4 combineRadiance(uvec4 a, uvec4 b, float weight){
         vec4 r = 4*(unpackUnorm4x8(a[i])+weight*unpackUnorm4x8(b[i]));
         float len = length(r);
         if(len>2)
-        r*=(0.3*(len-2)+2)/len;
+            r*=(0.3*(len-2)+2)/len;
         ret[i]=packUnorm4x8(0.25*r);
     }
     return ret;
@@ -161,8 +179,13 @@ uvec4[VOX_LAYERS] determineBestLightSources(){
     }
 
 
+    const float[] weights = {0.55,0.1,0.02};
+
     for (int a=-1; a<=1;a++){
         for (int b=-1; b<=1;b++){
+#ifdef FALLBACK_RADIANCE
+            radiance = combineRadiance(radiance,getInputSample(a,b,VOX_LAYERS),weights[abs(a)+abs(b)]);
+#endif
 
 #ifndef UNOCCLUDED_INTO_BLOCKS
             if(bool((getRearVoxel(a,b)|getFrontVoxel(a,b))&WORLDVOX_OPAQUE) || //block in front

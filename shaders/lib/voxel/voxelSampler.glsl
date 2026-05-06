@@ -6,7 +6,7 @@
 
 
 float normalFactor(vec3 normal, vec3 displacement, uint axis, float subsurface){
-    normal = areaToZoneSpaceRelative(normal,axis);
+    normal = areaToZoneSpaceRelative(normal,axis); //TODO move out of this to avoid duplication
 
     float lightDotN =-dot(normalize(displacement),normal);
     subsurface*=0.4;
@@ -277,12 +277,23 @@ vec3 getDirectedLight(uint cascadeLevel, uint layer, uint axis, float subsurface
     return getDirectedLight(packedLightSrc,axis,subsurface,blockPos,normal,subVoxelOffset,isForFog);
 }
 
+const float radSlope = tan(22.5*PI/180);
 vec3 sampleDirectedRadiance(uint cascadeLevel, uint axis, float subsurface, ivec3 zoneShift, ivec3 zonePos, vec3 normal, vec3 subVoxelOffset){
+    normal = areaToZoneSpaceRelative(normal,axis); //TODO move out of this to avoid duplication
+
+//    if(fract(frameTimeCounter)<0.5) return vec3(0);
     uint zoneMemOffset = zoneOffset(axis, VOX_LAYERS,cascadeLevel);
     uvec4 packedRadiance = sampleLightData(zonePos, zoneShift, zoneMemOffset);
     vec3 ret = vec3(0);
+
+    vec3 testNorm = normalize(vec3(radSlope,radSlope,1));
     for(int i=0; i<4; i++){
-        ret+=unpackUnorm4x8(packedRadiance[i]).rgb;
+        vec3 col = unpackUnorm4x8(packedRadiance[i]).rgb*4;
+
+        float normalFactor = dot(-normal,vec3(bool(i&1)?-testNorm.x:testNorm.x,bool(i&2)?testNorm.y:-testNorm.y,testNorm.z));
+        normalFactor=max(0,normalFactor);
+        col*=normalFactor;
+        ret+=col;
     }
     return ret;
 }
