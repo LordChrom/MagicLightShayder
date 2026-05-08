@@ -85,6 +85,8 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 
 #define POST_DITHER
 
+#define DOF_LEVEL -1 //[-1 1 2 3 4 5 6]
+
 #define MATERIALS_TYPE 0 //[-1 0 1]
 #define PBR_NORMALS_STRENGTH 1.0
 
