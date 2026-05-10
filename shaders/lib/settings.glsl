@@ -160,6 +160,10 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 #endif
 
 ///// The following to be copy pasted into shaders.properties
+#if VOLUMETRIC_FOG_SAMPLES == 0
+    #define FOG_BLUR 0
+#endif
+
 #ifdef FALLBACK_RADIANCE
     #define RADIANCE_LAYER VOX_LAYERS
     #define MEM_LAYERS (VOX_LAYERS+1)

@@ -115,6 +115,7 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 - proper lighting on translucents OR have that part of local fog density system
 - particles on fog
 - coloring on emissive cave vines
+- Weird brightness effect of DoF blur
 
 ### Necessary additions
 - multiple occlusion indicators per sample
@@ -137,3 +138,4 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 - sky stuff & clouds
 - alternate mode using visibility samples rather than the oclusion info
 - maybe try switching from fixed number of samples per direction to fixed number per voxel + list of relevant samples per voxel
+- DoF hardware mips and more settings

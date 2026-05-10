@@ -37,7 +37,7 @@ float normDistIntegral(float x1, float x2, float stdev){
     return 0.5*(erf(x2)-erf(x1));
 }
 
-float getBlurWeight(float depth, float depthTarget, float angle, float passwidth){
+float blurWeightGaussian(float depth, float depthTarget, float angle, float passwidth){
     const float focalLength = 0.23;
     float depthDif = abs(depth-depthTarget);
 
@@ -53,6 +53,23 @@ float getBlurWeight(float depth, float depthTarget, float angle, float passwidth
     return weight;
 }
 
+float blurWeightUniform(float depth, float depthTarget, float angle, float passwidth){
+    const float focalLength = 0.23;
+    float depthDif = abs(depth-depthTarget);
+
+    float rad = depthDif/depth * (focalLength)/max(0.1,depthTarget-focalLength);
+    rad*=10;
+
+    return angle<rad?0.01/rad:0;
+}
+
+float getBlurWeight(float depth, float depthTarget, float angle, float passwidth){
+    return blurWeightGaussian(depth,depthTarget,angle,passwidth);
+
+    return blurWeightUniform(depth,depthTarget,angle,passwidth);
+}
+
+
 uniform float centerDepthSmooth;
 
 vec3 dofBlur(ivec2 texpos, int d){
@@ -64,18 +81,19 @@ vec3 dofBlur(ivec2 texpos, int d){
     float dC = dE*sqrt(2);
     ivec2 offsetTexpos;
 
-    const float fudgeAmount = 0.3;
+    const float fudgeAmount = 0.4;
     for(int x=-d; x<=d; x+=d){
         offsetTexpos.x=texpos.x+x;
         float fudgeX = 1-(x==0?0:fudgeAmount);
         for(int y=-d; y<=d; y+=d){
+            bool isCorner = bool(x)&&bool(y);
             float fudge = fudgeX-(y==0?0:fudgeAmount);
 
             offsetTexpos.y=texpos.y+y;
             float depth = texelFetch(depthtex0,offsetTexpos,0).x;
             depth = distFromCamera(vec3(texcoord,depth));
             vec3 color = texelFetch(colortex0,offsetTexpos,0).rgb;
-            float w = getBlurWeight(depth,dofDepth, bool(x|y)?((bool(x)&&bool(y))?dC : dE):0, dAngle*0.5);
+            float w = getBlurWeight(depth,dofDepth, bool(x|y)?(isCorner?dC : dE):0, dAngle*(isCorner?0.5*sqrt(2):0.5));
             w*=fudge;
             ret += w*color;
 
