@@ -21,21 +21,21 @@ void main() {
     ivec2 texpos = ivec2(floor(texcoord*vec2(viewWidth,viewHeight)));
 
     if(texelFetch(depthtex1,texpos,0).x!=texelFetch(depthtex2,texpos,0).x){
-        CoCbuff=vec4(1);
+        CoCbuff=vec4(1,1,1,0);
         return;
     }
 
-    float rawDepth = texelFetch(depthtex2,texpos,0).x;
+    float depth = depthToLinear(texelFetch(depthtex2,texpos,0).x);
     float depthTarget = depthToLinear(centerDepthSmooth);
-    float depth = depthToLinear(rawDepth);
 
-    const float focalLength = DOF_FOCAL_LENGTH;
+    const float focalLength = DOF_FOCAL_LENGTH*1e-3;
 
     float rad = abs(depth-depthTarget)/depth * (focalLength)/max(0.1,depthTarget-focalLength);
-    rad*=DOF_INTENSITY*0.1;
+    rad*=DOF_INTENSITY;
 
-    rad = clamp(abs(rad),0,1);
+//    rad = clamp(abs(rad),0,1);
     rad*=viewHeight;
+    rad=clamp(rad,0,DOF_SIZE*exp2(DOF_LEVEL));
 
 
     CoCbuff=vec4(0,0,0,rad);

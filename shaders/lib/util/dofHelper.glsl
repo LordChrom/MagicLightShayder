@@ -5,15 +5,29 @@ int dFromLevel(int level){
 }
 
 float weightAtOffset(float rad,int x, int y, int d){
-    if(x==0 && y==0)
-        return 1;
+    float len = length(vec2(x,y));
+    float ret;
+    if(x==0 && y==0){
+        ret = 1;
 
-    float steepness=0.6/d;
-    return clamp(0.5+(steepness)*(rad-length(vec2(x*x,y*y))), 0, 1);
+    }else {
+        float steepness=0.3/d+0.2;
+        ret = clamp(0.5+(steepness)*(rad-len), 0, 1);
+    }
+
+    if(d>1 && rad>d*DOF_SIZE){ //keeps things approximately uniform ish kinda
+        ret*=clamp(rad/(len*len),0.5,1.0);
+    }
+
+    return ret;
 }
 
 int distort(int x, int d){
-    return (d*x);//<<clamp(int((abs(x)>>2)),0,2);
+    int ret = x*d;
+    #ifdef DOF_DISTORTION
+    ret<<=clamp(int((abs(x)>>2)),0,1);
+    #endif
+    return ret;
 }
 
 float totalWeightAtOffset(float rad, int d){
