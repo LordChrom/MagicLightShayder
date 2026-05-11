@@ -24,11 +24,7 @@ void main() {
         CoCbuff=vec3(0);
         return;
     }
-    float rawDepth = texelFetch(depthtex0,texpos,0).x;
-    if(rawDepth==1.0){
-        CoCbuff=vec3(4,1,0);
-        return;
-    }
+    float rawDepth = texelFetch(depthtex2,texpos,0).x;
     float depthTarget = depthToLinear(centerDepthSmooth);
     float depth = depthToLinear(rawDepth);
     float edgeness = length(vec2(dFdx(depth),dFdy(depth)));
@@ -38,9 +34,11 @@ void main() {
 
     const float focalLength = DOF_FOCAL_LENGTH;
 
-    float coc = abs(depth-depthTarget) * (focalLength)/max(0.1,depthTarget-focalLength);
-    coc = clamp(coc,0,0.1);
-    coc*=DOF_INTENSITY*depth;
+    float coc = abs(depth-depthTarget)/depth * (focalLength)/max(0.1,depthTarget-focalLength);
+    coc*=DOF_INTENSITY*0.1;
 
-    CoCbuff=vec3(coc,edgeness,0);
+    coc = clamp(abs(coc),0,1);
+    coc*=viewHeight;
+
+    CoCbuff=vec3(coc,edgeness,depth);
 }

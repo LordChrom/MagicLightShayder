@@ -16,14 +16,13 @@ uniform sampler2D colortex6;
 out vec3 colorOut;
 
 
-float centerRad, centerEdgeness;
+float centerRad, centerEdgeness, centerDepth;
 
 uniform float frameTimeCounter;
 //TODO displaced texcoord with fixed ridges & hand
 float getBlurWeight(vec2 displacedTexcoord, bool isCenter, bool isCorner, out int sampleMip){
     vec3 sampleCoC = texture(colortex6,displacedTexcoord,0).xyz;
     float rad = sampleCoC.x;
-//    float edgeness = centerEdgeness+sampleCoC.y;
 
   #if PASS==0
     sampleMip=0;
@@ -32,20 +31,21 @@ float getBlurWeight(vec2 displacedTexcoord, bool isCenter, bool isCorner, out in
     sampleMip = clamp(sampleMip,0,PASS);
   #endif
 
-    float steepness=1-0.15*PASS;
-    float centerWeight = 1;
-    float edgeWeight = clamp(0.5+steepness*(rad-d),0,1);
-    float cornerWeight = clamp(0.5+steepness*(rad-sqrt2d),0,1);
+    float steepness=0.6/d;
+    float edgeWeight = clamp(0.5+(steepness)*(rad-d),0,1);
+    float cornerWeight = clamp(0.5+(steepness)*(rad-sqrt2d),0,1);
 
-    float totalWeight = centerWeight+4*edgeWeight+4*cornerWeight;
 
-    if(isCenter)
-        weight = centerWeight;
-    else if(isCorner)
-        weight = cornerWeight;
-    else
-        weight = edgeWeight;
-    return weight/totalWeight;
+    float weight = isCenter?1:(isCorner?cornerWeight:edgeWeight);
+    weight/=(1+4*edgeWeight+4*cornerWeight);
+
+    if(rad>1.25*centerRad){
+        if (sampleCoC.z<0.5*centerDepth) //just prettier
+            weight*=clamp(centerDepth/sampleCoC.z,1,1.25);
+        else if (sampleCoC.z>1.1*centerDepth) //mimics part of circle being occluded
+            weight*=0.8;
+    }
+    return weight;
 }
 
 const bool colortex0MipmapEnabled=true;
@@ -57,6 +57,7 @@ void main() {
     vec3 centerCoC = texture(colortex6,texcoord,0).xyz;
     centerRad = centerCoC.x;
     centerEdgeness = centerCoC.y;
+    centerDepth = centerCoC.z;
 
 
 
