@@ -24,18 +24,23 @@ void main() {
         CoCbuff=vec3(0);
         return;
     }
+    float rawDepth = texelFetch(depthtex0,texpos,0).x;
+    if(rawDepth==1.0){
+        CoCbuff=vec3(4,1,0);
+        return;
+    }
     float depthTarget = depthToLinear(centerDepthSmooth);
-    float depth = texelFetch(depthtex0,texpos,0).x;
-//    depth = distFromCamera(vec3(texcoord,depth));
-//    depth = depthToLinear(depth);
+    float depth = depthToLinear(rawDepth);
+    float edgeness = length(vec2(dFdx(depth),dFdy(depth)));
+    edgeness=min(edgeness,1);
 
-    depth = 0.4*distFromCamera(vec3(texcoord,depth))+0.6*depthToLinear(depth);
+    depth = 0.6*depth+0.4*distFromCamera(vec3(texcoord,rawDepth));
 
     const float focalLength = DOF_FOCAL_LENGTH;
 
     float coc = abs(depth-depthTarget) * (focalLength)/max(0.1,depthTarget-focalLength);
-    coc*=DOF_INTENSITY*viewHeight;
-    coc = abs(coc);
+    coc = clamp(coc,0,0.1);
+    coc*=DOF_INTENSITY*depth;
 
-    CoCbuff=vec3(coc);
+    CoCbuff=vec3(coc,edgeness,0);
 }

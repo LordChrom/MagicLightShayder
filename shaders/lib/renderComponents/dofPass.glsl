@@ -1,5 +1,6 @@
 #version 430 compatibility
 const int d = int(round(exp2(PASS)));
+const float sqrt2d = sqrt(2)*float(d);
 
 in vec2 texcoord;
 
@@ -15,18 +16,36 @@ uniform sampler2D colortex6;
 out vec3 colorOut;
 
 
-float dE,dC;
+float centerRad, centerEdgeness;
 
+uniform float frameTimeCounter;
 //TODO displaced texcoord with fixed ridges & hand
-float getBlurWeight(vec2 displacedTexcoord, bool isCorner){
-    float rad = (texture(colortex6,texcoord,min(PASS,3)).x);
+float getBlurWeight(vec2 displacedTexcoord, bool isCenter, bool isCorner, out int sampleMip){
+    vec3 sampleCoC = texture(colortex6,displacedTexcoord,0).xyz;
+    float rad = sampleCoC.x;
+//    float edgeness = centerEdgeness+sampleCoC.y;
 
-    if(rad<=d)
-        return 0;
-    else if(rad<=sqrt(2)*d)
-        return isCorner?0:0.2;
+  #if PASS==0
+    sampleMip=0;
+  #else
+    sampleMip = int(floor(log2(rad)));
+    sampleMip = clamp(sampleMip,0,PASS);
+  #endif
+
+    float steepness=1-0.15*PASS;
+    float centerWeight = 1;
+    float edgeWeight = clamp(0.5+steepness*(rad-d),0,1);
+    float cornerWeight = clamp(0.5+steepness*(rad-sqrt2d),0,1);
+
+    float totalWeight = centerWeight+4*edgeWeight+4*cornerWeight;
+
+    if(isCenter)
+        weight = centerWeight;
+    else if(isCorner)
+        weight = cornerWeight;
     else
-        return 0.11111111;
+        weight = edgeWeight;
+    return weight/totalWeight;
 }
 
 const bool colortex0MipmapEnabled=true;
@@ -34,28 +53,31 @@ const bool colortex6MipmapEnabled=true;
 
 
 void main() {
-    dE = d;
-    vec3 ret = texture(colortex0,texcoord,0).rgb;
 
-    float centerRad = texture(colortex6,texcoord,0).x;
-    if(centerRad>d){
-        ret*=centerRad>sqrt(2)*d?0.11111111:0.2;
-    }
+    vec3 centerCoC = texture(colortex6,texcoord,0).xyz;
+    centerRad = centerCoC.x;
+    centerEdgeness = centerCoC.y;
 
-    dC = dE*sqrt(2);
 
+
+    vec3 ret=vec3(0);
 
     vec2 offsetTexCoord;
     for(int x=-d; x<=d; x+=d){
         offsetTexCoord.x=texcoord.x+x/viewWidth;
         for(int y=-d; y<=d; y+=d){
-            if(!bool(x|y)) continue;
-            offsetTexCoord.y=texcoord.y+y/viewHeight;
-
+            bool isCenter = !bool(x|y);
             bool isCorner = bool(x)&&bool(y);
 
-            vec3 color = texture(colortex0,offsetTexCoord,PASS).rgb;
-            float w = getBlurWeight(offsetTexCoord, isCorner);
+//            if(isCenter) continue;
+            offsetTexCoord.y=texcoord.y+y/viewHeight;
+
+            int sampleMip;
+            float w = getBlurWeight(offsetTexCoord, isCenter,isCorner, sampleMip);
+            if(w<=1e-9)
+                continue;
+
+            vec3 color = texture(colortex0,offsetTexCoord,sampleMip).rgb;
             ret += w*color;
         }
     }
