@@ -1,6 +1,7 @@
 #version 430 compatibility
 #include "/lib/util/dofHelper.glsl"
-int d = dFromLevel(PASS);
+//int d = dFromLevel(PASS);
+const int d = int(round(exp2(PASS)));
 
 in vec2 texcoord;
 
@@ -18,12 +19,14 @@ void main() {
 
     vec2 offsetTexCoord;
     const int iterEdge = d*DOF_SIZE;
-    for(int i=-DOF_SIZE; i<=DOF_SIZE; i++){
-        int x = distort(i,d);
-        offsetTexCoord.x=texcoord.x+x/viewWidth;
-        for(int j=-DOF_SIZE; j<=DOF_SIZE; j++){
-            int y = distort(j,d);
-            offsetTexCoord.y=texcoord.y+y/viewHeight;
+    for(int y=-iterEdge; y<=iterEdge; y+=d){
+        offsetTexCoord.y=texcoord.y+y/viewHeight;
+        if(offsetTexCoord.y<0 || offsetTexCoord.y>1) continue;
+
+        for(int x=-iterEdge; x<=iterEdge; x+=d){
+            offsetTexCoord.x=texcoord.x+x/viewWidth;
+//            if(offsetTexCoord.x<0 || offsetTexCoord.x>1) continue;
+
 
             vec4 blurMeta = texture(colortex7,offsetTexCoord);
             float weight = weightAtOffset(blurMeta.w,x,y,d);
