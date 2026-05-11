@@ -7,10 +7,7 @@ in vec2 texcoord;
 uniform float viewWidth, viewHeight;
 
 uniform sampler2D colortex0;
-uniform sampler2D colortex6;
-#if DOF_LEVEL>1
     uniform sampler2D colortex7;
-#endif
 
 /* RENDERTARGETS: 0 */
 out vec3 colorOut;
@@ -23,13 +20,17 @@ void main() {
 
     vec2 offsetTexCoord;
     const int iterEdge = d*DOF_SIZE;
-    for(int x=-iterEdge; x<=iterEdge; x+=d){
+    const int maxMip = int(floor(0.6*log2(d*DOF_SIZE)));
+    for(int i=-DOF_SIZE; i<=DOF_SIZE; i++){
+        int x = distort(i,d);
         offsetTexCoord.x=texcoord.x+x/viewWidth;
-        for(int y=-iterEdge; y<=iterEdge; y+=d){
+        for(int j=-DOF_SIZE; j<=DOF_SIZE; j++){
+            int y = distort(j,d);
             offsetTexCoord.y=texcoord.y+y/viewHeight;
 
-            vec3 sampleCoC = texture(colortex6,offsetTexCoord,0).xyz;
-            float rad = sampleCoC.x;
+
+            vec4 sampleCoC = texture(colortex7,offsetTexCoord,0);
+            float rad = sampleCoC.w;
             float weight = weightAtOffset(rad,x,y,d);
 
             if(weight<=1e-3)continue;
@@ -38,14 +39,10 @@ void main() {
             int sampleMip=0;
           #else
             int sampleMip = int(floor(log2(rad)));
-            sampleMip = clamp(sampleMip,0,PASS);
+            sampleMip = clamp(sampleMip,0,2);
           #endif
 
-          #if DOF_LEVEL>1
-            float totalWeight = texture(colortex7,offsetTexCoord,0)[PASS];
-          #else
-            float totalWeight = sampleCoC.z;
-          #endif
+            float totalWeight = sampleCoC[PASS];
 
 
             weight/=totalWeight;

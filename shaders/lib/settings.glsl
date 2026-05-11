@@ -85,7 +85,7 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 
 #define POST_DITHER
 
-#define DOF_LEVEL -1 //[-1 1 2 3 4]
+#define DOF_LEVEL -1 //[-1 1 2 3]
 #define DOF_INTENSITY 1.0 //[0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0 1.2 1.4 1.6 1.8 2.0 2.5 3.0 4.0 5.0 6.0 7.0 8.0 9.0 10.0]
 #define DOF_FOCAL_LENGTH 0.23 //[0.05 0.1 0.15 0.2 0.22 0.23 0.24 0.25 0.26 0.3 0.35 0.4]
 #define DOF_SIZE 1 //[1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 20]
