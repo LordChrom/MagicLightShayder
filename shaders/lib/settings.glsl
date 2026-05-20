@@ -36,6 +36,7 @@
 #define PENUMBRA_WIDTH 0.04 //[0.01 0.015 0.02 0.03 0.04 0.06 0.08 0.12 0.16 0.2 0.3]
 #define PENUMBRAS_ENABLED
 #define AREA_TRANSITION_DIST 0.85 //[-1 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.85 0.9 0.95]
+#define BLOCKLIGHT_ANIMATION
 
 //#define SSAO
 #define SSAO_QUALITY 3 //[1 2 3 4 6 8 10 16]
@@ -62,7 +63,7 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 #define FOG_RANDOM_LESSER_SOURCE
 #define FOG_BIOME_TINT_STRENGTH 0.4 //[0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0]
 #define FOG_BRIGHTNESS_SUN 0.8 //[0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0 1.2 1.4 1.6 1.8 2.0]
-#define FOG_BRIGHTNESS_BLOCK 2.5 //[0.0 0.5 1.0 1.5 2.0 2.5 3.0 4.0 6.0 8.0 12.0 16.0]
+#define FOG_BRIGHTNESS_BLOCK 1.25 //[0.0 0.5 0.75 1.0 1.25 1.5 1.75 2.0 2.5 3.0 4.0 5.0 6.0 7.0 8.0 12.0 16.0]
 //#define FOG_PENUMBRAS
 
 #define LIGHTING_RENDERSCALE 1 //[0.01 0.1 0.15 0.2 0.25 0.3333 0.5 0.625 0.6666 0.75 0.8 0.9 1]
@@ -88,7 +89,8 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 #define DOF_LEVEL -1 //[-1 1 2 3]
 #define DOF_INTENSITY 1.0 //[0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0 1.2 1.4 1.6 1.8 2.0 2.5 3.0 4.0 5.0 6.0 7.0 8.0 9.0 10.0]
 #define DOF_FOCAL_LENGTH 23 //[2.5 5 7.5 10 12.5 15 17.5 20 22 23 24 25 26 30 35 40 45 50 60 70]
-#define DOF_SIZE 4 //[1 2 3 4 5 6 7 8 9 10 11 12 24]
+#define DOF_SAMPLE_RAD 4 //[1 2 3 4 5 6 7 8 9 10 11 12 24]
+#define DOF_ANTIBLEED 4 //[-1 2 3 4 8 16]
 //#define DOF_DISTORTION
 
 #define MATERIALS_TYPE 0 //[-1 0 1]
@@ -98,7 +100,7 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 #define MIN_SCALE 1.0 //[0.5 1.0 2.0 4.0]
 
 #define UPDATE_FREQ 16 //[1 2 4 8 16 32 64]
-#define LIGHTING_SYSTEM_PASSES 2 //[0 1 2 3 4 5 6 7 8]
+#define LIGHTING_SYSTEM_PASSES 4 //[0 1 2 3 4 5 6 7 8]
 #define SECTION_SIZE 16 //[8 16]
 #define AREA_SIZE 64 //[16 32 48 64 96 128]
 

@@ -107,6 +107,7 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 - sun shadows
 - light source duplication at seams
 - seam filler not working due to the voxel split changes
+- voxelizing end gates
 
 ### Needs Improvement
 - TAA unoptimized
@@ -115,7 +116,7 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 - proper lighting on translucents OR have that part of local fog density system
 - particles on fog
 - coloring on emissive cave vines
-- DoF at lower renderscale, pack DoF
+- DoF at lower renderscale
 
 ### Necessary additions
 - multiple occlusion indicators per sample
@@ -128,6 +129,7 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 - make voxel map a lower bit size
 - light sampling from lower cascades when possible
 - halftones
+- awareness of which block faces are full
 
 ### Potential additions
 - make pixel locked rendering actually only need one sample per pixel

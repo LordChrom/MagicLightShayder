@@ -87,11 +87,11 @@ void main() {
     }
 
     vec3 color;
-    if(transColor.a>=1){
+    if(transColor.a>=0.99){
         color=transColor.xyz*light;
     }else{
         color=albedo.xyz*light;
-        transColor.xyz*=mix(vec3(0.5),light,0.5);
+        transColor.xyz*= 0.5*light + ((light.x+light.y+light.z)*0.16 + 0.02);
         color = blend(vec4(color,1),transColor);
     }
 

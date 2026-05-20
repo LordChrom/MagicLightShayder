@@ -34,8 +34,10 @@ float baseLightStrength(uint type, vec3 displacement, ivec3 blockPos, vec3 trave
 
     float lightStrength=BLOCK_LIGHT_STRENGTH;
 
+    #ifdef BLOCKLIGHT_ANIMATION
     if(type==3u) lightStrength *= pulsate();
     if(type==4u) lightStrength *= flicker(blockPos);
+    #endif
 
     float lengthSquared = dot(displacement,displacement);
     float columnation = MIN_COLUMNATION;

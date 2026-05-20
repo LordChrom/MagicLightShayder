@@ -33,13 +33,13 @@ void main() {
     float rad = abs(depth-depthTarget)/depth * (focalLength)/max(0.1,depthTarget-focalLength);
     rad*=DOF_INTENSITY;
 
-//    rad = clamp(abs(rad),0,1);
+    rad = clamp(abs(rad),0,1);
     rad*=viewHeight;
-    rad=clamp(rad,0,DOF_SIZE*exp2(DOF_LEVEL));
+//    rad=clamp(rad,0,DOF_SAMPLE_RAD*exp2(DOF_LEVEL));
 
 
     CoCbuff=vec4(0,0,0,rad);
     for(int l=0; l<DOF_LEVEL;l++){
-        CoCbuff[l]=totalWeightAtOffset(rad,dFromLevel(l));
+        CoCbuff[l]=totalWeightAtOffset(rad,1<<l);
     }
 }
