@@ -7,7 +7,7 @@
 layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z = LOCAL_SIZE_Z) in;
 
 
-shared uvec4[SECTION_SIZE+2][SECTION_SIZE+2][MEM_LAYERS] sharedPackedSamples;
+shared uvec4[SECTION_SIZE+2][SECTION_SIZE+2][LIGHT_LAYERS] sharedPackedSamples;
 shared uint[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedFrontVoxels;
 shared uint[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedRearVoxels;
 
@@ -262,7 +262,11 @@ uvec4[VOX_LAYERS] determineBestLightSources(){
 //newObstructions is flipped to match this, with [2][2] being the firthest corner from source
 //alignment.x means it is on the a axis,
 void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
-    out uvec4[2][2] samples, out bool[2][2] relevance, out bvec2 alignment, out bool[2][2] newObstructions){
+    out uvec4[2][2] samples, out bool[2][2] relevance, out bvec2 alignment, out bool[2][2] newObstructions
+   #ifdef MULTI_SHADOW_OCCLUSION
+    , out uvec4[2][2] bonusOcclusion
+   #endif
+){
 
     vec3 lightTravel = unpackLightTravel(bestSource);
     int aSignSrc = int(sign(lightTravel.x));
@@ -280,6 +284,9 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
             relevance[i][j]=false;
             localFronts[i][j]=getFrontVoxel(a,b);
             localRears[i][j]=getRearVoxel(a,b);
+           #ifdef MULTI_SHADOW_OCCLUSION
+            bonusOcclusion[i][j]=uvec4(NO_OCCLUSION);
+           #endif
         }
     }
 
@@ -346,6 +353,11 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
                 if (sameLight(relevantSample,bestSource)){
                     relevance[i][j] = true;
                     samples[i][j] = relevantSample;
+                   #ifdef MULTI_SHADOW_OCCLUSION
+                    ivec3 sampleZonePos = zonePos+ivec3(a, b, -1);
+                    if(a>=0 && b>=0 && a<AREA_SIZE && b<AREA_SIZE)
+                        bonusOcclusion[i][j]=sampleLightData(sampleZonePos, zoneShift, zoneOffset(axis,layer+LIGHT_LAYERS,cascadeLevel));
+                   #endif
                     break;
                 }
             }
@@ -631,8 +643,10 @@ uint combineOcclusions(uint occlusionA, uint occlusionB){
 
 void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, bool[2][2] relevantObstructions,
     inout uvec4 lightSrc
+   #ifdef MULTI_SHADOW_OCCLUSION
+    , uvec4[2][2] bonusOcclusion
+   #endif
 ){
-//#define NEW_OCCLUSION
 #ifndef NEW_OCCLUSION
     if(true){
         doOcclusionOld(samples,relevance,alignment,relevantObstructions,lightSrc);
@@ -654,12 +668,21 @@ void doLightPassage(inout uvec4 bestLight, bool translucentTerrain){
     bool[2][2] relevance;
     bvec2 alignment;
     bool[2][2] newObstructions;
+   #ifdef MULTI_SHADOW_OCCLUSION
+    uvec4[2][2] bonusOcclusion;
+   #endif
 
+    pickRelevantInputSamples(bestLight, translucentTerrain, relevantSamples, relevance, alignment, newObstructions
+       #ifdef MULTI_SHADOW_OCCLUSION
+        ,bonusOcclusion
+       #endif
+    );
 
-    pickRelevantInputSamples(bestLight, translucentTerrain,
-    relevantSamples, relevance, alignment, newObstructions);
-
-    doOcclusion(relevantSamples, relevance, alignment, newObstructions, bestLight);
+    doOcclusion(relevantSamples, relevance, alignment, newObstructions, bestLight
+       #ifdef MULTI_SHADOW_OCCLUSION
+        , bonusOcclusion
+       #endif
+    );
 
 #if !(defined KEEP_FULLY_OCCLUDED_SAMPLES && defined DEBUG_OCCLUSION_MAP)
     if ( !bool(unpackOcclusionMap(bestLight.w))){

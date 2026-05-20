@@ -114,6 +114,8 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 
 //-1 is none, 0 is shadow, 1 is culled vertex, 2 is unculled vertex
 #define VOXELIZATION_MODE 0 //[-1 0 1 2]
+//#define NEW_OCCLUSION
+#define MULTI_SHADOW_OCCLUSION
 
 /////
 #define AREA_WIDTH_SECTIONS (AREA_SIZE/SECTION_SIZE)
@@ -170,10 +172,22 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 
 #ifdef FALLBACK_RADIANCE
     #define RADIANCE_LAYER VOX_LAYERS
-    #define MEM_LAYERS (VOX_LAYERS+1)
+    #define LIGHT_LAYERS (VOX_LAYERS+1)
 #else
-    #define MEM_LAYERS VOX_LAYERS
+    #define LIGHT_LAYERS VOX_LAYERS
 #endif
+
+#define MEM_LAYERS LIGHT_LAYERS
+
+#ifndef NEW_OCCLUSION
+    #undef MULTI_SHADOW_OCCLUSION
+#endif
+
+#ifdef MULTI_SHADOW_OCCLUSION
+    #define MEM_LAYERS (LIGHT_LAYERS + VOX_LAYERS)
+#endif
+
+
 #define MEM_SIZE_BIG_EXACT (AREA_SIZE*6*MEM_LAYERS*NUM_CASCADES)
 
 #if MEM_SIZE_BIG_EXACT  <=256
