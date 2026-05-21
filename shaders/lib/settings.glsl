@@ -86,9 +86,9 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 
 #define POST_DITHER
 
-#define DOF_QUALITY -1 //[-1 0 1 2]
+#define DOF_QUALITY -1 //[-1 0 1 2 3 4]
 #define DOF_FOCAL_LENGTH 23 //[2.5 5 7.5 10 12.5 15 17.5 20 22 23 24 25 26 30 35 40 45 50 60 70]
-#define DOF_RAD 16 //[4 8 12 16 20 24 28 32]
+#define DOF_RAD 16 //[8 16 24 32 40 48 56 64]
 #define DOF_ANTIBLEED 4 //[-1 2 3 4 8 16]
 
 #define MATERIALS_TYPE 0 //[-1 0 1]
@@ -234,7 +234,7 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 #define WORLD_MEM_SIZE_BIG 8192
 #endif
 
-#define DOF_MAX_QUALITY 3
+#define DOF_MAX_QUALITY 5
 #if DOF_QUALITY >= 0
     #define DOF_PASSES (DOF_MAX_QUALITY-DOF_QUALITY)
 #else
