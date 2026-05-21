@@ -1,13 +1,21 @@
 #include "/lib/settings.glsl"
 
+const int DOF_SAMPLE_RAD = DOF_RAD>>(DOF_PASSES-1);
+
+//total cost = (DOF_RAD>>DOF_PASSES)**2 * DOF_PASSES
+// = O(n^2) rad, O(n/2^n) quality
+
 float weightAtOffset(float rad,float len, int d){
+    int level = int(log2(d));
     if(len==0)
         return 1;
-    if(d>1 && (len+len)<=DOF_SAMPLE_RAD && rad+rad>=len){ //keeps things approximately uniform
-        return 0;
+
+    float ret = clamp(d*(rad-len)/(rad+3), 0, 1);
+    if(d>1){ //keeps things approximately uniform
+        float lenDif = len+len-DOF_SAMPLE_RAD;
+        ret*=clamp(0.01*(0.5*lenDif*lenDif+(rad-len)*(rad-len)),1e-3,1e2);
     }
-    float steepness = d;
-    return clamp(steepness*(rad-len)/(rad+3), 0, 1);
+    return ret;
 }
 
 float totalWeightAtOffset(float rad, int d){

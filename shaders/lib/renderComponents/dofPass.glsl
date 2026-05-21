@@ -1,8 +1,6 @@
 #version 430 compatibility
 #include "/lib/util/dofHelper.glsl"
-#define LEVEL (DOF_LEVEL-PASS-1)
-//#define LEVEL PASS
-//int d = dFromLevel(LEVEL);
+#define LEVEL (DOF_PASSES-PASS-1)
 const int d = 1<<LEVEL;
 
 in vec2 texcoord;
@@ -31,7 +29,6 @@ void main() {
 #endif
 
     ivec2 offsetTexpos;
-//    const int iterEdge = DOF_SAMPLE_RAD;
     for(int y=-DOF_SAMPLE_RAD; y<=DOF_SAMPLE_RAD; y++){
         offsetTexpos.y=texpos.y+(y<<LEVEL);
         if(offsetTexpos.y<0)
@@ -39,7 +36,10 @@ void main() {
         if(offsetTexpos.y>viewHeight)
             return;
 
-        int xrange =  int(floor(sqrt(DOF_SAMPLE_RAD*DOF_SAMPLE_RAD-y*y)));
+        float a = DOF_SAMPLE_RAD*DOF_SAMPLE_RAD-y*y;
+        if(a<0)
+            continue;
+        int xrange =  int(floor(sqrt(a)));
         for(int x=-xrange; x<=xrange; x++){
             offsetTexpos.x=texpos.x+(x<<LEVEL);
 
