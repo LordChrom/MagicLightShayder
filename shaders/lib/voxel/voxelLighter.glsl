@@ -652,11 +652,17 @@ uint combineOcclusions(uint occlusionA, uint occlusionB){
 
     uint edgesH = occlEdges&10u;
     uint edgesV = occlEdges&5u;
+    uint edgeCount = bitCount(occlEdges);
+    if(edgeCount==0){
+        edgesH = ((outMap&10u)==10u)?2u:8u;
+        edgesV = ((outMap&12u)==12u)?1u:4u;
+    }
 
-    vec2 outRay = vec2(
+    vec2 outRay= vec2(
         (edgesH==8u)?(minRay.x):(edgesH==2u?maxRay.x:0),
         (edgesV==4u)?(minRay.y):(edgesV==1u?maxRay.y:0)
     );
+
 
     return packOcclusionInfo(outRay, outMap, outHitDist);
 }
@@ -690,10 +696,27 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
     vec2 middleSlope = (travel2d.xy-halfScale)*slopeScaleNear;  //ray going to the center corner of the 4 relevant samples
     vec2 innerSlope  = (travel2d.xy-halfScale)*slopeScaleFar;   //anything less than this will not be visible
 
-//    vec4 litBounds = vec4(outerSlope.xy,innerSlope.xy);
-
-
     lightSrc.w = getTerrainOcclusion(travel,relevantObstructions,alignment);
+
+    vec4 litBounds = vec4(2,2,0,0);
+
+    for(int i=0; i<2; i++){
+        for (int j=1-i; j<2; j++){
+            if ((!relevance[i][j]) || (i==0 && alignment.y) || (j==0 && alignment.x))
+                continue;
+
+            uint occl = samples[i][j].w;
+            uint map = unpackOcclusionMap(occl);
+            vec2 ray = unpackOcclusionRay(occl);
+            uint lightEdges = getLightEdges(map); //left, top, right, bottom
+            lightEdges = lightEdges & ~((lightEdges<<2)|(lightEdges>>2));
+
+            if(bool(i) && bool(lightEdges&8u))
+                litBounds.x=min(litBounds.x,ray.x);
+            if(bool(j) && bool(lightEdges&4u))
+                litBounds.y=min(litBounds.y,ray.y);
+        }
+    }
 
     for(int i=0; i<2; i++){
         for(int j=0; j<2; j++){
@@ -703,6 +726,23 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
             uint occl = samples[i][j].w;
             uint map = unpackOcclusionMap(occl);
             vec2 ray = unpackOcclusionRay(occl);
+
+            //corners to edges
+            if(ray.y>outerSlope.y)
+            map=map&((map<<2)|3u);
+
+            if(ray.x>outerSlope.x)
+            map=map&((map<<1)|5u);
+
+            //edges truncated to corners
+            if(map==12u && i==0){
+                map=14u;
+                ray.x=litBounds.x;
+            }
+            if(map==10u && j==0){
+                map=14u;
+                ray.y=litBounds.y;
+            }
 
             uint lightEdges = getLightEdges(map); //left, top, right, bottom
             uint darkEdges = getOcclusionEdges(map);
@@ -717,12 +757,10 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
 
             bool anythingInBounds = bool(inBoundsLight&darkEdges)||((inBoundsLight==15u)&&(darkEdges==0u)&&(map!=15u));
 
-//            anythingInBounds = bool(~map)&();
-
-
-
             if(!anythingInBounds) continue;
-            occlusionBuffer[occlusionBufferPtr++]=occl;
+
+            //TODO more efficient repacking
+            occlusionBuffer[occlusionBufferPtr++]=packOcclusionInfo(ray,map,unpackOcclusionHitDist(occl));
         }
     }
 
