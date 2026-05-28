@@ -634,11 +634,31 @@ bool occlusionsPerfectlyCombinable(uint mapA, uint mapB){
 }
 
 uint combineOcclusions(uint occlusionA, uint occlusionB){
-    vec2 rayA = unpackOcclusionRay(occlusionA);
-    vec2 rayB = unpackOcclusionRay(occlusionB);
     uint mapA = unpackOcclusionMap(occlusionA);
     uint mapB = unpackOcclusionMap(occlusionB);
-    return occlusionB;
+    if(mapA == 0xfu) return occlusionB;
+    if(mapB == 0xfu) return occlusionA;
+    uint outMap = mapA & mapB;
+    float outHitDist = 0.5*(unpackOcclusionHitDist(occlusionA)+unpackOcclusionHitDist(occlusionB));
+
+
+    //left, top, right, bottom
+    uint occlEdges = getOcclusionEdges(outMap);
+
+    vec2 rayA = unpackOcclusionRay(occlusionA);
+    vec2 rayB = unpackOcclusionRay(occlusionB);
+    vec2 minRay = min(rayA,rayB);
+    vec2 maxRay = max(rayA,rayB);
+
+    uint edgesH = occlEdges&10u;
+    uint edgesV = occlEdges&5u;
+
+    vec2 outRay = vec2(
+        (edgesH==8u)?(minRay.x):(edgesH==2u?maxRay.x:0),
+        (edgesV==4u)?(minRay.y):(edgesV==1u?maxRay.y:0)
+    );
+
+    return packOcclusionInfo(outRay, outMap, outHitDist);
 }
 
 void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, bool[2][2] relevantObstructions,
@@ -647,16 +667,69 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
     , uvec4[2][2] bonusOcclusion
    #endif
 ){
-#ifndef NEW_OCCLUSION
+   #ifndef NEW_OCCLUSION
     if(true){
         doOcclusionOld(samples,relevance,alignment,relevantObstructions,lightSrc);
         return;
     }
-#endif
+   #endif
+   #ifdef MULTI_SHADOW_OCCLUSION
+    #define OCCL_BUF_MAX 20
+   #else
+    #define OCCL_BUF_MAX 4
+   #endif
+
+    uint[OCCL_BUF_MAX] occlusionBuffer;
+    uint occlusionBufferPtr;
 
     vec3 travel = unpackLightTravel(lightSrc);
-    uint terrainOcclusion = getTerrainOcclusion(travel,relevantObstructions,alignment);
-    lightSrc.w=combineOcclusions(lightSrc.w,terrainOcclusion);
+    vec2 travel2d= abs(travel.xy);
+    float slopeScaleNear = abs(1/(travel.z-halfScale));
+    float slopeScaleFar  = abs(1/(travel.z+halfScale));
+    vec2 outerSlope  = (travel2d.xy+halfScale)*slopeScaleNear;  //anything more than this will not be visible
+    vec2 middleSlope = (travel2d.xy-halfScale)*slopeScaleNear;  //ray going to the center corner of the 4 relevant samples
+    vec2 innerSlope  = (travel2d.xy-halfScale)*slopeScaleFar;   //anything less than this will not be visible
+
+//    vec4 litBounds = vec4(outerSlope.xy,innerSlope.xy);
+
+
+    lightSrc.w = getTerrainOcclusion(travel,relevantObstructions,alignment);
+
+    for(int i=0; i<2; i++){
+        for(int j=0; j<2; j++){
+            if((!relevance[i][j]) || (i==0 && alignment.y) || (j==0 && alignment.x))
+                continue;
+
+            uint occl = samples[i][j].w;
+            uint map = unpackOcclusionMap(occl);
+            vec2 ray = unpackOcclusionRay(occl);
+
+            uint lightEdges = getLightEdges(map); //left, top, right, bottom
+            uint darkEdges = getOcclusionEdges(map);
+
+            lightEdges = lightEdges & ~((lightEdges<<2)|(lightEdges>>2));
+            uint darkEdges2 = darkEdges & ~((darkEdges<<2)|(darkEdges>>2));
+
+            uint inBoundsLight = (uint(ray.x<=outerSlope.x)<<3u) | (uint(ray.y<=outerSlope.y)<<2u)|
+                                 (uint(ray.x>=innerSlope.x)<<1u) | (uint(ray.y>=innerSlope.y));
+//            uint inBoundsLight = (uint(ray.x<outerSlope.x)<<3u) | (uint(ray.y<outerSlope.y)<<2u)|
+//                                 (uint(ray.x>innerSlope.x)<<1u) | (uint(ray.y>innerSlope.y));
+
+            bool anythingInBounds = bool(inBoundsLight&darkEdges)||((inBoundsLight==15u)&&(darkEdges==0u)&&(map!=15u));
+
+//            anythingInBounds = bool(~map)&();
+
+
+
+            if(!anythingInBounds) continue;
+            occlusionBuffer[occlusionBufferPtr++]=occl;
+        }
+    }
+
+    for(int i=0; i<occlusionBufferPtr; i++){
+        lightSrc.w=combineOcclusions(lightSrc.w,occlusionBuffer[i]);
+    }
+
 }
 
 
