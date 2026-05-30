@@ -621,6 +621,21 @@ uint getTerrainOcclusion(vec3 travel, bool[2][2] relevantObstructions, bvec2 ali
         ray.x=0;
     }
 
+    if(ray.y>=0.999){
+        map=map&3u;
+        map|=map<<2;
+    }
+
+    if(ray.x>=0.999){
+        map=map&5u;
+        map|=map<<1;
+    }
+
+    if(!bool((map^(map>>1))&5u))
+        ray.x=0;
+    if(!bool((map^(map>>2))&3u))
+        ray.y=0;
+
     return (map==15u)?NO_OCCLUSION:packOcclusionInfo(ray, map, hitDist);
 }
 
@@ -679,22 +694,15 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
         return;
     }
    #endif
-   #ifdef MULTI_SHADOW_OCCLUSION
-    #define OCCL_BUF_MAX 20
-   #else
-    #define OCCL_BUF_MAX 4
-   #endif
-
-    uint[OCCL_BUF_MAX] occlusionBuffer;
-    uint occlusionBufferPtr;
 
     vec3 travel = unpackLightTravel(lightSrc);
     vec2 travel2d= abs(travel.xy);
-    float slopeScaleNear = abs(1/(travel.z-halfScale));
-    float slopeScaleFar  = abs(1/(travel.z+halfScale));
-    vec2 outerSlope  = (travel2d.xy+halfScale)*slopeScaleNear;  //anything more than this will not be visible
-    vec2 middleSlope = (travel2d.xy-halfScale)*slopeScaleNear;  //ray going to the center corner of the 4 relevant samples
-    vec2 innerSlope  = (travel2d.xy-halfScale)*slopeScaleFar;   //anything less than this will not be visible
+
+    vec4 slopeBounds  =
+    vec4(
+        (travel2d.xy+halfScale)*abs(1/(travel.z-halfScale)),
+        (travel2d.xy-halfScale)*abs(1/(travel.z+halfScale))
+    );
 
     lightSrc.w = getTerrainOcclusion(travel,relevantObstructions,alignment);
 
@@ -728,21 +736,44 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
             vec2 ray = unpackOcclusionRay(occl);
 
             //corners to edges
-            if(ray.y>outerSlope.y)
-            map=map&((map<<2)|3u);
+            if(ray.y>slopeBounds.y)
+                map=map&((map<<2)|3u);
 
-            if(ray.x>outerSlope.x)
-            map=map&((map<<1)|5u);
+            if(ray.x>slopeBounds.x)
+                map=map&((map<<1)|5u);
 
             //edges truncated to corners
-            if(map==12u && i==0){
-                map=14u;
-                ray.x=litBounds.x;
+            if(i==0){
+                if(ray.x<slopeBounds.z){
+                    map=10u|(map>>1);
+                    ray.x=litBounds.x;
+                }
+
+                if (map==12u){
+                    map=14u;
+                    ray.x=litBounds.x;
+                }
             }
-            if(map==10u && j==0){
-                map=14u;
-                ray.y=litBounds.y;
+            if(j==0){
+                if(ray.y<slopeBounds.w){
+                    map=12u|(map>>2);
+                    ray.y=litBounds.y;
+                }
+
+                if(map==10u){
+                    map=14u;
+                    ray.y=litBounds.y;
+                }
             }
+
+            //L truncated to corner
+            //TODO prolly split into multiple occlusions, merge the edge+corner case into it
+//            if(
+
+            if(!bool((map^(map>>1))&5u))
+                ray.x=0;
+            if(!bool((map^(map>>2))&3u))
+                ray.y=0;
 
             uint lightEdges = getLightEdges(map); //left, top, right, bottom
             uint darkEdges = getOcclusionEdges(map);
@@ -750,24 +781,18 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
             lightEdges = lightEdges & ~((lightEdges<<2)|(lightEdges>>2));
             uint darkEdges2 = darkEdges & ~((darkEdges<<2)|(darkEdges>>2));
 
-            uint inBoundsLight = (uint(ray.x<=outerSlope.x)<<3u) | (uint(ray.y<=outerSlope.y)<<2u)|
-                                 (uint(ray.x>=innerSlope.x)<<1u) | (uint(ray.y>=innerSlope.y));
-//            uint inBoundsLight = (uint(ray.x<outerSlope.x)<<3u) | (uint(ray.y<outerSlope.y)<<2u)|
-//                                 (uint(ray.x>innerSlope.x)<<1u) | (uint(ray.y>innerSlope.y));
+            uint inBoundsLight = (uint(ray.x<=slopeBounds.x)<<3u) | (uint(ray.y<=slopeBounds.y)<<2u)|
+                                 (uint(ray.x>=slopeBounds.z)<<1u) | (uint(ray.y>=slopeBounds.w));
 
             bool anythingInBounds = bool(inBoundsLight&darkEdges)||((inBoundsLight==15u)&&(darkEdges==0u)&&(map!=15u));
 
             if(!anythingInBounds) continue;
 
             //TODO more efficient repacking
-            occlusionBuffer[occlusionBufferPtr++]=packOcclusionInfo(ray,map,unpackOcclusionHitDist(occl));
+            occl=packOcclusionInfo(ray,map,unpackOcclusionHitDist(occl));
+            lightSrc.w=combineOcclusions(lightSrc.w,occl);
         }
     }
-
-    for(int i=0; i<occlusionBufferPtr; i++){
-        lightSrc.w=combineOcclusions(lightSrc.w,occlusionBuffer[i]);
-    }
-
 }
 
 
