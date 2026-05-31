@@ -654,7 +654,7 @@ uint combineOcclusions(uint occlusionA, uint occlusionB){
     if(mapA == 0xfu) return occlusionB;
     if(mapB == 0xfu) return occlusionA;
     uint outMap = mapA & mapB;
-    float outHitDist = 0.5*(unpackOcclusionHitDist(occlusionA)+unpackOcclusionHitDist(occlusionB));
+    float outHitDist = min(unpackOcclusionHitDist(occlusionA),unpackOcclusionHitDist(occlusionB));
 
 
     //left, top, right, bottom
@@ -675,10 +675,10 @@ uint combineOcclusions(uint occlusionA, uint occlusionB){
             mapA=tmpu;
         }
         //at this point mapA==outmap and mapB may be covered
-        uint unlitEdges = 0xfu^ getLightEdges(mapB);
+        uint litEdges = getLightEdges(mapB);
         uint concealedEdges = (uint(rayB.x>rayA.x)<<3u)|(uint(rayB.y>rayA.y)<<2u)|(uint(rayB.x<rayA.x)<<1u)|(uint(rayB.y<rayA.y));
-        if(!bool(concealedEdges&unlitEdges&~occlEdges))
-        return covering>0?occlusionA:occlusionB;
+        if(!bool(concealedEdges&~(litEdges|occlEdges)))
+            return covering>0?occlusionA:occlusionB;
     }
     vec2 minRay = min(rayA,rayB);
     vec2 maxRay = max(rayA,rayB);
@@ -712,6 +712,10 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
         return;
     }
    #endif
+    if(!(relevance[0][0]||relevance[0][1]||relevance[1][0]||relevance[1][1])){
+        lightSrc.w=FULL_OCCLUSION;
+        return;
+    }
 
     vec3 travel = unpackLightTravel(lightSrc);
     vec2 travel2d= abs(travel.xy);
@@ -724,7 +728,7 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
 
     lightSrc.w = getTerrainOcclusion(travel,relevantObstructions,alignment);
 
-    vec4 litBounds = vec4(2,2,0,0);
+    vec4 litBounds = vec4(1,1,0,0);
 
     for(int i=0; i<2; i++){
         for (int j=1-i; j<2; j++){
@@ -737,7 +741,7 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
             uint lightEdges = getLightEdges(map); //left, top, right, bottom
             lightEdges = lightEdges & ~((lightEdges<<2)|(lightEdges>>2));
 
-            if(bool(i) && bool(lightEdges&8u))
+            if(bool(i) && bool(lightEdges&8u) && ray.x!=0)
                 litBounds.x=min(litBounds.x,ray.x);
             if(bool(j) && bool(lightEdges&4u))
                 litBounds.y=min(litBounds.y,ray.y);
@@ -760,9 +764,10 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
             if(ray.x>slopeBounds.x)
                 map=map&((map<<1)|5u);
 
-            //edges truncated to corners
+            //edges or Ls truncated to corners
             if(i==0){
                 if(ray.x<slopeBounds.z){
+                    //TODO lossy
                     map=10u|(map>>1);
                     ray.x=litBounds.x;
                 }
@@ -774,6 +779,7 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
             }
             if(j==0){
                 if(ray.y<slopeBounds.w){
+                    //TODO lossy
                     map=12u|(map>>2);
                     ray.y=litBounds.y;
                 }

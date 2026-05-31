@@ -197,6 +197,7 @@ const float lightTravelScale = 1.0/lightTravelScaleInv;
 const float packScale = 128.0;
 const int packBias = 1200;
 #define NO_OCCLUSION 0x80fu
+#define FULL_OCCLUSION 0x800u
 uint packFloat12(float x){
     if(x<=0)
         return 0x80u;
