@@ -662,6 +662,24 @@ uint combineOcclusions(uint occlusionA, uint occlusionB){
 
     vec2 rayA = unpackOcclusionRay(occlusionA);
     vec2 rayB = unpackOcclusionRay(occlusionB);
+
+
+    int covering = int(mapA==outMap)-int(mapB==outMap);
+    if(bool(covering)){
+        if(covering<0){
+            vec2 tmp = rayB;
+            rayB=rayA;
+            rayA=tmp;
+            uint tmpu = mapB;
+            mapB=mapA;
+            mapA=tmpu;
+        }
+        //at this point mapA==outmap and mapB may be covered
+        uint unlitEdges = 0xfu^ getLightEdges(mapB);
+        uint concealedEdges = (uint(rayB.x>rayA.x)<<3u)|(uint(rayB.y>rayA.y)<<2u)|(uint(rayB.x<rayA.x)<<1u)|(uint(rayB.y<rayA.y));
+        if(!bool(concealedEdges&unlitEdges&~occlEdges))
+        return covering>0?occlusionA:occlusionB;
+    }
     vec2 minRay = min(rayA,rayB);
     vec2 maxRay = max(rayA,rayB);
 
@@ -766,9 +784,6 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
                 }
             }
 
-            //L truncated to corner
-            //TODO prolly split into multiple occlusions, merge the edge+corner case into it
-//            if(
 
             if(!bool((map^(map>>1))&5u))
                 ray.x=0;
