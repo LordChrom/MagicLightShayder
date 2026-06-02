@@ -665,6 +665,7 @@ uint combineOcclusions(uint occlusionA, uint occlusionB){
 
 
     int covering = int(mapA==outMap)-int(mapB==outMap);
+//    covering=0;
     if(bool(covering)){
         if(covering<0){
             vec2 tmp = rayB;
@@ -674,10 +675,22 @@ uint combineOcclusions(uint occlusionA, uint occlusionB){
             mapB=mapA;
             mapA=tmpu;
         }
-        //at this point mapA==outmap and mapB may be covered
-        uint litEdges = getLightEdges(mapB);
-        uint concealedEdges = (uint(rayB.x>rayA.x)<<3u)|(uint(rayB.y>rayA.y)<<2u)|(uint(rayB.x<rayA.x)<<1u)|(uint(rayB.y<rayA.y));
-        if(!bool(concealedEdges&~(litEdges|occlEdges)))
+
+        uint coveredAreas = 0xfu^mapB;
+        if(rayB.x>rayA.x){
+            coveredAreas|=(coveredAreas<<1)&10u;
+        }else if(rayB.x<rayA.x){
+            coveredAreas|=(coveredAreas>>1)&5u;
+        }
+
+        if(rayB.y>rayA.y){
+            coveredAreas|=(coveredAreas<<2)&12u;
+        }else if(rayB.y<rayA.y){
+            coveredAreas|=(coveredAreas>>2)&3u;
+        }
+
+
+        if(!bool(coveredAreas&outMap))
             return covering>0?occlusionA:occlusionB;
     }
     vec2 minRay = min(rayA,rayB);
@@ -732,7 +745,7 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
 
     for(int i=0; i<2; i++){
         for (int j=1-i; j<2; j++){
-            if ((!relevance[i][j]) || (i==0 && alignment.y) || (j==0 && alignment.x))
+            if ((!(relevance[i][j])) || (i==0 && alignment.y) || (j==0 && alignment.x))
                 continue;
 
             uint occl = samples[i][j].w;
@@ -741,10 +754,15 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
             uint lightEdges = getLightEdges(map); //left, top, right, bottom
             lightEdges = lightEdges & ~((lightEdges<<2)|(lightEdges>>2));
 
-            if(bool(i) && bool(lightEdges&8u) && ray.x!=0)
+            if(bool(i) && bool(lightEdges&8u))
                 litBounds.x=min(litBounds.x,ray.x);
             if(bool(j) && bool(lightEdges&4u))
                 litBounds.y=min(litBounds.y,ray.y);
+
+            if((!bool(i)) && bool(lightEdges&2u))
+                litBounds.z=max(litBounds.z,ray.x);
+            if((!bool(j)) && bool(lightEdges&1u))
+                litBounds.w=max(litBounds.w,ray.y);
         }
     }
 
@@ -766,27 +784,33 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
 
             //edges or Ls truncated to corners
             if(i==0){
-                if(ray.x<slopeBounds.z){
+                if(ray.x<slopeBounds.z && ray.x>0){
                     //TODO lossy
                     map=10u|(map>>1);
                     ray.x=litBounds.x;
-                }
-
-                if (map==12u){
+                }else if (map==12u){
                     map=14u;
                     ray.x=litBounds.x;
                 }
+            }else{
+                if (map==12u){
+//                    map=13u;
+//                    ray.x=litBounds.z;
+                }
             }
             if(j==0){
-                if(ray.y<slopeBounds.w){
+                if(ray.y<slopeBounds.w && ray.y>0){
                     //TODO lossy
                     map=12u|(map>>2);
                     ray.y=litBounds.y;
-                }
-
-                if(map==10u){
+                }else if(map==10u){
                     map=14u;
                     ray.y=litBounds.y;
+                }
+            }else{
+                if(map==10u){
+//                    map=11u;
+//                    ray.y=litBounds.w;
                 }
             }
 
@@ -804,6 +828,8 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
 
             uint inBoundsLight = (uint(ray.x<=slopeBounds.x)<<3u) | (uint(ray.y<=slopeBounds.y)<<2u)|
                                  (uint(ray.x>=slopeBounds.z)<<1u) | (uint(ray.y>=slopeBounds.w));
+
+            inBoundsLight |= (bool(5u&(map^(map>>1)))?10u:0u)|(bool(3u&(map^(map>>2)))?5u:0u);
 
             bool anythingInBounds = bool(inBoundsLight&darkEdges)||((inBoundsLight==15u)&&(darkEdges==0u)&&(map!=15u));
 

@@ -114,7 +114,7 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 
 //-1 is none, 0 is shadow, 1 is culled vertex, 2 is unculled vertex
 #define VOXELIZATION_MODE 0 //[-1 0 1 2]
-//#define NEW_OCCLUSION
+#define NEW_OCCLUSION
 #define MULTI_SHADOW_OCCLUSION
 
 /////
