@@ -733,6 +733,7 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
     vec3 travel = unpackLightTravel(lightSrc);
     vec2 travel2d= abs(travel.xy);
 
+    //outer xy, inner xy
     vec4 slopeBounds  =
     vec4(
         (travel2d.xy+halfScale)*abs(1/(travel.z-halfScale)),
@@ -783,19 +784,23 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
                 map=map&((map<<1)|5u);
 
             //edges or Ls truncated to corners
+            //TODO condense this
             if(i==0){
                 if(ray.x<slopeBounds.z && ray.x>0){
                     //TODO lossy
                     map=10u|(map>>1);
                     ray.x=litBounds.x;
-                }else if (map==12u){
-                    map=14u;
+                }else if((((map>>1)&5u)==(map&5u))&&!alignment.y){
+                    map|=10u;
                     ray.x=litBounds.x;
                 }
             }else{
-                if (map==12u){
-//                    map=13u;
-//                    ray.x=litBounds.z;
+                if(ray.x>slopeBounds.x){
+                    map|=10u;
+                    ray.x=litBounds.x;
+                }else if((((map>>1)&5u)==(map&5u))&&!alignment.y){
+                    map|=5u;
+                    ray.x=litBounds.x;
                 }
             }
             if(j==0){
@@ -803,14 +808,17 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
                     //TODO lossy
                     map=12u|(map>>2);
                     ray.y=litBounds.y;
-                }else if(map==10u){
-                    map=14u;
+                }else if(((map>>2)==(map&3u))&&!alignment.x){
+                    map|=12u;
                     ray.y=litBounds.y;
                 }
             }else{
-                if(map==10u){
-//                    map=11u;
-//                    ray.y=litBounds.w;
+                if(ray.y>slopeBounds.y){
+                    map|=12u;
+                    ray.y=litBounds.y;
+                }else if(((map>>2)==(map&3u))&&!alignment.x){
+                    map|=3u;
+                    ray.y=litBounds.y;
                 }
             }
 
