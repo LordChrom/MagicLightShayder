@@ -285,6 +285,7 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
     }
 
     bool sampleFreshlyTranslucent = bool(unpackLightFlags(bestSource)&1u);
+    bool sampleLeavingGlass = sampleFreshlyTranslucent && bool(localRears[1][1]&WORLDVOX_TRANSLUCENT) && !bool(localFronts[1][1]&WORLDVOX_TRANSLUCENT) ;
     uint obstructingTerrainMask = (sampleFreshlyTranslucent || translucentTerrain)?WORLDVOX_OPAQUE:WORLDVOX_NOT_AIR;
     bool cornerBlocked = !(alignment.x||alignment.y);
 
@@ -351,6 +352,7 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
                 }
             }
 
+            newObstructions[i][j]=newObstructions[i][j]||(sampleLeavingGlass&&!relevance[i][j]);
         }
     }
 
