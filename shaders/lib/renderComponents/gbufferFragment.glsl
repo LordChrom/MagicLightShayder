@@ -111,12 +111,17 @@ in vec2 differential;
 flat in vec2 midtexcoord;
 flat in vec2 texsize;
 uniform ivec2 atlasSize;
-vec2 doPom(vec2 tcIn, out float pomdebug){
+#ifdef PIX_POM
+vec2 doPom(vec2 tcIn){
+    return tcIn;
+}
+#else
+vec2 doPom(vec2 tcIn){
     vec2 d = differential*texsize;
-    const float pomDepth = 0.25;
+    const float pomDepth = 0.25*POM_DEPTH_STRENGTH;
     vec2 tc;
     vec4 clampPos = vec4(midtexcoord-0.5*texsize,midtexcoord+0.5*texsize);
-    for(int i= 0; i<POM_SAMPLES; i++){
+    for(int i = 0; i<POM_SAMPLES; i++){
         float rayDepth = float(i+1)*pomDepth/float(POM_SAMPLES);
         tc = clamp(-d*rayDepth+tcIn,clampPos.xy,clampPos.zw);
         float depth = float(1.0-texture(normals,tc).a)*pomDepth;
@@ -126,6 +131,7 @@ vec2 doPom(vec2 tcIn, out float pomdebug){
     }
     return tc;
 }
+#endif
 #endif
 
 layout(location = 0) out vec4 color;
@@ -155,8 +161,7 @@ void main()
 {
 #ifdef TEXTURED
     #ifdef POM
-    float pomdebug;
-        vec2 newTexcoord=doPom(texcoord,pomdebug);
+        vec2 newTexcoord=doPom(texcoord);
     #else
         #define newTexcoord texcoord
     #endif
@@ -217,7 +222,6 @@ void main()
         bool checker = bool((int(floor(texcoord.x*atlasSize.x))+int(floor(texcoord.y*atlasSize.y)))&1);
         sampledColor.xyz=vec3(abs(max(differential.xy,checker?0:-1)),0);
     //        sampledColor.xyz=vec3(pbrNormalSample.a);
-            sampledColor.xyz=vec3(pomdebug);
     #endif
 
     normalOut = vec4((texNormal+1)*0.5,NORMAL_A);

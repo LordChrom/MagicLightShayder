@@ -62,6 +62,9 @@ uniform mat4 gbufferModelViewInverse;
 #endif
 
 #ifdef POM
+uniform float near;
+uniform float aspectRatio;
+uniform mat4 gbufferProjectionInverse;
 out vec2 differential;
 in vec2 mc_midTexCoord;
 flat out vec2 midtexcoord;
@@ -101,11 +104,8 @@ void main() {
         #ifdef POM
     midtexcoord = mc_midTexCoord;
     texsize = 2*abs(midtexcoord-texcoord);
-    vec3 scrnNormal = normalize(vec3(gl_Position.xy/gl_Position.z,-1));
-    //TODO this is probably crap
+    vec3 scrnNormal = (gbufferProjectionInverse*gl_Position).xyz;
     vec3 texHitVec = transpose(gl_NormalMatrix*normalRotator)*scrnNormal;
-
-    texHitVec=normalize(texHitVec);
     differential=texHitVec.xy/texHitVec.z;
 
         #endif
