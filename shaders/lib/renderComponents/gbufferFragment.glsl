@@ -111,10 +111,35 @@ in vec2 differential;
 flat in ivec2 baseTexpos;
 flat in ivec2 texsize;
 uniform ivec2 atlasSize;
-#undef PIX_POM
+
+void pomEdge(inout vec2 tc){
+    #ifdef POM_WRAP
+    tc= fract(tc/texsize)*texsize;
+    #else
+    tc= clamp(tc,vec2(0),texsize);
+    #endif
+}
 #ifdef PIX_POM
-vec2 doPom(vec2 tcIn){
-    return tcIn;
+vec2 doPom(vec2 tc){
+    const float pomDepth = 0.25*POM_DEPTH_STRENGTH;
+    vec2 basetc = tc = tc*atlasSize-baseTexpos;
+    vec2 clampPos = texsize;
+
+    float rayDepth = 0;
+    for(int i = 0; i<POM_SAMPLES; i++){
+        vec2 leftovers = 1-fract(tc*sign(differential));
+        vec2 remainingDepthTillTransition = leftovers/abs(differential);
+        rayDepth+=min(remainingDepthTillTransition.x,remainingDepthTillTransition.y)-1e-5;
+        float texdepth = float(1.0-texelFetch(normals,baseTexpos+ivec2(tc),0).a)*pomDepth;
+        rayDepth+=2e-5;
+        if(rayDepth>= texdepth){
+            break;
+        }
+        tc =basetc+differential*rayDepth;
+
+        pomEdge(tc);
+    }
+    return (baseTexpos+tc)/atlasSize;
 }
 #else
 vec2 doPom(vec2 tc){
@@ -123,13 +148,12 @@ vec2 doPom(vec2 tc){
     tc = tc*atlasSize-baseTexpos;
     vec2 clampPos = texsize;
 
-    float rayDepth = 0;
     for(int i = 0; i<POM_SAMPLES; i++){
-        rayDepth += (pomDepth/POM_SAMPLES);
-
-        tc+=-d;
-        tc = clamp(tc,vec2(0),clampPos);
+        float rayDepth = i*(pomDepth/POM_SAMPLES);
         float depth = float(1.0-texelFetch(normals,baseTexpos+ivec2(tc),0).a)*pomDepth;
+
+        tc+=d;
+        pomEdge(tc);
         if(rayDepth+1e-4>=depth){
             break;
         }

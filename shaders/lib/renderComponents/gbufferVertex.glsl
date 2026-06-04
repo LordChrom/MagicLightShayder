@@ -106,7 +106,7 @@ void main() {
 
     vec3 scrnNormal = (gbufferProjectionInverse*gl_Position).xyz;
     vec3 texHitVec = transpose(gl_NormalMatrix*normalRotator)*scrnNormal;
-    differential=texsize*texHitVec.xy/texHitVec.z;
+    differential=-texsize*texHitVec.xy/texHitVec.z;
 
 
         #endif
