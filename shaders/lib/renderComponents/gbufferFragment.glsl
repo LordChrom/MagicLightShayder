@@ -108,28 +108,33 @@ uniform float viewWidth, viewHeight;
 
 #ifdef POM
 in vec2 differential;
-flat in vec2 midtexcoord;
-flat in vec2 texsize;
+flat in ivec2 baseTexpos;
+flat in ivec2 texsize;
 uniform ivec2 atlasSize;
+#undef PIX_POM
 #ifdef PIX_POM
 vec2 doPom(vec2 tcIn){
     return tcIn;
 }
 #else
-vec2 doPom(vec2 tcIn){
-    vec2 d = differential*texsize;
+vec2 doPom(vec2 tc){
     const float pomDepth = 0.25*POM_DEPTH_STRENGTH;
-    vec2 tc;
-    vec4 clampPos = vec4(midtexcoord-0.5*texsize,midtexcoord+0.5*texsize);
+    vec2 d = differential*pomDepth/POM_SAMPLES;
+    tc = tc*atlasSize-baseTexpos;
+    vec2 clampPos = texsize;
+
+    float rayDepth = 0;
     for(int i = 0; i<POM_SAMPLES; i++){
-        float rayDepth = float(i+1)*pomDepth/float(POM_SAMPLES);
-        tc = clamp(-d*rayDepth+tcIn,clampPos.xy,clampPos.zw);
-        float depth = float(1.0-texture(normals,tc).a)*pomDepth;
+        rayDepth += (pomDepth/POM_SAMPLES);
+
+        tc+=-d;
+        tc = clamp(tc,vec2(0),clampPos);
+        float depth = float(1.0-texelFetch(normals,baseTexpos+ivec2(tc),0).a)*pomDepth;
         if(rayDepth+1e-4>=depth){
             break;
         }
     }
-    return tc;
+    return (baseTexpos+tc)/atlasSize;
 }
 #endif
 #endif

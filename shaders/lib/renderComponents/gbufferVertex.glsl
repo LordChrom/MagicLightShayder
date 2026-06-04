@@ -62,13 +62,12 @@ uniform mat4 gbufferModelViewInverse;
 #endif
 
 #ifdef POM
-uniform float near;
-uniform float aspectRatio;
+uniform ivec2 atlasSize;
 uniform mat4 gbufferProjectionInverse;
-out vec2 differential;
 in vec2 mc_midTexCoord;
-flat out vec2 midtexcoord;
-flat out vec2 texsize;
+out vec2 differential;
+flat out ivec2 baseTexpos;
+flat out ivec2 texsize;
 #endif
 
 #ifdef NEEDS_MATERIAL_ID
@@ -102,11 +101,13 @@ void main() {
     #if MATERIALS_TYPE == 1 && defined TEXTURED
     normalRotator = mat3(at_tangent.xyz,normalize(cross(at_tangent.xyz,normal)*at_tangent.w),normal);
         #ifdef POM
-    midtexcoord = mc_midTexCoord;
-    texsize = 2*abs(midtexcoord-texcoord);
+    texsize = ivec2(2*atlasSize*abs(mc_midTexCoord-texcoord));
+    baseTexpos = ivec2(atlasSize*(mc_midTexCoord-abs(mc_midTexCoord-texcoord)));
+
     vec3 scrnNormal = (gbufferProjectionInverse*gl_Position).xyz;
     vec3 texHitVec = transpose(gl_NormalMatrix*normalRotator)*scrnNormal;
-    differential=texHitVec.xy/texHitVec.z;
+    differential=texsize*texHitVec.xy/texHitVec.z;
+
 
         #endif
     #endif
