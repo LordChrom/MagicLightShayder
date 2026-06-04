@@ -24,7 +24,7 @@ uniform usampler2D colortex3;
 uniform usampler2D colortex4;
 #endif
 
-#if DEBUG_SPECIAL_VIEW == 0
+#if (DEBUG_SPECIAL_VIEW == 0) || (DEBUG_SPECIAL_VIEW==104)
 uniform sampler2D colortex0;
 #elif DEBUG_SPECIAL_VIEW == 1
 uniform sampler2D colortex1;
@@ -161,7 +161,7 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 
 
 
-#if DEBUG_SPECIAL_VIEW == 0
+#if (DEBUG_SPECIAL_VIEW == 0) || (DEBUG_SPECIAL_VIEW==104)
     funnyDebug=texture(colortex0,sampleTexCoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 1
     funnyDebug=texture(colortex1,sampleTexCoord).rgb;

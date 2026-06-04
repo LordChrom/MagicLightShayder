@@ -92,6 +92,8 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 #define DOF_ANTIBLEED 4 //[-1 2 3 4 8 16]
 
 #define MATERIALS_TYPE 0 //[-1 0 1]
+#define POM
+#define POM_SAMPLES 32 //[16 32 64 128]
 #define PBR_NORMALS_STRENGTH 1.0
 
 #define NUM_CASCADES 4 //[1 2 3 4 5 6 7 8 9 10]
@@ -128,6 +130,10 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 #define UPDATE_STRIDE (LIGHTING_SYSTEM_PASSES*UPDATE_FREQ)
 #if UPDATE_STRIDE<=1
     #define UPDATE_STRIDE 2
+#endif
+
+#if MATERIALS_TYPE != 1
+    #undef POM
 #endif
 
 #ifdef DOUBLE_PROC

@@ -102,6 +102,32 @@ uniform float viewWidth, viewHeight;
     #define NORMAL_A 0
 #endif
 
+#ifndef POM_ELLIGIBLE
+    #undef POM
+#endif
+
+#ifdef POM
+in vec2 differential;
+flat in vec2 midtexcoord;
+flat in vec2 texsize;
+uniform ivec2 atlasSize;
+vec2 doPom(vec2 tcIn, out float pomdebug){
+    vec2 d = differential*texsize;
+    const float pomDepth = 0.25;
+    vec2 tc;
+    vec4 clampPos = vec4(midtexcoord-0.5*texsize,midtexcoord+0.5*texsize);
+    for(int i= 0; i<POM_SAMPLES; i++){
+        float rayDepth = float(i+1)*pomDepth/float(POM_SAMPLES);
+        tc = clamp(-d*rayDepth+tcIn,clampPos.xy,clampPos.zw);
+        float depth = float(1.0-texture(normals,tc).a)*pomDepth;
+        if(rayDepth+1e-4>=depth){
+            break;
+        }
+    }
+    return tc;
+}
+#endif
+
 layout(location = 0) out vec4 color;
 layout(location = 1) out vec4 normalOut;
 
@@ -127,6 +153,14 @@ void handleFragment(vec4 glcolor,vec3 normal, vec2 lmcoord, vec4 voxySampledColo
 void main()
 #endif
 {
+#ifdef TEXTURED
+    #ifdef POM
+    float pomdebug;
+        vec2 newTexcoord=doPom(texcoord,pomdebug);
+    #else
+        #define newTexcoord texcoord
+    #endif
+#endif
 
 #ifdef LIT
     #ifdef VOXY_PATCH
@@ -149,13 +183,13 @@ void main()
         lighting=vec4(1.0);
         sampledColor = vec4(doEndGateway(gl_FragCoord.xy/vec2(viewWidth,viewHeight)),1);
     }else{
-        sampledColor = glcolor*texture(gtexture, texcoord);
+        sampledColor = glcolor*texture(gtexture, newTexcoord);
     }
 
 #elif defined VOXY_PATCH
     vec4 sampledColor = voxySampledColor*glcolor;
 #elif defined TEXTURED
-    vec4 sampledColor = glcolor * texture(gtexture, texcoord);
+    vec4 sampledColor = glcolor * texture(gtexture, newTexcoord);
 #else
     vec4 sampledColor = glcolor * lighting;
 #endif
@@ -172,12 +206,19 @@ void main()
 
 #ifdef VERTEX_NORMALS
     #if (defined TEXTURED) && (MATERIALS_TYPE == 1)
-    vec4 pbrNormalSample = texture(normals,texcoord);
+    vec4 pbrNormalSample = texture(normals,newTexcoord);
 
     pbrNormalSample.xy = (pbrNormalSample.xy-0.5)*(2*PBR_NORMALS_STRENGTH);
     vec3 texNormal = vec3(pbrNormalSample.xy,sqrt(1.0 - dot(pbrNormalSample.xy, pbrNormalSample.xy)));
 
     texNormal = normalize(normalRotator*texNormal);
+
+    #if (defined POM) && DEBUG_SPECIAL_VIEW==104
+        bool checker = bool((int(floor(texcoord.x*atlasSize.x))+int(floor(texcoord.y*atlasSize.y)))&1);
+        sampledColor.xyz=vec3(abs(max(differential.xy,checker?0:-1)),0);
+    //        sampledColor.xyz=vec3(pbrNormalSample.a);
+            sampledColor.xyz=vec3(pomdebug);
+    #endif
 
     normalOut = vec4((texNormal+1)*0.5,NORMAL_A);
     #else
@@ -217,7 +258,7 @@ void main()
         #endif
 
     #elif MATERIALS_TYPE == 1 //PBR pack
-    materialInfo = uvec4(round(clamp(texture(specular,texcoord)*255.0,0,255)));
+    materialInfo = uvec4(round(clamp(texture(specular,newTexcoord)*255.0,0,255)));
     #endif
 
     #ifdef TRANSLUCENT

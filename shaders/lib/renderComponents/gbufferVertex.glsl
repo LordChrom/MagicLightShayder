@@ -57,6 +57,17 @@ uniform mat4 gbufferModelViewInverse;
     #endif
 #endif
 
+#ifndef POM_ELLIGIBLE
+    #undef POM
+#endif
+
+#ifdef POM
+out vec2 differential;
+in vec2 mc_midTexCoord;
+flat out vec2 midtexcoord;
+flat out vec2 texsize;
+#endif
+
 #ifdef NEEDS_MATERIAL_ID
 flat out int materialID;
 #endif
@@ -87,6 +98,17 @@ void main() {
 
     #if MATERIALS_TYPE == 1 && defined TEXTURED
     normalRotator = mat3(at_tangent.xyz,normalize(cross(at_tangent.xyz,normal)*at_tangent.w),normal);
+        #ifdef POM
+    midtexcoord = mc_midTexCoord;
+    texsize = 2*abs(midtexcoord-texcoord);
+    vec3 scrnNormal = normalize(vec3(gl_Position.xy/gl_Position.z,-1));
+    //TODO this is probably crap
+    vec3 texHitVec = transpose(gl_NormalMatrix*normalRotator)*scrnNormal;
+
+    texHitVec=normalize(texHitVec);
+    differential=texHitVec.xy/texHitVec.z;
+
+        #endif
     #endif
 #endif
 
