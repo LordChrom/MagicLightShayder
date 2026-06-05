@@ -198,5 +198,7 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     funnyDebug = vec3((texpos.x^texpos.y)&4,(texpos.x^texpos.y)&2,(texpos.x^texpos.y)&1);
 #elif (DEBUG_SPECIAL_VIEW == 103) && (defined SSAO)
     funnyDebug = vec3(ssao);
+#elif (DEBUG_SPECIAL_VIEW == 105)
+    funnyDebug = vec3(depthToLinear(depth)/4);
 #endif
 }

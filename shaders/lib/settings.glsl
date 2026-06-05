@@ -98,6 +98,9 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 #define POM_DEPTH_STRENGTH 1.0 //[0.125 0.25 0.375 0.5 0.75 1.0 2.0 3.0 4.0]
 #define POM_MODE 1 //[0 1 2]
 //#define POM_WRAP
+//#define POM_WRITE_DEPTH
+//#define POM_DISCARD
+
 
 #define NUM_CASCADES 4 //[1 2 3 4 5 6 7 8 9 10]
 #define MIN_SCALE 1.0 //[0.5 1.0 2.0 4.0]

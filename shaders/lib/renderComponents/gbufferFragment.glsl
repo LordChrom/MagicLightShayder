@@ -111,12 +111,18 @@ in vec2 differential;
 flat in ivec2 baseTexpos;
 flat in ivec2 texsize;
 uniform ivec2 atlasSize;
+uniform float far, near;
 
 const float pomDepth = 0.25*POM_DEPTH_STRENGTH;
 
 float rayDepth=0;
 
 void pomEdge(inout vec2 tc){
+    #ifdef POM_DISCARD
+    if(tc.x<0 || tc.y<0 || tc.x>=texsize.x || tc.y>=texsize.y)
+        discard;
+    #endif
+
     #ifdef POM_WRAP
     tc= fract(tc/texsize)*texsize;
     #else
@@ -180,9 +186,15 @@ vec2 doPom(vec2 tc){
 
     ret= doPixPom(initialTc);
     #endif
+
+    #ifdef POM_WRITE_DEPTH
+    rayDepth = float(1.0-texelFetch(normals,(baseTexpos+ivec2(ret)),0).a)*pomDepth;
+    #endif
     return (baseTexpos+ret)/atlasSize;
 
 }
+uniform mat4 gbufferProjectionInverse;
+#include "/lib/util/conversions.glsl"
 #endif
 
 layout(location = 0) out vec4 color;
@@ -213,7 +225,12 @@ void main()
 #ifdef TEXTURED
     #ifdef POM
         vec2 newTexcoord=doPom(texcoord);
+        #ifdef POM_WRITE_DEPTH
+        rayDepth = length(vec3(differential/texsize,1))*rayDepth;
+        gl_FragDepth=depthToBuf(depthToLinear(gl_FragCoord.z)+rayDepth);
+        #endif
     #else
+//        gl_FragDepth=gl_FragCoord.z;
         #define newTexcoord texcoord
     #endif
 #endif
