@@ -91,13 +91,13 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 #define DOF_RAD 16 //[8 16 24 32 40 48 56 64]
 #define DOF_ANTIBLEED 4 //[-1 2 3 4 8 16]
 
-#define MATERIALS_TYPE 0 //[-1 0 1]
+#define MATERIALS_TYPE 1 //[-1 0 1]
 #define POM
-#define POM_SAMPLES 32 //[16 32 64 128 256]
+#define POM_SAMPLES 32 //[4 8 16 32 64 128 256]
 #define PBR_NORMALS_STRENGTH 1.0
 #define POM_DEPTH_STRENGTH 1.0 //[0.125 0.25 0.375 0.5 0.75 1.0 2.0 3.0 4.0]
-#define PIX_POM
-#define POM_WRAP
+#define POM_MODE 1 //[0 1 2]
+//#define POM_WRAP
 
 #define NUM_CASCADES 4 //[1 2 3 4 5 6 7 8 9 10]
 #define MIN_SCALE 1.0 //[0.5 1.0 2.0 4.0]
@@ -122,6 +122,10 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 #define OCCLUDERS_PER_LIGHT 1 //[1 3 5]
 
 /////
+#if MATERIALS_TYPE==1 && !defined MC_TEXTURE_FORMAT_LAB_PBR
+    #define MATERIALS_TYPE 0
+#endif
+
 #define AREA_WIDTH_SECTIONS (AREA_SIZE/SECTION_SIZE)
 #define DOUBLE_PROC
 
@@ -137,6 +141,12 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 
 #if MATERIALS_TYPE != 1
     #undef POM
+#endif
+
+#if POM_MODE==2
+    const int pomSamples = POM_SAMPLES/2;
+#else
+    const int pomSamples = POM_SAMPLES;
 #endif
 
 #ifdef DOUBLE_PROC
