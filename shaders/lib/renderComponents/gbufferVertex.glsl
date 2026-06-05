@@ -101,7 +101,7 @@ void main() {
     #if MATERIALS_TYPE == 1 && defined TEXTURED
     normalRotator = mat3(at_tangent.xyz,normalize(cross(at_tangent.xyz,normal)*at_tangent.w),normal);
         #ifdef POM
-    texsize = ivec2(2*atlasSize*abs(mc_midTexCoord-texcoord));
+    texsize = ivec2(ceil(2*atlasSize*abs(mc_midTexCoord-texcoord)));
     baseTexpos = ivec2(atlasSize*(mc_midTexCoord-abs(mc_midTexCoord-texcoord)));
 
     vec3 scrnNormal = (gbufferProjectionInverse*gl_Position).xyz;

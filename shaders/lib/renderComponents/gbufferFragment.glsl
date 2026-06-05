@@ -126,9 +126,10 @@ void pomEdge(inout vec2 tc){
     #ifdef POM_WRAP
     tc= fract(tc/texsize)*texsize;
     #else
-    tc= clamp(tc,vec2(0),texsize);
+    tc= clamp(tc,vec2(0),texsize-1e-5);
     #endif
 }
+
 vec2 doPixPom(vec2 initialTc){
 
     vec2 tc = initialTc;
@@ -136,11 +137,10 @@ vec2 doPixPom(vec2 initialTc){
         tc =initialTc+differential*rayDepth;
 
         pomEdge(tc);
-        vec2 leftovers = 1-fract(tc*sign(differential));
-        vec2 remainingDepthTillTransition = leftovers/abs(differential);
-        rayDepth+=min(remainingDepthTillTransition.x,remainingDepthTillTransition.y)-1e-5;
+        vec2 remainingDepthTillTransition = (1-fract(tc*sign(differential)))/abs(differential);
+        rayDepth+=min(remainingDepthTillTransition.x,remainingDepthTillTransition.y);
         float texdepth = float(1.0-texelFetch(normals,baseTexpos+ivec2(tc),0).a)*pomDepth;
-        rayDepth+=2e-5;
+        rayDepth+=exp2(-16);
         if(rayDepth>= texdepth){
             break;
         }
@@ -181,8 +181,8 @@ vec2 doPom(vec2 tc){
     ret= doPixPom(initialTc);
     #else
     doSparsePom(initialTc);
-    float maxDepthDif = (pomSamples/(ceil(abs(differential.x))+ceil(abs(differential.y))));
-    rayDepth=max(0,rayDepth-maxDepthDif*0.99);
+    float maxDepthDif = ((pomSamples-2)/(ceil(abs(differential.x))+ceil(abs(differential.y))));
+    rayDepth=max(0,rayDepth-maxDepthDif);
 
     ret= doPixPom(initialTc);
     #endif
@@ -190,7 +190,7 @@ vec2 doPom(vec2 tc){
     #ifdef POM_WRITE_DEPTH
     rayDepth = float(1.0-texelFetch(normals,(baseTexpos+ivec2(ret)),0).a)*pomDepth;
     #endif
-    return (baseTexpos+ret)/atlasSize;
+    return (baseTexpos+(0.5+floor(ret)))/atlasSize;
 
 }
 uniform mat4 gbufferProjectionInverse;
