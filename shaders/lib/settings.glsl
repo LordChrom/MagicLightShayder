@@ -94,7 +94,7 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 #define MATERIALS_TYPE 1 //[-1 0 1]
 #define POM
 #define POM_SAMPLES 32 //[4 8 16 32 64 128 256]
-#define PBR_NORMALS_STRENGTH 1.0
+#define PBR_NORMALS_STRENGTH 1.0 //[0.0 0.125 0.25 0.5 0.75 1.0 1.25 1.5 1.75 2.0 2.5 3.0]
 #define POM_DEPTH_STRENGTH 1.0 //[0.125 0.25 0.375 0.5 0.675dobs 0.75 1.0 1.25 1.5 1.75 2.0 2.5 3.0 3.5 4.0]
 #define POM_MODE 2 //[0 1 2]
 #define POM_NORMALS

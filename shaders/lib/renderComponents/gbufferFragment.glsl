@@ -143,9 +143,11 @@ void main()
 #ifdef TEXTURED
     #ifdef POM
         vec2 newTexcoord=doPom(texcoord);
+        float linearDepth = depthToLinear(gl_FragCoord.z);
         #ifdef POM_WRITE_DEPTH
         rayDepth = length(vec3(differential/texsize,1))*rayDepth;
-        gl_FragDepth=depthToBuf(depthToLinear(gl_FragCoord.z)+rayDepth);
+        linearDepth+=rayDepth;
+        gl_FragDepth=depthToBuf(linearDepth);
         #endif
     #else
 //        gl_FragDepth=gl_FragCoord.z;
@@ -200,6 +202,8 @@ void main()
     vec4 pbrNormalSample = texture(normals,newTexcoord);
 
     pbrNormalSample.xy = (pbrNormalSample.xy-0.5)*(2*PBR_NORMALS_STRENGTH);
+    pbrNormalSample/=max(1,length(pbrNormalSample.xy));
+
     vec3 texNormal = vec3(pbrNormalSample.xy,sqrt(1.0 - dot(pbrNormalSample.xy, pbrNormalSample.xy)));
 
     #if (defined POM_NORMALS) && (defined POM)
@@ -210,7 +214,9 @@ void main()
     vec3 pomEdgeNormal = vec3(
         pomEdgeDif,0
     );
-    texNormal = normalize(texNormal+1.5*pomEdgeNormal);
+
+    pomEdgeNormal*=min(1.5,3/linearDepth);
+    texNormal = normalize(texNormal+pomEdgeNormal);
     #endif
 
     texNormal = normalize(normalRotator*texNormal);
