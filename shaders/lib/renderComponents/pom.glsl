@@ -34,7 +34,7 @@ vec2 doPixPom(vec2 initialTc){
         vec2 depthTillPxEdge = (1-fract(tc*sign(differential)))/abs(differential);
 
         #ifdef POM_NORMALS
-        if(rayDepth>=texdepth){
+        if(rayDepth>=texdepth+tiny){
             pomEdgeDif = ivec2(tc)-lastTc;
             break;
         }
