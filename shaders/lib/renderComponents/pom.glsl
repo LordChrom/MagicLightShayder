@@ -17,25 +17,37 @@ void pomEdge(inout vec2 tc){
 }
 
 uniform int frameCounter;
+#define POM_PERFECT_EDGES
+
 vec2 doPixPom(vec2 initialTc){
     float tiny = exp2(-22)*max(texsize.x,texsize.y);
     vec2 tc = initialTc;
 
     for(int i = 0; i<pomSamplesPix; i++){
-        #ifdef POM_NORMALS
-        ivec2 lastTc = ivec2(tc);
+        #if defined POM_PERFECT_EDGES || defined POM_NORMALS
+        vec2 lastTc = tc;
+        if(i==0)
+            lastTc +=differential*rayDepth;
         #endif
 
         rayDepth+=tiny;
         tc =initialTc+differential*rayDepth;
+
+        ivec2 texpos = ivec2(tc);
+        #ifdef POM_PERFECT_EDGES
+        if(length(ivec2(lastTc)-texpos)>1){
+            tc.x=(15*tc.x+lastTc.x)/16.0;
+            rayDepth = (tc.x-initialTc.x)/differential.x;
+        }
+        #endif
 
         pomEdge(tc);
         float texdepth = float(1.0-texelFetch(normals,baseTexpos+ivec2(tc),0).a)*pomDepth;
         vec2 depthTillPxEdge = (1-fract(tc*sign(differential)))/abs(differential);
 
         #ifdef POM_NORMALS
-        if(rayDepth>=texdepth+tiny){
-            pomEdgeDif = ivec2(tc)-lastTc;
+        if(rayDepth>texdepth+tiny){
+            pomEdgeDif = ivec2(tc)-ivec2(lastTc);
             break;
         }
         #endif
