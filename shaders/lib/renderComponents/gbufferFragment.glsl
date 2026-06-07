@@ -203,6 +203,10 @@ void main()
     vec3 texNormal = vec3(pbrNormalSample.xy,sqrt(1.0 - dot(pbrNormalSample.xy, pbrNormalSample.xy)));
 
     #if (defined POM_NORMALS) && (defined POM)
+    if(length(pomEdgeDif)>1)
+        pomEdgeDif=ivec2(0);
+
+    pomEdgeDif=ivec2(sign(differential))*-abs(pomEdgeDif);
     vec3 pomEdgeNormal = vec3(
         pomEdgeDif,0
     );

@@ -16,11 +16,10 @@ void pomEdge(inout vec2 tc){
     #endif
 }
 
+uniform int frameCounter;
 vec2 doPixPom(vec2 initialTc){
-    const float tiny = exp2(-12);
+    float tiny = exp2(-22)*max(texsize.x,texsize.y);
     vec2 tc = initialTc;
-
-
 
     for(int i = 0; i<pomSamplesPix; i++){
         #ifdef POM_NORMALS
@@ -32,18 +31,17 @@ vec2 doPixPom(vec2 initialTc){
 
         pomEdge(tc);
         float texdepth = float(1.0-texelFetch(normals,baseTexpos+ivec2(tc),0).a)*pomDepth;
+        vec2 depthTillPxEdge = (1-fract(tc*sign(differential)))/abs(differential);
 
         #ifdef POM_NORMALS
-        if(rayDepth>texdepth+tiny){
-            lastTc = abs(ivec2(tc)-lastTc);
-            pomEdgeDif=-ivec2(sign(differential))*lastTc;
+        if(rayDepth>=texdepth){
+            pomEdgeDif = ivec2(tc)-lastTc;
             break;
         }
         #endif
 
-        vec2 remainingDepthTillTransition = (1-fract(tc*sign(differential)))/abs(differential);
-        rayDepth+=min(remainingDepthTillTransition.x,remainingDepthTillTransition.y);
-        if(rayDepth>= texdepth){
+        rayDepth+=min(depthTillPxEdge.x,depthTillPxEdge.y);
+        if(rayDepth> texdepth){
             break;
         }
 
