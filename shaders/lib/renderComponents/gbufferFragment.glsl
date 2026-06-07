@@ -131,16 +131,16 @@ void pomEdge(inout vec2 tc){
 }
 
 vec2 doPixPom(vec2 initialTc){
-
+    const float tiny = exp2(-12);
     vec2 tc = initialTc;
-    for(int i = 0; i<pomSamples; i++){
+    for(int i = 0; i<pomSamplesPix; i++){
+        rayDepth+=tiny;
         tc =initialTc+differential*rayDepth;
 
         pomEdge(tc);
         vec2 remainingDepthTillTransition = (1-fract(tc*sign(differential)))/abs(differential);
         rayDepth+=min(remainingDepthTillTransition.x,remainingDepthTillTransition.y);
         float texdepth = float(1.0-texelFetch(normals,baseTexpos+ivec2(tc),0).a)*pomDepth;
-        rayDepth+=exp2(-16);
         if(rayDepth>= texdepth){
             break;
         }
@@ -150,8 +150,8 @@ vec2 doPixPom(vec2 initialTc){
 }
 vec2 doSparsePom(vec2 initialTc){
     vec2 tc;
-    for(int i = 0; i<pomSamples; i++){
-        rayDepth = i*(pomDepth/pomSamples);
+    for(int i = 0; i<pomSamplesSparse; i++){
+        rayDepth = i*(pomDepth/pomSamplesSparse);
         tc =initialTc+differential*rayDepth;
     #if POM_MODE==2
         vec2 c = clamp(tc,vec2(0),texsize);
@@ -181,7 +181,7 @@ vec2 doPom(vec2 tc){
     ret= doPixPom(initialTc);
     #else
     doSparsePom(initialTc);
-    float maxDepthDif = ((pomSamples-2)/(ceil(abs(differential.x))+ceil(abs(differential.y))));
+    float maxDepthDif = ((pomSamplesPix-2)/(ceil(abs(differential.x))+ceil(abs(differential.y))));
     rayDepth=max(0,rayDepth-maxDepthDif);
 
     ret= doPixPom(initialTc);
