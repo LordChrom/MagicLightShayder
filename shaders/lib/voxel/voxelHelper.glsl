@@ -99,11 +99,11 @@ bool isVoxelInBounds(vec3 worldPos){
 }
 
 uint zoneOffset(uint axis, uint layer, uint cascadeLevel){
-    return 1+int((ZONE_OFFSET)*(MEM_LAYERS*axis+layer+(6*MEM_LAYERS)*cascadeLevel));
+    return ((cascadeLevel<<16u)|(0xffu&(layer+MEM_LAYERS*axis)));
 }
 
 uint areaOffset(uint cascadeLevel){
-    return 1+AREA_OFFSET*cascadeLevel;
+    return cascadeLevel<<16u;
 }
 
 ivec3 areaToZoneSpace(ivec3 areaPos, uint axis){
@@ -157,7 +157,7 @@ vec3 subVoxelOffset(vec3 pos, float scale){
 ivec3 toMemPos(ivec3 pos, ivec3 spaceShift, uint memOffset){
     pos += spaceShift;
     pos = modAreaSize(pos);
-    pos.z+=int(memOffset);
+    pos.yz+=AREA_SIZE*(0xffff&ivec2(memOffset>>16,memOffset));
     return pos;
 }
 

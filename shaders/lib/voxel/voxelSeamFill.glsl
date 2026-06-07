@@ -59,7 +59,7 @@ void trimLight(ivec3 zonePos){
     ivec3 upZonePos = uppperCascadeZonePos(zonePos,thisShift,axis,scale,zonePosRemnants);
 
     //TODO check if position in higher volume hasnt been shifted out of bounds, but should only be an issue when moving *very* fast
-    bool upsampleValid = bool(upperMemOffset);
+    bool upsampleValid = bool(~upperMemOffset);
     if(upsampleValid){
         light = sampleLightData(upZonePos,upperShift,upperMemOffset);
         if(unpackLightType(light)!=LIGHT_TYPE_SUN)
@@ -87,7 +87,7 @@ void fillLightSeams(uvec3 workGroupID, uvec3 localID){
     thisShift = areaToZoneSpace(thisShift,axis);
 
     thisMemOffset = zoneOffset(axis,layer,cascadeLevel);
-    upperMemOffset = (cascadeLevel<NUM_CASCADES-1)?zoneOffset(axis,layer,cascadeLevel+1) : 0;
+    upperMemOffset = (cascadeLevel<NUM_CASCADES-1)?zoneOffset(axis,layer,cascadeLevel+1) : ~0;
     upperShift = areaToZoneSpace(getAreaShift(scale*2),axis);
 
     //TODO make do outward light
