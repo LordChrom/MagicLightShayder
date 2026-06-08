@@ -276,8 +276,11 @@ void setPackedLightFlags(inout uvec4 packedData, uint flags){
     packedData.z = (packedData.z&0xffffff00u) | (flags&0xffu);
 }
 
+float sunDist = 2+((frameCounter>>6)%10)*0.5;
 uvec4 packLightData(vec2 occlusionRay,uint occlusionMap,vec3 color,vec3 lightTravel,float occlusionHitDistance,uint type,uint flags){
     uvec4 ret;
+    if(type==LIGHT_TYPE_SUN)
+        lightTravel.z=sunDist;
     uvec3 intTravel = ivec3(round(lightTravel*lightTravelScaleInv));
 
     ret.x = (intTravel.x<<16) | (intTravel.y&0xffffu);
@@ -381,18 +384,6 @@ bool isLit(vec3 position, vec2 occlRay, uint occlMap){
     return bool(occlMap & (abs(position.x)>occlRay.x*position.z?10u:5u) & (abs(position.y)>occlRay.y*position.z?12u:3u));
 }
 
-float penumbralLightTest(vec3 position, vec2 ray, uint map, float occlHitDist){
-    float width =(PENUMBRA_WIDTH)*((position.z/occlHitDist)-1);
-
-    vec2 m = clamp((abs(position.xy/position.z)-ray)/width+0.5,0,1);
-
-    vec2 mixX = mix(
-        vec2(1u&(map>>0),1u&(map>>2)),
-        vec2(1u&(map>>1),1u&(map>>3)),
-    m.x);
-    return mix(mixX.x,mixX.y,m.y);
-}
-
 
 
 //outer x,y, inner xy
@@ -464,4 +455,13 @@ uint getVariableCascadeLevel(bool isAuxGroup){
 const vec3 sunColor = vec3(242,242,242)/255;
 const vec3 sunPos = vec3(0,0,1000);
 const uvec4 noLight = uvec4(0);
-uvec4 defaultSunLight = packLightData(vec2(0),0xfu,sunColor,vec3(0,0,10),0f,1,0xfeu);
+
+//TODO ssbo?
+uniform float sunAngle;
+uvec4 getSunlight(){
+    if(sunAngle>=0.5)
+        return noLight;
+    float angleOfTheSun = sunAngle*2*PI;
+    vec3 sunLightTravel = vec3(0,-cos(angleOfTheSun),1)*sunDist;
+    return packLightData(vec2(0),0xfu,sunColor,sunLightTravel,0f,1,0xfeu);
+}

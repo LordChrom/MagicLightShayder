@@ -45,28 +45,40 @@ float baseLightStrength(uint type, vec3 displacement, ivec3 blockPos, vec3 trave
     return lightStrength*inversesqrt(lengthSquared*lengthSquared*(1-columnation)+b);
 }
 
+//float penumbralLightTest(vec3 position, vec2 ray, uint map, float occlHitDist){
 
-void doPenumbralOcclusion(inout float lightStrength, vec3 displacement, vec3 travel, uint packedOcclusionData){
+//}
+void doPenumbralOcclusion(inout float lightStrength, vec3 displacement, vec3 travel, uint packedOcclusionData, bool isSun){
     vec2 ray = unpackOcclusionRay(packedOcclusionData);
     uint map = unpackOcclusionMap(packedOcclusionData);
 
 
     float highSlope = max(abs(displacement.x),abs(displacement.y))/max(1e-9,displacement.z);
     float sharpener = (max(abs(travel.x),abs(travel.y))!=travel.z)? 1e9:1.0;
-    float occHitDist = unpackOcclusionHitDist(packedOcclusionData);
+    float occlHitDist = unpackOcclusionHitDist(packedOcclusionData);
 
-    lightStrength*=clamp(0.5+(1-highSlope)*(sharpener/PENUMBRA_WIDTH),0,1);
-    lightStrength*=penumbralLightTest(displacement,ray,map,occHitDist);
+    if(!isSun)
+        lightStrength*=clamp(0.5+(1-highSlope)*(sharpener/PENUMBRA_WIDTH),0,1);
+
+    float width =(PENUMBRA_WIDTH)*((displacement.z/occlHitDist)-1);
+
+    vec2 m = clamp((abs(displacement.xy/displacement.z)-ray)/width+0.5,0,1);
+
+    vec2 mixX = mix(
+    vec2(1u&(map>>0),1u&(map>>2)),
+    vec2(1u&(map>>1),1u&(map>>3)),
+    m.x);
+    lightStrength*= mix(mixX.x,mixX.y,m.y);
 }
-void doSharpOcclusion(inout float lightStrength, vec3 displacement, vec3 travel, uint packedOcclusionData){
+void doSharpOcclusion(inout float lightStrength, vec3 displacement, vec3 travel, uint packedOcclusionData, bool isSun){
     vec2 ray = unpackOcclusionRay(packedOcclusionData);
     uint map = unpackOcclusionMap(packedOcclusionData);
 
-    lightStrength=max(abs(displacement.x),abs(displacement.y))<=displacement.z?lightStrength:0;
+    lightStrength=isSun||(max(abs(displacement.x),abs(displacement.y))<=displacement.z)?lightStrength:0;
     lightStrength=isLit(displacement,ray,map) ? lightStrength:0;
 }
 
-void doSharpOcclusionPixelLocked(inout float lightStrength, vec3 displacement, vec3 travel, uint packedOcclusionData){
+void doSharpOcclusionPixelLocked(inout float lightStrength, vec3 displacement, vec3 travel, uint packedOcclusionData, bool isSun){
     vec2 ray = unpackOcclusionRay(packedOcclusionData);
     uint map = unpackOcclusionMap(packedOcclusionData);
 
@@ -252,10 +264,10 @@ vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 b
 
     if(isForFog){
         lightStrength =(type==LIGHT_TYPE_SUN)?FOG_BRIGHTNESS_SUN:FOG_BRIGHTNESS_BLOCK;
-        doFogOcclusion(lightStrength,displacement,travel,packedLightSrc.w);
+        doFogOcclusion(lightStrength,displacement,travel,packedLightSrc.w,type==LIGHT_TYPE_SUN);
     }else {
         lightStrength =normalFactor(normal, displacement, axis, subsurface);
-        doTerrainOcclusion(lightStrength,displacement,travel,packedLightSrc.w);
+        doTerrainOcclusion(lightStrength,displacement,travel,packedLightSrc.w,type==LIGHT_TYPE_SUN);
     }
 
     //TODO okay so ive tested and its like a 1% improvement but it seems stupid so im leaving it off
