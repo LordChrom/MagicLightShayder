@@ -158,8 +158,10 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 
 #ifdef DOUBLE_PROC
 #define PROC_MULT 2
+#define LIGHTER_WORK_GROUP_Y 12
 #else
 #define PROC_MULT 1
+#define LIGHTER_WORK_GROUP_Y 6
 #endif
 
 #if LIGHTS_PER_FOG_SAMPLE>=VOX_LAYERS
@@ -216,11 +218,6 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 
 const int SECTIONS_PER_AREA_XY = AREA_WIDTH_SECTIONS*AREA_WIDTH_SECTIONS;
 
-#ifdef WAVES_INORDER
-const int SECTIONS_PER_AREA_Z = 1;
-#else
-const int SECTIONS_PER_AREA_Z = max(1,AREA_SIZE/UPDATE_STRIDE);
-#endif
 
 
 //const int SECTIONS_PER_AREA = AREA_WIDTH_SECTIONS*AREA_WIDTH_SECTIONS*AREA_WIDTH_SECTIONS;

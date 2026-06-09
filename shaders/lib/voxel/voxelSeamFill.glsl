@@ -36,16 +36,6 @@ const ivec3 workGroups = ivec3(NUM_CASCADES,AREA_SIZE,AXIS_LAYER_WORLD_COUNT);
 layout (local_size_x = AREA_SIZE, local_size_y = 1, local_size_z = 1) in;
 
 
-const int workGroupZ = 6*PROC_MULT;
-
-
-
-//layout(std430, binding = 0) restrict buffer areaData {
-//} areaDataAccess;
-
-layout(std430, binding = 1) restrict buffer indirectDispatches {
-    uvec3 lighterDispatches;
-} indirectDispatchesAccess;
 
 float scale;
 uint thisMemOffset, upperMemOffset, axis, cascadeLevel, frameOffset;
@@ -130,8 +120,6 @@ bool isPosExpiryExempt(ivec3 areaPos){
 }
 
 void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
-    if(workGroupID.xy==uvec2(0) && localID==uvec3(0))
-        indirectDispatchesAccess.lighterDispatches=uvec3(SECTIONS_PER_AREA_XY,SECTIONS_PER_AREA_Z,workGroupZ);
     thisMemOffset = areaOffset(cascadeLevel);
     upperMemOffset = (cascadeLevel<NUM_CASCADES-1)?areaOffset(cascadeLevel+1):0;
 

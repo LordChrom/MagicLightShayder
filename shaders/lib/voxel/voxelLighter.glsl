@@ -3,14 +3,47 @@
 #define SAMPLES_VOX
 #include "/lib/voxel/voxelHelper.glsl"
 
-//workGroups is indirect, determined in voxelSeamFill
+#ifdef WAVES_INORDER
+    #define LIGHTER_Z_EXACT 1
+#else
+    #define LIGHTER_Z_EXACT AREA_SIZE/UPDATE_STRIDE
+
+    //TODO make this more complete from the script
+    #if LIGHTER_Z_EXACT<=1
+        #define LIGHTER_WORK_GROUP_Z 1
+    #elif LIGHTER_Z_EXACT<=2
+        #define LIGHTER_WORK_GROUP_Z 2
+    #elif LIGHTER_Z_EXACT<=4
+        #define LIGHTER_WORK_GROUP_Z 4
+    #elif LIGHTER_Z_EXACT<=8
+        #define LIGHTER_WORK_GROUP_Z 8
+    #else
+        #define LIGHTER_WORK_GROUP_Z 16
+    #endif
+
+#endif
+
+#if AREA_WIDTH_SECTIONS<=1
+    #define LIGHTER_WORK_GROUP_X 1
+#elif AREA_WIDTH_SECTIONS<=2
+    #define LIGHTER_WORK_GROUP_X 4
+#elif AREA_WIDTH_SECTIONS<=4
+    #define LIGHTER_WORK_GROUP_X 16
+#elif AREA_WIDTH_SECTIONS<=8
+    #define LIGHTER_WORK_GROUP_X 64
+#elif AREA_WIDTH_SECTIONS<=16
+    #define LIGHTER_WORK_GROUP_X 256
+#else
+    #define LIGHTER_WORK_GROUP_X 1024
+#endif
+const ivec3 workGroups = ivec3(LIGHTER_WORK_GROUP_X,LIGHTER_WORK_GROUP_Y,LIGHTER_WORK_GROUP_Z);
 layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z = LOCAL_SIZE_Z) in;
 
 //different per invocation
 ivec3 areaPos, zonePos;
 uint A,B; //1 to SECTION_SIZE
 
-#define LOCAL_STASH
+//#define LOCAL_STASH
 
 #ifdef LOCAL_STASH
     uint bonusOffsetA=0, bonusOffsetB=0;
@@ -41,7 +74,7 @@ uint A,B; //1 to SECTION_SIZE
     #define READS_MUST_BE_UNIFORM
 #else
     shared uvec4[SECTION_SIZE+2][SECTION_SIZE+2][LIGHT_LAYERS] sharedPackedPool;
-    uvec4 getInputSample(int a, int b, uint layer){barrier();return sharedPackedPool[A+a][B+b][layer];}
+    uvec4 getInputSample(int a, int b, uint layer){return sharedPackedPool[A+a][B+b][layer];}
     void setSharedSample(int a, int b, uint layer, uvec4 data){
         sharedPackedPool[A+a][B+b][layer]=data;
     }
@@ -173,9 +206,7 @@ void takeSamples(){
         saveSharedSample(bonusPos.x,bonusPos.y);
     }
 
-    #ifndef LOCAL_STASH
     barrier(); //disable for fun party :)
-    #endif
 }
 
 
@@ -234,13 +265,11 @@ uvec4[VOX_LAYERS] determineBestLightSources(){
     }
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-        for (int i=0; i<=2;i++){
-            int a = i>=2?-1:i;
-            for (int j=0; j<=2;j++){
-                int b = j>=2?-1:j;
+        for (int a=-1; a<=1;a++){
+            for (int b=-1; b<=1;b++){
                 uvec4 lightSrc = getInputSample(a,b,layer);
                 #if defined READS_MUST_BE_UNIFORM && !defined UNOCCLUDED_INTO_BLOCKS
-                if(bool(blocksInFront&(uint(blockInFront)<<(16+a+(b<<2))))) continue;
+                if(bool(blocksInFront&(1u<<(16+a+(b<<2))))) continue;
                 #endif
                 uint type = unpackLightType(lightSrc);
                 vec3 travel = unpackLightTravel(lightSrc);
@@ -380,7 +409,7 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
             if(!earlyReturn)
                 newObstructions[i][j]=blockBlocked;
 
-            bool sampleDoneProcessing = (alignment.x&&j==0) || (alignment.y&&i==0) || blockBlocked;
+            bool sampleDoneProcessing = (alignment.x&&j==0) || (alignment.y&&i==0) || blockBlocked || earlyReturn;
             #ifndef READS_MUST_BE_UNIFORM
             if(sampleDoneProcessing) continue;
             #endif
@@ -389,7 +418,7 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
             for(int layer = 0; layer<VOX_LAYERS; layer++){
                 uvec4 relevantSample = getInputSample(a,b,layer);
                 #ifdef READS_MUST_BE_UNIFORM
-                if(sampleDoneProcessing||earlyReturn) continue;
+                if(sampleDoneProcessing) continue;
                 #endif
                 if(lightTravel.x*a>0 || lightTravel.y*b>0)
                     continue;
@@ -407,7 +436,7 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
                 }
             }
             #ifdef READS_MUST_BE_UNIFORM
-            if(sampleDoneProcessing||earlyReturn) continue;
+            if(sampleDoneProcessing) continue;
             #endif
 
             ivec2 effectivePos = ivec2(a,b)+zonePos.xy;
@@ -784,7 +813,7 @@ void lightVoxelFace(){
         doLightPassage(light,false);
         setPackedLightFlags(light,unpackLightFlags(bestLights[layer])&0xfeu);
         if(!isOverwrittenTranslucentLayer)
-            bestLights[layer];
+            bestLights[layer] = light;
     }
 
     //could maybe be at the top, not sure how much it'd actually help though TODO test later
@@ -819,11 +848,11 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
     ivec3 zoneBasePos = ivec3(
         localId.x+(groupId.x%AREA_WIDTH_SECTIONS)*SECTION_SIZE,
         localId.y+(groupId.x/AREA_WIDTH_SECTIONS)*SECTION_SIZE,
-        (groupId.y)*UPDATE_STRIDE
+        (groupId.z)*UPDATE_STRIDE
     );
 
     int frameBasedOffset = frameCounter;
-    cascadeLevel = getVariableCascadeLevel(frameBasedOffset,bool(groupId.z&1u));
+    cascadeLevel = getVariableCascadeLevel(frameBasedOffset,bool(groupId.y&1u));
     if(cascadeLevel>=NUM_CASCADES) return;
 #ifdef DOUBLE_PROC
     frameBasedOffset=(frameBasedOffset>>cascadeLevel);
@@ -843,7 +872,7 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
 #if DEBUG_AXIS>=0
     axis = DEBUG_AXIS;
 #else
-    axis = groupId.z/PROC_MULT;
+    axis = groupId.y/PROC_MULT;
 #endif
 
     aVec = ivec3(areaToZoneSpaceMats[axis][0]);
