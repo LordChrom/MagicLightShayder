@@ -6,8 +6,46 @@
 //workGroups is indirect, determined in voxelSeamFill
 layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z = LOCAL_SIZE_Z) in;
 
+//different per invocation
+ivec3 areaPos, zonePos;
+uint A,B; //1 to SECTION_SIZE
 
-shared uvec4[SECTION_SIZE+2][SECTION_SIZE+2][LIGHT_LAYERS] sharedPackedSamples;
+#define LOCAL_STASH
+
+#ifdef LOCAL_STASH
+    uint bonusOffsetA=0, bonusOffsetB=0;
+    uint lastLayerAccessed=~0u;
+    shared uvec4[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedAccess;
+    uvec4[LIGHT_LAYERS] localMainPool;
+    uvec4[LIGHT_LAYERS] localSubPool;
+    uvec4 getInputSample(int a, int b, uint layer){
+        if(layer!=lastLayerAccessed){
+            sharedPackedAccess[A][B]=localMainPool[layer];
+            if(bool (bonusOffsetA|bonusOffsetB))
+                sharedPackedAccess[A+bonusOffsetA][B+bonusOffsetB]=localSubPool[layer];
+            lastLayerAccessed=layer;
+            barrier();
+        }
+
+        return sharedPackedAccess[A+a][B+b];
+    }
+    void setSharedSample(int a, int b, uint layer, uvec4 data){
+        if(bool(a|b)){
+            bonusOffsetA=a;
+            bonusOffsetB=b;
+            localSubPool[layer]=data;
+        }else{
+            localMainPool[layer]=data;
+        }
+    }
+    #define READS_MUST_BE_UNIFORM
+#else
+    shared uvec4[SECTION_SIZE+2][SECTION_SIZE+2][LIGHT_LAYERS] sharedPackedPool;
+    uvec4 getInputSample(int a, int b, uint layer){barrier();return sharedPackedPool[A+a][B+b][layer];}
+    void setSharedSample(int a, int b, uint layer, uvec4 data){
+        sharedPackedPool[A+a][B+b][layer]=data;
+    }
+#endif
 shared uint[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedFrontVoxels;
 shared uint[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedRearVoxels;
 
@@ -17,15 +55,11 @@ ivec3 aVec, bVec, LVec;
 float scale,halfScale;
 uint axis, cascadeLevel;
 
-//different per invocation
-ivec3 areaPos, zonePos;
-uint A,B; //1 to SECTION_SIZE
 
 #ifdef FALLBACK_RADIANCE
 uvec4 radiance = uvec4(0);
 #endif
 
-uvec4 getInputSample(int a, int b, uint layer){return sharedPackedSamples[A+a][B+b][layer];}
 uint getFrontVoxel(int a, int b){return sharedPackedFrontVoxels[A+a][B+b];}
 uint getRearVoxel(int a, int b){return sharedPackedRearVoxels[A+a][B+b];}
 
@@ -76,10 +110,10 @@ void saveSharedSample(int a, int b){
             defaultLight=noLight;
     #endif
             for(int layer = 0; layer<VOX_LAYERS; layer++){
-                sharedPackedSamples[A+a][B+b][layer] = defaultLight;
+                setSharedSample(a,b,layer,defaultLight);
             }
         #ifdef FALLBACK_RADIANCE
-            sharedPackedSamples[A+a][B+b][RADIANCE_LAYER] = uvec4(0);
+            setSharedSample(a,b,RADIANCE_LAYER,uvec4(0));
         #endif
             return;
         }
@@ -94,7 +128,7 @@ void saveSharedSample(int a, int b){
             setPackedLightTravel(light,unpackLightTravel(light)+zonePosRemnants);
         }
 
-        sharedPackedSamples[A+a][B+b][layer] = maybeBlockLight(light,rearVoxel);
+        setSharedSample(a,b,layer,maybeBlockLight(light,rearVoxel));
     }
 
 
@@ -104,7 +138,7 @@ void saveSharedSample(int a, int b){
     if(bool(rearVoxel&WORLDVOX_OPAQUE)){
        r = sampleLightData(sampleZonePos, sampleZoneShift, zoneOffset(axis,RADIANCE_LAYER,sampleCascade));
     }
-    sharedPackedSamples[A+a][B+b][RADIANCE_LAYER] = r;
+    setSharedSample(a,b,RADIANCE_LAYER,r);
 #endif
 
 }
@@ -139,7 +173,9 @@ void takeSamples(){
         saveSharedSample(bonusPos.x,bonusPos.y);
     }
 
+    #ifndef LOCAL_STASH
     barrier(); //disable for fun party :)
+    #endif
 }
 
 
@@ -179,24 +215,33 @@ uvec4[VOX_LAYERS] determineBestLightSources(){
     }
 
 
-    const float[] weights = {0.55,0.1,0.02};
+
+    uint blocksInFront = 0;
 
     for (int a=-1; a<=1;a++){
         for (int b=-1; b<=1;b++){
-#ifdef FALLBACK_RADIANCE
-            radiance = combineRadiance(radiance,getInputSample(a,b,VOX_LAYERS),weights[abs(a)+abs(b)]);
-#endif
+            #ifdef FALLBACK_RADIANCE
+            const float[] weights = {0.55,0.1,0.02};
+            radiance = combineRadiance(radiance, getInputSample(a, b, VOX_LAYERS), weights[abs(a)+abs(b)]);
+            #endif
 
-#ifndef UNOCCLUDED_INTO_BLOCKS
-            if(bool((getRearVoxel(a,b)|getFrontVoxel(a,b))&WORLDVOX_OPAQUE) || //block in front
-                ( bool(getFrontVoxel(a,0)&WORLDVOX_OPAQUE) && bool(getFrontVoxel(0,b)&WORLDVOX_OPAQUE) && ((a|b)!=0))
-            ){ //neighboring blocks between src and center
-                continue;
-            }
-#endif
+            #ifndef UNOCCLUDED_INTO_BLOCKS
+            bool blockInFront = bool((getRearVoxel(a,b)|getFrontVoxel(a,b))&WORLDVOX_OPAQUE)
+            || ( bool(getFrontVoxel(a,0)&WORLDVOX_OPAQUE) && bool(getFrontVoxel(0,b)&WORLDVOX_OPAQUE) && ((a|b)!=0));  //neighboring blocks between src and center
+            blocksInFront |= (uint(blockInFront)<<(16+a+(b<<2)));
+            #endif
+        }
+    }
 
-            for(int layer = 0; layer<VOX_LAYERS; layer++){
+    for(int layer = 0; layer<VOX_LAYERS; layer++){
+        for (int i=0; i<=2;i++){
+            int a = i>=2?-1:i;
+            for (int j=0; j<=2;j++){
+                int b = j>=2?-1:j;
                 uvec4 lightSrc = getInputSample(a,b,layer);
+                #if defined READS_MUST_BE_UNIFORM && !defined UNOCCLUDED_INTO_BLOCKS
+                if(bool(blocksInFront&(uint(blockInFront)<<(16+a+(b<<2))))) continue;
+                #endif
                 uint type = unpackLightType(lightSrc);
                 vec3 travel = unpackLightTravel(lightSrc);
                 if(type!=LIGHT_TYPE_SUN){
@@ -289,8 +334,10 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
     uint obstructingTerrainMask = (sampleFreshlyTranslucent || translucentTerrain)?WORLDVOX_OPAQUE:WORLDVOX_NOT_AIR;
     bool cornerBlocked = !(alignment.x||alignment.y);
 
-    if(bool(localFronts[1][1]&WORLDVOX_TRANSLUCENT)&&!(sampleFreshlyTranslucent || translucentTerrain))
-        return;
+    bool earlyReturn = bool(localFronts[1][1]&WORLDVOX_TRANSLUCENT)&&!(sampleFreshlyTranslucent || translucentTerrain);
+    #ifndef READS_MUST_BE_UNIFORM
+    if(earlyReturn) return;
+    #endif
 
 #ifdef UNOCCLUDED_INTO_BLOCKS
     bool frontBlockedCompletely = bool(localFronts[1][1]&WORLDVOX_OPAQUE);
@@ -330,14 +377,20 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
             //TODO figure out if this is necessary after handling the opposing corners case
             cornerBlocked = cornerBlocked && (i==j || bool(front&WORLDVOX_OPAQUE));
 
-            newObstructions[i][j]=blockBlocked;
+            if(!earlyReturn)
+                newObstructions[i][j]=blockBlocked;
 
-            if((alignment.x&&j==0) || (alignment.y&&i==0) || blockBlocked)
-                continue;
+            bool sampleDoneProcessing = (alignment.x&&j==0) || (alignment.y&&i==0) || blockBlocked;
+            #ifndef READS_MUST_BE_UNIFORM
+            if(sampleDoneProcessing) continue;
+            #endif
 
 
             for(int layer = 0; layer<VOX_LAYERS; layer++){
                 uvec4 relevantSample = getInputSample(a,b,layer);
+                #ifdef READS_MUST_BE_UNIFORM
+                if(sampleDoneProcessing||earlyReturn) continue;
+                #endif
                 if(lightTravel.x*a>0 || lightTravel.y*b>0)
                     continue;
 
@@ -353,6 +406,9 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
                     break;
                 }
             }
+            #ifdef READS_MUST_BE_UNIFORM
+            if(sampleDoneProcessing||earlyReturn) continue;
+            #endif
 
             ivec2 effectivePos = ivec2(a,b)+zonePos.xy;
             newObstructions[i][j]=newObstructions[i][j]
@@ -694,11 +750,17 @@ void lightVoxelFace(){
                 color+=worldVoxColor(rear);
         }
     }
+    color/=translucentBlocksInSample;
+
+
+    #ifdef READS_MUST_BE_UNIFORM
+    doLightPassage(translucentPassage,true);
+    #endif
 
     if(translucentBlocksInSample>0){
-        color/=translucentBlocksInSample;
-
+        #ifndef READS_MUST_BE_UNIFORM
         doLightPassage(translucentPassage,true);
+        #endif
         if(bool(unpackOcclusionMap(translucentPassage.w))){
             setPackedLightColor(translucentPassage,unpackLightColor(translucentPassage)*color);
             setPackedLightFlags(translucentPassage,unpackLightFlags(translucentPassage)|1u); //TODO make this not dumb
@@ -711,11 +773,18 @@ void lightVoxelFace(){
 #endif
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
+        bool isOverwrittenTranslucentLayer = false;
 #ifdef COLORED_TRANSLUCENTS
-        if(translucentBlocksInSample>0 && layer==VOX_LAYERS-1) break;
+        isOverwrittenTranslucentLayer= (translucentBlocksInSample>0 && layer==VOX_LAYERS-1);
 #endif
-        doLightPassage(bestLights[layer],false);
-        setPackedLightFlags(bestLights[layer],unpackLightFlags(bestLights[layer])&0xfeu);
+        uvec4 light = bestLights[layer];
+        #ifndef READS_MUST_BE_UNIFORM
+        if(isOverwrittenTranslucentLayer) break;
+        #endif
+        doLightPassage(light,false);
+        setPackedLightFlags(light,unpackLightFlags(bestLights[layer])&0xfeu);
+        if(!isOverwrittenTranslucentLayer)
+            bestLights[layer];
     }
 
     //could maybe be at the top, not sure how much it'd actually help though TODO test later
