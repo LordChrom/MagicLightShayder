@@ -276,7 +276,7 @@ void setPackedLightFlags(inout uvec4 packedData, uint flags){
     packedData.z = (packedData.z&0xffffff00u) | (flags&0xffu);
 }
 
-float sunDist = 2+((frameCounter>>6)%10)*0.5;
+float sunDist = 4+((frameCounter>>6)%10)*0.4;
 uvec4 packLightData(vec2 occlusionRay,uint occlusionMap,vec3 color,vec3 lightTravel,float occlusionHitDistance,uint type,uint flags){
     uvec4 ret;
     if(type==LIGHT_TYPE_SUN)

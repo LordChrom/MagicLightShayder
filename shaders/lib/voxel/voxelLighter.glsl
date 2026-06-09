@@ -262,7 +262,7 @@ uvec4[VOX_LAYERS] determineBestLightSources(){
 //newObstructions is flipped to match this, with [2][2] being the firthest corner from source
 //alignment.x means it is on the a axis,
 void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
-    out uvec4[2][2] samples, out bool[2][2] relevance, out bvec2 alignment, out bool[2][2] newObstructions
+    out uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, out bool[2][2] relevance, out bvec2 alignment, out bool[2][2] newObstructions
 ){
 
     vec3 lightTravel = unpackLightTravel(bestSource);
@@ -277,7 +277,7 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
         int a = (i-1)*aSignSrc;
         for (int j=0; j<2; j++){
             int b = (j-1)*bSignSrc;
-            samples[i][j]=uvec4(0);
+            relevantOcclusionSamples[i][j][0]=0u;
             relevance[i][j]=false;
             localFronts[i][j]=getFrontVoxel(a,b);
             localRears[i][j]=getRearVoxel(a,b);
@@ -341,13 +341,15 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
                 if(lightTravel.x*a>0 || lightTravel.y*b>0)
                     continue;
 
-                setPackedLightTravel(relevantSample,
-                    unpackLightTravel(relevantSample) + vec3(-a, -b, 1)*scale
-                );
+                vec3 newLightTravel = unpackLightTravel(relevantSample);
+                if(unpackLightType(relevantSample)!=LIGHT_TYPE_SUN)
+                    newLightTravel+= vec3(-a, -b, 1)*scale;
+
+                setPackedLightTravel(relevantSample,newLightTravel);
 
                 if (sameLight(relevantSample,bestSource)){
                     relevance[i][j] = true;
-                    samples[i][j] = relevantSample;
+                    relevantOcclusionSamples[i][j][0] = relevantSample.w;
                     break;
                 }
             }
@@ -477,7 +479,7 @@ uint combineOcclusions(uint occlusionA, uint occlusionB){
 
 //i'll be calling the +b direction "top" and the +a direction "left", both of these directions are away from src
 //as though you're looking along the +z direction, with light traveling along L=+z and also somewhat +x+y
-void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, bool[2][2] relevantObstructions,
+void doOcclusion(uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, bool[2][2] relevance, bvec2 alignment, bool[2][2] relevantObstructions,
     inout uvec4 lightSrc
 ){
     bool isSun = unpackLightType(lightSrc)==LIGHT_TYPE_SUN;
@@ -487,9 +489,9 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
     }
 
     vec3 travel = unpackLightTravel(lightSrc);
-    vec2 sunOffset = isSun?(travel.xy*scale/sunDist/sunDist):vec2(0);
-    if(isSun)
-        travel.z=sunDist;
+//    if(isSun) travel.z=sunDist;
+    vec2 sunOffset = isSun?abs(travel.xy*scale/travel.z):vec2(0);
+
     vec2 travel2d= abs(travel.xy);
 
     //outer xy, inner xy
@@ -499,22 +501,32 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
         travel2d.xy-halfScale
     );
     slopeBounds*=abs(1/(travel.z+vec2(-halfScale,halfScale))).xxyy;
+    vec4 litBounds = vec4(1,1,0,0);
+
 
     lightSrc.w = getTerrainOcclusion(travel,relevantObstructions,alignment);
-
     if(isSun){
+        slopeBounds=vec4(1,1,0,0);
+        vec2 r = unpackOcclusionRay(lightSrc.w);
+        r=vec2(0);
+        r-=sunOffset;
+        lightSrc.w=packOcclusionInfo(r,unpackOcclusionMap(lightSrc.w),unpackOcclusionHitDist(lightSrc.w));
     }
 
-    vec4 litBounds = vec4(1,1,0,0);
+
+    vec2 travelSignScale = sign(travel.xy)*scale;
 
     for(int i=0; i<2; i++){
         for (int j=1-i; j<2; j++){
             if ((!(relevance[i][j])) || (i==0 && alignment.y) || (j==0 && alignment.x))
                 continue;
 
-            uint occl = samples[i][j].w;
+            uint occl = relevantOcclusionSamples[i][j][0];
             uint map = unpackOcclusionMap(occl);
             vec2 ray = unpackOcclusionRay(occl)+sunOffset;
+            if(isSun){
+//                ray+=10*sign(travel.xy)*scale*(1-vec2(i,j));
+            }
             uint lightEdges = getLightEdges(map); //left, top, right, bottom
             lightEdges = lightEdges & ~((lightEdges<<2)|(lightEdges>>2));
 
@@ -535,12 +547,22 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
             if((!relevance[i][j]) || (i==0 && alignment.y) || (j==0 && alignment.x))
                 continue;
 
-            uint occl = samples[i][j].w;
+            uint occl = relevantOcclusionSamples[i][j][0];
             uint map = unpackOcclusionMap(occl);
             vec2 ray = unpackOcclusionRay(occl);
             if(isSun){
+//                if(i==0 || j==0) continue;
                 ray+=sunOffset;
-                ray-=sign(travel.xy)*scale*(1-vec2(i,j))/sunDist;
+                ray+=sign(travel.xy)*scale*(1-vec2(i,j));
+                if(ray.y<0){
+                    map=(map&12u);
+                    map+=map>>2;
+                }
+                if(ray.x<0){
+                    map=(map&10u);
+                    map+=map>>1;
+                }
+//                    map=15u;
             }
 
             //corners to edges
@@ -611,7 +633,7 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
             if(!anythingInBounds) continue;
 
             //TODO more efficient repacking
-            occl=packOcclusionInfo(ray,map,unpackOcclusionHitDist(occl));
+            occl=packOcclusionInfo(ray,map,unpackOcclusionHitDist(occl)+(isSun?scale:0));
             lightSrc.w=combineOcclusions(lightSrc.w,occl);
         }
     }
@@ -622,16 +644,14 @@ void doOcclusion(uvec4[2][2] samples, bool[2][2] relevance, bvec2 alignment, boo
 
 
 void doLightPassage(inout uvec4 bestLight, bool translucentTerrain){
-    uvec4[2][2] relevantSamples;
+    uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples;
     bool[2][2] relevance;
     bvec2 alignment;
     bool[2][2] newObstructions;
 
-    pickRelevantInputSamples(bestLight, translucentTerrain, relevantSamples, relevance, alignment, newObstructions
-    );
+    pickRelevantInputSamples(bestLight, translucentTerrain, relevantOcclusionSamples, relevance, alignment, newObstructions);
 
-    doOcclusion(relevantSamples, relevance, alignment, newObstructions, bestLight
-    );
+    doOcclusion(relevantOcclusionSamples, relevance, alignment, newObstructions, bestLight);
 
 #if !(defined KEEP_FULLY_OCCLUDED_SAMPLES && defined DEBUG_OCCLUSION_MAP)
     if ( !bool(unpackOcclusionMap(bestLight.w))){

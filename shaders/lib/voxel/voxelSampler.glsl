@@ -24,13 +24,13 @@ const float b = 1/float(MAX_LIGHT_STRENGTH*MAX_LIGHT_STRENGTH);
 const float sunStr = 1/float(MAX_LIGHT_STRENGTH)*inversesqrt(b);
 
 float baseLightStrength(uint type, vec3 displacement, ivec3 blockPos, vec3 travel, uint axis){
-    if(type==LIGHT_TYPE_SUN) return sunStr;
-
-    blockPos-=zoneToAreaSpaceRelative(ivec3(round(travel)),axis);
-
     #ifdef EVERYTHING_IS_THE_SUN
     if(type>0) type=1;
     #endif
+
+    if(type==LIGHT_TYPE_SUN) return sunStr;
+
+    blockPos-=zoneToAreaSpaceRelative(ivec3(round(travel)),axis);
 
     float lightStrength=BLOCK_LIGHT_STRENGTH;
 
@@ -45,10 +45,7 @@ float baseLightStrength(uint type, vec3 displacement, ivec3 blockPos, vec3 trave
     return lightStrength*inversesqrt(lengthSquared*lengthSquared*(1-columnation)+b);
 }
 
-//float penumbralLightTest(vec3 position, vec2 ray, uint map, float occlHitDist){
-
-//}
-void doPenumbralOcclusion(inout float lightStrength, vec3 displacement, vec3 travel, uint packedOcclusionData, bool isSun){
+void doPenumbralOcclusion(inout float lightStrength, vec3 displacement, vec3 travel, uint packedOcclusionData){
     vec2 ray = unpackOcclusionRay(packedOcclusionData);
     uint map = unpackOcclusionMap(packedOcclusionData);
 
@@ -57,8 +54,7 @@ void doPenumbralOcclusion(inout float lightStrength, vec3 displacement, vec3 tra
     float sharpener = (max(abs(travel.x),abs(travel.y))!=travel.z)? 1e9:1.0;
     float occlHitDist = unpackOcclusionHitDist(packedOcclusionData);
 
-    if(!isSun)
-        lightStrength*=clamp(0.5+(1-highSlope)*(sharpener/PENUMBRA_WIDTH),0,1);
+    lightStrength*=clamp(0.5+(1-highSlope)*(sharpener/PENUMBRA_WIDTH),0,1);
 
     float width =(PENUMBRA_WIDTH)*((displacement.z/occlHitDist)-1);
 
@@ -70,15 +66,15 @@ void doPenumbralOcclusion(inout float lightStrength, vec3 displacement, vec3 tra
     m.x);
     lightStrength*= mix(mixX.x,mixX.y,m.y);
 }
-void doSharpOcclusion(inout float lightStrength, vec3 displacement, vec3 travel, uint packedOcclusionData, bool isSun){
+void doSharpOcclusion(inout float lightStrength, vec3 displacement, vec3 travel, uint packedOcclusionData){
     vec2 ray = unpackOcclusionRay(packedOcclusionData);
     uint map = unpackOcclusionMap(packedOcclusionData);
 
-    lightStrength=isSun||(max(abs(displacement.x),abs(displacement.y))<=displacement.z)?lightStrength:0;
+    lightStrength=(max(abs(displacement.x),abs(displacement.y))<=displacement.z)?lightStrength:0;
     lightStrength=isLit(displacement,ray,map) ? lightStrength:0;
 }
 
-void doSharpOcclusionPixelLocked(inout float lightStrength, vec3 displacement, vec3 travel, uint packedOcclusionData, bool isSun){
+void doSharpOcclusionPixelLocked(inout float lightStrength, vec3 displacement, vec3 travel, uint packedOcclusionData){
     vec2 ray = unpackOcclusionRay(packedOcclusionData);
     uint map = unpackOcclusionMap(packedOcclusionData);
 
@@ -86,6 +82,17 @@ void doSharpOcclusionPixelLocked(inout float lightStrength, vec3 displacement, v
     lightStrength=highDisp<=displacement.z?lightStrength*(highDisp<displacement.z?1:0.5):0;
 
     lightStrength=isLit(displacement,ray,map) ? lightStrength:0;
+}
+
+void doSunOcclusion(inout float lightStrength, vec3 displacement, vec3 travel, uint packedOcclusionData){
+    vec2 ray = unpackOcclusionRay(packedOcclusionData);
+    uint map = unpackOcclusionMap(packedOcclusionData);
+
+
+    lightStrength = bool(map &
+            (displacement.x>ray.x?10u:5u) &
+            (displacement.y>ray.y?12u:3u)
+    )?lightStrength:0;
 }
 
 #if (defined PENUMBRAS_ENABLED) && (defined FOG_PENUMBRAS)
@@ -103,8 +110,9 @@ void doSharpOcclusionPixelLocked(inout float lightStrength, vec3 displacement, v
 #endif
 
 
-void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, vec3 normal, uint axis){
+void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, vec3 normal, uint axis, float scale){
     uint type = unpackLightType(packedLightSrc);
+    bool isSun = type==LIGHT_TYPE_SUN;
 
 #ifdef PRIDE_LIGHTING
     float len = length(displacement);
@@ -150,7 +158,13 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
 #endif
 #ifdef DEBUG_OCCLUSION_MAP
     vec3 travel = unpackLightTravel(packedLightSrc);
-    vec3 subVoxelOffset = displacement-travel;
+//    if(!is
+    vec3 subVoxelOffset = displacement;
+    if(isSun)
+        subVoxelOffset-=0.5*scale;
+    else
+        subVoxelOffset-=travel;
+
     uint map = unpackOcclusionMap(packedLightSrc.w);
 
     //Debug Coloring
@@ -193,8 +207,14 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
 
     if(bool(type)){
         vec2 slopeDif = abs(ray-abs(displacement.xy/displacement.z));
-
         float outlineWidth = DEBUG_OUTLINE_WIDTH/displacement.z;
+
+        if(type==LIGHT_TYPE_SUN){
+            slopeDif=abs(ray-displacement.xy)/travel.z;
+            if(map==15u)
+                outlineWidth*=0;
+        }
+
 
         #ifdef DEBUG_LIGHT_TRAVEL
         vec2 slopeDifSigns = sign(ray*sign(displacement.xy)-(displacement.xy/displacement.z));
@@ -251,7 +271,7 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
 
 
 
-vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 blockPos, vec3 normal, vec3 subVoxelOffset, bool isForFog){
+vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 blockPos, vec3 normal, vec3 subVoxelOffset, bool isForFog, float scale){
     uint type = unpackLightType(packedLightSrc);
     if(type==0)return vec3(0);
 
@@ -260,14 +280,28 @@ vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 b
     subVoxelOffset = areaToZoneSpaceRelative(subVoxelOffset,axis);
     vec3 displacement = travel + subVoxelOffset;
 
+
+    if(type==LIGHT_TYPE_SUN){
+        subVoxelOffset.xy*=sign(travel.xy);
+        subVoxelOffset+=0.5*scale;
+        displacement.xy=subVoxelOffset.xy+travel.xy*(subVoxelOffset.z/travel.z);
+        displacement.z=7;
+    }
+
     float lightStrength;
 
     if(isForFog){
         lightStrength =(type==LIGHT_TYPE_SUN)?FOG_BRIGHTNESS_SUN:FOG_BRIGHTNESS_BLOCK;
-        doFogOcclusion(lightStrength,displacement,travel,packedLightSrc.w,type==LIGHT_TYPE_SUN);
+        if(type==LIGHT_TYPE_SUN)
+            doSunOcclusion(lightStrength,displacement,travel,packedLightSrc.w);
+        else
+            doFogOcclusion(lightStrength,displacement,travel,packedLightSrc.w);
     }else {
         lightStrength =normalFactor(normal, displacement, axis, subsurface);
-        doTerrainOcclusion(lightStrength,displacement,travel,packedLightSrc.w,type==LIGHT_TYPE_SUN);
+        if(type==LIGHT_TYPE_SUN)
+            doSunOcclusion(lightStrength,displacement,travel,packedLightSrc.w);
+        else
+            doTerrainOcclusion(lightStrength,displacement,travel,packedLightSrc.w);
     }
 
     //TODO okay so ive tested and its like a 1% improvement but it seems stupid so im leaving it off
@@ -278,15 +312,15 @@ vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 b
 
     vec3 color = unpackLightColor(packedLightSrc) * lightStrength;
 
-    doBonusEffects(color,packedLightSrc,displacement, normal, axis);
+    doBonusEffects(color,packedLightSrc,displacement, normal, axis, scale);
 
     return color;
 }
 
-vec3 getDirectedLight(uint cascadeLevel, uint layer, uint axis, float subsurface, ivec3 zoneShift, ivec3 zonePos, ivec3 blockPos, vec3 normal, vec3 subVoxelOffset, bool isForFog){
+vec3 getDirectedLight(uint cascadeLevel, uint layer, uint axis, float subsurface, ivec3 zoneShift, ivec3 zonePos, ivec3 blockPos, vec3 normal, vec3 subVoxelOffset, bool isForFog, float scale){
     uint zoneMemOffset = zoneOffset(axis, layer,cascadeLevel);
     uvec4 packedLightSrc = sampleLightData(zonePos, zoneShift, zoneMemOffset);
-    return getDirectedLight(packedLightSrc,axis,subsurface,blockPos,normal,subVoxelOffset,isForFog);
+    return getDirectedLight(packedLightSrc,axis,subsurface,blockPos,normal,subVoxelOffset,isForFog,scale);
 }
 
 const float radSlope = tan(22.5*PI/180);
@@ -362,7 +396,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
         ivec3 zonePos = areaToZoneSpace(areaPos, axis);
     #ifndef DEBUG_RADIANCE_ONLY
         for(uint layer = 0; layer<VOX_LAYERS; layer++)
-            color+=getDirectedLight(cascadeLevel,layer,axis,subsurface,zoneShift,zonePos,blockPos,zoneNorm,subVoxelOffset,false);
+            color+=getDirectedLight(cascadeLevel,layer,axis,subsurface,zoneShift,zonePos,blockPos,zoneNorm,subVoxelOffset,false,scale);
     #endif
 
         #ifdef FALLBACK_RADIANCE
@@ -415,10 +449,10 @@ vec3 voxelSampleFog(vec3 worldPos, float fogNoise, float ditherValue){
         ivec3 zoneShift = areaToZoneSpace(areaShift, axis);
         ivec3 zonePos = areaToZoneSpace(areaPos, axis);
         for(int layer = 0; layer<lightsInLoop; layer++){
-            color+=getDirectedLight(cascadeLevel,layer,axis,1.0,zoneShift,zonePos,blockPos,vec3(0),subVoxelOffset,true);
+            color+=getDirectedLight(cascadeLevel,layer,axis,1.0,zoneShift,zonePos,blockPos,vec3(0),subVoxelOffset,true,scale);
         }
 #ifdef FOG_RANDOM_LESSER_SOURCE
-        color+=getDirectedLight(cascadeLevel,randLayer,axis,1.0,zoneShift,zonePos,blockPos,vec3(0),subVoxelOffset,true);
+        color+=getDirectedLight(cascadeLevel,randLayer,axis,1.0,zoneShift,zonePos,blockPos,vec3(0),subVoxelOffset,true,scale);
 #endif
     }
     return color;
