@@ -84,6 +84,8 @@ vec2 doSparsePom(vec2 initialTc){
 }
 
 vec2 doPom(vec2 tc){
+    if(abs(differential.x)+abs(differential.y)<0.1)
+        return tc;
     vec2 initialTc = tc*atlasSize-baseTexpos;
     vec2 ret;
 

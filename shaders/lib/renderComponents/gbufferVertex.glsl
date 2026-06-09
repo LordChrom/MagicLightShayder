@@ -108,7 +108,11 @@ void main() {
     vec3 texHitVec = transpose(gl_NormalMatrix*normalRotator)*scrnNormal;
     differential=-texsize*texHitVec.xy/texHitVec.z;
 
-
+    if(abs(gl_Normal.x)+abs(gl_Normal.y)+abs(gl_Normal.z)>1.0001){
+//        texsize=ivec2(16);
+//        baseTexpos=(ivec2(atlasSize*texcoord)/texsize)*texsize;
+        differential=vec2(0);
+    }
         #endif
     #endif
 #endif
