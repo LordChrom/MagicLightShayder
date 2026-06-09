@@ -3,7 +3,6 @@
 #endif
 
 #include "/lib/settings.glsl"
-#include "/lib/util/materialId.glsl"
 
 #ifdef VOXY_PATCH
     #if MATERIALS_TYPE>=1
@@ -70,6 +69,7 @@ in vec4 glcolor;
 
 #ifdef NEEDS_MATERIAL_ID
 flat in int materialID;
+#include "/lib/util/materialId.glsl"
 #endif
 
 #if defined MAYBE_END_GATEWAY && defined GATEWAYS_IN_GBUFFER

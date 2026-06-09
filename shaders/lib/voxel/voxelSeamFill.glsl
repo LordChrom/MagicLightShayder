@@ -43,7 +43,7 @@ ivec3 thisShift, upperShift, movement;
 bool cascadeVisitedThisFrame;
 
 void trimLight(ivec3 zonePos){
-    uvec4 light = noLight;
+    uvec4 light = uvec4(0);
 
     vec3 zonePosRemnants;
     ivec3 upZonePos = uppperCascadeZonePos(zonePos,thisShift,axis,scale,zonePosRemnants);

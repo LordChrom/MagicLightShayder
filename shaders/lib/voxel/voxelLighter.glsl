@@ -4,7 +4,7 @@
 #include "/lib/voxel/voxelHelper.glsl"
 
 #ifdef WAVES_INORDER
-    #define LIGHTER_Z_EXACT 1
+    #define LIGHTER_WORK_GROUP_Z 1
 #else
     #define LIGHTER_Z_EXACT AREA_SIZE/UPDATE_STRIDE
 
@@ -41,9 +41,9 @@ layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z =
 
 //different per invocation
 ivec3 areaPos, zonePos;
-uint A,B; //1 to SECTION_SIZE
+#define A (gl_LocalInvocationID.x+1)
+#define B (gl_LocalInvocationID.y+1)
 
-//#define LOCAL_STASH
 
 #ifdef LOCAL_STASH
     uint bonusOffsetA=0, bonusOffsetB=0;
@@ -84,8 +84,7 @@ shared uint[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedRearVoxels;
 
 //same accross group
 ivec3 zoneShift,areaShift, upZoneShift, upAreaShift;
-ivec3 aVec, bVec, LVec;
-float scale,halfScale;
+float scale;
 uint axis, cascadeLevel;
 
 
@@ -113,8 +112,8 @@ void saveSharedSample(int a, int b){
     uint sampleAreaMemOffset = areaMemOffset;
     ivec3 sampleZoneShift = zoneShift;
     ivec3 sampleAreaShift = areaShift;
-    ivec3 frontVoxelPos = areaPos.xyz+ivec3(aVec*a + bVec*b);
-    ivec3 rearVoxelPos = frontVoxelPos-LVec;
+    ivec3 frontVoxelPos = areaPos.xyz+ivec3(aVec(axis)*a + bVec(axis)*b);
+    ivec3 rearVoxelPos = frontVoxelPos-lVec(axis);
 
     bool sideOob = voxelIsSplit(frontVoxelPos,areaShift,cascadeLevel) ||
         (sampleZonePos.x<0) || (sampleZonePos.x>=AREA_SIZE) ||
@@ -138,9 +137,9 @@ void saveSharedSample(int a, int b){
 
         if(cascadeLevel>=(NUM_CASCADES-1)){
             sharedPackedRearVoxels[A+a][B+b]=sharedPackedFrontVoxels[A+a][B+b]=0u;
-            uvec4 defaultLight = ((!hasCeiling) && axis==2 && zonePos.z<=0) ? getSunlight() : noLight;
+            uvec4 defaultLight = ((!hasCeiling) && axis==2 && zonePos.z<=0) ? getSunlight() : uvec4(0);
     #ifdef DEBUG_DISABLE_SUN
-            defaultLight=noLight;
+            defaultLight=uvec4(0);
     #endif
             for(int layer = 0; layer<VOX_LAYERS; layer++){
                 setSharedSample(a,b,layer,defaultLight);
@@ -287,6 +286,7 @@ uvec4[VOX_LAYERS] determineBestLightSources(){
 
 
                 vec2 xy = abs(travel.xy);
+                float halfScale = 0.5*scale;
                 vec2 outerSlope  = (xy+halfScale) * abs(scale/(travel.z-halfScale));
                 vec2 innerSlope  = (xy-halfScale) * abs(scale/(travel.z+halfScale));
 
@@ -455,6 +455,7 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
 //TODO after this is all done, test removing all the packing/unpacking
 //also replace the bool arrays with uints
 uint getTerrainOcclusion(vec3 travel, bool[2][2] relevantObstructions, bvec2 alignment){
+    float halfScale = 0.5*scale;
     vec2 ray = (abs(travel.xy)-halfScale)/abs(travel.z-halfScale);
     uint map = 15u^bvec4ToUint(bvec4(relevantObstructions[1][1],relevantObstructions[0][1],relevantObstructions[1][0],relevantObstructions[0][0]));
     float hitDist = travel.z-0.6*scale;
@@ -580,8 +581,9 @@ void doOcclusion(uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, bool[
     vec2 travel2d= abs(travel.xy);
 
     //outer xy, inner xy
-    vec4 slopeBounds  =
-    vec4(
+    float halfScale = 0.5*scale;
+
+    vec4 slopeBounds = vec4(
         travel2d.xy+halfScale,
         travel2d.xy-halfScale
     );
@@ -822,7 +824,7 @@ void lightVoxelFace(){
         vec3 lightTravel;
 #ifdef LIGHT_SOURCES_BLOCK_CENTERIC
         if(scale<1){
-            vec3 worldPos = vec3(areaPos.xyz)*scale-halfScale+globalOrigin;
+            vec3 worldPos = vec3(areaPos.xyz)*scale-0.5*scale+globalOrigin;
             vec3 subBlockOffset = areaToZoneSpaceRelative((worldPos-round(worldPos)),axis);
             lightTravel = subBlockOffset;
         }else
@@ -844,15 +846,19 @@ void lightVoxelFace(){
 
 }
 
-void lightVoxelFaces(uvec3 groupId, uvec3 localId){
-    ivec3 zoneBasePos = ivec3(
-        localId.x+(groupId.x%AREA_WIDTH_SECTIONS)*SECTION_SIZE,
-        localId.y+(groupId.x/AREA_WIDTH_SECTIONS)*SECTION_SIZE,
-        (groupId.z)*UPDATE_STRIDE
+void main(){
+    #if LIGHTER_PASS>=LIGHTING_SYSTEM_PASSES
+    if(true)
+        return;
+    #endif
+
+    zonePos.xy=ivec2(
+        gl_LocalInvocationID.x+(gl_WorkGroupID.x%AREA_WIDTH_SECTIONS)*SECTION_SIZE,
+        gl_LocalInvocationID.y+(gl_WorkGroupID.x/AREA_WIDTH_SECTIONS)*SECTION_SIZE
     );
 
     int frameBasedOffset = frameCounter;
-    cascadeLevel = getVariableCascadeLevel(frameBasedOffset,bool(groupId.y&1u));
+    cascadeLevel = getVariableCascadeLevel(frameBasedOffset,bool(gl_WorkGroupID.y&1u));
     if(cascadeLevel>=NUM_CASCADES) return;
 #ifdef DOUBLE_PROC
     frameBasedOffset=(frameBasedOffset>>cascadeLevel);
@@ -860,24 +866,16 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
     frameBasedOffset=(frameBasedOffset>>(cascadeLevel+1));
 #endif
 
-    A = localId.x+1;
-    B = localId.y+1;
-
-
     scale = getScale(cascadeLevel);
     areaShift = getAreaShift(scale);
     upAreaShift = getAreaShift(scale*2);
-    halfScale=0.5*scale;
 
 #if DEBUG_AXIS>=0
     axis = DEBUG_AXIS;
 #else
-    axis = groupId.y/PROC_MULT;
+    axis = gl_WorkGroupID.y/PROC_MULT;
 #endif
 
-    aVec = ivec3(areaToZoneSpaceMats[axis][0]);
-    bVec = ivec3(areaToZoneSpaceMats[axis][1]);
-    LVec = ivec3(areaToZoneSpaceMats[axis][2]);
     zoneShift = areaToZoneSpace(areaShift,axis);
     upZoneShift = areaToZoneSpace(upAreaShift,axis);
 
@@ -888,8 +886,7 @@ void lightVoxelFaces(uvec3 groupId, uvec3 localId){
     for(;frameBasedOffset<AREA_SIZE;frameBasedOffset+=UPDATE_STRIDE)
 #endif
     {
-        int offset = frameBasedOffset;
-        zonePos = ivec3(zoneBasePos.xy, zoneBasePos.z+offset);
+        zonePos.z = int((gl_WorkGroupID.z)*UPDATE_STRIDE)+frameBasedOffset;
         if(zonePos.z>=AREA_SIZE)
             return;
         areaPos = zoneToAreaSpace(zonePos, axis);

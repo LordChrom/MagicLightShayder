@@ -33,21 +33,29 @@ uvec3 modAreaSize(uvec3 x){
 int modAreaSize(int x){ return int(modAreaSize(uint(x)));}
 ivec3 modAreaSize(ivec3 x){ return ivec3(modAreaSize(uvec3(x)));}
 
-const mat3[] areaToZoneSpaceMats = {
-mat3(0,1,0, 0,0,1, -1,0,0),
-mat3(0,1,0, 0,0,1, 1,0,0),
-
-mat3(0,0,1, 1,0,0, 0,-1,0),
-mat3(0,0,1, 1,0,0, 0,1,0),
-
-mat3(1,0,0,  0,1,0,  0,0,-1),
-mat3(1,0,0,  0,1,0,  0,0,1)
-};
+//mat3 areaToZoneSpaceMat(uint axis){
+//    int lowerSign = -1+((int(axis)&1)<<1);
+//    axis>>=1;
+//    vec3 which = vec3(axis==0,axis==1, axis==2);
+//    return mat3(which.zxy,which.yzx,lowerSign*which);
+//}
 
 //in order from 0 to 5, -x,+x,-y,+y,-z,+z
-ivec3 axisNumToVec(uint axis){
-    mat3 convMat = areaToZoneSpaceMats[axis];
-    return ivec3(convMat[0].z,convMat[1].z,convMat[2].z);
+ivec3 lVec(uint axis){
+    int lowerSign = -1+((int(axis)&1)<<1);
+    axis>>=1;
+    return ivec3(axis==0?lowerSign:0,axis==1?lowerSign:0,axis==2?lowerSign:0);
+//    return lowerSign*ivec3(axis==0,axis==1, axis==2);
+}
+
+ivec3 aVec(uint axis){
+    axis>>=1;
+    return ivec3(axis==2,axis==0,axis==1);
+}
+
+ivec3 bVec(uint axis){
+    axis>>=1;
+    return ivec3(axis==1,axis==2,axis==0);
 }
 
 //output.xyz is area xyz
@@ -187,8 +195,8 @@ struct areaMeta{//size 16
 };
 
 
-const float lightTravelScaleInv = 16.0; //most voxels per block representable for lightTravel
-const float lightTravelScale = 1.0/lightTravelScaleInv;
+#define lightTravelScaleInv 16.0 //most voxels per block representable for lightTravel
+#define lightTravelScale (1.0/lightTravelScaleInv);
 
 //to consider: frexp, ldexp, bitfieldinsert, bitfieldextract
 
@@ -452,15 +460,14 @@ uint getVariableCascadeLevel(bool isAuxGroup){
     return getVariableCascadeLevel(frameCounter,isAuxGroup);
 }
 
-const vec3 sunColor = vec3(242,242,242)/255;
-const vec3 sunPos = vec3(0,0,1000);
-const uvec4 noLight = uvec4(0);
 
 //TODO ssbo?
 uniform float sunAngle;
 uvec4 getSunlight(){
+    const vec3 sunColor = vec3(242,242,242)/255;
+    const vec3 sunPos = vec3(0,0,1000);
     if(sunAngle>=0.5)
-        return noLight;
+        return uvec4(0);
     float angleOfTheSun = sunAngle*2*PI;
     vec3 sunLightTravel = vec3(0,-cos(angleOfTheSun),1)*sunDist;
     return packLightData(vec2(0),0xfu,sunColor,sunLightTravel,0f,1,0xfeu);
