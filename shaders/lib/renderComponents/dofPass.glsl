@@ -57,13 +57,12 @@ float weightAtOffset(float rad,float len, int d){
     if(len==0)
         return 1;
 
-    if(d>1){ //keeps things approximately uniform
-        float lenDif = len+len-DOF_SAMPLE_RAD;
-        if(len>rad || lenDif<0)
-            return 0;
-        return clamp(0.0001*lenDif*lenDif+0.01*(rad-len),1e-3,1e2);
-    }
-    return clamp(d*(rad-len)/(rad+3), 0, 1);
+    float fuzzyUniform = clamp(4*d*(rad-len)/(rad+DOF_RAD), 0, 1);
+    if(d<=1 || (d>1&&len>rad))
+        return fuzzyUniform;
+    float lenDif = len+len-DOF_SAMPLE_RAD;
+
+    return fuzzyUniform*max(0.00000001,exp2(-2.4e-4*DOF_PASSES*(rad-len)*lenDif)*1e0/d);
 }
 
 
@@ -129,7 +128,7 @@ void main() {
         #if DOF_ANTIBLEED != -1
             weight*=clamp(antibleedBias-blurMeta.y*centerRadInv,0,1);
         #endif
-            if(weight<=1e-3)continue;
+            if(weight<=0)continue;
 
             colorOut += texelFetch(colortex0,offsetTexpos,0).rgb*(weight/blurMeta.x);
         }
