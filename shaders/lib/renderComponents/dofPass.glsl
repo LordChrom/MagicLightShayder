@@ -84,6 +84,9 @@ void main() {
     float maxrad = DOF_SAMPLE_RAD;
     maxrad*=maxrad;
 
+    float antibleedMult =  8e-2/(abs(CoCbuff.y)/d+1);
+    float unobstructedSamples=0;
+    float takenSamples=0;
     for(int y=MIN_Y; y<=DOF_SAMPLE_RAD; y++){
        #if LEVEL>0
         if(y>=1){
@@ -114,14 +117,29 @@ void main() {
 
             float weight = weightAtOffset(blurMeta.y,len,d);
 
-            if(blurMeta.y>0 && fract(frameTimeCounter)>0.15)
-                weight*=clamp(0.1*(CoCbuff.y-blurMeta.y)+2,0,1);
+
+            float antibleedMult2 = 8e-2/(abs(blurMeta.y)/d+1);
+
+            const float antibleedAdd = 1.1;
+            if(blurMeta.y>0)
+                weight*=clamp(antibleedMult*(CoCbuff.y-blurMeta.y)+antibleedAdd,0,1);
+
+            if(CoCbuff.y>0){
+                takenSamples+=1;
+                unobstructedSamples+=clamp(antibleedMult2*(blurMeta.y-CoCbuff.y)+antibleedAdd, 0, 1);
+            }
             if(weight<=0)continue;
+
 
             colorOut += texelFetch(colortex0,offsetTexpos,0).rgb*(weight/blurMeta.x);
         }
        #endif
     }
+    #if PASS>=0
+    if(CoCbuff.y>0){
+        colorOut*=takenSamples/unobstructedSamples;
+    }
+    #endif
 
     CoCbuff.x = nextTotalWeight*4+1;
 }
