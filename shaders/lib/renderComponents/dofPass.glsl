@@ -32,7 +32,7 @@ uniform float viewWidth, viewHeight;
 
         rad = clamp(abs(rad),0,1);
         rad*=viewHeight;
-        return clamp(rad,0,DOF_RAD);
+        return clamp(rad,0,DOF_RAD)*sign(depth-depthTarget);
     }
 #else
     uniform sampler2D colortex0, colortex12;
@@ -54,6 +54,7 @@ in vec2 texcoord;
 
 
 float weightAtOffset(float rad,float len, int d){
+    rad=abs(rad);
     if(len==0)
         return 1;
 
@@ -65,8 +66,7 @@ float weightAtOffset(float rad,float len, int d){
     return fuzzyUniform*max(0.00000001,exp2(-2.4e-4*DOF_PASSES*(rad-len)*lenDif)*1e0/d);
 }
 
-
-
+uniform float frameTimeCounter;
 void main() {
     ivec2 texpos = ivec2(floor(texcoord*vec2(viewWidth,viewHeight)));
     float nextTotalWeight = 0;
@@ -76,23 +76,12 @@ void main() {
     colorOut=vec3(0);
     CoCbuff.y = texelFetch(colortex12,texpos,0).y;
 
-    #if DOF_ANTIBLEED != -1
-        float centerRadInv = 1.0/(max(0.1,CoCbuff.y)*DOF_ANTIBLEED);
-        const float antibleedBias = 1+1.0/DOF_ANTIBLEED;
-    #endif
-
     #define MIN_Y -DOF_SAMPLE_RAD
 #else
     CoCbuff.y=calcRadius(texpos);
     #define MIN_Y 1
 #endif
-    float maxrad = CoCbuff.y/d;
-    #if DOF_ANTIBLEED != -1
-        maxrad*=DOF_ANTIBLEED;
-    #else
-        maxrad*=4;
-    #endif
-    maxrad = min(DOF_SAMPLE_RAD,maxrad);
+    float maxrad = DOF_SAMPLE_RAD;
     maxrad*=maxrad;
 
     for(int y=MIN_Y; y<=DOF_SAMPLE_RAD; y++){
@@ -125,9 +114,8 @@ void main() {
 
             float weight = weightAtOffset(blurMeta.y,len,d);
 
-        #if DOF_ANTIBLEED != -1
-            weight*=clamp(antibleedBias-blurMeta.y*centerRadInv,0,1);
-        #endif
+            if(blurMeta.y>0 && fract(frameTimeCounter)>0.15)
+                weight*=clamp(0.1*(CoCbuff.y-blurMeta.y)+2,0,1);
             if(weight<=0)continue;
 
             colorOut += texelFetch(colortex0,offsetTexpos,0).rgb*(weight/blurMeta.x);
