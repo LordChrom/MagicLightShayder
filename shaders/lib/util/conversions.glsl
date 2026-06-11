@@ -12,7 +12,5 @@ float depthToLinear(float sampleDepth){
 
 float depthToBuf(float worldDepth){
         float sampleDepth =  (depthConvConsts.x/worldDepth-depthConvConsts.y)/depthConvConsts.z;
-
-//    float sampleDepth = ((gbufferProjectionInverse[1].y)/worldDepth-gbufferProjectionInverse[3].w)/gbufferProjectionInverse[2].w;
     return (sampleDepth+1)*0.5;
 }

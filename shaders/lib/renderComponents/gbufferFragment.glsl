@@ -75,7 +75,7 @@ flat in int materialID;
 #include "/lib/util/materialId.glsl"
 #endif
 
-#if defined FORWARD_TRANSLUCENTS && defined TRANSLUCENT
+#if defined FORWARD_TRANSLUCENTS && defined TRANSLUCENT && defined LIT
     in vec3 worldPos;
     uniform vec3 cameraPosition;
     #include "/lib/voxel/voxelSampler.glsl"
@@ -298,7 +298,10 @@ void main()
 
         #ifdef FORWARD_TRANSLUCENTS
             float ditherValue = dither(ivec2(floor(vec2(texcoord)*vec2(viewWidth,viewHeight)-0.01)));
-            color.rgb*=voxelSample(worldPos, normalOut.xyz, 0, ditherValue);
+            #ifdef MAYBE_END_GATEWAY
+            if(!isEndGateway)
+            #endif
+                color.rgb*=voxelSample(worldPos, normalOut.xyz, 0, ditherValue);
         #endif
     #endif
 #endif
