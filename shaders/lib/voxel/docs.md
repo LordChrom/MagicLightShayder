@@ -104,7 +104,6 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 
 # General TODO List
 ### Needs fixing
-- materials thru translucents
 - lava POM
 - sun shadows
 - voxelizing end gates
@@ -113,9 +112,6 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 - TAA unoptimized
 - proper system for unlit geometry
 - SSS
-- proper lighting on translucents OR have that part of local fog density system
-- particles on fog
-- coloring on emissive cave vines
 - DoF at lower renderscale
 
 ### Necessary additions

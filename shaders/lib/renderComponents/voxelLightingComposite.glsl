@@ -24,10 +24,13 @@ uniform usampler2D colortex3;
 uniform usampler2D colortex4;
 #endif
 
+
+#if (defined FORWARD_TRANSLUCENTS) || DEBUG_SPECIAL_VIEW == 1
+uniform sampler2D colortex1;
+#endif
+
 #if (DEBUG_SPECIAL_VIEW == 0) || (DEBUG_SPECIAL_VIEW==104)
 uniform sampler2D colortex0;
-#elif DEBUG_SPECIAL_VIEW == 1
-uniform sampler2D colortex1;
 #elif DEBUG_SPECIAL_VIEW == 5
 uniform sampler2D colortex5;
 #elif (DEBUG_SPECIAL_VIEW == 10)  || (DEBUG_SPECIAL_VIEW == 200)
@@ -58,26 +61,26 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 #endif
     ivec2 sourceTexpos = ivec2(floor(vec2(sampleTexCoord)*screenDims-0.01));
 
-
-
-
-#if 1
     float solidDepth = texelFetch(depthtex2,sourceTexpos,0).x;
     vec4 normalAndMore = texelFetch(colortex2,sourceTexpos,0);
     float depth = texelFetch(depthtex0,sourceTexpos,0).x;
-#else
-    float solidDepth = texture(depthtex2,sampleTexCoord).x;
-    vec4 normalAndMore = texture(colortex2,sampleTexCoord);
-    float depth = texture(depthtex0,sampleTexCoord).x;
-#endif
+    #ifdef FORWARD_TRANSLUCENTS
+    bool solidTransInFront = texelFetch(colortex1,sourceTexpos,0).a>=1;
+    #else
+    bool solidTransInFront = false;
+    #endif
 
     vec3 normal = normalize(normalAndMore.xyz*2-1);
 
     bool isHand = normalAndMore.a>0.4 && normalAndMore.a<0.6;
+    if(solidTransInFront){
+        solidDepth=depth;
+    }
     vec3 ndcPos = vec3(vec3(sampleTexCoord,solidDepth)*2-1);
     if(isHand){
         ndcPos.z=depth/MC_HAND_DEPTH;
     }
+
 
     float subsurface = 0;
     float emissive = 0;
@@ -86,14 +89,16 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     uvec4 matInfo = uvec4(0);
 
     if(!isHand){
+        #ifndef FORWARD_TRANSLUCENTS
         matInfo = texelFetch(colortex4 ,sourceTexpos ,0);
         if((matInfo.a==255) || matInfo==uvec4(0))
+        #endif
             matInfo = texelFetch(colortex3, sourceTexpos, 0);
     }
 
     subsurface = clamp(float(matInfo.b-64)/190.0, 0.0,1.0);
     if(matInfo.a!=255)
-        emissive = (matInfo.a/254.0); //TODO maybe selective based on lightness of pixels
+        emissive = (matInfo.a/254.0);
 #endif
 
     vec4 viewPos = gbufferProjectionInverse*vec4(ndcPos,1);
@@ -105,7 +110,7 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     bool isSky = depth==1;
 
     voxelLighting = vec3(0);
-    if(!isSky)
+    if(!(isSky|| solidTransInFront))
         voxelLighting = voxelSample(worldPos,normal,0,ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
 
 #ifdef SSAO

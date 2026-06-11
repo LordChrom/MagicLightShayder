@@ -9,11 +9,14 @@
         #define NEEDS_MATERIAL_ID
         #define HARDCODED_MATERIAL
         #define MATERIALS_TYPE 0
+        #include "/lib/util/materialId.glsl"
     #endif
 
     #if MATERIALS_TYPE < 0
         #undef WRITE_MATERIALS
     #endif
+    #undef FORWARD_TRANSLUCENTS
+    #undef POM
 #else
 
 
@@ -72,12 +75,25 @@ flat in int materialID;
 #include "/lib/util/materialId.glsl"
 #endif
 
-#if defined MAYBE_END_GATEWAY && defined GATEWAYS_IN_GBUFFER
-uniform float viewWidth, viewHeight;
-#include "/lib/renderComponents/endGateway.glsl"
+#if defined FORWARD_TRANSLUCENTS && defined TRANSLUCENT
+    in vec3 worldPos;
+    uniform vec3 cameraPosition;
+    #include "/lib/voxel/voxelSampler.glsl"
+    #include "/lib/util/dither.glsl"
+#else
+    #undef FORWARD_TRANSLUCENTS
 #endif
 
-#ifdef TRANSLUCENT
+#if defined MAYBE_END_GATEWAY && defined GATEWAYS_IN_GBUFFER
+    uniform float viewWidth, viewHeight;
+    #include "/lib/renderComponents/endGateway.glsl"
+#elif defined FORWARD_TRANSLUCENTS
+    uniform float viewWidth, viewHeight;
+#endif
+
+#ifdef FORWARD_TRANSLUCENTS
+    /* RENDERTARGETS: 1 */
+#elif defined TRANSLUCENT
     #ifdef WRITE_MATERIALS
     /* RENDERTARGETS: 1,2,5,4 */
     #else
@@ -116,6 +132,11 @@ float rayDepth=0;
 #endif
 
 layout(location = 0) out vec4 color;
+#ifdef FORWARD_TRANSLUCENTS
+vec4 normalOut;
+vec4 vanillaLighting;
+uvec4 materialInfo;
+#else
 layout(location = 1) out vec4 normalOut;
 
 #ifdef VANILLA_FALLBACK
@@ -123,6 +144,7 @@ layout(location = 2) out vec4 vanillaLighting;
 #endif
 #ifdef WRITE_MATERIALS
 layout(location = 3) out uvec4 materialInfo;
+#endif
 #endif
 
 /*
@@ -272,6 +294,11 @@ void main()
 
     if(sampledColor.a<translucentPrecedenceCutoff)
         materialInfo.a=255;
+
+        #ifdef FORWARD_TRANSLUCENTS
+            float ditherValue = dither(ivec2(floor(vec2(texcoord)*vec2(viewWidth,viewHeight)-0.01)));
+            color.rgb*=voxelSample(worldPos, normalOut.xyz, 0, ditherValue);
+        #endif
     #endif
 #endif
 

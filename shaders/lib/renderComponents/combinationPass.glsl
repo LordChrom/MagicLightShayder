@@ -89,7 +89,11 @@ void main() {
 
     vec3 color;
     if(transColor.a>=0.99){
-        color=transColor.xyz*light;
+        #ifdef FORWARD_TRANSLUCENTS
+            color=transColor.rgb;
+        #else
+            color=transColor.rgb*=light;
+        #endif
     }else{
         color=albedo.xyz*light;
         transColor.xyz*= 0.5*light + ((light.x+light.y+light.z)*0.16 + 0.02);

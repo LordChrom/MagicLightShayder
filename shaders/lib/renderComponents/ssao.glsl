@@ -24,8 +24,6 @@ float doSsao(vec2 texcoord, vec2 normalDir, float solidDepth, float dither){
             float d = dot(normalize(offset),normalDir);
             offset = d>-0?offset:-offset;
             float weight = abs(d);
-            if(fract(frameTimeCounter)>0.25)
-
             weight/=(tempRadius+0.2);
 
             offset = offset*radius + texcoord;

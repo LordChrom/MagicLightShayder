@@ -1,4 +1,5 @@
 #version 430 compatibility
+#define MATERIALS_SAMPLER colortex3
 #include "/lib/renderComponents/voxelLightingComposite.glsl"
 
 in vec2 texcoord;

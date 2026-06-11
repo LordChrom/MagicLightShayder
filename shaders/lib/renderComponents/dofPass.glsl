@@ -66,7 +66,6 @@ float weightAtOffset(float rad,float len, int d){
     return fuzzyUniform*max(0.00000001,exp2(-2.4e-4*DOF_PASSES*(rad-len)*lenDif)*1e0/d);
 }
 
-uniform float frameTimeCounter;
 void main() {
     ivec2 texpos = ivec2(floor(texcoord*vec2(viewWidth,viewHeight)));
     float nextTotalWeight = 0;

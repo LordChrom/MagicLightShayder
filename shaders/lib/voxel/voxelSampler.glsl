@@ -325,7 +325,6 @@ vec3 getDirectedLight(uint cascadeLevel, uint layer, uint axis, float subsurface
 
 const float radSlope = tan(22.5*PI/180);
 vec3 sampleDirectedRadiance(uint cascadeLevel, uint axis, float subsurface, ivec3 zoneShift, ivec3 zonePos, vec3 normal, vec3 subVoxelOffset){
-//    if(fract(frameTimeCounter)<0.5) return vec3(0);
     uint zoneMemOffset = zoneOffset(axis, VOX_LAYERS,cascadeLevel);
     uvec4 packedRadiance = sampleLightData(zonePos, zoneShift, zoneMemOffset);
     vec3 ret = vec3(0);

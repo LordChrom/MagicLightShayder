@@ -40,7 +40,8 @@ const ivec3 workGroups = ivec3(LIGHTER_WORK_GROUP_X,LIGHTER_WORK_GROUP_Y,LIGHTER
 layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z = LOCAL_SIZE_Z) in;
 
 //different per invocation
-ivec3 areaPos, zonePos;
+ivec3 areaPos = ivec3(0);
+ivec3 zonePos = ivec3(0);
 #define A (gl_LocalInvocationID.x+1)
 #define B (gl_LocalInvocationID.y+1)
 
@@ -53,6 +54,7 @@ ivec3 areaPos, zonePos;
     uvec4[LIGHT_LAYERS] localSubPool;
     uvec4 getInputSample(int a, int b, uint layer){
         if(layer!=lastLayerAccessed){
+            barrier();
             sharedPackedAccess[A][B]=localMainPool[layer];
             if(bool (bonusOffsetA|bonusOffsetB))
                 sharedPackedAccess[A+bonusOffsetA][B+bonusOffsetB]=localSubPool[layer];
@@ -83,9 +85,14 @@ shared uint[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedFrontVoxels;
 shared uint[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedRearVoxels;
 
 //same accross group
-ivec3 zoneShift,areaShift, upZoneShift, upAreaShift;
-float scale;
-uint axis, cascadeLevel;
+ivec3 zoneShift = ivec3(0);
+ivec3 areaShift = ivec3(0);
+ivec3 upZoneShift = ivec3(0);
+ivec3 upAreaShift = ivec3(0);
+
+float scale = 0;
+uint axis = 0;
+uint cascadeLevel = 0;
 
 
 #ifdef FALLBACK_RADIANCE

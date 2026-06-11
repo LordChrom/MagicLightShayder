@@ -16,7 +16,6 @@ void pomEdge(inout vec2 tc){
     #endif
 }
 
-uniform int frameCounter;
 #define POM_PERFECT_EDGES
 
 vec2 doPixPom(vec2 initialTc){

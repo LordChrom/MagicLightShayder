@@ -1,3 +1,5 @@
+#ifndef TIME_GLSL
+#define TIME_GLSL
 //#define WORLD_TIME
 
 #ifdef WORLD_TIME
@@ -17,3 +19,4 @@ float currentTimeSec(){
 float loopingAnimation(float speed){
     return fract(currentTimeSec()*speed);
 }
+#endif
