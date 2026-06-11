@@ -295,19 +295,26 @@ void main()
 
     if(sampledColor.a<translucentPrecedenceCutoff)
         materialInfo.a=255;
-
-        #ifdef FORWARD_TRANSLUCENTS
-            float ditherValue = dither(ivec2(floor(vec2(texcoord)*vec2(viewWidth,viewHeight)-0.01)));
-            #ifdef MAYBE_END_GATEWAY
-            if(!isEndGateway)
-            #endif
-                color.rgb*=voxelSample(worldPos, normalOut.xyz, 0, ditherValue);
-        #endif
     #endif
 #endif
 
 
     #ifdef BONUS_STUFF
     doBonusStuff();
+    #endif
+
+    #ifdef FORWARD_TRANSLUCENTS
+    float ditherValue = dither(ivec2(floor(vec2(texcoord)*vec2(viewWidth,viewHeight)-0.01)));
+    float emissive = (materialInfo.a!=255)?materialInfo.a/254.0:0;
+    float subsurface = clamp(float(materialInfo.b-64)/190.0, 0.0,1.0);
+    #ifdef MAYBE_END_GATEWAY
+    if(!isEndGateway)
+    #endif
+    {
+        if(emissive>0)
+        color.rgb*=(EMISSIVE_BRIGHTNESS*emissive);
+        else
+        color.rgb*=voxelSample(worldPos, normalOut.xyz, subsurface, ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
+    }
     #endif
 }

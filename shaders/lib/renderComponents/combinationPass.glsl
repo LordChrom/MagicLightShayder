@@ -95,7 +95,9 @@ void main() {
         #endif
     }else{
         color=albedo.xyz*light;
+        #ifndef FORWARD_TRANSLUCENTS
         transColor.xyz*= 0.5*light + ((light.x+light.y+light.z)*0.16 + 0.02);
+        #endif
         color = blend(vec4(color,1),transColor);
     }
 
