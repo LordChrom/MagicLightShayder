@@ -106,5 +106,3 @@ vec2 doPom(vec2 tc){
     return (baseTexpos+(0.5+floor(ret)))/atlasSize;
 
 }
-uniform mat4 gbufferProjectionInverse;
-#include "/lib/util/conversions.glsl"

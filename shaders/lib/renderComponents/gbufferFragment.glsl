@@ -123,12 +123,13 @@ flat in int materialID;
 #endif
 
 #ifdef POM
-in vec2 differential;
-flat in ivec2 baseTexpos;
-flat in ivec2 texsize;
-uniform ivec2 atlasSize;
-float rayDepth=0;
+    in vec2 differential;
+    flat in ivec2 baseTexpos;
+    flat in ivec2 texsize;
+    uniform ivec2 atlasSize;
+    float rayDepth=0;
     #include "/lib/renderComponents/pom.glsl"
+    #include "/lib/util/conversions.glsl"
 #endif
 
 layout(location = 0) out vec4 color;

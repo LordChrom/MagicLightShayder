@@ -4,7 +4,6 @@
 uniform int renderStage;
 uniform float viewHeight;
 uniform float viewWidth;
-uniform mat4 gbufferModelView;
 uniform mat4 gbufferProjectionInverse;
 uniform vec3 fogColor;
 uniform vec3 skyColor;
@@ -15,7 +14,7 @@ float fogify(float x, float w) {
 }
 
 vec3 calcSkyColor(vec3 pos) {
-	float upDot = dot(pos, gbufferModelView[1].xyz); //not much, what's up with you?
+	float upDot = dot(pos, gl_ModelViewMatrix[1].xyz); //not much, what's up with you?
 	return mix(skyColor, fogColor, fogify(max(upDot, 0.0), 0.25));
 }
 

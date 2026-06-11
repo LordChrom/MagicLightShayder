@@ -37,6 +37,8 @@ uniform sampler2D colortex5;
 uniform sampler2D colortex10;
 #elif DEBUG_SPECIAL_VIEW == 11
 uniform sampler2D colortex11;
+#elif DEBUG_SPECIAL_VIEW == 105 && !defined SSAO
+#include "/lib/util/conversions.glsl"
 #endif
 
 #if VOLUMETRIC_FOG_SAMPLES > 0
@@ -85,7 +87,6 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
     float subsurface = 0;
     float emissive = 0;
 #if MATERIALS_TYPE >= 0
-    //TODO transparent materials info
     uvec4 matInfo = uvec4(0);
 
     if(!isHand){

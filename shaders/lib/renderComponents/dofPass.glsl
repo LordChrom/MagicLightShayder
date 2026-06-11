@@ -12,7 +12,6 @@ uniform float viewWidth, viewHeight;
 #if PASS == -1
     uniform sampler2D depthtex1, depthtex2;
     uniform float centerDepthSmooth;
-    uniform mat4 gbufferProjectionInverse;
 
     #include "/lib/util/conversions.glsl"
 
