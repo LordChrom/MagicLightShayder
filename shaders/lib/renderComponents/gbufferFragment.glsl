@@ -314,7 +314,7 @@ void main()
         if(emissive>0)
         color.rgb*=(EMISSIVE_BRIGHTNESS*emissive);
         else
-        color.rgb*=voxelSample(worldPos, normalOut.xyz, subsurface, ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
+        color.rgb*=voxelSample(worldPos, normalize(normalOut.xyz*2-1), subsurface, ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
     }
     #endif
 }
