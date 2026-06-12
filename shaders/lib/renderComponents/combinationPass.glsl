@@ -46,9 +46,11 @@ const int colortex3Format = RGBA8UI;
 const int colortex4Format = RGBA8UI;
 const int colortex6Format = RGB16F;
 const int colortex7Format = RGBA16F;
-const int colortex10Format = RGBA16F;
+const int colortex9Format = R32F;
+const int colortex10Format = RGB16F;
 const int colortex11Format = RGBA16F;
 const int colortex12Format = RG16F;
+const bool colortex9Clear = false;
 const bool colortex10Clear = false;
 const bool colortex11Clear = false;
 */
@@ -115,9 +117,9 @@ void main() {
     #endif
 
     #if DEBUG_SPECIAL_VIEW >= 0
-    #if DEBUG_SPECIAL_VIEW == 200
+    #if DEBUG_SPECIAL_VIEW == 200 || (DEBUG_SPECIAL_VIEW==202)
     outputColor = voxelLighting;
-    #elif DEBUG_SPECIAL_VIEW != 201
+    #elif (DEBUG_SPECIAL_VIEW) != 201
     outputColor = texelFetch(colortex15,ivec2(floor(0.1+texcoord*scaledScreenDim)),0).xyz;
     #endif
     #endif

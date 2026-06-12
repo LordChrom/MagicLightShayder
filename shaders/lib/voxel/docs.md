@@ -50,18 +50,21 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 
 
 # Colortexes
-- 0: opaque albedo & main output
-- 1: transparent albedo
-- 2: normals
-- 3: opaque materials info (labpbr specular)
-- 4: transparent materials info (labpbr specular)
-- 5: vanilla fallback (optional)
-- 6: multiplicative lighting
-- 7: additive light
-- 10: multiplicative accumulation. w holds prev depth if present (optional)
-- 11: additive accumulation. w holds previous depth if 10 not present
-- 15: debug (optional)
-
+| format  | num | purpose                                      | scale |
+|---------|-----|----------------------------------------------|-------|
+|         | 0   | opaque albedo & main output                  |       |
+|         | 1   | transparent albedo (optionally pre-lit)      |       |
+|         | 2   | normals                                      |       |
+| RGBA8UI | 3   | opaque materials info (labpbr specular)      |       |
+| RGBA8UI | 4   | transparent materials info (labpbr specular) |       |
+|         | 5   | vanilla fallback (optional)                  |       |
+| RGB16F  | 6   | multiplicative lighting                      | y     |
+| RGBA16F | 7   | additive light                               | y     |
+| R32F    | 9   | accumulation depth                           |       |
+| RGB16F  | 10  | multiplicative accumulation.                 |       |
+| RGBA16F | 11  | additive accumulation.                       |       |
+| RG16F   | 12  | DoF stuff                                    |       |
+|         | 15  | debug (optional)                             | y     |
 
 
 # Layouts
