@@ -19,6 +19,9 @@
     #undef POM
 #else
 
+#if (DEBUG_SPECIAL_VIEW == 104)
+#undef TRANSLUCENT
+#endif
 
 #if MATERIALS_TYPE < 0
     #undef WRITE_MATERIALS
@@ -307,14 +310,18 @@ void main()
     float ditherValue = dither(ivec2(floor(vec2(texcoord)*vec2(viewWidth,viewHeight)-0.01)));
     float emissive = (materialInfo.a!=255)?materialInfo.a/254.0:0;
     float subsurface = clamp(float(materialInfo.b-64)/190.0, 0.0,1.0);
+    #ifdef NEEDS_MATERIAL_ID
+    if(materialID==24709)
+        emissive=1;
+    #endif
     #ifdef MAYBE_END_GATEWAY
     if(!isEndGateway)
     #endif
     {
         if(emissive>0)
-        color.rgb*=(EMISSIVE_BRIGHTNESS*emissive);
+            color.rgb*=(EMISSIVE_BRIGHTNESS*emissive);
         else
-        color.rgb*=voxelSample(worldPos, normalize(normalOut.xyz*2-1), subsurface, ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
+            color.rgb*=voxelSample(worldPos, normalize(normalOut.xyz*2-1), subsurface, ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
     }
     #endif
 }
