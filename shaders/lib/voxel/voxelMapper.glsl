@@ -8,11 +8,11 @@ void writeVoxelMap(vec3 worldPos, int rawBlockID, vec3 toMidblock, vec3 normal, 
 //    if(max(max(abs(toMidblock.x),abs(toMidblock.y)),abs(toMidblock.z))>0.5)
 //        return; //for blocks that dont fit in the box, altho not best solution
 
-    uint blockID = rawBlockID>=0?uint(rawBlockID):0u;
     vec3 color = vec3(0.9,0.6,0.6);
     uint metadata;
 
-    if(blockID>=0){
+    if(rawBlockID>=0){
+        uint blockID = uint(rawBlockID);
         color.r=(blockID/100)%10;
         color.g=(blockID/10)%10;
         color.b=(blockID)%10;
