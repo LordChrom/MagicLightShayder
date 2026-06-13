@@ -1,4 +1,7 @@
 #define SAMPLES_LIGHT_FACE
+#if SUBSURFACE_MODE==2
+    #define SAMPLES_VOX
+#endif
 
 #include "/lib/voxel/voxelHelper.glsl"
 #include "/lib/util/flicker.glsl"
@@ -7,8 +10,13 @@
 
 float normalFactor(vec3 normal, vec3 displacement, uint axis, float subsurface){
     float lightDotN =-dot(normalize(displacement),normal);
+   #if SUBSURFACE_MODE == 0
     subsurface*=0.4;
-    lightDotN=clamp(max(lightDotN*(1-subsurface),0)+subsurface,0,1);
+    lightDotN=max(lightDotN*(1-subsurface),0)+subsurface;
+   #elif SUBSURFACE_MODE == 1
+    lightDotN=(lightDotN+subsurface)/(1.0+subsurface);
+   #endif
+    lightDotN = clamp(lightDotN,0,1);
 #if EVERYTHING_FACING_SRC==1
     if(lightDotN>0)
         return 1;
@@ -271,7 +279,7 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
 
 
 
-vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 blockPos, vec3 normal, vec3 subVoxelOffset, bool isForFog, float scale){
+vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 blockPos, vec3 normal, vec3 subVoxelOffset, bool isForFog, float scale, bool lightReachesBlock){
     uint type = unpackLightType(packedLightSrc);
     if(type==0)return vec3(0);
 
@@ -290,6 +298,10 @@ vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 b
 
     float lightStrength;
 
+   #if SUBSURFACE_MODE == 2
+    float subsurfaceStrength = 0;
+   #endif
+
     if(isForFog){
         lightStrength =(type==LIGHT_TYPE_SUN)?FOG_BRIGHTNESS_SUN:FOG_BRIGHTNESS_BLOCK;
         if(type==LIGHT_TYPE_SUN)
@@ -298,6 +310,22 @@ vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 b
             doFogOcclusion(lightStrength,displacement,travel,packedLightSrc.w);
     }else {
         lightStrength =normalFactor(normal, displacement, axis, subsurface);
+       #if SUBSURFACE_MODE == 2
+        if(subsurface>0){
+            float thickness = 0;
+            vec3 svo2 = (abs(subVoxelOffset)/scale);
+            if(max(max(svo2.x,svo2.y),svo2.z)>=0.499){
+                float z = subVoxelOffset.z/scale+0.5;
+                float ndot = dot(normal,vec3(0,0,1));
+                if(ndot<-0.9 && z>0.999)
+                    z=0;
+                if(ndot>=0 && z<0.001)
+                    z=1;
+                thickness=z*scale+(lightReachesBlock?0:scale);
+            }
+            subsurfaceStrength = exp(-2/max(1e-4,subsurface)*thickness);
+        }
+       #endif
         if(type==LIGHT_TYPE_SUN)
             doSunOcclusion(lightStrength,displacement,travel,packedLightSrc.w);
         else
@@ -308,7 +336,15 @@ vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 b
 //    if(lightStrength<=0)return vec3(0);
 
 
-    lightStrength*= baseLightStrength(type,displacement,blockPos, travel, axis);
+    float baseStrength = baseLightStrength(type,displacement,blockPos, travel, axis);
+    lightStrength*= baseStrength;
+
+    #if SUBSURFACE_MODE == 2
+    if(!isForFog){
+        lightStrength+= max(0,subsurfaceStrength*baseStrength*subsurface);
+//        lightStrength= subsurfaceStrength*baseStrength*subsurface;
+    }
+    #endif
 
     vec3 color = unpackLightColor(packedLightSrc) * lightStrength;
 
@@ -317,10 +353,12 @@ vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 b
     return color;
 }
 
-vec3 getDirectedLight(uint cascadeLevel, uint layer, uint axis, float subsurface, ivec3 zoneShift, ivec3 zonePos, ivec3 blockPos, vec3 normal, vec3 subVoxelOffset, bool isForFog, float scale){
+vec3 getDirectedLight(uint cascadeLevel, uint layer, uint axis, float subsurface, ivec3 zoneShift, ivec3 zonePos,
+    ivec3 blockPos, vec3 normal, vec3 subVoxelOffset, bool isForFog, float scale, bool lightReachesBlock
+){
     uint zoneMemOffset = zoneOffset(axis, layer,cascadeLevel);
     uvec4 packedLightSrc = sampleLightData(zonePos, zoneShift, zoneMemOffset);
-    return getDirectedLight(packedLightSrc,axis,subsurface,blockPos,normal,subVoxelOffset,isForFog,scale);
+    return getDirectedLight(packedLightSrc,axis,subsurface,blockPos,normal,subVoxelOffset,isForFog,scale,lightReachesBlock);
 }
 
 const float radSlope = tan(22.5*PI/180);
@@ -369,6 +407,11 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
 
     vec3 color = vec3(0);
 
+    #if SUBSURFACE_MODE==2
+    vec3 hitBlockCenter = (floor(worldPos/scale-normalize(normal)*(scale/20))+0.5) * scale;
+    ivec3 hitBlockAreaPos = worldPosToArea(hitBlockCenter,scale).xyz;
+    #endif
+
 #if DEBUG_GRID_OUTLINE >0
     vec3 edgeNearness = abs(subVoxelOffset*2/scale)+(DEBUG_GRID_OUTLINE/(64*scale));
     if((int(edgeNearness.x>=1)+int(edgeNearness.y>=1)+int(edgeNearness.z>=1))>=2){
@@ -389,13 +432,19 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
     for (uint axis=0;axis<6;axis++)
 #endif
     {
+        bool lightReachesBlock = false;
+       #if SUBSURFACE_MODE==2
+        ivec3 newPos = clamp(hitBlockAreaPos-lVec(axis),0,AREA_SIZE-1);
+        uint hitBlockPotentialBlocker = getVoxData(newPos, areaShift, areaOffset(cascadeLevel));
+        lightReachesBlock=!bool(hitBlockPotentialBlocker & WORLDVOX_OPAQUE);
+       #endif
         vec3 zoneNorm = areaToZoneSpaceRelative(normal,axis); //TODO move out of this to avoid duplication
 
         ivec3 zoneShift = areaToZoneSpace(areaShift, axis);
         ivec3 zonePos = areaToZoneSpace(areaPos, axis);
     #ifndef DEBUG_RADIANCE_ONLY
         for(uint layer = 0; layer<VOX_LAYERS; layer++)
-            color+=getDirectedLight(cascadeLevel,layer,axis,subsurface,zoneShift,zonePos,blockPos,zoneNorm,subVoxelOffset,false,scale);
+            color+=getDirectedLight(cascadeLevel,layer,axis,subsurface,zoneShift,zonePos,blockPos,zoneNorm,subVoxelOffset,false,scale,lightReachesBlock);
     #endif
 
         #ifdef FALLBACK_RADIANCE
@@ -448,10 +497,10 @@ vec3 voxelSampleFog(vec3 worldPos, float fogNoise, float ditherValue){
         ivec3 zoneShift = areaToZoneSpace(areaShift, axis);
         ivec3 zonePos = areaToZoneSpace(areaPos, axis);
         for(int layer = 0; layer<lightsInLoop; layer++){
-            color+=getDirectedLight(cascadeLevel,layer,axis,1.0,zoneShift,zonePos,blockPos,vec3(0),subVoxelOffset,true,scale);
+            color+=getDirectedLight(cascadeLevel,layer,axis,1.0,zoneShift,zonePos,blockPos,vec3(0),subVoxelOffset,true,scale,false);
         }
 #ifdef FOG_RANDOM_LESSER_SOURCE
-        color+=getDirectedLight(cascadeLevel,randLayer,axis,1.0,zoneShift,zonePos,blockPos,vec3(0),subVoxelOffset,true,scale);
+        color+=getDirectedLight(cascadeLevel,randLayer,axis,1.0,zoneShift,zonePos,blockPos,vec3(0),subVoxelOffset,true,scale,false);
 #endif
     }
     return color;

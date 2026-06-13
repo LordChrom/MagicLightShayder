@@ -97,7 +97,10 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
             matInfo = texelFetch(colortex3, sourceTexpos, 0);
     }
 
-    subsurface = clamp(float(matInfo.b-64)/190.0, 0.0,1.0);
+    subsurface = clamp(float(int(matInfo.b)-64)/190.0, 0.0,1.0);
+
+    //TODO subsurface on porous materials like wool
+//    if(matInfo.b>=20u && matInfo.b<=64u) subsurface=float(matInfo.b)/64;
     if(matInfo.a!=255)
         emissive = (matInfo.a/254.0);
 #endif
@@ -112,7 +115,7 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 
     voxelLighting = vec3(0);
     if(!(isSky|| solidTransInFront))
-        voxelLighting = voxelSample(worldPos,normal,0,ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
+        voxelLighting = voxelSample(worldPos,normal,subsurface,ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
 
 #ifdef SSAO
     float ssao;

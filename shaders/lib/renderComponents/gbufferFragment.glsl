@@ -81,6 +81,9 @@ flat in int materialID;
 #if defined FORWARD_TRANSLUCENTS && defined TRANSLUCENT && defined LIT
     in vec3 worldPos;
     uniform vec3 cameraPosition;
+    #if SUBSURFACE_MODE==2
+        #define SUBSURFACE_MODE 1
+    #endif
     #include "/lib/voxel/voxelSampler.glsl"
     #include "/lib/util/dither.glsl"
 #else
@@ -309,7 +312,7 @@ void main()
     #ifdef FORWARD_TRANSLUCENTS
     float ditherValue = dither(ivec2(floor(vec2(texcoord)*vec2(viewWidth,viewHeight)-0.01)));
     float emissive = (materialInfo.a!=255)?materialInfo.a/254.0:0;
-    float subsurface = clamp(float(materialInfo.b-64)/190.0, 0.0,1.0);
+    float subsurface = clamp(float(int(materialInfo.b)-64)/190.0, 0.0,1.0);
     #ifdef NEEDS_MATERIAL_ID
     if(materialID==24709)
         emissive=1;
