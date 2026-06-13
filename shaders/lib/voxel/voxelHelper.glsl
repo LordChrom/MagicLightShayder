@@ -20,25 +20,19 @@ uint modAreaSize(uint x){
     #if (AREA_SIZE&(AREA_SIZE-1))
     return (x+0x10000u*AREA_SIZE)%AREA_SIZE;
     #else
-    return x&(AREA_SIZE-1);
+    return x&uint(AREA_SIZE-1);
     #endif
 }
 uvec3 modAreaSize(uvec3 x){
     #if (AREA_SIZE&(AREA_SIZE-1))
     return (x+0x10000u*AREA_SIZE)%AREA_SIZE;
     #else
-    return x&(AREA_SIZE-1);
+    return x&uint(AREA_SIZE-1);
     #endif
 }
 int modAreaSize(int x){ return int(modAreaSize(uint(x)));}
 ivec3 modAreaSize(ivec3 x){ return ivec3(modAreaSize(uvec3(x)));}
 
-//mat3 areaToZoneSpaceMat(uint axis){
-//    int lowerSign = -1+((int(axis)&1)<<1);
-//    axis>>=1;
-//    vec3 which = vec3(axis==0,axis==1, axis==2);
-//    return mat3(which.zxy,which.yzx,lowerSign*which);
-//}
 
 //in order from 0 to 5, -x,+x,-y,+y,-z,+z
 ivec3 lVec(uint axis){
@@ -74,7 +68,7 @@ uint getCascadeLevel(vec3 worldPos){
     pos = abs(pos/(0.25*MIN_SCALE*AREA_SIZE));
     float maxDist = max(max(pos.x,pos.y),pos.z);
     uint cascade = uint(max(0,floor(log2(maxDist))));
-    float scale = getScale(int(cascade));
+    float scale = getScale(cascade);
 
     //TODO make more efficient
     pos = worldPos - getGlobalOrigin(scale);
@@ -107,7 +101,7 @@ bool isVoxelInBounds(vec3 worldPos){
 }
 
 uint zoneOffset(uint axis, uint layer, uint cascadeLevel){
-    return ((cascadeLevel<<16u)|(0xffu&(layer+MEM_LAYERS*axis)));
+    return ((cascadeLevel<<16u)|(0xffu&(layer+uint(MEM_LAYERS)*axis)));
 }
 
 uint areaOffset(uint cascadeLevel){
@@ -165,7 +159,7 @@ vec3 subVoxelOffset(vec3 pos, float scale){
 ivec3 toMemPos(ivec3 pos, ivec3 spaceShift, uint memOffset){
     pos += spaceShift;
     pos = modAreaSize(pos);
-    pos.yz+=AREA_SIZE*(0xffff&ivec2(memOffset>>16,memOffset));
+    pos.yz+=AREA_SIZE*(0xffff&ivec2(memOffset>>16u,memOffset));
     return pos;
 }
 
@@ -212,7 +206,7 @@ uint packFloat12(float x){
     int exponent = 0;
     float sig = frexp(x,exponent);
     sig = (sig-0.5)*30;
-    return (clamp(int(floor(sig)),0,15)<<8)|(clamp(exponent,-128,127)&0xff);
+    return uint((clamp(int(floor(sig)),0,15)<<8)|(clamp(exponent,-128,127)&0xff));
 }
 
 //TODO investigate if ldexp/frexp is actually fast
@@ -225,7 +219,7 @@ float unpackFloat12(uint x){
 }
 
 uint packOcclusionInfo(vec2 ray, uint map, float hitDist){
-    return (packUnorm4x8(vec4(0,0,ray))) | (packFloat12(hitDist)<<4) | (map);
+    return (packUnorm4x8(vec4(0,0,ray))) | (packFloat12(hitDist)<<4u) | (map);
 }
 
 vec3 unpackLightColor(uvec4 packedData){
@@ -233,11 +227,11 @@ vec3 unpackLightColor(uvec4 packedData){
 }
 
 vec3 unpackLightTravel(uvec4 packedData){
-    return vec3(ivec3(packedData.x,packedData.x<<16,packedData.y<<16)>>16)*lightTravelScale;
+    return vec3(ivec3(packedData.x,packedData.x<<16u,packedData.y<<16u)>>16u)*lightTravelScale;
 }
 
 float unpackOcclusionHitDist(uint occlusionInfo){
-    return unpackFloat12((occlusionInfo>>4)&0xfffu);
+    return unpackFloat12((occlusionInfo>>4u)&0xfffu);
 }
 
 uint unpackOcclusionMap(uint occlusionInfo){
@@ -249,7 +243,7 @@ uint unpackLightFlags(uvec4 packedData){
 }
 
 uint unpackLightType(uvec4 packedData){
-    return (packedData.y>>16)&0xfu;
+    return (packedData.y>>16u)&0xfu;
 }
 
 vec2 unpackOcclusionRay(uint occlusionInfo){
@@ -262,7 +256,7 @@ uint getLightStrength(uvec4 lightSrc){
         return 0xffffff00;
     if(type==0)
         return 0;
-    ivec3 travel = ivec3(lightSrc.x,lightSrc.x<<16,lightSrc.y<<16)>>18;
+    ivec3 travel = ivec3(lightSrc.x,lightSrc.x<<16u,lightSrc.y<<16u)>>18;
     float lenSquared = float(dot(travel, travel)+1);
     float strength = (1+length(unpackLightColor(lightSrc)))/lenSquared;
 
@@ -272,7 +266,7 @@ uint getLightStrength(uvec4 lightSrc){
 void setPackedLightTravel(inout uvec4 packedData, vec3 travel){
     uvec3 intTravel = ivec3(round(travel*lightTravelScaleInv));
 
-    packedData.x = (intTravel.x<<16) | (intTravel.y&0xffffu);
+    packedData.x = (intTravel.x<<16u) | (intTravel.y&0xffffu);
     packedData.y = (packedData.y&0xffff0000u) | (intTravel.z&0xffffu);
 }
 
@@ -291,34 +285,34 @@ uvec4 packLightData(vec2 occlusionRay,uint occlusionMap,vec3 color,vec3 lightTra
         lightTravel.z=sunDist;
     uvec3 intTravel = ivec3(round(lightTravel*lightTravelScaleInv));
 
-    ret.x = (intTravel.x<<16) | (intTravel.y&0xffffu);
-    ret.y = ((type&0xfu)<<16) | (intTravel.z&0xffffu);
+    ret.x = (intTravel.x<<16u) | (intTravel.y&0xffffu);
+    ret.y = ((type&0xfu)<<16u) | (intTravel.z&0xffffu);
     ret.z = packUnorm4x8(vec4(0,color)) | (flags&0xffu);
     ret.w = packOcclusionInfo(occlusionRay, occlusionMap, occlusionHitDistance);
     return ret;
 }
 
 uvec4 unpackBytes(uint packedData){
-    return uvec4(packedData>>24,packedData>>16,packedData>>8,packedData)&0xffu;
+    return uvec4(packedData>>24u,packedData>>16u,packedData>>8u,packedData)&0xffu;
 }
 
 uint packBytes(uvec4 data){
-    return ((data.x<<24)|(data.y<<16))|((data.z<<8)|(data.w));
+    return ((data.x<<24u)|(data.y<<16u))|((data.z<<8u)|(data.w));
 }
 
 uvec4 unpackWorldVox(uint packedData){
-    uvec4 ret = uvec4((packedData>>14)&0x7fu,(packedData>>7)&0x7fu,packedData&0x7fu,packedData>>21);
+    uvec4 ret = uvec4((packedData>>14u)&0x7fu,(packedData>>7u)&0x7fu,packedData&0x7fu,packedData>>21u);
     ret.rgb<<=1;
     return ret;
 }
 
 uint packWorldVox(uvec4 data){
     data.rgb=(data.rgb>>=1)&0x7fu;
-    return ((data.w<<21)|(data.x<<14))|((data.y<<7)|(data.z));
+    return ((data.w<<21u)|(data.x<<14u))|((data.y<<7u)|(data.z));
 }
 
 vec3 worldVoxColor(uint packedData){
-    return vec3(uvec3(packedData>>14,packedData>>7,packedData)&0x7fu)*1.0/127;
+    return vec3(uvec3(packedData>>14u,packedData>>7u,packedData)&0x7fu)*1.0/127;
 }
 
 
@@ -338,8 +332,8 @@ layout (rgba32ui) uniform writeonly restrict uimage3D lightVox;
 void setLightData(uvec4 light, ivec3 zonePos, ivec3 zoneShift, uint zoneMemOffset){
 #if DEBUG_SHOW_UPDATES>=0
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-        uint frameIndicator = (frameCounter&0x3f);
-        setPackedLightFlags(light,(unpackLightFlags(light)&3u) | (frameIndicator<<2));
+        uint frameIndicator = uint(frameCounter&0x3f);
+        setPackedLightFlags(light,(unpackLightFlags(light)&3u) | (frameIndicator<<2u));
     }
 #endif
     imageStore(lightVox,toMemPos(zonePos,zoneShift,zoneMemOffset),light);
@@ -397,8 +391,8 @@ bool isLit(vec3 position, vec2 occlRay, uint occlMap){
 //outer x,y, inner xy
 bool canIlluminateInBounds(vec4 edges, vec2 ray, uint occlusionMap){
     return bool( occlusionMap &
-        ((int(ray.x<edges.x)*10u)|(int(ray.x>edges.z)*5u)) &
-        ((int(ray.y<edges.y)*12u)|(int(ray.y>edges.w)*3u))
+        ((uint(ray.x<edges.x)*10u)|(uint(ray.x>edges.z)*5u)) &
+        ((uint(ray.y<edges.y)*12u)|(uint(ray.y>edges.w)*3u))
     );
 }
 
@@ -416,14 +410,14 @@ bool sameLight(uvec4 a, uvec4 b){
 
 //left, top, right, bottom
 uint getLightEdges(uint map){
-    uint xyww = (map&13u) | ((map&1u)<<1);
-    uint zxyz = (map>>1) | ((map&2u)<<2);
+    uint xyww = (map&13u) | ((map&1u)<<1u);
+    uint zxyz = (map>>1u) | ((map&2u)<<2u);
     return xyww&zxyz;
 }
 
 uint getOcclusionEdges(uint map){
-    uint xyww = (map&13u) | ((map&1u)<<1);
-    uint zxyz = (map>>1) | ((map&2u)<<2);
+    uint xyww = (map&13u) | ((map&1u)<<1u);
+    uint zxyz = (map>>1u) | ((map&2u)<<2u);
     return 15u&~(xyww|zxyz);
 }
 
@@ -431,7 +425,7 @@ uint getOcclusionEdges(uint map){
 uint countTrailingZeroes(uint x){
     uint ret = 0;
     for(uint bits = 16; bits>=2; bits>>=1){
-        bool bitsInLowerHalf = bool(x&((1u<<bits)-1));
+        bool bitsInLowerHalf = bool(x&((1u<<bits)-1u));
         ret=bitsInLowerHalf?ret:ret+bits;
         x  =bitsInLowerHalf?x:x>>bits;
     }

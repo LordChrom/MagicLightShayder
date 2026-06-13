@@ -61,8 +61,8 @@ void doPenumbralOcclusion(inout float lightStrength, vec3 displacement, vec3 tra
     vec2 m = clamp((abs(displacement.xy/displacement.z)-ray)/width+0.5,0,1);
 
     vec2 mixX = mix(
-    vec2(1u&(map>>0),1u&(map>>2)),
-    vec2(1u&(map>>1),1u&(map>>3)),
+    vec2(1u&(map>>0u),1u&(map>>2u)),
+    vec2(1u&(map>>1u),1u&(map>>3u)),
     m.x);
     lightStrength*= mix(mixX.x,mixX.y,m.y);
 }

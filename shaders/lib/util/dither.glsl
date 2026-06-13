@@ -2,12 +2,12 @@ uint bayer2u(ivec2 pos){
     return ((pos.x&1)<<31)-((pos.y&1)<<30);
 }
 
-uint bayer4u  (ivec2 pos){ return bayer2u(pos)  + (bayer2u(pos>>1)>>2 ); }
-uint bayer8u  (ivec2 pos){ return bayer4u(pos)  + (bayer2u(pos>>2)>>4 ); }
-uint bayer16u (ivec2 pos){ return bayer8u(pos)  + (bayer2u(pos>>3)>>6 ); }
-uint bayer32u (ivec2 pos){ return bayer16u(pos) + (bayer2u(pos>>4)>>8 ); }
-uint bayer64u (ivec2 pos){ return bayer32u(pos) + (bayer2u(pos>>5)>>10); }
-uint bayer128u(ivec2 pos){ return bayer64u(pos) + (bayer2u(pos>>6)>>12); }
+uint bayer4u  (ivec2 pos){ return bayer2u(pos)  + (bayer2u(pos>>1)>>2u ); }
+uint bayer8u  (ivec2 pos){ return bayer4u(pos)  + (bayer2u(pos>>2)>>4u ); }
+uint bayer16u (ivec2 pos){ return bayer8u(pos)  + (bayer2u(pos>>3)>>6u ); }
+uint bayer32u (ivec2 pos){ return bayer16u(pos) + (bayer2u(pos>>4)>>8u ); }
+uint bayer64u (ivec2 pos){ return bayer32u(pos) + (bayer2u(pos>>5)>>10u); }
+uint bayer128u(ivec2 pos){ return bayer64u(pos) + (bayer2u(pos>>6)>>12u); }
 
 const float floatAndShift = pow(2,-32);
 float bayer2  (ivec2 pos){return floatAndShift*bayer2u(pos);  }
@@ -42,6 +42,6 @@ float dither(ivec2 pos){
 float temporalNoise(float x){
     const uint temporalLoop = 256;
     const uint temporalMult = 203;
-    uint fc = frameCounter;
-    return fract((bool(fc&1u)?x:-x) + float(((fc>>1)*temporalMult)&(temporalLoop-1))/temporalLoop);
+    uint fc = uint(frameCounter);
+    return fract((bool(fc&1u)?x:-x) + float(((fc>>1u)*temporalMult)&(temporalLoop-1u))/temporalLoop);
 }

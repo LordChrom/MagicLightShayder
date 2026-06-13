@@ -4,10 +4,11 @@
 
 
 
-void writeVoxelMap(vec3 worldPos, int blockID, vec3 toMidblock, vec3 normal, uint emission){
+void writeVoxelMap(vec3 worldPos, int rawBlockID, vec3 toMidblock, vec3 normal, uint emission){
 //    if(max(max(abs(toMidblock.x),abs(toMidblock.y)),abs(toMidblock.z))>0.5)
 //        return; //for blocks that dont fit in the box, altho not best solution
 
+    uint blockID = rawBlockID>=0?uint(rawBlockID):0u;
     vec3 color = vec3(0.9,0.6,0.6);
     uint metadata;
 
@@ -46,6 +47,6 @@ void writeVoxelMap(vec3 worldPos, int blockID, vec3 toMidblock, vec3 normal, uin
     uint areaMemOffset = areaOffset(cascadeLevel);
 
 
-    uint packedData = packWorldVox(uvec4(255*color, metadata)) | (VOXEL_INITIAL_TIME<<VOXEL_AGE_SHIFT);
+    uint packedData = packWorldVox(uvec4(255*color, metadata)) | uint(VOXEL_INITIAL_TIME<<VOXEL_AGE_SHIFT);
     updateVoxData(packedData, areaPos, areaShift, areaMemOffset);
 }

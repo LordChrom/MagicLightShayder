@@ -82,7 +82,6 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 #define TAA_MIN_ACCUMULATION_RATE 0.0 //[0.0 0.01 0.025 0.05 0.075 0.1 0.15 0.2 0.3 0.4 0.5]
 #define TAA_MOTION_REJECTION 0.1 //[0 0.1 0.25 0.5 0.75 1 2 3 4 6 8 10 12 14 16 20 24 28 32]
 #define TAA_FOG_FACTOR 1.75 //[1.0 1.25 1.5 1.75 2.0]
-#define TAA_BETTER_REJECTION
 #define TAA_FOG
 #define TAA_HQ_BLUR
 
@@ -184,7 +183,7 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 #define WORLDVOX_TRANSLUCENT (2u<<WORLDVOX_SHIFT)
 #define WORLDVOX_NOT_AIR (3u<<WORLDVOX_SHIFT)
 #define VOXEL_AGE_SHIFT 27
-#define VOXEL_AGE_MASK (0xffffffff<<VOXEL_AGE_SHIFT)
+#define VOXEL_AGE_MASK uint(0xffffffff<<VOXEL_AGE_SHIFT)
 #define VOXEL_INITIAL_TIME 10
 
 #define FOG_HALF_LIFE 128

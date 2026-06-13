@@ -265,7 +265,7 @@ uvec4[VOX_LAYERS] determineBestLightSources(){
             #ifndef UNOCCLUDED_INTO_BLOCKS
             bool blockInFront = bool((getRearVoxel(a,b)|getFrontVoxel(a,b))&WORLDVOX_OPAQUE)
             || ( bool(getFrontVoxel(a,0)&WORLDVOX_OPAQUE) && bool(getFrontVoxel(0,b)&WORLDVOX_OPAQUE) && ((a|b)!=0));  //neighboring blocks between src and center
-            blocksInFront |= (uint(blockInFront)<<(16+a+(b<<2)));
+            blocksInFront |= (uint(blockInFront)<<uint(16+a+(b<<2)));
             #endif
         }
     }
@@ -275,7 +275,7 @@ uvec4[VOX_LAYERS] determineBestLightSources(){
             for (int b=-1; b<=1;b++){
                 uvec4 lightSrc = getInputSample(a,b,layer);
                 #if defined READS_MUST_BE_UNIFORM && !defined UNOCCLUDED_INTO_BLOCKS
-                if(bool(blocksInFront&(1u<<(16+a+(b<<2))))) continue;
+                if(bool(blocksInFront&(1u<<uint(16+a+(b<<2))))) continue;
                 #endif
                 uint type = unpackLightType(lightSrc);
                 vec3 travel = unpackLightTravel(lightSrc);
@@ -468,27 +468,27 @@ uint getTerrainOcclusion(vec3 travel, bool[2][2] relevantObstructions, bvec2 ali
     float hitDist = travel.z-0.6*scale;
 
     if(alignment.x){
-        map = map&((map<<2) | (map>>2));
+        map = map&((map<<2u) | (map>>2u));
         ray.y=0;
     }
     if(alignment.y){
-        map = map&(((map&5u)<<1) | ((map&10u)>>1));
+        map = map&(((map&5u)<<1u) | ((map&10u)>>1u));
         ray.x=0;
     }
 
     if(ray.y>=0.999){
         map=map&3u;
-        map|=map<<2;
+        map|=map<<2u;
     }
 
     if(ray.x>=0.999){
         map=map&5u;
-        map|=map<<1;
+        map|=map<<1u;
     }
 
-    if(!bool((map^(map>>1))&5u))
+    if(!bool((map^(map>>1u))&5u))
         ray.x=0;
-    if(!bool((map^(map>>2))&3u))
+    if(!bool((map^(map>>2u))&3u))
         ray.y=0;
 
     return (map==15u)?NO_OCCLUSION:packOcclusionInfo(ray, map, hitDist);
@@ -533,15 +533,15 @@ uint combineOcclusions(uint occlusionA, uint occlusionB){
 
         uint coveredAreas = 0xfu^mapB;
         if(rayB.x>rayA.x){
-            coveredAreas|=(coveredAreas<<1)&10u;
+            coveredAreas|=(coveredAreas<<1u)&10u;
         }else if(rayB.x<rayA.x){
-            coveredAreas|=(coveredAreas>>1)&5u;
+            coveredAreas|=(coveredAreas>>1u)&5u;
         }
 
         if(rayB.y>rayA.y){
-            coveredAreas|=(coveredAreas<<2)&12u;
+            coveredAreas|=(coveredAreas<<2u)&12u;
         }else if(rayB.y<rayA.y){
-            coveredAreas|=(coveredAreas>>2)&3u;
+            coveredAreas|=(coveredAreas>>2u)&3u;
         }
 
 
@@ -622,7 +622,7 @@ void doOcclusion(uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, bool[
 //                ray+=10*sign(travel.xy)*scale*(1-vec2(i,j));
             }
             uint lightEdges = getLightEdges(map); //left, top, right, bottom
-            lightEdges = lightEdges & ~((lightEdges<<2)|(lightEdges>>2));
+            lightEdges = lightEdges & ~((lightEdges<<2u)|(lightEdges>>2u));
 
             if(bool(i) && bool(lightEdges&8u))
                 litBounds.x=min(litBounds.x,ray.x);
@@ -650,30 +650,30 @@ void doOcclusion(uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, bool[
                 ray+=sign(travel.xy)*scale*(1-vec2(i,j));
                 if(ray.y<0){
                     map=(map&12u);
-                    map+=map>>2;
+                    map+=map>>2u;
                 }
                 if(ray.x<0){
                     map=(map&10u);
-                    map+=map>>1;
+                    map+=map>>1u;
                 }
 //                    map=15u;
             }
 
             //corners to edges
             if(ray.y>slopeBounds.y)
-                map=map&((map<<2)|3u);
+                map=map&((map<<2u)|3u);
 
             if(ray.x>slopeBounds.x)
-                map=map&((map<<1)|5u);
+                map=map&((map<<1u)|5u);
 
             //edges or Ls truncated to corners
             //TODO condense this
             if(i==0){
                 if(ray.x<slopeBounds.z && ray.x>0){
                     //TODO lossy
-                    map=10u|(map>>1);
+                    map=10u|(map>>1u);
                     ray.x=litBounds.x;
-                }else if((((map>>1)&5u)==(map&5u))&&!alignment.y){
+                }else if((((map>>1u)&5u)==(map&5u))&&!alignment.y){
                     map|=10u;
                     ray.x=litBounds.x;
                 }
@@ -681,7 +681,7 @@ void doOcclusion(uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, bool[
                 if(ray.x>slopeBounds.x){
                     map|=10u;
                     ray.x=litBounds.x;
-                }else if((((map>>1)&5u)==(map&5u))&&!alignment.y){
+                }else if((((map>>1u)&5u)==(map&5u))&&!alignment.y){
                     map|=5u;
                     ray.x=litBounds.x;
                 }
@@ -689,9 +689,9 @@ void doOcclusion(uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, bool[
             if(j==0){
                 if(ray.y<slopeBounds.w && ray.y>0){
                     //TODO lossy
-                    map=12u|(map>>2);
+                    map=12u|(map>>2u);
                     ray.y=litBounds.y;
-                }else if(((map>>2)==(map&3u))&&!alignment.x){
+                }else if(((map>>2u)==(map&3u))&&!alignment.x){
                     map|=12u;
                     ray.y=litBounds.y;
                 }
@@ -699,28 +699,28 @@ void doOcclusion(uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, bool[
                 if(ray.y>slopeBounds.y){
                     map|=12u;
                     ray.y=litBounds.y;
-                }else if(((map>>2)==(map&3u))&&!alignment.x){
+                }else if(((map>>2u)==(map&3u))&&!alignment.x){
                     map|=3u;
                     ray.y=litBounds.y;
                 }
             }
 
 
-            if(!bool((map^(map>>1))&5u))
+            if(!bool((map^(map>>1u))&5u))
                 ray.x=0;
-            if(!bool((map^(map>>2))&3u))
+            if(!bool((map^(map>>2u))&3u))
                 ray.y=0;
 
             uint lightEdges = getLightEdges(map); //left, top, right, bottom
             uint darkEdges = getOcclusionEdges(map);
 
-            lightEdges = lightEdges & ~((lightEdges<<2)|(lightEdges>>2));
-            uint darkEdges2 = darkEdges & ~((darkEdges<<2)|(darkEdges>>2));
+            lightEdges = lightEdges & ~((lightEdges<<2u)|(lightEdges>>2u));
+            uint darkEdges2 = darkEdges & ~((darkEdges<<2u)|(darkEdges>>2u));
 
             uint inBoundsLight = (uint(ray.x<=slopeBounds.x)<<3u) | (uint(ray.y<=slopeBounds.y)<<2u)|
                                  (uint(ray.x>=slopeBounds.z)<<1u) | (uint(ray.y>=slopeBounds.w));
 
-            inBoundsLight |= (bool(5u&(map^(map>>1)))?10u:0u)|(bool(3u&(map^(map>>2)))?5u:0u);
+            inBoundsLight |= (bool(5u&(map^(map>>1u)))?10u:0u)|(bool(3u&(map^(map>>2u)))?5u:0u);
 
             bool anythingInBounds = bool(inBoundsLight&darkEdges)||((inBoundsLight==15u)&&(darkEdges==0u)&&(map!=15u));
 

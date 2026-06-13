@@ -37,10 +37,18 @@ layout (local_size_x = AREA_SIZE, local_size_y = 1, local_size_z = 1) in;
 
 
 
-float scale;
-uint thisMemOffset, upperMemOffset, axis, cascadeLevel, frameOffset;
-ivec3 thisShift, upperShift, movement;
-bool cascadeVisitedThisFrame;
+float scale = 0.0;
+
+uint thisMemOffset  = 0;
+uint upperMemOffset = 0;
+uint axis           = 0;
+uint cascadeLevel   = 0;
+uint frameOffset    = 0;
+
+ivec3 thisShift  = ivec3(0);
+ivec3 upperShift = ivec3(0);
+ivec3 movement   = ivec3(0);
+bool cascadeVisitedThisFrame = false;
 
 void trimLight(ivec3 zonePos){
     uvec4 light = uvec4(0);
@@ -189,7 +197,7 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
                 representative = max(representative,sampledVox&~VOXEL_AGE_MASK);
             }
 
-            representative = representative | (VOXEL_INITIAL_TIME<<VOXEL_AGE_SHIFT);
+            representative = representative | uint(VOXEL_INITIAL_TIME<<VOXEL_AGE_SHIFT);
             updateVoxData(representative, upperAreaPos, upperShift, upperMemOffset);
         }
     }
