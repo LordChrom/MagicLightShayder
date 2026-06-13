@@ -13,7 +13,7 @@ float normalFactor(vec3 normal, vec3 displacement, uint axis, float subsurface){
    #if SUBSURFACE_MODE == 0
     subsurface*=0.4;
     lightDotN=max(lightDotN*(1-subsurface),0)+subsurface;
-   #elif SUBSURFACE_MODE == 1
+   #else
     lightDotN=(lightDotN+subsurface)/(1.0+subsurface);
    #endif
     lightDotN = clamp(lightDotN,0,1);
@@ -309,7 +309,6 @@ vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 b
         else
             doFogOcclusion(lightStrength,displacement,travel,packedLightSrc.w);
     }else {
-        lightStrength =normalFactor(normal, displacement, axis, subsurface);
        #if SUBSURFACE_MODE == 2
         if(subsurface>0){
             float thickness = 0;
@@ -322,10 +321,13 @@ vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 b
                 if(ndot>=0 && z<0.001)
                     z=1;
                 thickness=z*scale+(lightReachesBlock?0:scale);
+                subsurfaceStrength = exp(-2/max(1e-4,subsurface)*thickness);
+                subsurface=0;
             }
-            subsurfaceStrength = exp(-2/max(1e-4,subsurface)*thickness);
         }
        #endif
+
+        lightStrength =normalFactor(normal, displacement, axis, subsurface);
         if(type==LIGHT_TYPE_SUN)
             doSunOcclusion(lightStrength,displacement,travel,packedLightSrc.w);
         else
