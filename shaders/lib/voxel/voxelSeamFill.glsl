@@ -67,7 +67,7 @@ void trimLight(ivec3 zonePos){
     if((!hasCeiling) && axis==2 && zonePos.z<=0){
         float height = getGlobalOrigin(scale).y+scale*(0.5*AREA_SIZE-zonePos.z);
         if((height>=(heightLimit+bedrockLevel)) || (cascadeLevel==(NUM_CASCADES-1)))
-            light = getSunlight();
+            light = getSunlight(axis);
     }
 #endif
     setLightData(light, ivec3(zonePos), thisShift, thisMemOffset);

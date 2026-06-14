@@ -292,7 +292,7 @@ vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 b
     if(type==LIGHT_TYPE_SUN){
         subVoxelOffset.xy*=sign(travel.xy);
         subVoxelOffset+=0.5*scale;
-        displacement.xy=subVoxelOffset.xy+travel.xy*(subVoxelOffset.z/travel.z);
+        displacement.xy=subVoxelOffset.xy-abs(travel.xy)*(subVoxelOffset.z/travel.z);
         displacement.z=7;
     }
 

@@ -278,7 +278,8 @@ void setPackedLightFlags(inout uvec4 packedData, uint flags){
     packedData.z = (packedData.z&0xffffff00u) | (flags&0xffu);
 }
 
-float sunDist = 4+((frameCounter>>6)%10)*0.4;
+//float sunDist = 4+((frameCounter>>6)%10)*0.4;
+const float sunDist = 5;
 uvec4 packLightData(vec2 occlusionRay,uint occlusionMap,vec3 color,vec3 lightTravel,float occlusionHitDistance,uint type,uint flags){
     uvec4 ret;
     if(type==LIGHT_TYPE_SUN)
@@ -457,12 +458,18 @@ uint getVariableCascadeLevel(bool isAuxGroup){
 
 //TODO ssbo?
 uniform float sunAngle;
-uvec4 getSunlight(){
+uvec4 getSunlight(uint axis){
     const vec3 sunColor = vec3(242,242,242)/255;
-    const vec3 sunPos = vec3(0,0,1000);
-    if(sunAngle>=0.5)
+    if(sunAngle>=0.5 || ((axis&6u)==4u))
         return uvec4(0);
     float angleOfTheSun = sunAngle*2*PI;
-    vec3 sunLightTravel = vec3(0,-cos(angleOfTheSun),1)*sunDist;
+    vec3 sunLightTravel = normalize(vec3(-cos(angleOfTheSun),sin(angleOfTheSun),0));
+    sunLightTravel = areaToZoneSpaceRelative(sunLightTravel,axis);
+//    if(sunLightTravel.z<=1e-4)
+//        return uvec4(0);
+
+    sunLightTravel*=-sign(sunLightTravel.z)*(sunDist/max(abs(sunLightTravel.z),0.001));
+    if(-sunLightTravel.z<max(abs(sunLightTravel.x),abs(sunLightTravel.y)))
+        return uvec4(0);
     return packLightData(vec2(0),0xfu,sunColor,sunLightTravel,0f,1,0xfeu);
 }

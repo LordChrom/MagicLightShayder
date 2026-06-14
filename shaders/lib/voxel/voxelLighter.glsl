@@ -144,7 +144,7 @@ void saveSharedSample(int a, int b){
 
         if(cascadeLevel>=(NUM_CASCADES-1)){
             sharedPackedRearVoxels[A+a][B+b]=sharedPackedFrontVoxels[A+a][B+b]=0u;
-            uvec4 defaultLight = ((!hasCeiling) && axis==2 && zonePos.z<=0) ? getSunlight() : uvec4(0);
+            uvec4 defaultLight = ((!hasCeiling) && zonePos.z<=0) ? getSunlight(axis) : uvec4(0);
     #ifdef DEBUG_DISABLE_SUN
             defaultLight=uvec4(0);
     #endif
@@ -645,9 +645,8 @@ void doOcclusion(uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, bool[
             uint map = unpackOcclusionMap(occl);
             vec2 ray = unpackOcclusionRay(occl);
             if(isSun){
-//                if(i==0 || j==0) continue;
                 ray+=sunOffset;
-                ray+=sign(travel.xy)*scale*(1-vec2(i,j));
+                ray-=scale*(1-vec2(i,j));
                 if(ray.y<0){
                     map=(map&12u);
                     map+=map>>2u;
