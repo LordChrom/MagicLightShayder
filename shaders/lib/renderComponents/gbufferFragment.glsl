@@ -124,7 +124,11 @@ flat in int materialID;
     #define NORMAL_A 0
 #endif
 
-#ifndef POM_ELLIGIBLE
+#if (!defined POM_ELLIGIBLE) || defined NORMALS_NOT_INCLUDED
+    #undef POM
+#endif
+
+#if (defined ENTITY) && !(defined ENTITY_POM)
     #undef POM
 #endif
 
@@ -132,7 +136,12 @@ flat in int materialID;
     in vec2 differential;
     flat in ivec2 baseTexpos;
     flat in ivec2 texsize;
+    #ifndef ENTITY
     uniform ivec2 atlasSize;
+    #else
+    #define atlasSize textureSize(normals,0)
+    #endif
+    uniform mat4 gbufferProjectionInverse;
     float rayDepth=0;
     #include "/lib/renderComponents/pom.glsl"
     #include "/lib/util/conversions.glsl"
@@ -252,7 +261,7 @@ void main()
 
     #if (defined POM) && DEBUG_SPECIAL_VIEW==104
         bool checker = bool((int(floor(texcoord.x*atlasSize.x))+int(floor(texcoord.y*atlasSize.y)))&1);
-        sampledColor.xyz=vec3(abs(max(differential.xy,checker?0:-1)),0);
+        sampledColor.xyz=vec3(min(abs(differential.xy*0.3),1)*vec2((checker&&differential.x<=0)?0.5:1,(checker&&differential.y<=0)?0.5:1),0.1);
     //        sampledColor.xyz=vec3(pbrNormalSample.a);
     #endif
 

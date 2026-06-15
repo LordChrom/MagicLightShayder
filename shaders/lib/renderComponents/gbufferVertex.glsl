@@ -69,12 +69,17 @@ uniform vec3 cameraPosition;
     #endif
 #endif
 
-#ifndef POM_ELLIGIBLE
+#if (!defined POM_ELLIGIBLE) || defined NORMALS_NOT_INCLUDED
     #undef POM
 #endif
 
 #ifdef POM
-uniform ivec2 atlasSize;
+  #ifndef ENTITY
+    uniform ivec2 atlasSize;
+  #else
+    uniform sampler2D normals;
+    #define atlasSize textureSize(normals,0)
+  #endif
 uniform mat4 gbufferProjectionInverse;
 in vec2 mc_midTexCoord;
 out vec2 differential;
@@ -116,15 +121,21 @@ void main() {
     texsize = ivec2(ceil(2*atlasSize*abs(mc_midTexCoord-texcoord)));
     baseTexpos = ivec2(atlasSize*(mc_midTexCoord-abs(mc_midTexCoord-texcoord)));
 
-    vec3 scrnNormal = (gbufferProjectionInverse*gl_Position).xyz;
+    vec3 scrnNormal = normalize((gbufferProjectionInverse*gl_Position).xyz);
     vec3 texHitVec = transpose(gl_NormalMatrix*normalRotator)*scrnNormal;
     differential=-texsize*texHitVec.xy/texHitVec.z;
 
-    if(abs(gl_Normal.x)+abs(gl_Normal.y)+abs(gl_Normal.z)>1.0001){
+    #ifdef ENTITY
+    if(texsize.x*texsize.y<=1)
+        differential=vec2(0);
+    #else
+    if(abs(normal.x)+abs(normal.y)+abs(normal.z)>1.0001){
+        //TODO fix lava
 //        texsize=ivec2(16);
 //        baseTexpos=(ivec2(atlasSize*texcoord)/texsize)*texsize;
         differential=vec2(0);
     }
+    #endif
         #endif
     #endif
 #endif

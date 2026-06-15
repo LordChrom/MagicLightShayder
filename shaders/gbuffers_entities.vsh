@@ -2,6 +2,8 @@
 #define VERTEX_NORMALS
 #define LIT
 #define WRITE_MATERIALS
+#define ENTITY
+#define POM_ELLIGIBLE
 
 #if defined IRIS_VERSION && !defined TRANSLUCENT
 #if IRIS_VERSION < 11008

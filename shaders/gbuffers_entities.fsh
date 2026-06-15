@@ -4,6 +4,7 @@
 #define ENTITY
 #define ALPHATEST
 #define WRITE_MATERIALS
+#define POM_ELLIGIBLE
 
 //26.1: on is broken & off is correct
 //1.21.10/11: on is broken with lighing in a few cases (shulker boxes), off is broken with which textures are on top
