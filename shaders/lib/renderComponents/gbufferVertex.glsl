@@ -129,7 +129,7 @@ void main() {
     if(texsize.x*texsize.y<=1)
         differential=vec2(0);
     #else
-    if(abs(normal.x)+abs(normal.y)+abs(normal.z)>1.0001){
+    if(abs(normal.x)+abs(normal.y)+abs(normal.z)>1.000001){
         //TODO fix lava
 //        texsize=ivec2(16);
 //        baseTexpos=(ivec2(atlasSize*texcoord)/texsize)*texsize;

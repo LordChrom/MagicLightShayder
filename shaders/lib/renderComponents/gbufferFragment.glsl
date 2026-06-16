@@ -248,14 +248,20 @@ void main()
     if(length(pomEdgeDif)>1)
         pomEdgeDif=ivec2(0);
 
+    #ifdef POM_ROUNDED_EDGES
+    vec3 pomEdgeNormal=normalize(pomBubble);
+
+    #else
     pomEdgeDif=ivec2(sign(differential))*-abs(pomEdgeDif);
     vec3 pomEdgeNormal = vec3(
-        pomEdgeDif,0
+        pomEdgeDif,float(pomEdgeDif==ivec2(0))
     );
+    #endif
 
     pomEdgeNormal*=min(1.5,3/linearDepth);
-    texNormal = normalize(texNormal+pomEdgeNormal);
+    texNormal = normalize(PBR_NORMALS_STRENGTH*texNormal+pomEdgeNormal);
     #endif
+
 
     texNormal = normalize(normalRotator*texNormal);
 

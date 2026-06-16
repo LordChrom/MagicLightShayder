@@ -1,6 +1,16 @@
 const float pomDepth = 0.25*POM_DEPTH_STRENGTH;
 #ifdef POM_NORMALS
 ivec2 pomEdgeDif=ivec2(0);
+#else
+    #undef POM_ROUNDED_EDGES
+#endif
+
+#if POM_ROUNDING!=-1
+    #define POM_ROUNDED_EDGES
+#endif
+
+#ifdef POM_ROUNDED_EDGES
+vec3 pomBubble=vec3(0,0,1);
 #endif
 
 void pomEdge(inout vec2 tc){
@@ -42,7 +52,6 @@ vec2 doPixPom(vec2 initialTc){
 
         pomEdge(tc);
         float texdepth = float(1.0-texelFetch(normals,baseTexpos+ivec2(tc),0).a)*pomDepth;
-        vec2 depthTillPxEdge = (1-fract(tc*sign(differential)))/abs(differential);
 
         #ifdef POM_NORMALS
         if(rayDepth>texdepth+tiny){
@@ -51,6 +60,7 @@ vec2 doPixPom(vec2 initialTc){
         }
         #endif
 
+        vec2 depthTillPxEdge = (1-fract(tc*sign(differential)))/abs(differential);
         rayDepth+=min(depthTillPxEdge.x,depthTillPxEdge.y);
         if(rayDepth> texdepth){
             break;
@@ -83,7 +93,7 @@ vec2 doSparsePom(vec2 initialTc){
 }
 
 vec2 doPom(vec2 tc){
-    if(abs(differential.x)+abs(differential.y)<0.1)
+    if(dot(differential,differential)<1e-4)
         return tc;
     vec2 initialTc = tc*atlasSize-baseTexpos;
     vec2 ret;
@@ -100,9 +110,39 @@ vec2 doPom(vec2 tc){
     ret= doPixPom(initialTc);
     #endif
 
-    #ifdef POM_WRITE_DEPTH
-    rayDepth = float(1.0-texelFetch(normals,(baseTexpos+ivec2(ret)),0).a)*pomDepth;
+    ivec2 retTexpos = ivec2(ret)+baseTexpos;
+
+    #if (defined POM_WRITE_DEPTH) || (defined POM_ROUNDED_EDGES)
+    float texDepth = float(1.0-texelFetch(normals,retTexpos,0).a)*pomDepth;
     #endif
-    return (baseTexpos+(0.5+floor(ret)))/atlasSize;
+
+    #ifdef POM_ROUNDED_EDGES
+
+    if(pomEdgeDif.xy!=ivec2(0)){
+        pomBubble.xy=(fract(ret)-0.5)*2;
+        pomBubble.z=max((1-(rayDepth-texDepth)*2*max(texsize.x,texsize.y)),0);
+    }else{
+        pomBubble.xy=(fract(initialTc+differential*texDepth)-0.5)*2;
+        float m = max(abs(pomBubble.x),abs(pomBubble.y));
+        pomBubble.z=1;
+    }
+
+    pomBubble=sign(pomBubble)*max(abs(pomBubble)-(1-(POM_ROUNDING)),0)/POM_ROUNDING;
+
+    #if 1
+    if(float(1.0-texelFetch(normals,ivec2(retTexpos.x+int(sign(pomBubble.x)),retTexpos.y),0).a)*pomDepth<=texDepth)
+        pomBubble.x=0;
+
+    if(float(1.0-texelFetch(normals,ivec2(retTexpos.x,retTexpos.y+int(sign(pomBubble.y))),0).a)*pomDepth<=texDepth)
+        pomBubble.y=0;
+    #endif
+
+    #endif
+
+    #ifdef POM_WRITE_DEPTH
+    rayDepth = texDepth;
+    #endif
+
+    return (0.5+vec2(retTexpos))/atlasSize;
 
 }
