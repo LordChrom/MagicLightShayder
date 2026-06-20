@@ -258,12 +258,10 @@ void main()
     );
     #endif
 
-//    pomEdgeNormal*=min(1.0,3/linearDepth)*0;
-//    float distFromCamera = gl_FragCoord.xy;
     const float pomDistFalloffMult = 4;
     pomEdgeNormal=normalize(mix(vec3(0,0,1),pomEdgeNormal,clamp(pomDistFalloffMult/(max(1e-4,worldLength)),0,1)));
 
-    float texNormalWeight = pomEdgeNormal.z;
+    float texNormalWeight = max(1e-6,pomEdgeNormal.z);
 
     pbrNormal = normalize(pomEdgeNormal+texNormalWeight*pbrNormal);
     #endif
