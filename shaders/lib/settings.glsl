@@ -101,7 +101,7 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 #define POM_MODE 2 //[0 1 2]
 #define POM_NORMALS
 #define ENTITY_POM
-#define POM_ROUNDING -1 //[-1 0.1 0.15 0.2 0.25 0.3 0.35 0.4 0.45 0.5 0.6 0.7 0.8 0.9 1.0]
+#define POM_ROUNDING_RAD 0.625 //[-1 0.25 0.375 0.5 0.625 0.75 1.0 1.25 1.5 1.75 2.0 2.5 3.0]
 //#define POM_WRAP
 //#define POM_WRITE_DEPTH
 //#define POM_DISCARD

@@ -1,13 +1,15 @@
 const float pomDepth = 0.25*POM_DEPTH_STRENGTH;
+
+#if POM_ROUNDING_RAD!=-1
+    #define POM_ROUNDED_EDGES
+#endif
+
 #ifdef POM_NORMALS
 ivec2 pomEdgeDif=ivec2(0);
 #else
     #undef POM_ROUNDED_EDGES
 #endif
 
-#if POM_ROUNDING!=-1
-    #define POM_ROUNDED_EDGES
-#endif
 
 #ifdef POM_ROUNDED_EDGES
 vec3 pomBubble=vec3(0,0,1);
@@ -118,16 +120,19 @@ vec2 doPom(vec2 tc){
 
     #ifdef POM_ROUNDED_EDGES
 
+    float texMaxSize = max(texsize.x,texsize.y);
     if(pomEdgeDif.xy!=ivec2(0)){
         pomBubble.xy=(fract(ret)-0.5)*2;
-        pomBubble.z=max((1-(rayDepth-texDepth)*2*max(texsize.x,texsize.y)),0);
+        pomBubble.z=max((1-(rayDepth-texDepth)*2*texMaxSize),0);
     }else{
         pomBubble.xy=(fract(initialTc+differential*texDepth)-0.5)*2;
         float m = max(abs(pomBubble.x),abs(pomBubble.y));
         pomBubble.z=1;
     }
 
-    pomBubble=sign(pomBubble)*max(abs(pomBubble)-(1-(POM_ROUNDING)),0)/POM_ROUNDING;
+    float pomRoundingRatio = min((float(POM_ROUNDING_RAD)/50.0)*texMaxSize,1.0);
+
+    pomBubble=sign(pomBubble)*max(abs(pomBubble)-(1-(pomRoundingRatio)),0)/pomRoundingRatio;
 
     #if 1
     if(float(1.0-texelFetch(normals,ivec2(retTexpos.x+int(sign(pomBubble.x)),retTexpos.y),0).a)*pomDepth<=texDepth)

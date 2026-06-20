@@ -136,6 +136,7 @@ flat in int materialID;
     in vec2 differential;
     flat in ivec2 baseTexpos;
     flat in ivec2 texsize;
+    in float worldLength;
     #ifndef ENTITY
     uniform ivec2 atlasSize;
     #else
@@ -239,10 +240,9 @@ void main()
     #if (defined TEXTURED) && (MATERIALS_TYPE == 1)
     vec4 pbrNormalSample = texture(normals,newTexcoord);
 
-    pbrNormalSample.xy = (pbrNormalSample.xy-0.5)*(2*PBR_NORMALS_STRENGTH);
-    pbrNormalSample/=max(1,length(pbrNormalSample.xy));
+    pbrNormalSample.xy = (pbrNormalSample.xy-0.5)*2;
 
-    vec3 texNormal = vec3(pbrNormalSample.xy,sqrt(1.0 - dot(pbrNormalSample.xy, pbrNormalSample.xy)));
+    vec3 pbrNormal = normalize(vec3(PBR_NORMALS_STRENGTH*pbrNormalSample.xy,sqrt(1.0 - dot(pbrNormalSample.xy, pbrNormalSample.xy))));
 
     #if (defined POM_NORMALS) && (defined POM)
     if(length(pomEdgeDif)>1)
@@ -258,20 +258,25 @@ void main()
     );
     #endif
 
-    pomEdgeNormal*=min(1.5,3/linearDepth);
-    texNormal = normalize(PBR_NORMALS_STRENGTH*texNormal+pomEdgeNormal);
+//    pomEdgeNormal*=min(1.0,3/linearDepth)*0;
+//    float distFromCamera = gl_FragCoord.xy;
+    const float pomDistFalloffMult = 4;
+    pomEdgeNormal=normalize(mix(vec3(0,0,1),pomEdgeNormal,clamp(pomDistFalloffMult/(max(1e-4,worldLength)),0,1)));
+
+    float texNormalWeight = pomEdgeNormal.z;
+
+    pbrNormal = normalize(pomEdgeNormal+texNormalWeight*pbrNormal);
     #endif
 
 
-    texNormal = normalize(normalRotator*texNormal);
+    pbrNormal = normalize(normalRotator*pbrNormal);
 
     #if (defined POM) && DEBUG_SPECIAL_VIEW==104
         bool checker = bool((int(floor(texcoord.x*atlasSize.x))+int(floor(texcoord.y*atlasSize.y)))&1);
         sampledColor.xyz=vec3(min(abs(differential.xy*0.3),1)*vec2((checker&&differential.x<=0)?0.5:1,(checker&&differential.y<=0)?0.5:1),0.1);
-    //        sampledColor.xyz=vec3(pbrNormalSample.a);
     #endif
 
-    normalOut = vec4((texNormal+1)*0.5,NORMAL_A);
+    normalOut = vec4((pbrNormal+1)*0.5,NORMAL_A);
     #else
     normalOut = vec4((normal+1)*0.5,NORMAL_A);
     #endif
