@@ -38,7 +38,7 @@
 #define AREA_TRANSITION_DIST 0.85 //[-1 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.85 0.9 0.95]
 #define BLOCKLIGHT_ANIMATION
 #define FORWARD_TRANSLUCENTS
-#define SUBSURFACE_MODE 1 //[0 1 2]
+#define SUBSURFACE_MODE 2 //[-1 0 1 2]
 
 //#define SSAO
 #define SSAO_QUALITY 3 //[1 2 3 4 6 8 10 16]

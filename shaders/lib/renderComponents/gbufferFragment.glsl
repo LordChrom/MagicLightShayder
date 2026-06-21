@@ -78,15 +78,7 @@ flat in int materialID;
 #include "/lib/util/materialId.glsl"
 #endif
 
-#if defined FORWARD_TRANSLUCENTS && defined TRANSLUCENT && defined LIT
-    in vec3 worldPos;
-    uniform vec3 cameraPosition;
-    #if SUBSURFACE_MODE==2
-        #define SUBSURFACE_MODE 1
-    #endif
-    #include "/lib/voxel/voxelSampler.glsl"
-    #include "/lib/util/dither.glsl"
-#else
+#if !(defined FORWARD_TRANSLUCENTS && defined TRANSLUCENT && defined LIT)
     #undef FORWARD_TRANSLUCENTS
 #endif
 
@@ -98,6 +90,13 @@ flat in int materialID;
 #endif
 
 #ifdef FORWARD_TRANSLUCENTS
+    in vec3 worldPos;
+    uniform vec3 cameraPosition;
+    #if SUBSURFACE_MODE==2
+        #define SUBSURFACE_MODE 1
+    #endif
+    #include "/lib/voxel/voxelSampler.glsl"
+    #include "/lib/util/dither.glsl"
     /* RENDERTARGETS: 1 */
 #elif defined TRANSLUCENT
     #ifdef WRITE_MATERIALS

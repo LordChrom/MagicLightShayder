@@ -110,6 +110,7 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 - lava POM
 - sun shadows
 - voxelizing end gates
+- subsurface on lava
 
 ### Needs Improvement
 - TAA unoptimized

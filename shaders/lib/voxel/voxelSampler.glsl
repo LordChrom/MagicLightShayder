@@ -7,13 +7,12 @@
 #include "/lib/util/flicker.glsl"
 #include "/lib/util/misc.glsl"
 
-
 float normalFactor(vec3 normal, vec3 displacement, uint axis, float subsurface){
     float lightDotN =-dot(normalize(displacement),normal);
    #if SUBSURFACE_MODE == 0
     subsurface*=0.4;
     lightDotN=max(lightDotN*(1-subsurface),0)+subsurface;
-   #else
+   #elif SUBSURFACE_MODE == 1
     lightDotN=(lightDotN+subsurface)/(1.0+subsurface);
    #endif
     lightDotN = clamp(lightDotN,0,1);
@@ -279,7 +278,7 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
 
 
 
-vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 blockPos, vec3 normal, vec3 subVoxelOffset, bool isForFog, float scale, bool lightReachesBlock){
+vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 blockPos, vec3 normal, vec3 subVoxelOffset, bool isForFog, float scale, float terrainBeforeBlock){
     uint type = unpackLightType(packedLightSrc);
     if(type==0)return vec3(0);
 
@@ -316,15 +315,17 @@ vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 b
             if(max(max(svo2.x,svo2.y),svo2.z)>=0.499){
                 float z = subVoxelOffset.z/scale+0.5;
                 float ndot = dot(normal,vec3(0,0,1));
-                if(ndot<-0.9 && z>0.999)
+                if(ndot<-0.9 && z>=0.999)
                     z=0;
                 if(ndot>=0 && z<0.001)
                     z=1;
-                thickness=z*scale+(lightReachesBlock?0:scale);
-                subsurfaceStrength = exp(-2/max(1e-4,subsurface)*thickness);
-                subsurface=0;
+                thickness=(z+terrainBeforeBlock)*scale;
+                subsurfaceStrength = exp(-3/max(1e-4,subsurface)*thickness);
+                subsurfaceStrength*=normalize(displacement).z;
+//                subsurfaceStrength*=subsurface;
             }
         }
+//        subsurface=0;
        #endif
 
         lightStrength =normalFactor(normal, displacement, axis, subsurface);
@@ -343,8 +344,10 @@ vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 b
 
     #if SUBSURFACE_MODE == 2
     if(!isForFog){
-        lightStrength+= max(0,subsurfaceStrength*baseStrength*subsurface);
-//        lightStrength= subsurfaceStrength*baseStrength*subsurface;
+        subsurfaceStrength=max(0,subsurfaceStrength*baseStrength);
+        //TODO revisit this when I have a proper tonemap
+//        lightStrength+=subsurfaceStrength;
+        lightStrength=sqrt(lightStrength*lightStrength+subsurfaceStrength*subsurfaceStrength);
     }
     #endif
 
@@ -356,11 +359,11 @@ vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 b
 }
 
 vec3 getDirectedLight(uint cascadeLevel, uint layer, uint axis, float subsurface, ivec3 zoneShift, ivec3 zonePos,
-    ivec3 blockPos, vec3 normal, vec3 subVoxelOffset, bool isForFog, float scale, bool lightReachesBlock
+    ivec3 blockPos, vec3 normal, vec3 subVoxelOffset, bool isForFog, float scale, float terrainBeforeBlock
 ){
     uint zoneMemOffset = zoneOffset(axis, layer,cascadeLevel);
     uvec4 packedLightSrc = sampleLightData(zonePos, zoneShift, zoneMemOffset);
-    return getDirectedLight(packedLightSrc,axis,subsurface,blockPos,normal,subVoxelOffset,isForFog,scale,lightReachesBlock);
+    return getDirectedLight(packedLightSrc,axis,subsurface,blockPos,normal,subVoxelOffset,isForFog,scale,terrainBeforeBlock);
 }
 
 const float radSlope = tan(22.5*PI/180);
@@ -434,11 +437,19 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
     for (uint axis=0;axis<6;axis++)
 #endif
     {
-        bool lightReachesBlock = false;
+        float terrainBeforeBlock = 0;
        #if SUBSURFACE_MODE==2
-        ivec3 newPos = clamp(hitBlockAreaPos-lVec(axis),0,AREA_SIZE-1);
-        uint hitBlockPotentialBlocker = getVoxData(newPos, areaShift, areaOffset(cascadeLevel));
-        lightReachesBlock=!bool(hitBlockPotentialBlocker & WORLDVOX_OPAQUE);
+        if(subsurface>0){
+            ivec3 lVec = lVec(axis);
+            ivec3 newPos = clamp(hitBlockAreaPos-lVec,0,AREA_SIZE-1);
+            uint hitBlockPotentialBlocker = getVoxData(newPos, areaShift, areaOffset(cascadeLevel));
+            terrainBeforeBlock=bool(hitBlockPotentialBlocker & WORLDVOX_OPAQUE)?1:0;
+//            if(terrainBeforeBlock>0){
+//                newPos = clamp(newPos-lVec,0,AREA_SIZE-1);
+//                hitBlockPotentialBlocker = getVoxData(newPos, areaShift, areaOffset(cascadeLevel));
+//                terrainBeforeBlock+=bool(hitBlockPotentialBlocker & WORLDVOX_OPAQUE)?1:0;
+//            }
+        }
        #endif
         vec3 zoneNorm = areaToZoneSpaceRelative(normal,axis); //TODO move out of this to avoid duplication
 
@@ -446,7 +457,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
         ivec3 zonePos = areaToZoneSpace(areaPos, axis);
     #ifndef DEBUG_RADIANCE_ONLY
         for(uint layer = 0; layer<VOX_LAYERS; layer++)
-            color+=getDirectedLight(cascadeLevel,layer,axis,subsurface,zoneShift,zonePos,blockPos,zoneNorm,subVoxelOffset,false,scale,lightReachesBlock);
+            color+=getDirectedLight(cascadeLevel,layer,axis,subsurface,zoneShift,zonePos,blockPos,zoneNorm,subVoxelOffset,false,scale,terrainBeforeBlock);
     #endif
 
         #ifdef FALLBACK_RADIANCE
@@ -499,10 +510,10 @@ vec3 voxelSampleFog(vec3 worldPos, float fogNoise, float ditherValue){
         ivec3 zoneShift = areaToZoneSpace(areaShift, axis);
         ivec3 zonePos = areaToZoneSpace(areaPos, axis);
         for(int layer = 0; layer<lightsInLoop; layer++){
-            color+=getDirectedLight(cascadeLevel,layer,axis,1.0,zoneShift,zonePos,blockPos,vec3(0),subVoxelOffset,true,scale,false);
+            color+=getDirectedLight(cascadeLevel,layer,axis,1.0,zoneShift,zonePos,blockPos,vec3(0),subVoxelOffset,true,scale,0);
         }
 #ifdef FOG_RANDOM_LESSER_SOURCE
-        color+=getDirectedLight(cascadeLevel,randLayer,axis,1.0,zoneShift,zonePos,blockPos,vec3(0),subVoxelOffset,true,scale,false);
+        color+=getDirectedLight(cascadeLevel,randLayer,axis,1.0,zoneShift,zonePos,blockPos,vec3(0),subVoxelOffset,true,scale,0);
 #endif
     }
     return color;
