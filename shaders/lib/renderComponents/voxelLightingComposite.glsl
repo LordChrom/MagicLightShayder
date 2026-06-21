@@ -2,13 +2,13 @@
 
 uniform float viewWidth, viewHeight;
 uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
-uniform mat4 gbufferPreviousProjection,  gbufferPreviousModelView;
-uniform vec3 cameraPosition, previousCameraPosition;
+uniform vec3 cameraPosition;
 uniform vec2 scaledScreenDim;
 
 #include "/lib/voxel/voxelSampler.glsl"
 #include "/lib/util/dither.glsl"
-#include "/lib/util/taaHelper.glsl"
+
+#include "/lib/util/taaJitter.glsl"
 
 uniform sampler2D colortex2;
 uniform sampler2D depthtex0;

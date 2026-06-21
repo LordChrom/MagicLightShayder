@@ -4,7 +4,7 @@
 const int d = 1<<LEVEL;
 const int DOF_SAMPLE_RAD = DOF_RAD>>(DOF_PASSES-1);
 
-uniform float viewWidth, viewHeight;
+uniform float viewHeight;
 
 // cost is  O(n^2) rad, O((4^n)/(5-n)) quality
 
@@ -66,7 +66,7 @@ float weightAtOffset(float rad,float len, int d){
 }
 
 void main() {
-    ivec2 texpos = ivec2(floor(texcoord*vec2(viewWidth,viewHeight)));
+    ivec2 texpos = ivec2(gl_FragCoord.xy);
     float nextTotalWeight = 0;
 
 #if PASS>=0

@@ -36,8 +36,6 @@ layout(location = 0) out float depthAccumulation;
 layout(location = 1) out vec3 multAccumulation;
 
 void taaAccumulate(){
-    vec2 screenDim = vec2(viewWidth,viewHeight);
-
     vec2 jitteredTexcoord = texcoord-jitter();
     ivec2 jitteredTexPos = ivec2(scaledScreenDim*jitteredTexcoord);
 
@@ -45,7 +43,9 @@ void taaAccumulate(){
     #ifdef TAA_HQ_BLUR
     addAccumulation = doFogBlur(colortex7,jitteredTexcoord,1);
     #else
-    addAccumulation = cheapBlur(colortex7,jitteredTexcoord,1);
+
+    const bool colortex7MipmapEnabled = true;
+    addAccumulation = texture(colortex7,jitteredTexcoord,FOG_BLUR);
     #endif
     #ifdef TAA_FOG
     #endif
@@ -59,7 +59,7 @@ void taaAccumulate(){
     bool reprojectValid = false;
 
 
-    depthAccumulation = texelFetch(depthtex0,ivec2(texcoord*screenDim),0).x;
+    depthAccumulation = texelFetch(depthtex0,ivec2(gl_FragCoord.xy),0).x;
     vec3 screenPos = vec3(texcoord,depthAccumulation);
 
     vec4 previousAddAccumulation = vec4(0);
@@ -67,7 +67,7 @@ void taaAccumulate(){
     vec3 prevScreenPos = reproject(screenPos);
 
     if(prevScreenPos.x>=0 && prevScreenPos.y>=0 && prevScreenPos.x<=1 && prevScreenPos.y<=1){
-        ivec2 prevScreenTexpos = ivec2(floor(prevScreenPos.xy*screenDim));
+        ivec2 prevScreenTexpos = ivec2(prevScreenPos.xy*vec2(viewWidth,viewHeight));
         float prevDepth = texelFetch(colortex9,prevScreenTexpos,0).x;
 
 

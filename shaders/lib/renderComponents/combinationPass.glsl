@@ -1,5 +1,4 @@
 
-uniform float viewWidth, viewHeight;
 uniform vec2 scaledScreenDim;
 uniform int frameCounter;
 uniform sampler2D depthtex1;
@@ -59,7 +58,7 @@ const bool colortex11Clear = false;
 layout(location = 0) out vec3 outputColor;
 
 void main() {
-    ivec2 texpos = ivec2(texcoord*vec2(viewWidth,viewHeight));
+    ivec2 texpos = ivec2(gl_FragCoord.xy);
     vec4 albedo = texelFetch(colortex0,texpos,0);
     vec4 transColor = texelFetch(colortex1,texpos,0);
 
@@ -71,7 +70,6 @@ void main() {
 
 
 
-    vec2 screenDim = vec2(viewWidth,viewHeight);
     #if (BLOOM_LEVEL > 0) && !defined TAA
     vec3 voxelLighting = doBloom(multiplicativeLightTex,texcoord,1).rgb;
     #else

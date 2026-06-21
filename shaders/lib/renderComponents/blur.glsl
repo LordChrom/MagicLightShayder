@@ -1,17 +1,6 @@
 #include "/lib/settings.glsl"
 #include "/lib/util/conversions.glsl"
 
-//#define SNAPPED_BLUR
-
-#ifdef SNAPPED_BLUR
-vec4 fetchForBlur(sampler2D tex, vec2 coord, vec2 screenDim){
-    return texelFetch(tex,ivec2(floor(coord*screenDim)),0);
-}
-#else
-vec4 fetchForBlur(sampler2D tex, vec2 coord, vec2 screenDim){
-    return texture(tex,coord);
-}
-#endif
 
 vec4 multifetch(sampler2D texToBlur, vec2 texCoord, vec2 screenDisplacement, float centerDepth, bool depthAware, out int weight){
     weight=0;
@@ -24,7 +13,7 @@ vec4 multifetch(sampler2D texToBlur, vec2 texCoord, vec2 screenDisplacement, flo
         for(int sign=-1; sign<=1;sign+=2){
             vec2 coord = texCoord+sign*offset;
             if(depthAware){
-                float depth = depthToLinear(fetchForBlur(depthtex1, coord,vec2(viewWidth,viewHeight)).x);
+                float depth = depthToLinear(texture(depthtex1, coord).x);
                 if (abs(depth-centerDepth)>maxDepthDif){
                     #ifdef DEBUG_FOG_BLUR_EDGES
                         ret.r++;
@@ -34,7 +23,7 @@ vec4 multifetch(sampler2D texToBlur, vec2 texCoord, vec2 screenDisplacement, flo
             }
 
             weight++;
-            ret+=fetchForBlur(texToBlur,coord,scaledScreenDim);
+            ret+=texture(texToBlur,coord);
         }
     }
 
@@ -67,9 +56,4 @@ vec4 doFogBlur(sampler2D texToBlur, vec2 pos, int level){
 vec4 doBloom(sampler2D texToBlur, vec2 pos, int level){
     float bloomLevelWidth = level*BLOOM_WIDTH;
     return doBlur(texToBlur, pos,(bloomLevelWidth),2/BLOOM_INTENSITY,0.5,0.25,false);
-}
-
-vec4 cheapBlur(sampler2D texToBlur, vec2 pos, float strength){
-    pos = mix(pos,(floor(pos*scaledScreenDim)+0.5)/scaledScreenDim,strength);
-    return texture(texToBlur,pos);
 }

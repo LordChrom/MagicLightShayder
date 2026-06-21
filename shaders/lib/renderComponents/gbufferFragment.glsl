@@ -85,8 +85,6 @@ flat in int materialID;
 #if defined MAYBE_END_GATEWAY && defined GATEWAYS_IN_GBUFFER
     uniform float viewWidth, viewHeight;
     #include "/lib/renderComponents/endGateway.glsl"
-#elif defined FORWARD_TRANSLUCENTS
-    uniform float viewWidth, viewHeight;
 #endif
 
 #ifdef FORWARD_TRANSLUCENTS
@@ -327,7 +325,7 @@ void main()
     #endif
 
     #ifdef FORWARD_TRANSLUCENTS
-    float ditherValue = dither(ivec2(floor(vec2(texcoord)*vec2(viewWidth,viewHeight)-0.01)));
+    float ditherValue = dither(ivec2(gl_FragCoord.xy));
     float emissive = (materialInfo.a!=255)?materialInfo.a/254.0:0;
     float subsurface = clamp(float(int(materialInfo.b)-64)/190.0, 0.0,1.0);
     #ifdef NEEDS_MATERIAL_ID
