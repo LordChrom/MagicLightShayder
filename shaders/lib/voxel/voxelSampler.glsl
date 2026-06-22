@@ -1,7 +1,7 @@
 #define SAMPLES_LIGHT_FACE
 #if SUBSURFACE_MODE==2
     #define SAMPLES_VOX
-    float enhancedSubsurfaceMaterialDepth = 0; //x is thickness
+    float subsurfaceLightDepth = 0; //x is thickness
 #endif
 bool isCrossBlockModel = false;
 
@@ -321,7 +321,7 @@ vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 b
             if(isCrossBlockModel){ //TODO distinguish between flat cross vs blocky models better
                 subsurfaceStrength=subsurface;
             }else{
-                subsurfaceStrength = exp(enhancedSubsurfaceMaterialDepth/max(1e-4,subsurface));
+                subsurfaceStrength = exp(subsurfaceLightDepth/max(1e-4,subsurface));
                 subsurfaceStrength*=normalize(displacement).z;
             }
         }
@@ -438,7 +438,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
 #endif
     {
        #if SUBSURFACE_MODE==2
-        subsurface+=0.03;
+//        subsurface+=0.03;
         if(subsurface>0){
             ivec3 lVec = lVec(axis);
             ivec3 newPos = clamp(hitBlockAreaPos-lVec,0,AREA_SIZE-1);
@@ -453,7 +453,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
 //            }
 
             float z = depthIntoBlock+0.5*scale;
-            enhancedSubsurfaceMaterialDepth=-3*(z+terrainBeforeBlock);
+            subsurfaceLightDepth=-3*(z+terrainBeforeBlock);
         }
        #endif
         vec3 zoneNorm = areaToZoneSpaceRelative(normal,axis);
