@@ -7,12 +7,15 @@ uniform vec2 scaledScreenDim;
 
 #include "/lib/voxel/voxelSampler.glsl"
 #include "/lib/util/dither.glsl"
-
 #include "/lib/util/taaJitter.glsl"
 
 uniform sampler2D colortex2;
-uniform sampler2D depthtex0;
 uniform sampler2D depthtex2;
+uniform sampler2D depthtex0;
+
+#if (defined FORWARD_TRANSLUCENTS) || DEBUG_SPECIAL_VIEW == 1
+uniform sampler2D colortex1;
+#endif
 
 #ifdef SSAO
 uniform mat4 gbufferModelView;
@@ -22,11 +25,6 @@ uniform mat4 gbufferModelView;
 #if MATERIALS_TYPE >= 0
 uniform usampler2D colortex3;
 uniform usampler2D colortex4;
-#endif
-
-
-#if (defined FORWARD_TRANSLUCENTS) || DEBUG_SPECIAL_VIEW == 1
-uniform sampler2D colortex1;
 #endif
 
 #if (DEBUG_SPECIAL_VIEW == 0) || (DEBUG_SPECIAL_VIEW==104)
@@ -52,8 +50,7 @@ vec3 voxelLighting;
 vec4 voxelFog;
 
 void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
-    ivec2 texpos = ivec2(floor(vec2(sampleTexCoord)*scaledScreenDim-0.01));
-    float ditherValue = dither(texpos);
+    float ditherValue = dither(ivec2(gl_FragCoord.xy));
 
 #ifdef SSAO
     vec2 unjitteredTexCoord = sampleTexCoord;
@@ -61,20 +58,15 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 #ifdef TAA
     sampleTexCoord+=jitter();
 #endif
-    ivec2 sourceTexpos = ivec2(floor(vec2(sampleTexCoord)*screenDims-0.01));
+    ivec2 sourceTexpos = ivec2(round(sampleTexCoord*screenDims-0.01));
 
-    float solidDepth = texelFetch(depthtex2,sourceTexpos,0).x;
-    vec4 normalAndMore = texelFetch(colortex2,sourceTexpos,0);
-    float depth = texelFetch(depthtex0,sourceTexpos,0).x;
-    #ifdef FORWARD_TRANSLUCENTS
     bool solidTransInFront = texelFetch(colortex1,sourceTexpos,0).a>=1;
-    #else
-    bool solidTransInFront = false;
-    #endif
+    float depth = texelFetch(depthtex0,sourceTexpos,0).x;
+    float solidDepth = texelFetch(depthtex2,sourceTexpos,0).x;
+    vec4 normal = texelFetch(colortex2,sourceTexpos,0);
 
-    vec3 normal = normalize(normalAndMore.xyz*2-1);
-
-    bool isHand = normalAndMore.a>0.4 && normalAndMore.a<0.6;
+    normal.xyz = normalize(normal.xyz*2-1);
+    bool isHand = normal.a>0.4 && normal.a<0.6;
     if(solidTransInFront){
         solidDepth=depth;
     }
@@ -115,12 +107,12 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 
     voxelLighting = vec3(0);
     if(!(isSky|| solidTransInFront))
-        voxelLighting = voxelSample(worldPos,normal,subsurface,ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
+        voxelLighting = voxelSample(worldPos,normal.xyz,subsurface,ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
 
 #ifdef SSAO
     float ssao;
     if(emissive<0.4 && !isHand && !isSky){
-        vec2 worldNormalDir = (gbufferModelView*vec4(normal, 0)).xy;
+        vec2 worldNormalDir = (gbufferModelView*vec4(normal.xyz, 0)).xy;
         worldNormalDir=normalize(worldNormalDir);
         ssao = doSsao(sampleTexCoord, worldNormalDir, solidDepth, ditherValue);
         voxelLighting*=ssao;
@@ -175,10 +167,11 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 #elif DEBUG_SPECIAL_VIEW == 1
     funnyDebug=texture(colortex1,sampleTexCoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 2
+    ivec2 texpos = ivec2(gl_FragCoord.xy);
     float debugCheckerScale = 7;
     bool checker = bool((int(texpos.x/debugCheckerScale)^int(texpos.y/debugCheckerScale))&1);
-    vec3 mult = checker?vec3(1):sign(normal)*0.2+0.8;
-    funnyDebug = abs(normal)*mult;
+    vec3 mult = checker?vec3(1):sign(normal.xyz)*0.2+0.8;
+    funnyDebug = abs(normal.xyz)*mult;
 #elif DEBUG_SPECIAL_VIEW == 3
     uvec4 mat = texture(colortex3,sampleTexCoord);
     float funnyEmissive = (mat.a==255)?0.0:(mat.a/254.0);
@@ -204,6 +197,7 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 #elif DEBUG_SPECIAL_VIEW == 101
     funnyDebug = vec3(ditherValue);
 #elif DEBUG_SPECIAL_VIEW == 102
+    ivec2 texpos = ivec2(gl_FragCoord.xy);
     funnyDebug = vec3((texpos.x^texpos.y)&4,(texpos.x^texpos.y)&2,(texpos.x^texpos.y)&1);
 #elif (DEBUG_SPECIAL_VIEW == 103) && (defined SSAO)
     funnyDebug = vec3(ssao);
