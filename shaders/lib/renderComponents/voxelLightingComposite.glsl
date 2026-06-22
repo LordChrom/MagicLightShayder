@@ -13,9 +13,7 @@ uniform sampler2D colortex2;
 uniform sampler2D depthtex2;
 uniform sampler2D depthtex0;
 
-#if (defined FORWARD_TRANSLUCENTS) || DEBUG_SPECIAL_VIEW == 1
 uniform sampler2D colortex1;
-#endif
 
 #ifdef SSAO
 uniform mat4 gbufferModelView;
@@ -49,7 +47,7 @@ layout(location = 2) out vec3 funnyDebug;
 vec3 voxelLighting;
 vec4 voxelFog;
 
-void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
+void doVoxelLighting(vec2 sampleTexCoord) {
     float ditherValue = dither(ivec2(gl_FragCoord.xy));
 
 #ifdef SSAO
@@ -58,23 +56,25 @@ void doVoxelLighting(vec2 sampleTexCoord,vec2 screenDims) {
 #ifdef TAA
     sampleTexCoord+=jitter();
 #endif
-    ivec2 sourceTexpos = ivec2(round(sampleTexCoord*screenDims-0.01));
+    vec2 screenDims = vec2(viewWidth,viewHeight);
+    ivec2 sourceTexpos = ivec2((sampleTexCoord*screenDims+0.01));
 
     bool solidTransInFront = texelFetch(colortex1,sourceTexpos,0).a>=1;
     float depth = texelFetch(depthtex0,sourceTexpos,0).x;
-    float solidDepth = texelFetch(depthtex2,sourceTexpos,0).x;
     vec4 normal = texelFetch(colortex2,sourceTexpos,0);
+    float solidDepth;
 
     normal.xyz = normalize(normal.xyz*2-1);
     bool isHand = normal.a>0.4 && normal.a<0.6;
     if(solidTransInFront){
         solidDepth=depth;
+    }else{
+        solidDepth = texelFetch(depthtex2,sourceTexpos,0).x;
     }
     vec3 ndcPos = vec3(vec3(sampleTexCoord,solidDepth)*2-1);
     if(isHand){
         ndcPos.z=depth/MC_HAND_DEPTH;
     }
-
 
     float subsurface = 0;
     float emissive = 0;

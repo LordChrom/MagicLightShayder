@@ -14,7 +14,7 @@ layout(location = 0) out vec3 lighting;
 layout(location = 1) out vec4 fog;
 
 void main() {
-	doVoxelLighting(texcoord,vec2(viewWidth,viewHeight));
+	doVoxelLighting(texcoord);
 	lighting = voxelLighting;
 	fog = voxelFog;
 }
