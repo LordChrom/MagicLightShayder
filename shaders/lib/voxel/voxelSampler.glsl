@@ -2,8 +2,8 @@
 #if SUBSURFACE_MODE==2
     #define SAMPLES_VOX
     float enhancedSubsurfaceMaterialDepth = 0; //x is thickness
-    bool isCrossBlockModel = false;
 #endif
+bool isCrossBlockModel = false;
 
 #include "/lib/voxel/voxelHelper.glsl"
 #include "/lib/util/flicker.glsl"
@@ -409,11 +409,13 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
 
     vec3 color = vec3(0);
 
-    #if SUBSURFACE_MODE==2
+#if SUBSURFACE_MODE==2
     vec3 hitBlockCenter = (floor(worldPos/scale-normal*(scale/20))+0.5) * scale;
     vec3 subSurfaceOffset = clamp(worldPos-hitBlockCenter,-0.5*scale,0.5*scale);
     ivec3 hitBlockAreaPos = worldPosToArea(hitBlockCenter,scale).xyz;
-    #endif
+    float distFromFace = abs(0.5-max(max(abs(subVoxelOffset.x),abs(subVoxelOffset.y)),abs(subVoxelOffset.z))/scale);
+    isCrossBlockModel = (dot(abs(normal.xz),vec2(0.70711))>=0.95) && (distFromFace>1.0/256);
+#endif
 
 #if DEBUG_GRID_OUTLINE >0
     vec3 edgeNearness = abs(subVoxelOffset*2/scale)+(DEBUG_GRID_OUTLINE/(64*scale));
@@ -436,11 +438,12 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
 #endif
     {
        #if SUBSURFACE_MODE==2
+        subsurface+=0.03;
         if(subsurface>0){
             ivec3 lVec = lVec(axis);
             ivec3 newPos = clamp(hitBlockAreaPos-lVec,0,AREA_SIZE-1);
             uint hitBlockPotentialBlocker = getVoxData(newPos, areaShift, areaOffset(cascadeLevel));
-            float terrainBeforeBlock =bool(hitBlockPotentialBlocker & WORLDVOX_OPAQUE)?scale:0;
+            float terrainBeforeBlock =bool(hitBlockPotentialBlocker)?scale:0;
             float depthIntoBlock = dot(subSurfaceOffset,lVec);
 
 //            if(terrainBeforeBlock>0){
