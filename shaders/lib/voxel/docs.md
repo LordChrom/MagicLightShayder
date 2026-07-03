@@ -93,8 +93,8 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 - - float occlusionHitDistance  distance from the light source to the source of occlusion, for penumbra sharpness
 
 - Packing
-- - x is 2x16 a,b of travel
-- - y is 12 free, 1x4 light type, 1x16 z of travel
+- - x is 2x9 a,b of travel, 1x8 L of travel, 2 free, 1x4 light type
+- - y is free
 - - z is 3x8 color, 8 flags
 - - w 2x8 occlusion ray (b then a), 1x12 occlusion hit distance, 4x1 occlusion map
 
