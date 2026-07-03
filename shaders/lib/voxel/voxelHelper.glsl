@@ -229,9 +229,13 @@ uint packLightTravel(vec3 travel){
     return (itravel.x<<23)|(itravel.y<<14)|(itravel.z<<6);
 }
 
-vec3 unpackLightTravel(uint packedTravel){
+ivec3 intLightTravel(uint packedTravel){
     ivec3 itravel = ivec3(packedTravel&0xff800000u,(packedTravel<<9)&0xff800000u,(packedTravel<<17)&0x7f800000u);
-    return vec3(itravel>>23)*lightTravelScale;
+    return itravel>>23;
+}
+
+vec3 unpackLightTravel(uint packedTravel){
+    return intLightTravel(packedTravel)*lightTravelScale;
 }
 
 vec3 unpackLightTravel(uvec4 packedData){
@@ -239,7 +243,7 @@ vec3 unpackLightTravel(uvec4 packedData){
 }
 
 vec3 unpackLightColor(uvec4 packedData){
-    return unpackUnorm4x8(packedData.z).yzw;
+    return unpackUnorm4x8(packedData.y).yzw;
 }
 
 float unpackOcclusionHitDist(uint occlusionInfo){
@@ -251,7 +255,7 @@ uint unpackOcclusionMap(uint occlusionInfo){
 }
 
 uint unpackLightFlags(uvec4 packedData){
-    return packedData.z&0xffu;
+    return packedData.y&0xffu;
 }
 
 uint unpackLightType(uvec4 packedData){
@@ -268,7 +272,7 @@ uint getLightStrength(uvec4 lightSrc){
         return 0xffffff00;
     if(type==0)
         return 0;
-    ivec3 travel = ivec3(lightSrc.x,lightSrc.x<<16u,lightSrc.y<<16u)>>18;
+    ivec3 travel = intLightTravel(lightSrc.x);
     float lenSquared = float(dot(travel, travel)+1);
     float strength = (1+length(unpackLightColor(lightSrc)))/lenSquared;
 
@@ -280,11 +284,11 @@ void setPackedLightTravel(inout uvec4 packedData, vec3 lightTravel){
 }
 
 void setPackedLightColor(inout uvec4 packedData, vec3 color){
-    packedData.z = packUnorm4x8(vec4(0,color)) | (packedData.z&0xffu);
+    packedData.y = packUnorm4x8(vec4(0,color)) | (packedData.y&0xffu);
 }
 
 void setPackedLightFlags(inout uvec4 packedData, uint flags){
-    packedData.z = (packedData.z&0xffffff00u) | (flags&0xffu);
+    packedData.y = (packedData.y&0xffffff00u) | (flags&0xffu);
 }
 
 //float sunDist = 4+((frameCounter>>6)%10)*0.4;
@@ -294,7 +298,7 @@ uvec4 packLightData(vec2 occlusionRay,uint occlusionMap,vec3 color,vec3 lightTra
     if(type==LIGHT_TYPE_SUN)
         lightTravel.z=sunDist;
     ret.x = packLightTravel(lightTravel) | (type&0xfu);
-    ret.z = packUnorm4x8(vec4(0,color)) | (flags&0xffu);
+    ret.y = packUnorm4x8(vec4(0,color)) | (flags&0xffu);
     ret.w = packOcclusionInfo(occlusionRay, occlusionMap, occlusionHitDistance);
     return ret;
 }

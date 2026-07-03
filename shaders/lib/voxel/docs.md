@@ -79,24 +79,28 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 
 
 ### Light sample
-- Attributes
-- - vec3 color
-- - vec3 lightTravel,   In zone space. the displacement from the light source voxel center to the sample's voxel center
-- - uint type 
-- - uint flags          see below
-- - occlusion info      see below
+Attributes
+- vec3 color
+- vec3 lightTravel,   In zone space. the displacement from the light source voxel center to the sample's voxel center
+- uint type 
+- uint flags          see below
+- occlusion info      see below
 
-- Occlusion data
-- - vec2 occlusionRay           ray to corner of occlusion, range [0,1], sign implicitly same as lightTravel.xy
-- - uint occlusionMap           quadrants in which occlusion occurs, lit if 1, bits in order of most significant to least, represent quadrants with
-                                (+,+), (-,+), (+,-), (-,-) signs for a and b, multiplied by signs of lightTravel.xy.
-- - float occlusionHitDistance  distance from the light source to the source of occlusion, for penumbra sharpness
+Packing
+- x is 2x9 a,b of travel, 1x8 L of travel, 2 free, 1x4 light type
+- y is 3x8 color, 8 flags
+- z is free
+- w is occlusion data
 
-- Packing
-- - x is 2x9 a,b of travel, 1x8 L of travel, 2 free, 1x4 light type
-- - y is free
-- - z is 3x8 color, 8 flags
-- - w 2x8 occlusion ray (b then a), 1x12 occlusion hit distance, 4x1 occlusion map
+### Occlusion data
+Attributes
+- vec2 occlusionRay           ray to corner of occlusion, range [0,1], sign implicitly same as lightTravel.xy
+- uint occlusionMap           quadrants in which occlusion occurs, lit if 1, bits in order of most significant to least, represent quadrants with (+,+), (-,+), (+,-), (-,-) signs for a and b, multiplied by signs of lightTravel.xy.
+- float occlusionHitDistance  distance from the light source to the source of occlusion, for penumbra sharpness
+
+Packing
+- 2x8 occlusion ray (b then a), 1x12 occlusion hit distance, 4x1 occlusion map
+
 
 - flags
 - - 6 bits currently used only for DEBUG_SHOW_UPDATES
