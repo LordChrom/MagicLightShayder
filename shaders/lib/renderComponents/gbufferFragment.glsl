@@ -42,7 +42,7 @@ uniform sampler2D gtexture;
     #if MATERIALS_TYPE ==1
 uniform sampler2D specular;
 uniform sampler2D normals;
-flat in mat3 normalRotator;
+flat in mat3 TBN;
     #endif
 #endif
 
@@ -264,7 +264,7 @@ void main()
     #endif
 
 
-    pbrNormal = normalize(normalRotator*pbrNormal);
+    pbrNormal = normalize(TBN*pbrNormal);
 
     #if (defined POM) && DEBUG_SPECIAL_VIEW==104
         bool checker = bool((int(floor(texcoord.x*atlasSize.x))+int(floor(texcoord.y*atlasSize.y)))&1);

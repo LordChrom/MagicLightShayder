@@ -115,6 +115,7 @@ Packing
 - sun shadows
 - voxelizing end gates
 - subsurface on lava
+- other subsurface edge cases
 
 ### Needs Improvement
 - TAA unoptimized
@@ -129,17 +130,16 @@ Packing
 - underwater & underlava fog
 - biome colored fog
 - think of a name for approach to lighting
-- make bloom that's not awful
+- bloom
 - make voxel map a lower bit size
 - halftones
 - awareness of which block faces are full
+- reflections
+- water waves
+- sky stuff & clouds
 
 ### Potential additions
-- make pixel locked rendering actually only need one sample per pixel
 - redo block.properties
-- water stuff
 - dither positive/negative axes with TAA on
-- reflections
-- sky stuff & clouds
 - alternate mode using visibility samples rather than the oclusion info
 - maybe try switching from fixed number of samples per direction to fixed number per voxel + list of relevant samples per voxel

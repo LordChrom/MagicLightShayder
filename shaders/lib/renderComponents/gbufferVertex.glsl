@@ -24,7 +24,7 @@ out vec4 glcolor;
 out vec2 texcoord;
     #if MATERIALS_TYPE == 1
     in vec4 at_tangent;
-    flat out mat3 normalRotator;
+    flat out mat3 TBN;
     #endif
 #endif
 
@@ -97,6 +97,7 @@ in vec2 mc_Entity;
 #endif
 in vec4 at_midBlock;
 
+uniform float frameTimeCounter;
 void main() {
     gl_Position = ftransform();
 
@@ -117,27 +118,37 @@ void main() {
     #endif
 
     #if MATERIALS_TYPE == 1 && defined TEXTURED
-    normalRotator = mat3(at_tangent.xyz,normalize(cross(at_tangent.xyz,normal)*at_tangent.w),normal);
+    TBN = mat3(at_tangent.xyz,normalize(cross(at_tangent.xyz,normal)*at_tangent.w),normal);
         #ifdef POM
     worldLength = length(gl_Vertex.xyz-gl_ProjectionMatrix[3].xyz);
     texsize = ivec2(ceil(2*atlasSize*abs(mc_midTexCoord-texcoord)));
     baseTexpos = ivec2(atlasSize*(mc_midTexCoord-abs(mc_midTexCoord-texcoord)));
 
-    vec3 scrnNormal = normalize((gbufferProjectionInverse*gl_Position).xyz);
-    vec3 texHitVec = transpose(gl_NormalMatrix*normalRotator)*scrnNormal;
+    mat4 invProjection = gbufferProjectionInverse;
+
+    #ifdef HAND
+        invProjection = inverse(gl_ProjectionMatrix);
+    #endif
+
+    vec3 scrnVecNorm = normalize((invProjection*gl_Position).xyz);
+            #ifdef HAND
+    vec3 texHitVec = transpose(gl_NormalMatrix*mat3(at_tangent.xyz,normalize(cross(at_tangent.xyz,gl_Normal)*at_tangent.w),gl_Normal))*scrnVecNorm;
+            #else
+    vec3 texHitVec = transpose(gl_NormalMatrix*TBN)*scrnVecNorm;
+            #endif
     differential=-texsize*texHitVec.xy/texHitVec.z;
 
-    #ifdef ENTITY
+            #ifdef ENTITY
     if(texsize.x*texsize.y<=1)
         differential=vec2(0);
-    #else
+            #else
     if(abs(normal.x)+abs(normal.y)+abs(normal.z)>1.000001){
         //TODO fix lava
 //        texsize=ivec2(16);
 //        baseTexpos=(ivec2(atlasSize*texcoord)/texsize)*texsize;
         differential=vec2(0);
     }
-    #endif
+            #endif
         #endif
     #endif
 #endif
