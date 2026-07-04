@@ -46,13 +46,17 @@ vec2 doPixPom(vec2 initialTc){
 
         ivec2 texpos = ivec2(tc);
         #ifdef POM_PERFECT_EDGES
-        if(length(ivec2(lastTc)-texpos)>1){
+
+        float pixDif = length(ivec2(lastTc)-texpos);
+        if(pixDif>1 && pixDif<10){
             tc.x=(15*tc.x+lastTc.x)/16.0;
             rayDepth = (tc.x-initialTc.x)/differential.x;
         }
         #endif
 
+        vec2 prePomTc = tc;
         pomEdge(tc);
+        lastTc-=tc-prePomTc;
         float texdepth = float(1.0-texelFetch(normals,baseTexpos+ivec2(tc),0).a)*pomDepth;
 
         #ifdef POM_NORMALS

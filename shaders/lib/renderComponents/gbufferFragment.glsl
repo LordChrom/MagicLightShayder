@@ -19,7 +19,7 @@
     #undef POM
 #else
 
-#if (DEBUG_SPECIAL_VIEW == 104)
+#if ((DEBUG_SPECIAL_VIEW==104) || (DEBUG_SPECIAL_VIEW==106))
 #undef TRANSLUCENT
 #endif
 
@@ -266,9 +266,21 @@ void main()
 
     pbrNormal = normalize(TBN*pbrNormal);
 
-    #if (defined POM) && DEBUG_SPECIAL_VIEW==104
-        bool checker = bool((int(floor(texcoord.x*atlasSize.x))+int(floor(texcoord.y*atlasSize.y)))&1);
-        sampledColor.xyz=vec3(min(abs(differential.xy*0.3),1)*vec2((checker&&differential.x<=0)?0.5:1,(checker&&differential.y<=0)?0.5:1),0.1);
+    #ifdef POM
+        #if DEBUG_SPECIAL_VIEW==104
+
+        ivec2 checkerPos = (ivec2(floor(texcoord*atlasSize))-baseTexpos)%texsize;
+        float checkerf=((bitCount(checkerPos.x^checkerPos.y)&3))/3.0;
+        sampledColor.xyz=vec3(min(abs(differential.xy*0.3),1)*vec2((differential.x<=0)?1-checkerf:1,(differential.y<=0)?1-checkerf:1),0.1);
+        #elif DEBUG_SPECIAL_VIEW==106
+        ivec2 checkerPos = (ivec2(floor(newTexcoord*atlasSize))-baseTexpos)%texsize;
+        float checkerf=((bitCount(checkerPos.x^checkerPos.y)&3))/3.0;
+        sampledColor.xyz=mix(sampledColor.xyz,vec3(checkerf.x),0.5);
+        if(checkerPos.x==0 || checkerPos.y==0)
+            sampledColor.r=1;
+        else if(checkerPos.x==(texsize.x-1) || checkerPos.y==(texsize.y-1))
+            sampledColor.b=1;
+        #endif
     #endif
 
     normalOut = vec4((pbrNormal+1)*0.5,NORMAL_A);
