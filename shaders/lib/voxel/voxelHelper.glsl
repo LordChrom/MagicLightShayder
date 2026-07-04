@@ -279,6 +279,14 @@ uint getLightStrength(uvec4 lightSrc){
     return uint(clamp(strength*1e7,0,1e9));
 }
 
+uint getPackedOcclusion(uvec4 packedData){
+    return packedData.z;
+}
+
+void setPackedOcclusion(inout uvec4 packedData, uint occlusion){
+    packedData.z=occlusion;
+}
+
 void setPackedLightTravel(inout uvec4 packedData, vec3 lightTravel){
     packedData.x=packLightTravel(lightTravel)|(packedData.x&0x3fu);
 }
@@ -299,7 +307,7 @@ uvec4 packLightData(vec2 occlusionRay,uint occlusionMap,vec3 color,vec3 lightTra
         lightTravel.z=sunDist;
     ret.x = packLightTravel(lightTravel) | (type&0xfu);
     ret.y = packUnorm4x8(vec4(0,color)) | (flags&0xffu);
-    ret.w = packOcclusionInfo(occlusionRay, occlusionMap, occlusionHitDistance);
+    ret.z = packOcclusionInfo(occlusionRay, occlusionMap, occlusionHitDistance);
     return ret;
 }
 
