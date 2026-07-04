@@ -34,7 +34,6 @@ out vec3 normal;
 
 #ifdef LIT
 out vec2 lmcoord;
-const vec2 maxLm = vec2(15.0/16.0);
 #endif
 
 #if defined NORMALS_NOT_INCLUDED || defined HAND
@@ -152,7 +151,7 @@ void main() {
 
 #ifdef LIT
     lmcoord = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
-    lmcoord = min(lmcoord,maxLm);
+    lmcoord = clamp(lmcoord,1.0/32,31.0/32);
 #endif
 
 #if (defined NEEDS_MATERIAL_ID) || (defined HARDCODED_MATERIAL)
