@@ -321,8 +321,11 @@ vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 b
             if(isCrossBlockModel){ //TODO distinguish between flat cross vs blocky models better
                 subsurfaceStrength=subsurface;
             }else{
-                subsurfaceStrength = exp(subsurfaceLightDepth/max(1e-4,subsurface));
-                subsurfaceStrength*=normalize(displacement).z;
+                float lightDirz = normalize(displacement).z;
+                //length = length * hypotenuse/z vomponent
+                subsurfaceStrength = exp(subsurfaceLightDepth/max(0.01,lightDirz*subsurface));
+//                subsurfaceStrength*=;
+                subsurfaceStrength*=lightDirz;
             }
         }
        #endif

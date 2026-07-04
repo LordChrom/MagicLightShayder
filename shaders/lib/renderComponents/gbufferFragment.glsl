@@ -195,7 +195,7 @@ void main()
     #ifdef VOXY_PATCH
     vec4 lighting = voxyLighting(lmcoord);
     #else
-    vec4 lighting = texture(lightmap, lmcoord);
+    vec4 lighting = min(texture(lightmap, lmcoord),0.99);
     #endif
 #elif defined BASIC
     bool isLeash = length(glcolor.xyz-vec3(0.425,0.34,0.25))<0.5;
