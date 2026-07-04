@@ -80,7 +80,6 @@ uniform vec3 cameraPosition;
     uniform sampler2D normals;
     #define atlasSize textureSize(normals,0)
   #endif
-uniform mat4 gbufferProjectionInverse;
 in vec2 mc_midTexCoord;
 out vec2 differential;
 flat out ivec2 baseTexpos;
@@ -111,31 +110,29 @@ void main() {
     normal = (gbufferModelViewInverse*vec4(gl_Normal,0)).xyz;
     #elif defined NORMALS_NOT_INCLUDED
     //TODO make these all subsurface
-//    normal = (gbufferModelViewInverse*vec4(0,0,1,0)).xyz;
-    normal = (gbufferModelViewInverse[2]).xyz;
+    normal = (gl_ModelViewMatrixInverse[2]).xyz;
     #else
     normal = gl_Normal;
     #endif
 
     #if MATERIALS_TYPE == 1 && defined TEXTURED
+
     TBN = mat3(at_tangent.xyz,normalize(cross(at_tangent.xyz,normal)*at_tangent.w),normal);
+
         #ifdef POM
+    vec3 texHitVec = mat3(gl_ModelViewMatrix[0].xyz,gl_ModelViewMatrix[1].xyz,gl_ModelViewMatrix[2].xyz)*gl_Vertex.xyz + gl_ModelViewMatrix[3].xyz;
+            #ifdef HAND
+                mat3 texTBN = mat3(at_tangent.xyz,normalize(cross(at_tangent.xyz,gl_Normal)*at_tangent.w),gl_Normal);
+            #else
+                #define texTBN TBN
+            #endif
+
+    texHitVec = transpose(gl_NormalMatrix*texTBN)*texHitVec;
+
     worldLength = length(gl_Vertex.xyz-gl_ProjectionMatrix[3].xyz);
     texsize = ivec2(ceil(2*atlasSize*abs(mc_midTexCoord-texcoord)));
     baseTexpos = ivec2(atlasSize*(mc_midTexCoord-abs(mc_midTexCoord-texcoord)));
 
-    mat4 invProjection = gbufferProjectionInverse;
-
-    #ifdef HAND
-        invProjection = inverse(gl_ProjectionMatrix);
-    #endif
-
-    vec3 scrnVecNorm = normalize((invProjection*gl_Position).xyz);
-            #ifdef HAND
-    vec3 texHitVec = transpose(gl_NormalMatrix*mat3(at_tangent.xyz,normalize(cross(at_tangent.xyz,gl_Normal)*at_tangent.w),gl_Normal))*scrnVecNorm;
-            #else
-    vec3 texHitVec = transpose(gl_NormalMatrix*TBN)*scrnVecNorm;
-            #endif
     differential=-texsize*texHitVec.xy/texHitVec.z;
 
             #ifdef ENTITY
