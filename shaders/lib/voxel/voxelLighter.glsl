@@ -174,7 +174,7 @@ void saveSharedSample(int a, int b){
 #ifdef FALLBACK_RADIANCE
     uvec4 r = uvec4(0);
     //TOOD recoloring radiance
-    if(bool(rearVoxel&WORLDVOX_OPAQUE)){
+    if(!bool(rearVoxel&WORLDVOX_OPAQUE)){
        r = sampleLightData(sampleZonePos, sampleZoneShift, zoneOffset(axis,RADIANCE_LAYER,sampleCascade));
     }
     setSharedSample(a,b,RADIANCE_LAYER,r);
@@ -218,8 +218,7 @@ void takeSamples(){
 
 
 uvec4 convertToRadiance(uvec4 lightSrc){
-    vec3 color = unpackLightColor(lightSrc).rgb;
-    color*=0.3; //TODO unfudge after proper sampling
+    vec3 color = unpackLightColor(lightSrc).rgb*BLOCK_LIGHT_STRENGTH;
 
     vec3 displacement = unpackLightTravel(lightSrc);
     float lengthSquared = dot(displacement,displacement);
@@ -227,18 +226,18 @@ uvec4 convertToRadiance(uvec4 lightSrc){
     lengthSquared = lengthSquared*(1-columnation)+columnation;
     const float b = 1/float(MAX_LIGHT_STRENGTH*MAX_LIGHT_STRENGTH);
 
-    color*=inversesqrt(lengthSquared*lengthSquared*(1-columnation)+b);
+    color*=pow(lengthSquared*lengthSquared*(1-columnation)+b,-0.8); //the -0.8 is a fudge
     return uvec4(packUnorm4x8(0.25*vec4(color,0)));
 }
 
 uvec4 combineRadiance(uvec4 a, uvec4 b, float weight){
     uvec4 ret;
     for(int i=0; i<4; i++){
-        vec4 r = 4*(unpackUnorm4x8(a[i])+weight*unpackUnorm4x8(b[i]));
-        float len = length(r);
+        vec4 color = 4*(unpackUnorm4x8(a[i])+weight*unpackUnorm4x8(b[i]));
+        float len = length(color);
         if(len>2)
-            r*=(0.3*(len-2)+2)/len;
-        ret[i]=packUnorm4x8(0.25*r);
+            color*=(0.3*(len-2)+2)/len;
+        ret[i]=packUnorm4x8(0.25*color);
     }
     return ret;
 }
@@ -258,8 +257,19 @@ uvec4[VOX_LAYERS] determineBestLightSources(){
     for (int a=-1; a<=1;a++){
         for (int b=-1; b<=1;b++){
             #ifdef FALLBACK_RADIANCE
-            const float[] weights = {0.55,0.1,0.02};
-            radiance = combineRadiance(radiance, getInputSample(a, b, VOX_LAYERS), weights[abs(a)+abs(b)]);
+            uvec4 sampleRad = getInputSample(a, b, VOX_LAYERS);
+            if(a<0)
+                sampleRad.xz=uvec2(0);
+            else if(a>0)
+                sampleRad.yw=uvec2(0);
+
+            if(b<0)
+                sampleRad.xy=uvec2(0);
+            else if(b>0)
+                sampleRad.zw=uvec2(0);
+
+            const float[] weights = {0.4,0.2,0.15};
+            radiance = combineRadiance(radiance, sampleRad, weights[abs(a)+abs(b)]);
             #endif
 
             #ifndef UNOCCLUDED_INTO_BLOCKS
@@ -309,7 +319,7 @@ uvec4[VOX_LAYERS] determineBestLightSources(){
                 for(int rank = 0; rank<lastRank; rank++){
 #ifdef FALLBACK_RADIANCE
                     if(rank==VOX_LAYERS){
-                        if(bool(strength&1u))
+                        if(bool(strength))
                             radiance=combineRadiance(radiance,convertToRadiance(lightSrc),1);
                         break;
                     }

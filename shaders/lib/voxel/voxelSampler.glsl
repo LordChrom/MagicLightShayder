@@ -286,7 +286,6 @@ vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 b
 
     vec3 travel = unpackLightTravel(packedLightSrc);
 
-    subVoxelOffset = areaToZoneSpaceRelative(subVoxelOffset,axis);
     vec3 displacement = travel + subVoxelOffset;
 
 
@@ -359,11 +358,11 @@ vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 b
 }
 
 vec3 getDirectedLight(uint cascadeLevel, uint layer, uint axis, float subsurface, ivec3 zoneShift, ivec3 zonePos,
-    ivec3 blockPos, vec3 normal, vec3 subVoxelOffset, bool isForFog, float scale
+    ivec3 blockPos, vec3 normal, vec3 zoneSubVoxelOffset, bool isForFog, float scale
 ){
     uint zoneMemOffset = zoneOffset(axis, layer,cascadeLevel);
     uvec4 packedLightSrc = sampleLightData(zonePos, zoneShift, zoneMemOffset);
-    return getDirectedLight(packedLightSrc,axis,subsurface,blockPos,normal,subVoxelOffset,isForFog,scale);
+    return getDirectedLight(packedLightSrc,axis,subsurface,blockPos,normal,zoneSubVoxelOffset,isForFog,scale);
 }
 
 const float radSlope = tan(22.5*PI/180);
@@ -372,11 +371,16 @@ vec3 sampleDirectedRadiance(uint cascadeLevel, uint axis, float subsurface, ivec
     uvec4 packedRadiance = sampleLightData(zonePos, zoneShift, zoneMemOffset);
     vec3 ret = vec3(0);
 
+    subVoxelOffset/=getScale(cascadeLevel);
     vec3 testNorm = normalize(vec3(radSlope,radSlope,1));
     for(int i=0; i<4; i++){
-        vec3 col = unpackUnorm4x8(packedRadiance[i]).rgb*4;
+        int a = 2*(i&1)-1;
+        int b = (i&2)-1;
+        vec3 dir = normalize(vec3(a,b,2))+subVoxelOffset*0.1;
+        float normalFactor =-dot(dir,normal);
+        vec3 col = unpackUnorm4x8(packedRadiance[i]).rgb;
 
-        float normalFactor = dot(-normal,vec3(bool(i&1)?-testNorm.x:testNorm.x,bool(i&2)?testNorm.y:-testNorm.y,testNorm.z));
+
         normalFactor=max(0,normalFactor);
         col*=normalFactor;
         ret+=col;
@@ -463,13 +467,16 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
         ivec3 zoneShift = areaToZoneSpace(areaShift, axis);
         ivec3 zonePos = areaToZoneSpace(areaPos, axis);
 
+        vec3 zoneSubVoxelOffset = areaToZoneSpaceRelative(subVoxelOffset,axis);
+
+
     #ifndef DEBUG_RADIANCE_ONLY
         for(uint layer = 0; layer<VOX_LAYERS; layer++)
-            color+=getDirectedLight(cascadeLevel,layer,axis,subsurface,zoneShift,zonePos,blockPos,zoneNorm,subVoxelOffset,false,scale);
+            color+=getDirectedLight(cascadeLevel,layer,axis,subsurface,zoneShift,zonePos,blockPos,zoneNorm,zoneSubVoxelOffset,false,scale);
     #endif
 
         #ifdef FALLBACK_RADIANCE
-        color+=sampleDirectedRadiance(cascadeLevel,axis,subsurface,zoneShift,zonePos,zoneNorm,subVoxelOffset);
+        color+=sampleDirectedRadiance(cascadeLevel,axis,subsurface,zoneShift,zonePos,zoneNorm,zoneSubVoxelOffset);
         #endif
     }
 
@@ -517,11 +524,13 @@ vec3 voxelSampleFog(vec3 worldPos, float fogNoise, float ditherValue){
     {
         ivec3 zoneShift = areaToZoneSpace(areaShift, axis);
         ivec3 zonePos = areaToZoneSpace(areaPos, axis);
+        vec3 zoneSubVoxelOffset = areaToZoneSpaceRelative(subVoxelOffset,axis);
+
         for(int layer = 0; layer<lightsInLoop; layer++){
-            color+=getDirectedLight(cascadeLevel,layer,axis,1.0,zoneShift,zonePos,blockPos,vec3(0),subVoxelOffset,true,scale);
+            color+=getDirectedLight(cascadeLevel,layer,axis,1.0,zoneShift,zonePos,blockPos,vec3(0),zoneSubVoxelOffset,true,scale);
         }
 #ifdef FOG_RANDOM_LESSER_SOURCE
-        color+=getDirectedLight(cascadeLevel,randLayer,axis,1.0,zoneShift,zonePos,blockPos,vec3(0),subVoxelOffset,true,scale);
+        color+=getDirectedLight(cascadeLevel,randLayer,axis,1.0,zoneShift,zonePos,blockPos,vec3(0),zoneSubVoxelOffset,true,scale);
 #endif
     }
     return color;
