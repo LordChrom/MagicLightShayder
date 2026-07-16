@@ -264,13 +264,12 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
 #if DEBUG_SHOW_UPDATES >= 0
     float intensity = DEBUG_UPDATES_INTENSITY;
     #if DEBUG_SHOW_UPDATES==0
-    float norm = bool(axis&4u)?normal.z:(bool(axis&2u)?normal.y:normal.x);
-    if(abs(norm)>0.9)
+    if(abs(normal.z)>0.9)
         intensity*=0.1;
     #endif
     uint frameIndicator = (frameCounter&0x3fu);
     uint frameIndicatorLight = (unpackLightFlags(packedLightSrc)>>2)&0x3fu;
-    vec3 axisColor = ivec3(areaToZoneSpaceMats[axis][2]);
+    vec3 axisColor = lVec(axis);
     if ((axis&1u)==0)
         axisColor=abs(axisColor)*0.3+0.1;
     if (frameIndicator==frameIndicatorLight)
