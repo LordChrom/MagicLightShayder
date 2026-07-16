@@ -307,7 +307,8 @@ uvec4[VOX_LAYERS] determineBestLightSources(){
                 vec2 outerSlope  = (xy+halfScale) * abs(scale/(travel.z-halfScale));
                 vec2 innerSlope  = (xy-halfScale) * abs(scale/(travel.z+halfScale));
 
-                if(!canIlluminateInBounds(vec4(outerSlope,innerSlope),unpackOcclusionRay(lightSrc.w),unpackOcclusionMap(lightSrc.w)))
+                uint occlusion = getPackedOcclusion(lightSrc);
+                if(!canIlluminateInBounds(vec4(outerSlope,innerSlope),unpackOcclusionRay(occlusion),unpackOcclusionMap(occlusion)))
                     continue;
 
 #ifdef FALLBACK_RADIANCE
@@ -448,7 +449,7 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
 
                 if (sameLight(relevantSample,bestSource)){
                     relevance[i][j] = true;
-                    relevantOcclusionSamples[i][j][0] = relevantSample.w;
+                    relevantOcclusionSamples[i][j][0] = getPackedOcclusion(relevantSample);
                     break;
                 }
             }
@@ -587,7 +588,7 @@ void doOcclusion(uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, bool[
 ){
     bool isSun = unpackLightType(lightSrc)==LIGHT_TYPE_SUN;
     if(!(relevance[0][0]||relevance[0][1]||relevance[1][0]||relevance[1][1])){
-        lightSrc.w=FULL_OCCLUSION;
+        setPackedOcclusion(lightSrc,FULL_OCCLUSION);
         return;
     }
 
@@ -608,13 +609,14 @@ void doOcclusion(uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, bool[
     vec4 litBounds = vec4(1,1,0,0);
 
 
-    lightSrc.w = getTerrainOcclusion(travel,relevantObstructions,alignment);
+    setPackedOcclusion(lightSrc,getTerrainOcclusion(travel,relevantObstructions,alignment));
     if(isSun){
         slopeBounds=vec4(1,1,0,0);
-        vec2 r = unpackOcclusionRay(lightSrc.w);
+        uint occlusion = getPackedOcclusion(lightSrc);
+        vec2 r = unpackOcclusionRay(occlusion);
         r=vec2(0);
         r-=sunOffset;
-        lightSrc.w=packOcclusionInfo(r,unpackOcclusionMap(lightSrc.w),unpackOcclusionHitDist(lightSrc.w));
+        setPackedOcclusion(lightSrc,packOcclusionInfo(r,unpackOcclusionMap(occlusion),unpackOcclusionHitDist(occlusion)));
     }
 
 
@@ -737,7 +739,8 @@ void doOcclusion(uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, bool[
 
             //TODO more efficient repacking
             occl=packOcclusionInfo(ray,map,unpackOcclusionHitDist(occl)+(isSun?scale:0));
-            lightSrc.w=combineOcclusions(lightSrc.w,occl);
+            uint oldOcclusion = getPackedOcclusion(lightSrc);
+            setPackedOcclusion(lightSrc,combineOcclusions(oldOcclusion,occl));
         }
     }
 }
@@ -757,7 +760,7 @@ void doLightPassage(inout uvec4 bestLight, bool translucentTerrain){
     doOcclusion(relevantOcclusionSamples, relevance, alignment, newObstructions, bestLight);
 
 #if !(defined KEEP_FULLY_OCCLUDED_SAMPLES && defined DEBUG_OCCLUSION_MAP)
-    if ( !bool(unpackOcclusionMap(bestLight.w))){
+    if ( !bool(unpackOcclusionMap(getPackedOcclusion(bestLight)))){
         bestLight=uvec4(0);
     }
 #endif
@@ -808,7 +811,7 @@ void lightVoxelFace(){
         #ifndef READS_MUST_BE_UNIFORM
         doLightPassage(translucentPassage,true);
         #endif
-        if(bool(unpackOcclusionMap(translucentPassage.w))){
+        if(bool(unpackOcclusionMap(getPackedOcclusion(translucentPassage)))){
             setPackedLightColor(translucentPassage,unpackLightColor(translucentPassage)*color);
             setPackedLightFlags(translucentPassage,unpackLightFlags(translucentPassage)|1u); //TODO make this not dumb
 

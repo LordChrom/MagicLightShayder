@@ -174,7 +174,7 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
     else
         subVoxelOffset-=travel;
 
-    uint map = unpackOcclusionMap(packedLightSrc.w);
+    uint map = unpackOcclusionMap(getPackedOcclusion(packedLightSrc));
 
     //Debug Coloring
     //green = fully lit,
@@ -212,7 +212,7 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
     }
 #endif
 #ifdef DEBUG_OCCLUSION_RAYS
-    vec2 ray = unpackOcclusionRay(packedLightSrc.w);
+    vec2 ray = unpackOcclusionRay(getPackedOcclusion(packedLightSrc));
 
     if(bool(type)){
         vec2 slopeDif = abs(ray-abs(displacement.xy/displacement.z));
@@ -237,7 +237,7 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
 
         if(slopeDif.x<outlineWidth || slopeDif.y<outlineWidth){
             color.rgb=vec3(0.6);
-            float occHitDist = unpackOcclusionHitDist(packedLightSrc.w);
+            float occHitDist = unpackOcclusionHitDist(getPackedOcclusion(packedLightSrc));
             if(occHitDist>0){
                 float wavey = occHitDist*0.5+1;
                 color*=normalize(0.6+0.4*vec3(sin(wavey), sin(wavey+PI*2.0/3), sin(wavey+PI*4.0/3)));
@@ -254,7 +254,7 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
     }
 #endif
 #ifdef DEBUG_OCCLUSION_HIT_DIST
-    float occHitDist = unpackOcclusionHitDist(packedLightSrc.w);
+    float occHitDist = unpackOcclusionHitDist(getPackedOcclusion(packedLightSrc));
     if(occHitDist!=0){
         float wavey = occHitDist*0.5+1;
         color*=normalize(0.6+0.4*vec3(sin(wavey), sin(wavey+PI*2.0/3), sin(wavey+PI*4.0/3)));
@@ -298,13 +298,14 @@ vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 b
 
     float lightStrength;
     float occlusionFactor;
+    uint occlusion = getPackedOcclusion(packedLightSrc);
     if(type==LIGHT_TYPE_SUN)
-        occlusionFactor = doSunOcclusion(displacement,travel,packedLightSrc.w);
+        occlusionFactor = doSunOcclusion(displacement,travel,occlusion);
     else{
         if(isForFog)
-            occlusionFactor=doFogOcclusion(displacement,travel,packedLightSrc.w);
+            occlusionFactor=doFogOcclusion(displacement,travel,occlusion);
         else
-            occlusionFactor=doTerrainOcclusion(displacement,travel,packedLightSrc.w);
+            occlusionFactor=doTerrainOcclusion(displacement,travel,occlusion);
     }
 
    #if SUBSURFACE_MODE == 2

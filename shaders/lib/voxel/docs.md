@@ -86,11 +86,16 @@ Attributes
 - uint flags          see below
 - occlusion info      see below
 
+Flags
+- 6 bits currently used only for DEBUG_SHOW_UPDATES
+- 1 bit unused
+- 1 bit for if its in a translucent
+
 Packing
 - x is 2x9 a,b of travel, 1x8 L of travel, 2 free, 1x4 light type
 - y is 3x8 color, 8 flags
-- z is free
-- w is occlusion data
+- z is occlusion data
+- w is currently free, probably more occlusion data in the future
 
 ### Occlusion data
 Attributes
@@ -100,14 +105,6 @@ Attributes
 
 Packing
 - 2x8 occlusion ray (b then a), 1x12 occlusion hit distance, 4x1 occlusion map
-
-
-- flags
-- - 6 bits currently used only for DEBUG_SHOW_UPDATES
-- - 1 bit unused 
-- - 1 bit for if its in a translucent
-
-
 
 # General TODO List
 ### Needs fixing
