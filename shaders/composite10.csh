@@ -5,6 +5,6 @@
 #define STAGES 3
 #define source colortex7
 #define dest colorimg13
-layout (rgba16ui) uniform writeonly restrict uimage2D dest;
+layout (rgba16f) uniform writeonly restrict image2D dest;
 
 #include "lib/renderComponents/downsamplePass.glsl"

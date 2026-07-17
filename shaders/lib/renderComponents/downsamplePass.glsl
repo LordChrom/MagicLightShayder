@@ -47,9 +47,9 @@ void main(){
         barrier();
         if(stillContributing){
             avg=averages[bucket]>>2u;
-            ivec2 texsize = textureSize(source,0);
-            ivec2 mipBase = texsize-(texsize>>stage);
-            imageStore(dest,mipBase+(globalPos>>(stage+1)),uvec4(avg*1024/1e6));
+            int texsize = textureSize(source,0).x;
+            int mipBase = texsize-(texsize>>stage);
+            imageStore(dest,ivec2(mipBase,0)+(globalPos>>(stage+1)),avg*1e-6);
         }
     }
 }
