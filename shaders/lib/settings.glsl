@@ -60,6 +60,7 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 #define MAX_FOG_DEPTH 192 //[1 2 4 8 16 32 48 64 96 128 192 256 384 512]
 #define FOG_DITHER_METHOD 128 //[1 2 4 8 16 32 64 128]
 #define FOG_TEMPORAL_NOISE
+#define CHEAP_FOG_BLUR
 #define FOG_BLUR 3 //[0 1 2 3 4]
 #define FOG_BLUR_EDGE_REJECTION 4 //[-1 0.5 1 2 3 4 5 6 7]
 #define LIGHTS_PER_FOG_SAMPLE 2 //[1 2 3 4 5 6 7 8]
@@ -199,6 +200,11 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 
 ///// The following to be copy pasted into shaders.properties
 #if VOLUMETRIC_FOG_SAMPLES == 0
+    #define FOG_BLUR 0
+    #undef CHEAP_FOG_BLUR
+#endif
+
+#ifdef CHEAP_FOG_BLUR
     #define FOG_BLUR 0
 #endif
 

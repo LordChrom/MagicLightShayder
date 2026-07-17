@@ -52,6 +52,7 @@ const int colortex12Format = RG16F;
 const bool colortex9Clear = false;
 const bool colortex10Clear = false;
 const bool colortex11Clear = false;
+const int colortex13Format = RGBA16UI;
 */
 
 /* RENDERTARGETS: 0 */
