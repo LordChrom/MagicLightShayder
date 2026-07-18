@@ -1,3 +1,12 @@
+#if POM_MODE==2
+    const float perfectRatio = 0.375;
+    const int pomSamplesPix = int(round(POM_SAMPLES*perfectRatio));
+    const int pomSamplesSparse = POM_SAMPLES-pomSamplesPix;
+#else
+    const int pomSamplesSparse = POM_SAMPLES;
+    const int pomSamplesPix = POM_SAMPLES;
+#endif
+
 const float pomDepth = 0.25*POM_DEPTH_STRENGTH;
 
 #if POM_ROUNDING_RAD!=-1

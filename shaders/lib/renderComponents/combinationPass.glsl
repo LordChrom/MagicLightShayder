@@ -40,6 +40,14 @@ uniform sampler2D colortex5;
 
 in vec2 texcoord;
 
+
+
+const float voxelDistance = 160.0;
+const float shadowDistance = 160.0;
+const int shadowMapResolution = 1;
+const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
+
+
 /*
 const int colortex3Format = RGBA8UI;
 const int colortex4Format = RGBA8UI;

@@ -45,7 +45,6 @@
 #define SSAO_RADIUS 0.5 //[0.025 0.05 0.075 0.1 0.15 0.2 0.3 0.4 0.5 0.6 0.8 1.0 1.2 1.6 2.0]
 #define SSAO_STRENGTH 1.0 //[0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0 1.125 1.25 1.375 1.5 1.75 2.0 2.5 3.0]
 #define SSAO_DELBEED
-const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 
 #define VOX_LAYERS 2 //[1 2 3 4 5 6 7 8]
 
@@ -153,14 +152,6 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
     #undef POM
 #endif
 
-#if POM_MODE==2
-    const float perfectRatio = 0.375;
-    const int pomSamplesPix = int(round(POM_SAMPLES*perfectRatio));
-    const int pomSamplesSparse = POM_SAMPLES-pomSamplesPix;
-#else
-    const int pomSamplesSparse = POM_SAMPLES;
-    const int pomSamplesPix = POM_SAMPLES;
-#endif
 
 #ifdef DOUBLE_PROC
 #define PROC_MULT 2
@@ -226,22 +217,6 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 /////
 
 
-
-const int SECTIONS_PER_AREA_XY = AREA_WIDTH_SECTIONS*AREA_WIDTH_SECTIONS;
-
-
-
-//const int SECTIONS_PER_AREA = AREA_WIDTH_SECTIONS*AREA_WIDTH_SECTIONS*AREA_WIDTH_SECTIONS;
-const int ZONE_OFFSET = AREA_SIZE;
-const int AREA_OFFSET = AREA_SIZE;
-const int BLOCK_SCALE_CASCADE = -int(round(log2(MIN_SCALE)));
-
-
-
-const float voxelDistance = 160.0;
-const float shadowDistance = 160.0;
-const int shadowMapResolution = 1;
-const float translucentPrecedenceCutoff = 0.99;
 
 #if BLOOM>0
 #ifdef KEEP_FULLY_OCCLUDED_SAMPLES

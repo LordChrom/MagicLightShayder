@@ -4,6 +4,27 @@ uniform vec3 globalOrigin, previousGlobalOrigin;
 uniform int frameCounter;
 uniform bool hasCeiling;
 
+//caps out at 31 but its whatever
+uint countTrailingZeroes(uint x){
+    uint ret = 0;
+    for(uint bits = 16; bits>=2; bits>>=1){
+        bool bitsInLowerHalf = bool(x&((1u<<bits)-1u));
+        ret=bitsInLowerHalf?ret:ret+bits;
+        x  =bitsInLowerHalf?x:x>>bits;
+    }
+    ret+=((~x)&0x1u);
+    return ret;
+}
+
+uint getVariableCascadeLevel(uint frame){
+    uint trailingZeroes = countTrailingZeroes(frame);
+    #ifdef DOUBLE_PROC
+    return trailingZeroes+1;
+    #else
+    return trailingZeroes;
+    #endif
+}
+
 vec3 getGlobalOrigin(float scale){
     return floor(globalOrigin/scale)*scale;
 }
@@ -63,6 +84,11 @@ float getScale(uint cascadeLevel){
     return MIN_SCALE*float(1<<cascadeLevel);
 }
 
+uint scaleToCascadeLevel(float scale){
+    scale/=MIN_SCALE;
+    return countTrailingZeroes(uint(scale));
+}
+
 uint getCascadeLevel(vec3 worldPos){
     vec3 pos = worldPos - globalOrigin;
     pos = abs(pos/(0.25*MIN_SCALE*AREA_SIZE));
@@ -84,7 +110,7 @@ uint getCascadeLevel(vec3 worldPos){
 }
 
 bool voxelIsSplit(ivec3 areaPos, ivec3 areaShift, uint cascadeLevel){
-    if(int(cascadeLevel)<=BLOCK_SCALE_CASCADE)
+    if(int(cascadeLevel)<=-int(round(log2(MIN_SCALE))))
         return false;
     areaPos = modAreaSize(areaPos);
     return (
@@ -300,11 +326,11 @@ void setPackedLightFlags(inout uvec4 packedData, uint flags){
 }
 
 //float sunDist = 4+((frameCounter>>6)%10)*0.4;
-const float sunDist = 5;
+#define SUN_DISTANCE 5
 uvec4 packLightData(vec2 occlusionRay,uint occlusionMap,vec3 color,vec3 lightTravel,float occlusionHitDistance,uint type,uint flags){
     uvec4 ret;
     if(type==LIGHT_TYPE_SUN)
-        lightTravel.z=sunDist;
+        lightTravel.z=SUN_DISTANCE;
     ret.x = packLightTravel(lightTravel) | (type&0xfu);
     ret.y = packUnorm4x8(vec4(0,color)) | (flags&0xffu);
     ret.z = packOcclusionInfo(occlusionRay, occlusionMap, occlusionHitDistance);
@@ -431,27 +457,6 @@ uint getOcclusionEdges(uint map){
     return 15u&~(xyww|zxyz);
 }
 
-//caps out at 31 but its whatever
-uint countTrailingZeroes(uint x){
-    uint ret = 0;
-    for(uint bits = 16; bits>=2; bits>>=1){
-        bool bitsInLowerHalf = bool(x&((1u<<bits)-1u));
-        ret=bitsInLowerHalf?ret:ret+bits;
-        x  =bitsInLowerHalf?x:x>>bits;
-    }
-    ret+=((~x)&0x1u);
-    return ret;
-}
-
-uint getVariableCascadeLevel(uint frame){
-    uint trailingZeroes = countTrailingZeroes(frame);
-#ifdef DOUBLE_PROC
-    return trailingZeroes+1;
-#else
-    return trailingZeroes;
-#endif
-}
-
 uint getVariableCascadeLevel(uint frame, bool isAuxGroup){
 #ifdef DOUBLE_PROC
     return isAuxGroup?0:getVariableCascadeLevel(frame);
@@ -468,7 +473,6 @@ uint getVariableCascadeLevel(bool isAuxGroup){
 //TODO ssbo?
 uniform float sunAngle;
 uvec4 getSunlight(uint axis){
-    const vec3 sunColor = vec3(242,242,242)/255;
     if(sunAngle>=0.5 || ((axis&6u)==4u))
         return uvec4(0);
     float angleOfTheSun = sunAngle*2*PI;
@@ -477,8 +481,8 @@ uvec4 getSunlight(uint axis){
 //    if(sunLightTravel.z<=1e-4)
 //        return uvec4(0);
 
-    sunLightTravel*=-sign(sunLightTravel.z)*(sunDist/max(abs(sunLightTravel.z),0.001));
+    sunLightTravel*=-sign(sunLightTravel.z)*(SUN_DISTANCE/max(abs(sunLightTravel.z),0.001));
     if(-sunLightTravel.z<max(abs(sunLightTravel.x),abs(sunLightTravel.y)))
         return uvec4(0);
-    return packLightData(vec2(0),0xfu,sunColor,sunLightTravel,0f,1,0xfeu);
+    return packLightData(vec2(0),0xfu,vec3(242,242,242)/255,sunLightTravel,0f,1,0xfeu);
 }

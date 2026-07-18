@@ -3,6 +3,7 @@
 #endif
 
 #include "/lib/settings.glsl"
+const float translucentPrecedenceCutoff = 0.99;
 
 #ifdef VOXY_PATCH
     #if MATERIALS_TYPE>=1

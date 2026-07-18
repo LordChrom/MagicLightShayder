@@ -36,32 +36,35 @@
 #else
     #define LIGHTER_WORK_GROUP_X 1024
 #endif
+
 const ivec3 workGroups = ivec3(LIGHTER_WORK_GROUP_X,LIGHTER_WORK_GROUP_Y,LIGHTER_WORK_GROUP_Z);
 layout (local_size_x = SECTION_SIZE, local_size_y = SECTION_SIZE, local_size_z = LOCAL_SIZE_Z) in;
 
-//different per invocation
-ivec3 areaPos = ivec3(0);
-ivec3 zonePos = ivec3(0);
 #define A (gl_LocalInvocationID.x+1)
 #define B (gl_LocalInvocationID.y+1)
 
 //same accross group
-shared float scale = 0;
-shared uint axis = 0;
-shared uint cascadeLevel = 0;
+uint zonePosZ = 0;
+float scale = 0;
+
+#if DEBUG_AXIS>=0
+    #define axis DEBUG_AXIS
+#else
+    #define axis (gl_WorkGroupID.y/PROC_MULT)
+#endif
 
 #ifdef SSBO_WORKSPACE
     uint workGroupOffset;
 
     layout(std430, binding = 0) buffer ssbo0 {
-        uvec4[][SECTION_SIZE+2][SECTION_SIZE+2] bufferedWorkData;
+        uvec4[][LIGHT_LAYERS][SECTION_SIZE+2][SECTION_SIZE+2] bufferedWorkData;
     };
 
     void setSharedSample(int a, int b, uint layer, uvec4 data){
-        bufferedWorkData[layer+workGroupOffset][A+a][B+b]= data;
+        bufferedWorkData[workGroupOffset][layer][A+a][B+b]= data;
     }
     uvec4 getInputSample(int a, int b, uint layer){
-        return bufferedWorkData[layer+workGroupOffset][A+a][B+b];
+        return bufferedWorkData[workGroupOffset][layer][A+a][B+b];
     }
 #else
     shared uvec4[SECTION_SIZE+2][SECTION_SIZE+2][LIGHT_LAYERS] sharedPackedPool;
@@ -111,10 +114,17 @@ uvec4 maybeBlockLight(uvec4 light, uint voxel){
 }
 
 void saveSharedSample(int a, int b){
-    ivec3 sampleZonePos = zonePos+ivec3(a, b, -1);
+    ivec3 sampleZonePos = ivec3(
+        gl_LocalInvocationID.x+a+(gl_WorkGroupID.x%AREA_WIDTH_SECTIONS)*SECTION_SIZE,
+        gl_LocalInvocationID.y+b+(gl_WorkGroupID.x/AREA_WIDTH_SECTIONS)*SECTION_SIZE,
+        zonePosZ-1
+    );
+
+    ivec3 rearVoxelPos = zoneToAreaSpace(sampleZonePos, axis);
+    ivec3 frontVoxelPos = rearVoxelPos+lVec(axis);
+    uint cascadeLevel = scaleToCascadeLevel(scale);
+
     ivec3 areaShift = getAreaShift(scale);
-    ivec3 frontVoxelPos = areaPos.xyz+ivec3(aVec(axis)*a + bVec(axis)*b);
-    ivec3 rearVoxelPos = frontVoxelPos-lVec(axis);
 
     bool sideOob = voxelIsSplit(frontVoxelPos,areaShift,cascadeLevel) ||
         (sampleZonePos.x<0) || (sampleZonePos.x>=AREA_SIZE) ||
@@ -128,7 +138,8 @@ void saveSharedSample(int a, int b){
 
 
     if(sideOob || rearOob){
-        sampleZonePos = uppperCascadeZonePos(zonePos,zoneShift,axis,scale,zonePosRemnants);
+        //TODO sort out the varios OOB cases here
+        sampleZonePos = uppperCascadeZonePos(ivec3(sampleZonePos+ivec3(-a,-b,1)),zoneShift,axis,scale,zonePosRemnants);
         zonePosRemnants.z-=scale;
         sampleCascade++;
 
@@ -143,7 +154,7 @@ void saveSharedSample(int a, int b){
 
         if(cascadeLevel>=(NUM_CASCADES-1)){
             setSharedVoxels(a,b,0u,0u);
-            uvec4 defaultLight = ((!hasCeiling) && zonePos.z<=0) ? getSunlight(axis) : uvec4(0);
+            uvec4 defaultLight = ((!hasCeiling) && zonePosZ<=0) ? getSunlight(axis) : uvec4(0);
     #ifdef DEBUG_DISABLE_SUN
             defaultLight=uvec4(0);
     #endif
@@ -206,14 +217,16 @@ ivec2 getBonusPosOffset(){
 }
 
 void takeSamples(){
+    barrier();
+
     saveSharedSample(0,0);
     ivec2 bonusPos = getBonusPosOffset();
+    barrier();
     if (bonusPos!=ivec2(0)){
         saveSharedSample(bonusPos.x,bonusPos.y);
     }
 
     barrier(); //disable for fun party :)
-    memoryBarrier();
 }
 
 
@@ -356,31 +369,26 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
     int bSignSrc = int(sign(lightTravel.y));
     alignment = bvec2(bSignSrc==0,aSignSrc==0);
 
-    uvec4 localFronts;
-    uvec4 localRears;
     relevance=0;
     newObstructions=0;
 
     for(int i=0; i<2; i++){
-        int a = (i-1)*aSignSrc;
         for (int j=0; j<2; j++){
-            int b = (j-1)*bSignSrc;
             relevantOcclusionSamples[i][j][0]=0u;
-            localFronts[j+j+i]=getFrontVoxel(a,b);
-            localRears[j+j+i]=getRearVoxel(a,b);
         }
     }
 
-    bool sampleFreshlyTranslucent = bool(unpackLightFlags(bestSource)&1u);
+    bool sampleFreshlyTranslucent = bool(unpackLightFlags(bestSource)&1u) || translucentTerrain;
 //    bool sampleLeavingGlass = sampleFreshlyTranslucent && bool(localRears[1][1]&WORLDVOX_TRANSLUCENT) && !bool(localFronts[1][1]&WORLDVOX_TRANSLUCENT) ;
-    uint obstructingTerrainMask = (sampleFreshlyTranslucent || translucentTerrain)?WORLDVOX_OPAQUE:WORLDVOX_NOT_AIR;
+    uint obstructingTerrainMask = sampleFreshlyTranslucent?WORLDVOX_OPAQUE:WORLDVOX_NOT_AIR;
     bool cornerBlocked = !(alignment.x||alignment.y);
 
-    if(bool(localFronts[3]&WORLDVOX_TRANSLUCENT)&&!(sampleFreshlyTranslucent || translucentTerrain))
+    uint front = getFrontVoxel(0,0);
+    if(bool(front&WORLDVOX_TRANSLUCENT)&&!sampleFreshlyTranslucent)
         return;
 
 #ifdef UNOCCLUDED_INTO_BLOCKS
-    bool frontBlockedCompletely = bool(localFronts[3]&WORLDVOX_OPAQUE);
+    bool frontBlockedCompletely = bool(front&WORLDVOX_OPAQUE);
 #endif
 
     //i=0 means a=offset, i=1 means a=0;
@@ -389,8 +397,8 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
         for(int j=0; j<2; j++){
             int b = (j-1)*bSignSrc;
 
-            uint front = localFronts[j+j+i];
-            uint rear = localRears[j+j+i];
+            uint front = getFrontVoxel(a,b);
+            uint rear = getRearVoxel(a,b);
 
 #ifdef UNOCCLUDED_INTO_BLOCKS
             if(frontBlockedCompletely){
@@ -398,8 +406,6 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
                 rear&=~WORLDVOX_OPAQUE;
             }
 #endif
-            bool rearTranslucent = bool(rear&WORLDVOX_TRANSLUCENT);
-
 
             bool blockBlocked = bool((front|rear)&obstructingTerrainMask)
             ||
@@ -409,8 +415,8 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
                 ))
             ||
                 ((!bool(rear&WORLDVOX_TRANSLUCENT)&&translucentTerrain) && (
-                    (i==0&&bool(localRears[1+j+j]&WORLDVOX_TRANSLUCENT))||
-                    (j==0&&bool(localRears[i+2]&WORLDVOX_TRANSLUCENT)))
+                    (i==0&&bool(getRearVoxel(a,0)&WORLDVOX_TRANSLUCENT))||
+                    (j==0&&bool(getRearVoxel(0,b)&WORLDVOX_TRANSLUCENT)))
                 )
             ;
 
@@ -425,7 +431,7 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
 
             for(int layer = 0; layer<VOX_LAYERS; layer++){
                 uvec4 relevantSample = getInputSample(a,b,layer);
-                if(lightTravel.x*a>0 || lightTravel.y*b>0)
+                if(aSignSrc*a>0 || bSignSrc*b>0)
                     continue;
 
                 vec3 newLightTravel = unpackLightTravel(relevantSample);
@@ -441,7 +447,10 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
                 }
             }
 
-            ivec2 effectivePos = ivec2(a,b)+zonePos.xy;
+            ivec2 effectivePos = ivec2(a,b)+ivec2(
+                gl_LocalInvocationID.x+(gl_WorkGroupID.x%AREA_WIDTH_SECTIONS)*SECTION_SIZE,
+                gl_LocalInvocationID.y+(gl_WorkGroupID.x/AREA_WIDTH_SECTIONS)*SECTION_SIZE
+            );
             newObstructions|=uint(
                 (!bool(relevance&(1u<<(j+j+i)))) &&
                     (effectivePos.x>=0 && effectivePos.x<AREA_SIZE && effectivePos.y>=0 && effectivePos.y<AREA_SIZE)
@@ -578,7 +587,6 @@ void doOcclusion(uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, uint 
     }
 
     vec3 travel = unpackLightTravel(lightSrc);
-//    if(isSun) travel.z=sunDist;
     vec2 sunOffset = isSun?abs(travel.xy*scale/travel.z):vec2(0);
 
     vec2 travel2d= abs(travel.xy);
@@ -750,6 +758,49 @@ void doLightPassage(inout uvec4 bestLight, bool translucentTerrain){
 #endif
 }
 
+int doColoredTranslucent(){
+    int translucentBlocksInSample = 0;
+
+    uvec4 translucentPassage = getBestLight(0);
+
+    ivec2 travelDirSign = ivec2(sign(unpackLightTravel(translucentPassage).xy));
+
+    vec3 color = vec3(0);
+
+    for (int i=0; i<2; i++){
+        int a = (i-1)*travelDirSign.x;
+        for (int j=0; j<2; j++){
+            int b = (j-1)*travelDirSign.y;
+
+            uint front = getFrontVoxel(a, b);
+            uint rear = getRearVoxel(a, b);
+
+            bool frontTrans = bool(front&WORLDVOX_TRANSLUCENT);
+            bool rearTrans = bool(rear&WORLDVOX_TRANSLUCENT);
+            rearTrans=false;
+            translucentBlocksInSample += int(frontTrans) + int(rearTrans);
+            if (frontTrans)
+                color+=worldVoxColor(front);
+            if (rearTrans)
+                color+=worldVoxColor(rear);
+        }
+    }
+    color/=translucentBlocksInSample;
+
+
+    if (translucentBlocksInSample>0){
+        doLightPassage(translucentPassage, true);
+        if (bool(unpackOcclusionMap(getPackedOcclusion(translucentPassage)))){
+            setPackedLightColor(translucentPassage, unpackLightColor(translucentPassage)*color);
+            setPackedLightFlags(translucentPassage, unpackLightFlags(translucentPassage)|1u);//TODO make this not dumb
+
+            setBestLight(VOX_LAYERS-1, translucentPassage);
+        } else {
+            translucentBlocksInSample=0;
+        }
+    }
+    return translucentBlocksInSample;
+}
 
 //for one voxel face, determines the light entering that voxel face
 //based on the 9 adjacent voxel faces in the previous plane & the nearby terrain voxels
@@ -757,82 +808,44 @@ void lightVoxelFace(){
     takeSamples();
     determineBestLightSources();
 
-
 #ifdef COLORED_TRANSLUCENTS
-    uvec4 translucentPassage = getBestLight(0);
-
-    ivec2 travelDirSign = ivec2(sign(unpackLightTravel(translucentPassage).xy));
-
-    int translucentBlocksInSample = 0;
-    vec3 color = vec3(0);
-
-    for(int i=0; i<2; i++){
-        int a = (i-1)*travelDirSign.x;
-        for (int j=0; j<2; j++){
-            int b = (j-1)*travelDirSign.y;
-
-            uint front = getFrontVoxel(a,b);
-            uint rear = getRearVoxel(a,b);
-
-            bool frontTrans = bool(front&WORLDVOX_TRANSLUCENT);
-            bool rearTrans = bool(rear&WORLDVOX_TRANSLUCENT);
-            rearTrans=false;
-            translucentBlocksInSample += int(frontTrans) + int(rearTrans);
-            if(frontTrans)
-                color+=worldVoxColor(front);
-            if(rearTrans)
-                color+=worldVoxColor(rear);
-        }
-    }
-    color/=translucentBlocksInSample;
-
-
-    if(translucentBlocksInSample>0){
-        doLightPassage(translucentPassage,true);
-        if(bool(unpackOcclusionMap(getPackedOcclusion(translucentPassage)))){
-            setPackedLightColor(translucentPassage,unpackLightColor(translucentPassage)*color);
-            setPackedLightFlags(translucentPassage,unpackLightFlags(translucentPassage)|1u); //TODO make this not dumb
-
-            setBestLight(VOX_LAYERS-1,translucentPassage);
-        }else{
-            translucentBlocksInSample=0;
-        }
-    }
+    int translucentBlocksInSample = doColoredTranslucent();
 #endif
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-        bool isOverwrittenTranslucentLayer = false;
-#ifdef COLORED_TRANSLUCENTS
-        isOverwrittenTranslucentLayer= (translucentBlocksInSample>0 && layer==VOX_LAYERS-1);
-#endif
-        uvec4 light = getBestLight(layer);
-        if(isOverwrittenTranslucentLayer) break;
+        #ifdef COLORED_TRANSLUCENTS
+        if( (layer==VOX_LAYERS-1) && translucentBlocksInSample>0)
+            break;
+        #endif
 
+        uvec4 light = getBestLight(layer);
         uint flagsToSet = unpackLightFlags(light)&0xfeu;
         doLightPassage(light,false);
         setPackedLightFlags(light,flagsToSet);
-        if(!isOverwrittenTranslucentLayer)
-            setBestLight(layer,light);
+        setBestLight(layer,light);
     }
 
     //could maybe be at the top, not sure how much it'd actually help though TODO test later
+    ivec3 zonePos = ivec3(
+        gl_LocalInvocationID.x+(gl_WorkGroupID.x%AREA_WIDTH_SECTIONS)*SECTION_SIZE,
+        gl_LocalInvocationID.y+(gl_WorkGroupID.x/AREA_WIDTH_SECTIONS)*SECTION_SIZE,
+        zonePosZ
+    );
     uint front = getFrontVoxel(0,0);
     if (bool(front&(0xfu<<VOXEL_TYPE_SHIFT))){
-        vec3 lightTravel;
+        vec3 lightTravel = vec3(0);
 #ifdef LIGHT_SOURCES_BLOCK_CENTERIC
         if(scale<1){
-            vec3 worldPos = vec3(areaPos.xyz)*scale-0.5*scale+globalOrigin;
+            vec3 worldPos = vec3(zoneToAreaSpace(zonePos, axis))*scale-0.5*scale+globalOrigin;
             vec3 subBlockOffset = areaToZoneSpaceRelative((worldPos-round(worldPos)),axis);
             lightTravel = subBlockOffset;
-        }else
-#endif
-        {
-            lightTravel = vec3(0);
         }
+#endif
         setBestLight(VOX_LAYERS-1,packLightData(vec2(0),15u,worldVoxColor(front),lightTravel,0,(front>>VOXEL_TYPE_SHIFT)&0xfu,0));
     }
 
     ivec3 zoneShift =  areaToZoneSpace(getAreaShift(scale),axis);
+    uint cascadeLevel = scaleToCascadeLevel(scale);
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         setLightData(getBestLight(layer), zonePos, zoneShift, zoneOffset(axis,layer,cascadeLevel));
@@ -846,50 +859,34 @@ void lightVoxelFace(){
 
 void main(){
     #if LIGHTER_PASS>=LIGHTING_SYSTEM_PASSES
-    if(true)
-        return;
+    if(true) return;
     #endif
 
     #ifdef SSBO_WORKSPACE
-    workGroupOffset = ((gl_WorkGroupID.x*LIGHTER_WORK_GROUP_Y+gl_WorkGroupID.y)*LIGHTER_WORK_GROUP_Z+gl_WorkGroupID.z)*(LIGHT_LAYERS+1);
+    workGroupOffset = ((gl_WorkGroupID.x*LIGHTER_WORK_GROUP_Y+gl_WorkGroupID.y)*LIGHTER_WORK_GROUP_Z+gl_WorkGroupID.z);
     #endif
 
-    zonePos.xy=ivec2(
-        gl_LocalInvocationID.x+(gl_WorkGroupID.x%AREA_WIDTH_SECTIONS)*SECTION_SIZE,
-        gl_LocalInvocationID.y+(gl_WorkGroupID.x/AREA_WIDTH_SECTIONS)*SECTION_SIZE
-    );
 
-    int frameBasedOffset = frameCounter;
-    cascadeLevel = getVariableCascadeLevel(frameBasedOffset,bool(gl_WorkGroupID.y&1u));
+    uint cascadeLevel = getVariableCascadeLevel(frameCounter,bool(gl_WorkGroupID.y&1u));
     if(cascadeLevel>=NUM_CASCADES) return;
 #ifdef DOUBLE_PROC
-    frameBasedOffset=(frameBasedOffset>>cascadeLevel);
+    int frameBasedOffset=(frameCounter>>cascadeLevel);
 #else
-    frameBasedOffset=(frameBasedOffset>>(cascadeLevel+1));
+    int frameBasedOffset=(frameCounter>>(cascadeLevel+1));
 #endif
 
     scale = getScale(cascadeLevel);
 
-#if DEBUG_AXIS>=0
-    axis = DEBUG_AXIS;
-#else
-    axis = gl_WorkGroupID.y/PROC_MULT;
-#endif
-
-    ivec3 areaShift = getAreaShift(scale);
-    ivec3 zoneShift = areaToZoneSpace(areaShift,axis);
-
-    frameBasedOffset = (frameBasedOffset*LIGHTING_SYSTEM_PASSES-zoneShift.z + LIGHTER_PASS)%UPDATE_STRIDE;
+    frameBasedOffset = (frameBasedOffset*LIGHTING_SYSTEM_PASSES-areaToZoneSpace(getAreaShift(scale),axis).z + LIGHTER_PASS)%UPDATE_STRIDE;
 
 
 #ifdef WAVES_INORDER
     for(;frameBasedOffset<AREA_SIZE;frameBasedOffset+=UPDATE_STRIDE)
 #endif
     {
-        zonePos.z = int((gl_WorkGroupID.z)*UPDATE_STRIDE)+frameBasedOffset;
-        if(zonePos.z>=AREA_SIZE)
+        zonePosZ = int((gl_WorkGroupID.z)*UPDATE_STRIDE)+frameBasedOffset;
+        if(zonePosZ>=AREA_SIZE)
             return;
-        areaPos = zoneToAreaSpace(zonePos, axis);
 
         lightVoxelFace();
     }
