@@ -4,12 +4,18 @@ uniform vec3 cameraPosition;
 
 in vec4 at_midBlock;
 in vec2 mc_Entity;
+flat out int emission;
+flat out int blockId;
+out vec3 toMidblock;
+out vec3 worldPos;
+out vec3 normal;
 
 void main() {
-    int emission = int(at_midBlock.w);
+    emission = int(at_midBlock.w);
 
-    vec3 worldPos = gl_Vertex.xyz-gl_ProjectionMatrix[3].xyz+cameraPosition;
-    vec3 toMidblock = at_midBlock.xyz/64.0;
-    int blockId = int(mc_Entity.x);
-    writeVoxelMap(worldPos,blockId,toMidblock,gl_Normal,emission);
+    worldPos = gl_Vertex.xyz-gl_ProjectionMatrix[3].xyz+cameraPosition;
+    toMidblock = at_midBlock.xyz/64.0;
+    blockId = int(mc_Entity.x);
+    normal = gl_Normal;
+//    writeVoxelMap(worldPos,blockId,toMidblock,gl_Normal,emission);
 }
