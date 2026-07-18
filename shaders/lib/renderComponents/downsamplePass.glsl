@@ -44,10 +44,10 @@ void main(){
     uvec4 avg;
     if(stillContributing){
         vec4 self = texture(colortex7, texcoord);
-        imageStore(dest, globalPos, self);
         #ifdef USE_DEPTH_A
-            self.a=depthToLinear(texture(depthtex1 ,vec2(globalPos)/texsize).x);
+            self.a=depthToLinear(texture(depthtex1 ,texcoord).x);
         #endif
+        imageStore(dest, globalPos, self);
         avg = uvec4(self*scale);
     }
 
