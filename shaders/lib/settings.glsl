@@ -53,7 +53,6 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 //#define PRIDE_LIGHTING
 
 //#define WAVES_INORDER
-//#define LOCAL_STASH
 
 #define VOLUMETRIC_FOG_SAMPLES 2 //[0 1 2 3 4 6 8 12 16 24 32]
 #define FOG_THICKNESS 1.0 //[0.125 0.25 0.5 0.75 1.0 1.25 1.5 1.75 2.0 2.5 3.0 3.5 4.0]
@@ -108,6 +107,7 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 //#define POM_WRITE_DEPTH
 //#define POM_DISCARD
 
+#define SSBO_WORKSPACE
 
 #define NUM_CASCADES 4 //[1 2 3 4 5 6 7 8 9 10]
 #define MIN_SCALE 1.0 //[0.5 1.0 2.0 4.0]

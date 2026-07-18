@@ -23,7 +23,7 @@ const float scale = 1048576;
 const int ARRAY_SIZE = ((1<<(2*STAGES))-1)/3;
 shared uvec4[ARRAY_SIZE] averages;
 
-shared uint anyoneThere = 0;
+shared uint anyoneThere;
 
 void main(){
     ivec2 globalPos = ivec2(gl_WorkGroupID.xy*SIZE+gl_LocalInvocationID.xy);
@@ -31,15 +31,18 @@ void main(){
     vec2 texcoord = vec2(2*globalPos+1)/(texsize);
     bool stillContributing = texcoord.x<=1 && texcoord.y<=1;
 
-    atomicOr(anyoneThere,uint(stillContributing));
+    if(gl_LocalInvocationIndex==0)
+        anyoneThere=0;
     barrier();
-    if(anyoneThere==0)
-        return;
+
+    atomicOr(anyoneThere,uint(stillContributing));
 
     uint arrPos = gl_LocalInvocationID.x+(gl_LocalInvocationID.y<<STAGES);
     if(arrPos<ARRAY_SIZE)
         averages[arrPos] = uvec4(0);
     barrier();
+    if(anyoneThere==0)
+        return;
 
     uvec4 avg;
     if(stillContributing){

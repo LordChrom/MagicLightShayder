@@ -45,35 +45,20 @@ ivec3 zonePos = ivec3(0);
 #define A (gl_LocalInvocationID.x+1)
 #define B (gl_LocalInvocationID.y+1)
 
+#ifdef SSBO_WORKSPACE
+    layout(std430, binding = 0) buffer ssbo0 {
+        uvec4[][SECTION_SIZE+2][SECTION_SIZE+2] bufferedWorkData;
+    };
 
-#ifdef LOCAL_STASH
-    uint bonusOffsetA=0, bonusOffsetB=0;
-    uint lastLayerAccessed=~0u;
-    shared uvec4[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedAccess;
-    uvec4[LIGHT_LAYERS] localMainPool;
-    uvec4[LIGHT_LAYERS] localSubPool;
+    uint workGroupOffset;
+
+
     uvec4 getInputSample(int a, int b, uint layer){
-        if(layer!=lastLayerAccessed){
-            barrier();
-            sharedPackedAccess[A][B]=localMainPool[layer];
-            if(bool (bonusOffsetA|bonusOffsetB))
-                sharedPackedAccess[A+bonusOffsetA][B+bonusOffsetB]=localSubPool[layer];
-            lastLayerAccessed=layer;
-            barrier();
-        }
-
-        return sharedPackedAccess[A+a][B+b];
+        return bufferedWorkData[layer+workGroupOffset][A+a][B+b];
     }
     void setSharedSample(int a, int b, uint layer, uvec4 data){
-        if(bool(a|b)){
-            bonusOffsetA=a;
-            bonusOffsetB=b;
-            localSubPool[layer]=data;
-        }else{
-            localMainPool[layer]=data;
-        }
+        bufferedWorkData[layer+workGroupOffset][A+a][B+b]= data;
     }
-    #define READS_MUST_BE_UNIFORM
 #else
     shared uvec4[SECTION_SIZE+2][SECTION_SIZE+2][LIGHT_LAYERS] sharedPackedPool;
     uvec4 getInputSample(int a, int b, uint layer){return sharedPackedPool[A+a][B+b][layer];}
@@ -81,15 +66,23 @@ ivec3 zonePos = ivec3(0);
         sharedPackedPool[A+a][B+b][layer]=data;
     }
 #endif
+
 shared uint[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedFrontVoxels;
 shared uint[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedRearVoxels;
+
+void setSharedVoxels(int a, int b,uint front, uint rear){
+    sharedPackedFrontVoxels[A+a][B+b]=front;
+    sharedPackedRearVoxels[A+a][B+b]=rear;
+}
+
+uint getFrontVoxel(int a, int b){return sharedPackedFrontVoxels[A+a][B+b];}
+uint getRearVoxel(int a, int b){return sharedPackedRearVoxels[A+a][B+b];}
 
 //same accross group
 ivec3 zoneShift = ivec3(0);
 ivec3 areaShift = ivec3(0);
 ivec3 upZoneShift = ivec3(0);
 ivec3 upAreaShift = ivec3(0);
-
 float scale = 0;
 uint axis = 0;
 uint cascadeLevel = 0;
@@ -99,8 +92,6 @@ uint cascadeLevel = 0;
 uvec4 radiance = uvec4(0);
 #endif
 
-uint getFrontVoxel(int a, int b){return sharedPackedFrontVoxels[A+a][B+b];}
-uint getRearVoxel(int a, int b){return sharedPackedRearVoxels[A+a][B+b];}
 
 uvec4 maybeBlockLight(uvec4 light, uint voxel){
     return (
@@ -143,7 +134,7 @@ void saveSharedSample(int a, int b){
         rearVoxelPos=upperCascadeAreaPos(rearVoxelPos,areaShift);
 
         if(cascadeLevel>=(NUM_CASCADES-1)){
-            sharedPackedRearVoxels[A+a][B+b]=sharedPackedFrontVoxels[A+a][B+b]=0u;
+            setSharedVoxels(a,b,0u,0u);
             uvec4 defaultLight = ((!hasCeiling) && zonePos.z<=0) ? getSunlight(axis) : uvec4(0);
     #ifdef DEBUG_DISABLE_SUN
             defaultLight=uvec4(0);
@@ -158,9 +149,10 @@ void saveSharedSample(int a, int b){
         }
     }
 
-    sharedPackedFrontVoxels[A+a][B+b] = getVoxData(frontVoxelPos,sideOob?sampleAreaShift:areaShift,sideOob?sampleAreaMemOffset:areaMemOffset);
+    uint frontVoxel = getVoxData(frontVoxelPos,sideOob?sampleAreaShift:areaShift,sideOob?sampleAreaMemOffset:areaMemOffset);
 
-    uint rearVoxel = sharedPackedRearVoxels[A+a][B+b] = getVoxData(rearVoxelPos,sampleAreaShift,sampleAreaMemOffset);
+    uint rearVoxel = getVoxData(rearVoxelPos,sampleAreaShift,sampleAreaMemOffset);
+    setSharedVoxels(a,b,frontVoxel,rearVoxel);
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         uvec4 light = sampleLightData(sampleZonePos, sampleZoneShift, zoneOffset(axis,layer,sampleCascade));
         if(rearOob && (unpackLightType(light)!=LIGHT_TYPE_SUN)){
@@ -213,6 +205,7 @@ void takeSamples(){
     }
 
     barrier(); //disable for fun party :)
+//    memoryBarrier();
 }
 
 
@@ -869,6 +862,10 @@ void main(){
     #if LIGHTER_PASS>=LIGHTING_SYSTEM_PASSES
     if(true)
         return;
+    #endif
+
+    #ifdef SSBO_WORKSPACE
+    workGroupOffset = ((gl_WorkGroupID.x*LIGHTER_WORK_GROUP_Y+gl_WorkGroupID.y)*LIGHTER_WORK_GROUP_Z+gl_WorkGroupID.z)*(LIGHT_LAYERS+1);
     #endif
 
     zonePos.xy=ivec2(
