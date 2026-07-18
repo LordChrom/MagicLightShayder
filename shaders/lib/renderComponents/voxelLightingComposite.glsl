@@ -140,7 +140,7 @@ void main() {
 
     voxelFog = vec4(0,0,0,1);
     float hitDistance = length(worldPosRelative);
-    float previousExp = exp(fogDensityMult*hitDistance);
+    float prevWeight = 1.0;
 
 
     for(int i=0; i<VOLUMETRIC_FOG_SAMPLES; i++){
@@ -149,11 +149,13 @@ void main() {
         vec3 fogSamplePos = cameraPosition +worldPosRelative.xyz*weight;
         vec3 newSample = voxelSampleFog(fogSamplePos,ditherValue2*0,ditherValue);
 
-        float fogExp = (i==VOLUMETRIC_FOG_SAMPLES-1)? 1 : exp(fogDensityMult*hitDistance*weight);
+        float localFogDensity = fogDensityMult;
+        float prevFogDecay= exp(localFogDensity*hitDistance*prevWeight);
+        float fogDecay = (i==VOLUMETRIC_FOG_SAMPLES-1)? 1 : exp(localFogDensity*hitDistance*weight);
 
-        voxelFog *= previousExp/fogExp;
-        voxelFog.rgb += newSample*(fogExp-previousExp);
-        previousExp=fogExp;
+        voxelFog *= prevFogDecay/fogDecay;
+        voxelFog.rgb += newSample*(fogDecay-prevFogDecay);
+        prevWeight=weight;
     }
 
     vec3 fogCol = max(fogColor,0.01);
