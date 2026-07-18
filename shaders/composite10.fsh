@@ -11,16 +11,16 @@ uniform sampler2D colortex7;
 uniform sampler2D colortex13;
 uniform sampler2D depthtex1;
 
-const int levels = 3;
+const int levels = 4;
 
-const float[] weights = {1,2,4,8};
+const float[] weights = {0.5,4,32,48};
 
 void main() {
     ivec2 texsize = textureSize(colortex7,0);
 
     fog=texelFetch(colortex7,ivec2(gl_FragCoord.xy),0);
     float depth = depthToLinear(texture(depthtex1,texcoord).x);
-    float totalWeight = 1e-5;
+    float totalWeight = 0.0;
     fog.rgb*=totalWeight;
 
     for(int stage=0; stage<levels; stage++){
@@ -31,7 +31,8 @@ void main() {
 
         float depthDif = (max(depth,texSample.a)>1000)?0:texSample.a-depth;
         float weight = weights[stage];
-        weight*=clamp(1-0.1*abs(depthDif), 3e-6, 1);
+//        weight*=clamp(1-0.01*abs(depthDif)/(1<<(stage)), 0, 1);
+        weight/=clamp(abs(depthDif),1e-9,1<<(stage*2));
 
         totalWeight+=weight;
         fog.rgb+=texSample.rgb*weight;
