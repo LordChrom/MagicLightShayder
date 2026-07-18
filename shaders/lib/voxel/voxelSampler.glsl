@@ -4,12 +4,14 @@
     float subsurfaceLightDepth = 0; //x is thickness
 #endif
 bool isCrossBlockModel = false;
+uint axis;
+vec3 voxelCenter;
 
 #include "/lib/voxel/voxelHelper.glsl"
 #include "/lib/util/flicker.glsl"
 #include "/lib/util/misc.glsl"
 
-float normalFactor(vec3 normal, vec3 displacement, uint axis, float subsurface){
+float normalFactor(vec3 normal, vec3 displacement, float subsurface){
     float lightDotN =-dot(normalize(displacement),normal);
    #if SUBSURFACE_MODE == 0
     subsurface*=0.4;
@@ -29,76 +31,62 @@ float normalFactor(vec3 normal, vec3 displacement, uint axis, float subsurface){
 }
 
 
-const float b = 1/float(MAX_LIGHT_STRENGTH*MAX_LIGHT_STRENGTH);
-const float sunStr = 1/float(MAX_LIGHT_STRENGTH)*inversesqrt(b);
 
-float baseLightStrength(uint type, vec3 displacement, ivec3 blockPos, vec3 travel, uint axis){
-    #ifdef EVERYTHING_IS_THE_SUN
-    if(type>0) type=1;
+float baseLightStrength(uint type, vec3 displacement, vec3 travel){
+    const float b = 1/float(MAX_LIGHT_STRENGTH*MAX_LIGHT_STRENGTH);
+    const float sunStr = 1/float(MAX_LIGHT_STRENGTH)*inversesqrt(b);
+
+    #ifndef EVERYTHING_IS_THE_SUN
+    if(type==LIGHT_TYPE_SUN)
     #endif
+        return sunStr;
 
-    if(type==LIGHT_TYPE_SUN) return sunStr;
-
-    blockPos-=zoneToAreaSpaceRelative(ivec3(round(travel)),axis);
-
-    float lightStrength=BLOCK_LIGHT_STRENGTH;
+    float lengthSquared = dot(displacement,displacement);
+    lengthSquared = lengthSquared*(1-MIN_COLUMNATION)+MIN_COLUMNATION;
+    float lightStrength = BLOCK_LIGHT_STRENGTH*inversesqrt(lengthSquared*lengthSquared*(1-MIN_COLUMNATION)+b);
 
     #ifdef BLOCKLIGHT_ANIMATION
     if(type==3u) lightStrength *= pulsate();
-    if(type==4u) lightStrength *= flicker(blockPos);
+    if(type==4u) lightStrength *= flicker(ivec3(floor(voxelCenter))-zoneToAreaSpaceRelative(ivec3(round(travel)),axis));
     #endif
 
-    float lengthSquared = dot(displacement,displacement);
-    float columnation = MIN_COLUMNATION;
-    lengthSquared = lengthSquared*(1-columnation)+columnation;
-    return lightStrength*inversesqrt(lengthSquared*lengthSquared*(1-columnation)+b);
+    return lightStrength;
 }
 
 float doPenumbralOcclusion(vec3 displacement, vec3 travel, uint packedOcclusionData){
-    vec2 ray = unpackOcclusionRay(packedOcclusionData);
+    float width =(PENUMBRA_WIDTH)*((displacement.z/unpackOcclusionHitDist(packedOcclusionData))-1);
+    vec2 m = clamp((abs(displacement.xy/displacement.z)-unpackOcclusionRay(packedOcclusionData))/width+0.5,0,1);
+
     uint map = unpackOcclusionMap(packedOcclusionData);
+
+    vec2 mixX = mix(
+        vec2(1u&(map>>0u),1u&(map>>2u)),
+        vec2(1u&(map>>1u),1u&(map>>3u)),
+    m.x);
+    float strength = mix(mixX.x,mixX.y,m.y);
 
 
     float highSlope = max(abs(displacement.x),abs(displacement.y))/max(1e-9,displacement.z);
     float sharpener = (max(abs(travel.x),abs(travel.y))!=travel.z)? 1e9:1.0;
-    float occlHitDist = unpackOcclusionHitDist(packedOcclusionData);
 
-    float stren = clamp(0.5+(1-highSlope)*(sharpener/PENUMBRA_WIDTH),0,1);
-
-    float width =(PENUMBRA_WIDTH)*((displacement.z/occlHitDist)-1);
-
-    vec2 m = clamp((abs(displacement.xy/displacement.z)-ray)/width+0.5,0,1);
-
-    vec2 mixX = mix(
-    vec2(1u&(map>>0u),1u&(map>>2u)),
-    vec2(1u&(map>>1u),1u&(map>>3u)),
-    m.x);
-    return stren * mix(mixX.x,mixX.y,m.y);
+    return strength * clamp(0.5+(1-highSlope)*(sharpener/PENUMBRA_WIDTH),0,1);
 }
 float doSharpOcclusion(vec3 displacement, vec3 travel, uint packedOcclusionData){
-    vec2 ray = unpackOcclusionRay(packedOcclusionData);
-    uint map = unpackOcclusionMap(packedOcclusionData);
-
     float stren=(max(abs(displacement.x),abs(displacement.y))<=displacement.z)?1:0;
-    return isLit(displacement,ray,map) ? stren:0;
+    return isLit(displacement,unpackOcclusionRay(packedOcclusionData),unpackOcclusionMap(packedOcclusionData)) ? stren:0;
 }
 
 float doSharpOcclusionPixelLocked(vec3 displacement, vec3 travel, uint packedOcclusionData){
-    vec2 ray = unpackOcclusionRay(packedOcclusionData);
-    uint map = unpackOcclusionMap(packedOcclusionData);
-
     float highDisp = max(abs(displacement.x),abs(displacement.y));
     float stren=highDisp<=displacement.z?(highDisp<displacement.z?1:0.5):0;
 
-    return isLit(displacement,ray,map) ? stren:0;
+    return isLit(displacement,unpackOcclusionRay(packedOcclusionData),unpackOcclusionMap(packedOcclusionData)) ? stren:0;
 }
 
 float doSunOcclusion(vec3 displacement, vec3 travel, uint packedOcclusionData){
     vec2 ray = unpackOcclusionRay(packedOcclusionData);
-    uint map = unpackOcclusionMap(packedOcclusionData);
 
-
-    return float(bool(map &
+    return float(bool(unpackOcclusionMap(packedOcclusionData) &
             (displacement.x>ray.x?10u:5u) &
             (displacement.y>ray.y?12u:3u)
     ));
@@ -119,7 +107,7 @@ float doSunOcclusion(vec3 displacement, vec3 travel, uint packedOcclusionData){
 #endif
 
 
-void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, vec3 normal, uint axis, float scale){
+void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, vec3 normal, float scale){
     uint type = unpackLightType(packedLightSrc);
     bool isSun = type==LIGHT_TYPE_SUN;
 
@@ -279,13 +267,18 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
 
 
 
-vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 blockPos, vec3 normal, vec3 subVoxelOffset, bool isForFog, float scale){
+
+vec3 getDirectedLight(uint cascadeLevel, uint layer, float subsurface, ivec3 zoneShift, ivec3 zonePos,
+    vec3 normal, vec3 subVoxelOffset, bool isForFog, float scale
+){
+    uvec4 packedLightSrc = sampleLightData(zonePos, zoneShift, zoneOffset(axis, layer,cascadeLevel));
     uint type = unpackLightType(packedLightSrc);
     if(type==0)return vec3(0);
 
     vec3 travel = unpackLightTravel(packedLightSrc);
 
     vec3 displacement = travel + subVoxelOffset;
+    float baseStrength = baseLightStrength(type,displacement, travel);
 
 
     if(type==LIGHT_TYPE_SUN){
@@ -295,78 +288,50 @@ vec3 getDirectedLight(uvec4 packedLightSrc, uint axis, float subsurface, ivec3 b
         displacement.z=7;
     }
 
-    float lightStrength;
-    float occlusionFactor;
-    uint occlusion = getPackedOcclusion(packedLightSrc);
+    float lightStrength = baseStrength;
+    if(isForFog){
+        lightStrength *=(type==LIGHT_TYPE_SUN)?FOG_BRIGHTNESS_SUN:FOG_BRIGHTNESS_BLOCK;
+    }else{
+        lightStrength*=normalFactor(normal, displacement, subsurface);
+    }
+
     if(type==LIGHT_TYPE_SUN)
-        occlusionFactor = doSunOcclusion(displacement,travel,occlusion);
+        lightStrength *= doSunOcclusion(displacement,travel,getPackedOcclusion(packedLightSrc));
     else{
         if(isForFog)
-            occlusionFactor=doFogOcclusion(displacement,travel,occlusion);
+            lightStrength*=doFogOcclusion(displacement,travel,getPackedOcclusion(packedLightSrc));
         else
-            occlusionFactor=doTerrainOcclusion(displacement,travel,occlusion);
+            lightStrength*=doTerrainOcclusion(displacement,travel,getPackedOcclusion(packedLightSrc));
     }
 
    #if SUBSURFACE_MODE == 2
-    float subsurfaceStrength = 0;
-   #endif
+    if(subsurface>0 && !isForFog){
+        float subsurfaceStrength = 0;
 
-    if(isForFog){
-        lightStrength =(type==LIGHT_TYPE_SUN)?FOG_BRIGHTNESS_SUN:FOG_BRIGHTNESS_BLOCK;
-    }else {
-       #if SUBSURFACE_MODE == 2
-        if(subsurface>0){
-            vec3 svo2 = abs(subVoxelOffset);
-            if(isCrossBlockModel){ //TODO distinguish between flat cross vs blocky models better
-                subsurfaceStrength=subsurface;
-            }else{
-                float lightDirz = normalize(displacement).z;
-                //length = length * hypotenuse/z vomponent
-                subsurfaceStrength = exp(subsurfaceLightDepth/max(0.01,lightDirz*subsurface));
-//                subsurfaceStrength*=;
-                subsurfaceStrength*=lightDirz;
-            }
+        vec3 svo2 = abs(subVoxelOffset);
+        if(isCrossBlockModel){ //TODO distinguish between flat cross vs blocky models better
+            subsurfaceStrength=subsurface;
+        }else{
+            float lightDirz = normalize(displacement).z;
+            subsurfaceStrength = lightDirz*exp(subsurfaceLightDepth/max(0.01,lightDirz*subsurface));
         }
-       #endif
 
-        lightStrength =normalFactor(normal, displacement, axis, subsurface);
-    }
-
-
-    lightStrength*=occlusionFactor;
-
-
-
-    float baseStrength = baseLightStrength(type,displacement,blockPos, travel, axis);
-    lightStrength*= baseStrength;
-
-    #if SUBSURFACE_MODE == 2
-    if(!isForFog){
         subsurfaceStrength=max(0,subsurfaceStrength*baseStrength);
         //TODO revisit this when I have a proper tonemap
-//        lightStrength+=subsurfaceStrength;
         lightStrength=sqrt(lightStrength*lightStrength+subsurfaceStrength*subsurfaceStrength);
-//        lightStrength=subsurfaceStrength;
     }
-    #endif
+   #endif
+
 
     vec3 color = unpackLightColor(packedLightSrc) * lightStrength;
 
-    doBonusEffects(color,packedLightSrc,displacement, normal, axis, scale);
+    doBonusEffects(color,packedLightSrc,displacement, normal, scale);
 
     return color;
 }
 
-vec3 getDirectedLight(uint cascadeLevel, uint layer, uint axis, float subsurface, ivec3 zoneShift, ivec3 zonePos,
-    ivec3 blockPos, vec3 normal, vec3 zoneSubVoxelOffset, bool isForFog, float scale
-){
-    uint zoneMemOffset = zoneOffset(axis, layer,cascadeLevel);
-    uvec4 packedLightSrc = sampleLightData(zonePos, zoneShift, zoneMemOffset);
-    return getDirectedLight(packedLightSrc,axis,subsurface,blockPos,normal,zoneSubVoxelOffset,isForFog,scale);
-}
-
 const float radSlope = tan(22.5*PI/180);
-vec3 sampleDirectedRadiance(uint cascadeLevel, uint axis, float subsurface, ivec3 zoneShift, ivec3 zonePos, vec3 normal, vec3 subVoxelOffset){
+vec3 sampleDirectedRadiance(uint cascadeLevel, float subsurface, ivec3 zoneShift, ivec3 zonePos, vec3 normal, vec3 subVoxelOffset){
     uint zoneMemOffset = zoneOffset(axis, VOX_LAYERS,cascadeLevel);
     uvec4 packedRadiance = sampleLightData(zonePos, zoneShift, zoneMemOffset);
     vec3 ret = vec3(0);
@@ -406,11 +371,10 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
     scale = getScale(cascadeLevel);
 #endif
 
-    vec3 voxelCenter = (floor(worldPos/scale+normal*(scale/20))+0.5) * scale;
+    voxelCenter = (floor(worldPos/scale+normal*(scale/20))+0.5) * scale;
 
     ivec3 areaPos = worldPosToArea(voxelCenter,scale).xyz;
     vec3 subVoxelOffset = worldPos-voxelCenter;
-    ivec3 blockPos = ivec3(floor(voxelCenter));
     ivec3 areaShift = getAreaShift(scale);
 
 
@@ -439,25 +403,18 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
         return color*0.15;
 
 #if DEBUG_AXIS>=0
-    uint axis = DEBUG_AXIS;
+    axis = DEBUG_AXIS;
 #else
-    for (uint axis=0;axis<6;axis++)
+    for (axis=0;axis<6;axis++)
 #endif
     {
        #if SUBSURFACE_MODE==2
-//        subsurface+=0.03;
         if(subsurface>0){
             ivec3 lVec = lVec(axis);
             ivec3 newPos = clamp(hitBlockAreaPos-lVec,0,AREA_SIZE-1);
             uint hitBlockPotentialBlocker = getVoxData(newPos, areaShift, areaOffset(cascadeLevel));
             float terrainBeforeBlock =bool(hitBlockPotentialBlocker)?scale:0;
             float depthIntoBlock = dot(subSurfaceOffset,lVec);
-
-//            if(terrainBeforeBlock>0){
-//                newPos = clamp(newPos-lVec,0,AREA_SIZE-1);
-//                hitBlockPotentialBlocker = getVoxData(newPos, areaShift, areaOffset(cascadeLevel));
-//                terrainBeforeBlock+=bool(hitBlockPotentialBlocker & WORLDVOX_OPAQUE)?scale:0;
-//            }
 
             float z = depthIntoBlock+0.5*scale;
             subsurfaceLightDepth=-3*(z+terrainBeforeBlock);
@@ -466,17 +423,16 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
         vec3 zoneNorm = areaToZoneSpaceRelative(normal,axis);
         ivec3 zoneShift = areaToZoneSpace(areaShift, axis);
         ivec3 zonePos = areaToZoneSpace(areaPos, axis);
-
-        vec3 zoneSubVoxelOffset = areaToZoneSpaceRelative(subVoxelOffset,axis);
+        vec3 zoneSubVoxelOffset = areaToZoneSpaceRelative(worldPos-voxelCenter,axis);
 
 
     #ifndef DEBUG_RADIANCE_ONLY
         for(uint layer = 0; layer<VOX_LAYERS; layer++)
-            color+=getDirectedLight(cascadeLevel,layer,axis,subsurface,zoneShift,zonePos,blockPos,zoneNorm,zoneSubVoxelOffset,false,scale);
+            color+=getDirectedLight(cascadeLevel,layer,subsurface,zoneShift,zonePos,zoneNorm,zoneSubVoxelOffset,false,scale);
     #endif
 
         #ifdef FALLBACK_RADIANCE
-        color+=sampleDirectedRadiance(cascadeLevel,axis,subsurface,zoneShift,zonePos,zoneNorm,zoneSubVoxelOffset);
+        color+=sampleDirectedRadiance(cascadeLevel,subsurface,zoneShift,zonePos,zoneNorm,zoneSubVoxelOffset);
         #endif
     }
 
@@ -499,11 +455,9 @@ vec3 voxelSampleFog(vec3 worldPos, float fogNoise, float ditherValue){
     scale = getScale(cascadeLevel);
 #endif
 
-    vec3 voxelCenter = (floor(worldPos/scale)+0.5) * scale;
+    voxelCenter = (floor(worldPos/scale)+0.5) * scale;
 
     ivec3 areaPos = worldPosToArea(voxelCenter,scale).xyz;
-    vec3 subVoxelOffset = worldPos-voxelCenter;
-    ivec3 blockPos = ivec3(floor(voxelCenter));
     ivec3 areaShift = getAreaShift(scale);
 
 
@@ -517,20 +471,20 @@ vec3 voxelSampleFog(vec3 worldPos, float fogNoise, float ditherValue){
 #endif
 
 #if DEBUG_AXIS>=0
-    uint axis = DEBUG_AXIS;
+    axis = DEBUG_AXIS;
 #else
-    for (uint axis=0;axis<6;axis++)
+    for (axis=0;axis<6;axis++)
 #endif
     {
         ivec3 zoneShift = areaToZoneSpace(areaShift, axis);
         ivec3 zonePos = areaToZoneSpace(areaPos, axis);
-        vec3 zoneSubVoxelOffset = areaToZoneSpaceRelative(subVoxelOffset,axis);
+        vec3 zoneSubVoxelOffset = areaToZoneSpaceRelative(worldPos-voxelCenter,axis);
 
         for(int layer = 0; layer<lightsInLoop; layer++){
-            color+=getDirectedLight(cascadeLevel,layer,axis,1.0,zoneShift,zonePos,blockPos,vec3(0),zoneSubVoxelOffset,true,scale);
+            color+=getDirectedLight(cascadeLevel,layer,1.0,zoneShift,zonePos,vec3(0),zoneSubVoxelOffset,true,scale);
         }
 #ifdef FOG_RANDOM_LESSER_SOURCE
-        color+=getDirectedLight(cascadeLevel,randLayer,axis,1.0,zoneShift,zonePos,blockPos,vec3(0),zoneSubVoxelOffset,true,scale);
+        color+=getDirectedLight(cascadeLevel,randLayer,1.0,zoneShift,zonePos,vec3(0),zoneSubVoxelOffset,true,scale);
 #endif
     }
     return color;

@@ -1,7 +1,20 @@
 #include "/lib/settings.glsl"
 
-uniform float viewWidth, viewHeight;
+in vec2 texcoord;
+
+#if DEBUG_SPECIAL_VIEW >= 0
+/* RENDERTARGETS: 6,7,15 */
+layout(location = 2) out vec3 funnyDebug;
+#else
+/* RENDERTARGETS: 6,7 */
+#endif
+
+layout(location = 0) out vec3 voxelLighting;
+layout(location = 1) out vec4 voxelFog;
+
+
 uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
+uniform mat4 gbufferModelViewProjectionInverse;
 uniform vec3 cameraPosition;
 uniform vec2 scaledScreenDim;
 
@@ -42,22 +55,16 @@ uniform vec3 fogColor;
 #endif
 
 
-layout(location = 2) out vec3 funnyDebug;
 
-vec3 voxelLighting;
-vec4 voxelFog;
-
-void doVoxelLighting(vec2 sampleTexCoord) {
+void main() {
     float ditherValue = dither(ivec2(gl_FragCoord.xy));
 
-#ifdef SSAO
-    vec2 unjitteredTexCoord = sampleTexCoord;
-#endif
 #ifdef TAA
-    sampleTexCoord+=jitter();
+    vec2 sampleTexcoord = texcoord+jitter();
+#else
+    #define sampleTexcoord texcoord
 #endif
-    vec2 screenDims = vec2(viewWidth,viewHeight);
-    ivec2 sourceTexpos = ivec2((sampleTexCoord*screenDims+0.01));
+    ivec2 sourceTexpos = ivec2((sampleTexcoord*textureSize(depthtex0,0)+0.01));
 
     bool solidTransInFront = texelFetch(colortex1,sourceTexpos,0).a>=1;
     float depth = texelFetch(depthtex0,sourceTexpos,0).x;
@@ -71,9 +78,9 @@ void doVoxelLighting(vec2 sampleTexCoord) {
     }else{
         solidDepth = texelFetch(depthtex2,sourceTexpos,0).x;
     }
-    vec3 ndcPos = vec3(vec3(sampleTexCoord,solidDepth)*2-1);
+    vec4 worldPosRelative = vec4(vec3(sampleTexcoord,solidDepth)*2-1,1);
     if(isHand){
-        ndcPos.z=depth/MC_HAND_DEPTH;
+        worldPosRelative.z=depth/MC_HAND_DEPTH;
     }
 
     float subsurface = 0;
@@ -97,24 +104,21 @@ void doVoxelLighting(vec2 sampleTexCoord) {
         emissive = (matInfo.a/254.0);
 #endif
 
-    vec4 viewPos = gbufferProjectionInverse*vec4(ndcPos,1);
-    viewPos/=viewPos.w;
+    worldPosRelative = gbufferProjectionInverse*worldPosRelative;
+    worldPosRelative/=worldPosRelative.w;
+    worldPosRelative.xyz.xyz = (gbufferModelViewInverse*worldPosRelative).xyz;
 
-    vec3 worldPosRelative = (gbufferModelViewInverse*viewPos).xyz;
-    vec3 worldPos = worldPosRelative+cameraPosition;
-
-    bool isSky = depth==1;
 
     voxelLighting = vec3(0);
-    if(!(isSky|| solidTransInFront))
-        voxelLighting = voxelSample(worldPos,normal.xyz,subsurface,ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
+    if(!((depth==1)|| solidTransInFront))
+        voxelLighting = voxelSample(worldPosRelative.xyz+cameraPosition,normal.xyz,subsurface,ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
 
 #ifdef SSAO
     float ssao;
-    if(emissive<0.4 && !isHand && !isSky){
+    if(emissive<0.4 && !isHand && (depth!=1)){
         vec2 worldNormalDir = (gbufferModelView*vec4(normal.xyz, 0)).xy;
         worldNormalDir=normalize(worldNormalDir);
-        ssao = doSsao(sampleTexCoord, worldNormalDir, solidDepth, ditherValue);
+        ssao = doSsao(sampleTexcoord, worldNormalDir, solidDepth, ditherValue);
         voxelLighting*=ssao;
     }
 #endif
@@ -124,8 +128,8 @@ void doVoxelLighting(vec2 sampleTexCoord) {
     const float fogSampleLen = 1.0/VOLUMETRIC_FOG_SAMPLES;
     const float fogDensityMult = FOG_THICKNESS*log(0.5)/FOG_HALF_LIFE;
 
-    if(length(worldPosRelative)>maxFogDepth || isSky){
-        worldPosRelative*=maxFogDepth/length(worldPosRelative);
+    if(length(worldPosRelative.xyz)>maxFogDepth || (depth==1)){
+        worldPosRelative.xyz*=maxFogDepth/length(worldPosRelative.xyz);
     }
 
 
@@ -142,7 +146,7 @@ void doVoxelLighting(vec2 sampleTexCoord) {
     for(int i=0; i<VOLUMETRIC_FOG_SAMPLES; i++){
         //TODO better fog amount calc, and fix the banding, maybe smarter spacing
         float weight = 1-(float(i)+ditherValue)*fogSampleLen;
-        vec3 fogSamplePos = cameraPosition +worldPosRelative*weight;
+        vec3 fogSamplePos = cameraPosition +worldPosRelative.xyz*weight;
         vec3 newSample = voxelSampleFog(fogSamplePos,ditherValue2*0,ditherValue);
 
         float fogExp = (i==VOLUMETRIC_FOG_SAMPLES-1)? 1 : exp(fogDensityMult*hitDistance*weight);
@@ -163,9 +167,9 @@ void doVoxelLighting(vec2 sampleTexCoord) {
 
 
 #if (DEBUG_SPECIAL_VIEW == 0) || ((DEBUG_SPECIAL_VIEW==104) || (DEBUG_SPECIAL_VIEW==106))
-    funnyDebug=texture(colortex0,sampleTexCoord).rgb;
+    funnyDebug=texture(colortex0,sampleTexcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 1
-    funnyDebug=texture(colortex1,sampleTexCoord).rgb;
+    funnyDebug=texture(colortex1,sampleTexcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 2
     ivec2 texpos = ivec2(gl_FragCoord.xy);
     float debugCheckerScale = 7;
@@ -173,27 +177,27 @@ void doVoxelLighting(vec2 sampleTexCoord) {
     vec3 mult = checker?vec3(1):sign(normal.xyz)*0.2+0.8;
     funnyDebug = abs(normal.xyz)*mult;
 #elif DEBUG_SPECIAL_VIEW == 3
-    uvec4 mat = texture(colortex3,sampleTexCoord);
+    uvec4 mat = texture(colortex3,sampleTexcoord);
     float funnyEmissive = (mat.a==255)?0.0:(mat.a/254.0);
         funnyDebug=funnyEmissive+mat.rgb*((1.0-funnyEmissive)/255.0);
 //        funnyDebug=funnyEmissive*mat.rgb*(1.0/255.0);
 #elif DEBUG_SPECIAL_VIEW == 4
-    uvec4 mat = texture(colortex4,sampleTexCoord);
+    uvec4 mat = texture(colortex4,sampleTexcoord);
     funnyDebug=mat.rgb*(1.0/255.0);
     if(mat.a>0 && mat.a<255)
         funnyDebug=0.5+0.5*funnyDebug;
 #elif DEBUG_SPECIAL_VIEW == 5
-    funnyDebug=texture(colortex5,sampleTexCoord).rgb;
+    funnyDebug=texture(colortex5,sampleTexcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 6
     funnyDebug = voxelLighting.xyz;
 #elif DEBUG_SPECIAL_VIEW == 7
     funnyDebug = voxelFog.xyz;
 #elif (DEBUG_SPECIAL_VIEW == 10) || (DEBUG_SPECIAL_VIEW == 200)
-    funnyDebug = texture(colortex10,sampleTexCoord).rgb;
+    funnyDebug = texture(colortex10,sampleTexcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 11
-    funnyDebug = texture(colortex11,sampleTexCoord).rgb;
+    funnyDebug = texture(colortex11,sampleTexcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 100
-    funnyDebug = vec3(clamp(0.05*sqrt(length(worldPosRelative)),0,1),float(isHand)*0.1,float(isSky)*0.5);
+    funnyDebug = vec3(clamp(0.05*sqrt(length(worldPosRelative)),0,1),float(isHand)*0.1,float(depth==1)*0.5);
 #elif DEBUG_SPECIAL_VIEW == 101
     funnyDebug = vec3(ditherValue);
 #elif DEBUG_SPECIAL_VIEW == 102
