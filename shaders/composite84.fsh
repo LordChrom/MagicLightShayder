@@ -40,4 +40,5 @@ in vec2 texcoord;
 void main() {
     ivec2 texpos = ivec2(gl_FragCoord.xy);
     CoCbuff.y=calcRadius(texpos);
+    CoCbuff.y=clamp(abs(CoCbuff.y),1,10);
 }
