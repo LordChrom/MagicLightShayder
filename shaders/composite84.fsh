@@ -11,7 +11,12 @@ uniform float centerDepthSmooth;
 
 #include "/lib/util/conversions.glsl"
 
+#ifdef DOF2_TEST_PATTERN
+/* RENDERTARGETS: 12,0 */
+layout(location=1) out vec3 testColor;
+#else
 /* RENDERTARGETS: 12 */
+#endif
 layout(location=0) out vec2 CoCbuff;
 
 float calcRadius(ivec2 texpos){
@@ -39,6 +44,18 @@ in vec2 texcoord;
 
 void main() {
     ivec2 texpos = ivec2(gl_FragCoord.xy);
+
+    #ifdef DOF2_TEST_PATTERN
+    testColor=vec3(0);
+    CoCbuff.y=0;
+
+    bool awa = (texpos%29)==ivec2(0);
+    if(awa){
+        CoCbuff.y=6;
+        testColor=vec3(36);
+    }
+    #else
     CoCbuff.y=calcRadius(texpos);
-    CoCbuff.y=clamp(abs(CoCbuff.y),1,10);
+    #endif
+    CoCbuff.y=clamp(abs(CoCbuff.y),0,32);
 }

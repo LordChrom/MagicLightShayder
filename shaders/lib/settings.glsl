@@ -87,6 +87,9 @@
 
 #define POST_DITHER
 
+//#define DOF2_TEST_PATTERN
+#define DOF2
+
 #define DOF_QUALITY -1 //[-1 0 1 2 3 4]
 #define DOF_FOCAL_LENGTH 23 //[2.5 5 7.5 10 12.5 15 17.5 20 22 23 24 25 26 30 35 40 45 50 60 70]
 #define DOF_RAD 16 //[8 16 24 32 40 48 56 64]
@@ -222,7 +225,9 @@
 #ifdef KEEP_FULLY_OCCLUDED_SAMPLES
 #ifdef FOG_PENUMBRAS
 #ifdef ENTITY_POM
+#ifdef DOF2
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
+#endif
 #endif
 #endif
 #endif
