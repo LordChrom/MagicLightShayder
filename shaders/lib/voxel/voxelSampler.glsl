@@ -16,33 +16,27 @@ float normalFactor(vec3 normal, vec3 displacement, float subsurface){
    #if SUBSURFACE_MODE == 0
     subsurface*=0.4;
     lightDotN=max(lightDotN*(1-subsurface),0)+subsurface;
-   #elif SUBSURFACE_MODE == 1
-    lightDotN=(lightDotN+subsurface)/(1.0+subsurface);
    #endif
-    lightDotN = clamp(lightDotN,0,1);
 #if EVERYTHING_FACING_SRC==1
     if(lightDotN>0)
         return 1;
 #elif EVERYTHING_FACING_SRC==2
     return 1;
-#else
-    return max(0,lightDotN);
 #endif
+    return clamp(lightDotN,0,1);
 }
 
 
 
 float baseLightStrength(uint type, vec3 displacement, vec3 travel){
     const float b = 1/float(MAX_LIGHT_STRENGTH*MAX_LIGHT_STRENGTH);
-    const float sunStr = 1/float(MAX_LIGHT_STRENGTH)*inversesqrt(b);
 
     #ifndef EVERYTHING_IS_THE_SUN
     if(type==LIGHT_TYPE_SUN)
     #endif
-        return sunStr;
+        return 1;
 
     float lengthSquared = dot(displacement,displacement);
-    lengthSquared = lengthSquared*(1-MIN_COLUMNATION)+MIN_COLUMNATION;
     float lightStrength = BLOCK_LIGHT_STRENGTH*inversesqrt(lengthSquared*lengthSquared*(1-MIN_COLUMNATION)+b);
 
     #ifdef BLOCKLIGHT_ANIMATION
@@ -112,6 +106,7 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
     bool isSun = type==LIGHT_TYPE_SUN;
 
 #ifdef PRIDE_LIGHTING
+    #define BONUS_EFFECTS_NEEDED
     float len = length(displacement);
     vec3 normalColor = normalize(color);
     float colorStr = length(color);
@@ -151,9 +146,11 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
 #endif
 
 #ifdef DEBUG_DECOLOR
+    #define BONUS_EFFECTS_NEEDED
     color=vec3(0.3);
 #endif
 #ifdef DEBUG_OCCLUSION_MAP
+    #define BONUS_EFFECTS_NEEDED
     vec3 travel = unpackLightTravel(packedLightSrc);
 //    if(!is
     vec3 subVoxelOffset = displacement;
@@ -200,6 +197,7 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
     }
 #endif
 #ifdef DEBUG_OCCLUSION_RAYS
+    #define BONUS_EFFECTS_NEEDED
     vec2 ray = unpackOcclusionRay(getPackedOcclusion(packedLightSrc));
 
     if(bool(type)){
@@ -242,6 +240,7 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
     }
 #endif
 #ifdef DEBUG_OCCLUSION_HIT_DIST
+    #define BONUS_EFFECTS_NEEDED
     float occHitDist = unpackOcclusionHitDist(getPackedOcclusion(packedLightSrc));
     if(occHitDist!=0){
         float wavey = occHitDist*0.5+1;
@@ -250,6 +249,7 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
 #endif
 
 #if DEBUG_SHOW_UPDATES >= 0
+    #define BONUS_EFFECTS_NEEDED
     float intensity = DEBUG_UPDATES_INTENSITY;
     #if DEBUG_SHOW_UPDATES==0
     if(abs(normal.z)>0.9)
@@ -278,7 +278,6 @@ vec3 getDirectedLight(uint cascadeLevel, uint layer, float subsurface, ivec3 zon
     vec3 travel = unpackLightTravel(packedLightSrc);
 
     vec3 displacement = travel + subVoxelOffset;
-    float baseStrength = baseLightStrength(type,displacement, travel);
 
 
     if(type==LIGHT_TYPE_SUN){
@@ -288,7 +287,8 @@ vec3 getDirectedLight(uint cascadeLevel, uint layer, float subsurface, ivec3 zon
         displacement.z=7;
     }
 
-    float lightStrength = baseStrength;
+    float lightStrength = baseLightStrength(type,displacement, travel);
+    float baseStrength = lightStrength;
     if(isForFog){
         lightStrength *=(type==LIGHT_TYPE_SUN)?FOG_BRIGHTNESS_SUN:FOG_BRIGHTNESS_BLOCK;
     }else{
@@ -325,7 +325,9 @@ vec3 getDirectedLight(uint cascadeLevel, uint layer, float subsurface, ivec3 zon
 
     vec3 color = unpackLightColor(packedLightSrc) * lightStrength;
 
+    #ifdef BONUS_EFFECTS_NEEDED
     doBonusEffects(color,packedLightSrc,displacement, normal, scale);
+    #endif
 
     return color;
 }

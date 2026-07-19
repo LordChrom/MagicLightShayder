@@ -92,7 +92,7 @@ flat in int materialID;
     in vec3 worldPos;
     uniform vec3 cameraPosition;
     #if SUBSURFACE_MODE==2
-        #define SUBSURFACE_MODE 1
+        #define SUBSURFACE_MODE 0
     #endif
     #include "/lib/voxel/voxelSampler.glsl"
     #include "/lib/util/dither.glsl"
