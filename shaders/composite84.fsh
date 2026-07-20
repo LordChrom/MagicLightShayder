@@ -32,7 +32,7 @@ float calcRadius(ivec2 texpos){
 
     rad = clamp(abs(rad),0,1);
     rad*=viewHeight;
-    return clamp(rad,0,DOF_RAD)*sign(depth-depthTarget);
+    return clamp(rad,0,32)*sign(depth-depthTarget);
 }
 
 
@@ -51,8 +51,8 @@ void main() {
 
     bool awa = (texpos%29)==ivec2(0);
     if(awa){
-        CoCbuff.y=6;
-        testColor=vec3(36);
+        CoCbuff.y=1.19;
+        testColor=vec3(1);
     }
     #else
     CoCbuff.y=calcRadius(texpos);

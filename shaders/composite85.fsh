@@ -16,6 +16,7 @@ void main(){
     #ifdef DOF2_TEST_PATTERN
         samplePos>>=3;
     #endif
+//    samplePos = (textureSize(colortex0,0)>>1)+((samplePos-(textureSize(colortex0,0)>>1))>>3);
 
     uint pageSize = textureSize(colortex0,0).x;
     for(int i=0; i<3; i++){
