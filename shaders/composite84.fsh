@@ -51,7 +51,7 @@ void main() {
 
     bool awa = (texpos%29)==ivec2(0);
     if(awa){
-        CoCbuff.y=1.19;
+        CoCbuff.y=6.19;
         testColor=vec3(1);
     }
     #else

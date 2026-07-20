@@ -101,11 +101,10 @@ int quantizedCircleArea(int rad){
 void doBlurSquareExpensive(){
     int rad = clamp(int(radius+0.5),0,MAX_RAD);
 
-    float desiredArea = 4.0*radius*radius;
     int actualArea = (rad+rad+1);
     actualArea*=actualArea;
+    float desiredArea = 4.0*radius*radius;
     int edgePixels = rad<<3;
-
     float edgeWeight=1-(actualArea-desiredArea)/edgePixels;
 
     uint fullWeightColor = int(writeColorI/desiredArea);
@@ -126,20 +125,50 @@ void doBlurSquareExpensive(){
 void doBlurSquare(){
 
     int rad = clamp(int(radius+0.5),0,MAX_RAD);
-
-    float desiredArea = 4.0*radius*radius;
     int actualArea = (rad+rad+1);
     actualArea*=actualArea;
-    int edgePixels = rad<<3;
 
-    float edgeWeight=1-(actualArea-desiredArea)/edgePixels;
+    #ifdef DOF_FIX_SEAMS
 
+    float desiredArea = 4.0*radius*radius;
     uint fullWeightColor = int(writeColorI/desiredArea);
     #ifdef DOF2_TEST_PATTERN
     if(fullWeightColor>0) fullWeightColor=0x00800000;
     #endif
-    uint edgeWeightedColor = uint(fullWeightColor*edgeWeight);
-    uint cornerWeightedColor = edgeWeightedColor;
+
+    int edgePixels = rad<<3;
+    float edgeWeight=1-(actualArea-desiredArea)/edgePixels;
+
+//    if(rad<7 || edgeWeight<0.5)
+    if(true)
+    {
+
+        ivec4 miniBounds = ivec4(gl_LocalInvocationID.xyxy);
+        miniBounds.xy-=rad;
+        miniBounds.zw+=rad;
+
+        int laziness = max(1,rad);
+//        laziness=1;
+
+        uint edgeWeightedColor = uint(fullWeightColor*laziness*edgeWeight);
+        for (int i=(rad<<1); i>0; i-=laziness){
+            addColorAtPos(miniBounds.xy+ivec2(0, i), 0, edgeWeightedColor);
+            addColorAtPos(miniBounds.xw+ivec2(i, 0), 0, edgeWeightedColor);
+            addColorAtPos(miniBounds.zy-ivec2(i, 0), 0, edgeWeightedColor);
+            addColorAtPos(miniBounds.zw-ivec2(0, i), 0, edgeWeightedColor);
+        }
+        rad--;
+    }else{
+        fullWeightColor = int(writeColorI/actualArea);
+    }
+
+    #else
+    uint fullWeightColor = int(writeColorI/actualArea);
+    #endif
+
+    #ifdef DOF2_TEST_PATTERN
+    if(fullWeightColor>0) fullWeightColor=0x00800000;
+    #endif
 
     //min xy, max xy
     ivec4 bounds = ivec4(gl_LocalInvocationID.xyxy);
@@ -149,29 +178,19 @@ void doBlurSquare(){
 
     ivec2 edgeXY = ivec2(bool(bounds.x&1)?bounds.x:bounds.z,bool(bounds.y&1)?bounds.y:bounds.w);
     ivec2 marchOrigin = bounds.xy+(bounds.xy&1)-1;
-    addColorAtPos(ivec2(edgeXY), 0,cornerWeightedColor);
+    addColorAtPos(ivec2(edgeXY), 0,fullWeightColor);
     for (int i=1; i<rad*2+1; i++){
-        addColorAtPos(ivec2(marchOrigin.x+i,edgeXY.y), 0,edgeWeightedColor);
-        addColorAtPos(ivec2(edgeXY.x,marchOrigin.y+i), 0,edgeWeightedColor);
+        addColorAtPos(ivec2(marchOrigin.x+i,edgeXY.y), 0,fullWeightColor);
+        addColorAtPos(ivec2(edgeXY.x,marchOrigin.y+i), 0,fullWeightColor);
     }
-
-    bvec4 edgeExposed = bvec4(
-        bounds.x!=edgeXY.x,
-        bounds.y!=edgeXY.y,
-        bounds.z!=edgeXY.x,
-        bounds.w!=edgeXY.y
-    );
-
-
-
 
     for(int level = 1; level <= MAX_LEVEL; level++){
         bounds = (bounds+ivec4(1,1,-1,-1))>>1;
         if(bounds.z<bounds.x || bounds.w<bounds.y)break;
 
         if(bounds.xy==bounds.zw){
-//            addColorAtPos(bounds.xy,level,fullWeightColor);
-//            break;
+            addColorAtPos(bounds.xy,level,fullWeightColor);
+            break;
         }
 
         bvec4 allowableEdges = bvec4(
@@ -181,105 +200,35 @@ void doBlurSquare(){
             ((~bounds.w)&1)
         );
 
-        cornerWeightedColor = (edgeWeightedColor>>1)+(cornerWeightedColor>>2)+(fullWeightColor>>2);
-        edgeWeightedColor=(edgeWeightedColor>>1)+(fullWeightColor>>1);
 
-
-        bvec4 cornersVisible= bvec4(
-            allowableEdges.x||allowableEdges.y,
-            allowableEdges.x||allowableEdges.w,
-            allowableEdges.z||allowableEdges.y,
-            allowableEdges.z||allowableEdges.w
-        );
-
-        bvec4 cornersExposed = bvec4( //BL TL BR TR
-            edgeExposed.x&&edgeExposed.y,
-            edgeExposed.x&&edgeExposed.w,
-            edgeExposed.z&&edgeExposed.y,
-            edgeExposed.z&&edgeExposed.w
-        );
-
-        if(bounds.x==bounds.z){
-            cornersVisible=bvec4(
-                cornersVisible.x||cornersVisible.z,
-                cornersVisible.y||cornersVisible.w,
-                false,
-                false
-            );
-
-            cornersExposed=bvec4(
-                cornersExposed.x||cornersExposed.z,
-                cornersExposed.y||cornersExposed.w,
-                false,
-                false
-            );
-        }
-
-        if(bounds.y==bounds.w){
-            cornersVisible=bvec4(
-                cornersVisible.x||cornersVisible.y,
-                false,
-                cornersVisible.z||cornersVisible.w,
-                false
-            );
-
-            cornersExposed=bvec4(
-                cornersExposed.x||cornersExposed.y,
-                false,
-                cornersExposed.z||cornersExposed.w,
-                false
-            );
-        }
-
-//        if()
-        if(cornersVisible.x)
-            addColorAtPos(bounds.xy,level,cornersExposed.x?cornerWeightedColor:((edgeExposed.x||edgeExposed.y)?edgeWeightedColor:fullWeightColor));
-        if(cornersVisible.y)
-            addColorAtPos(bounds.xw,level,cornersExposed.y?cornerWeightedColor:((edgeExposed.x||edgeExposed.w)?edgeWeightedColor:fullWeightColor));
-        if(cornersVisible.z)
-            addColorAtPos(bounds.zy,level,cornersExposed.z?cornerWeightedColor:((edgeExposed.z||edgeExposed.y)?edgeWeightedColor:fullWeightColor));
-        if(cornersVisible.w)
-            addColorAtPos(bounds.zw,level,cornersExposed.w?cornerWeightedColor:((edgeExposed.z||edgeExposed.w)?edgeWeightedColor:fullWeightColor));
-
-        ivec2 iterBounds = bounds.xz;
-        iterBounds.x+=1;//int(allowableEdges.y);
-        iterBounds.y-=1;//int(allowableEdges.w);
 
         //TODO could probably be made to iterate less times by having the edges all be in the same loop
         if(allowableEdges.y){
-            writeColorI = edgeExposed.y?edgeWeightedColor:fullWeightColor;
-            edgeExposed.y=false;
-            for (int x=iterBounds.x;x<=iterBounds.y;x++){
-                addColorAtPos(ivec2(x, bounds.y), level, writeColorI);
+            for (int x=bounds.x;x<=bounds.z;x++){
+                addColorAtPos(ivec2(x, bounds.y), level, fullWeightColor);
             }
         }
 
         if(allowableEdges.w){
-            writeColorI = edgeExposed.w?edgeWeightedColor:fullWeightColor;
-            edgeExposed.w=false;
-            for (int x=iterBounds.x;x<=iterBounds.y;x++){
-                addColorAtPos(ivec2(x, bounds.w), level, writeColorI);
+            for (int x=bounds.x;x<=bounds.z;x++){
+                addColorAtPos(ivec2(x, bounds.w), level, fullWeightColor);
             }
         }
 
-        iterBounds = bounds.yw;
-        iterBounds.x+=1;//int(allowableEdges.y);
-        iterBounds.y-=1;//int(allowableEdges.w);
+        ivec2 iterBounds = bounds.yw;
+        iterBounds.x+=int(allowableEdges.y);
+        iterBounds.y-=int(allowableEdges.w);
 
 
         if(allowableEdges.x){
-            writeColorI = edgeExposed.x?edgeWeightedColor:fullWeightColor;
-            edgeExposed.x=false;
             for (int y=iterBounds.x;y<=iterBounds.y;y++){
-                addColorAtPos(ivec2(bounds.x, y), level, writeColorI);
+                addColorAtPos(ivec2(bounds.x, y), level, fullWeightColor);
             }
         }
 
         if(allowableEdges.z){
-            writeColorI = edgeExposed.z?edgeWeightedColor:fullWeightColor;
-            edgeExposed.z=false;
             for (int y=iterBounds.x;y<=iterBounds.y;y++){
-                addColorAtPos(ivec2(bounds.z, y), level, writeColorI);
+                addColorAtPos(ivec2(bounds.z, y), level, fullWeightColor);
             }
         }
 

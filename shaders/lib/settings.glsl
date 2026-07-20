@@ -89,6 +89,7 @@
 
 //#define DOF2_TEST_PATTERN
 #define DOF2
+#define DOF_FIX_SEAMS
 
 #define DOF_QUALITY -1 //[-1 0 1 2 3 4]
 #define DOF_FOCAL_LENGTH 23 //[2.5 5 7.5 10 12.5 15 17.5 20 22 23 24 25 26 30 35 40 45 50 60 70]
