@@ -120,10 +120,14 @@ void drawLine(ivec2 pos, ivec2 step, int steps, uint level, uint data){
 
 void drawRectangle(ivec4 bounds, uint color, uint startingLevel){
     uint level;
-    for(level = startingLevel; level <= MAX_LEVEL; level++){
+
+    for(int i=0; i<startingLevel;i++){
         bounds = (bounds+ivec4(1,1,-1,-1))>>1;
+    }
+
+    for(level = startingLevel; level < MAX_LEVEL; level++){
         if(bounds.z<bounds.x || bounds.w<bounds.y)return;
-        if(((bounds.z-bounds.x<=1) && (bounds.w-bounds.y<=1)) || level==MAX_LEVEL){
+        if((bounds.z-bounds.x<=1) && (bounds.w-bounds.y<=1)){
             break;
         }
 
@@ -142,9 +146,11 @@ void drawRectangle(ivec4 bounds, uint color, uint startingLevel){
 
         if(bool((~bounds.z)&1))
             drawLine(ivec2(bounds.z,yIterStart),ivec2(0,1),ysteps,level,color);
+
+        bounds = (bounds+ivec4(1,1,-1,-1))>>1;
     }
 
-    //    if(bounds.z<bounds.x || bounds.w<bounds.y)return;
+//    if(bounds.z<bounds.x || bounds.w<bounds.y)return;
     int xSteps = 1+bounds.z-bounds.x;
     for(int y=bounds.y;y<=bounds.w;y++){
         drawLine(ivec2(bounds.x,y),ivec2(1,0),xSteps,level,color);
