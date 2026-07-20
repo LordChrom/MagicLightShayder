@@ -24,6 +24,13 @@ void main(){
     }
 
     #ifdef DOF2_TEST_PATTERN
+
+    float refColor = 0;
+    for(int i=0; i<3; i++){
+        refColor=max(refColor,float(texelFetch(dynamicDofSampler,ivec2(i*pageSize,0),0).x)/float(0x00800000u));
+    }
+    sampledColor*=0.5/refColor;
+
     float testColor = 1;
     for(int i=0;i<=2;i+=2){
         if (bool((samplePos.x^samplePos.y)&(1<<i)))

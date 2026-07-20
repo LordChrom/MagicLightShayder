@@ -89,7 +89,6 @@
 
 //#define DOF2_TEST_PATTERN
 #define DOF2
-#define DOF_FIX_SEAMS
 //#define DOF_ABBERATION
 
 #define DOF_QUALITY -1 //[-1 0 1 2 3 4]

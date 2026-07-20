@@ -1,5 +1,4 @@
 #version 430
-#extension GL_KHR_shader_subgroup_vote : enable
 #include "lib/settings.glsl"
 
 
@@ -54,48 +53,6 @@ void initBuffer(){
     }
 }
 
-void addColorAtPos(ivec2 pos,uint level, uint data){
-    #ifdef DOF2_TEST_PATTERN
-    if(bool(level&(1u<<debugNum)))
-    return;
-    #endif
-
-    pos += bufferBorder(level);
-    if(bool(level)){
-        pos.x+=int(bufferWidth);
-        pos.y+=scaleOffset(level);
-    }
-    atomicAdd(thebufferrrr[pos.x][pos.y],data);
-}
-
-void drawLine(ivec2 pos, ivec2 step, int steps, uint level, uint data){
-    #define DRAW_SHORTCUT
-    #ifdef DRAW_SHORTCUT
-        #ifdef DOF2_TEST_PATTERN
-        if(bool(level&(1u<<debugNum)))
-        return;
-        #endif
-
-    pos += bufferBorder(level);
-    if(level!=0){
-        pos.x+=int(bufferWidth);
-        pos.y+=scaleOffset(level);
-    }
-    for(int i=0; i<steps; i++){
-        atomicAdd(thebufferrrr[pos.x][pos.y],data);
-        pos+=step;
-    }
-
-    #else
-
-    for(int i=0; i<steps; i++){
-        addColorAtPos(pos,level,data);
-        pos+=step;
-    }
-
-    #endif
-}
-
 void flushBuffer(){
     const uint mainBufferSize = bufferWidth*bufferWidth;
 
@@ -115,7 +72,82 @@ void flushBuffer(){
 
         pos2d+=ivec2(gl_WorkGroupID.xy*SIZE)-MAX_RAD;
         if(pos2d.x>=0 && pos2d.x<pageSize && value!=0)
-            imageAtomicAdd(dynamicDofImg,ivec2(pos2d.x+pageOffset,pos2d.y),value);
+        imageAtomicAdd(dynamicDofImg,ivec2(pos2d.x+pageOffset,pos2d.y),value);
+    }
+}
+
+
+
+void drawPoint(ivec2 pos,uint level, uint data){
+    #ifdef DOF2_TEST_PATTERN
+    if(bool(level&(1u<<debugNum))) return;
+    #endif
+
+    pos += bufferBorder(level);
+    if(bool(level)){
+        pos.x+=int(bufferWidth);
+        pos.y+=scaleOffset(level);
+    }
+    atomicAdd(thebufferrrr[pos.x][pos.y],data);
+}
+
+void drawLine(ivec2 pos, ivec2 step, int steps, uint level, uint data){
+    #define DRAW_SHORTCUT
+    #ifdef DRAW_SHORTCUT
+        #ifdef DOF2_TEST_PATTERN
+        if(bool(level&(1u<<debugNum))) return;
+        #endif
+
+    pos += bufferBorder(level);
+    if(level!=0){
+        pos.x+=int(bufferWidth);
+        pos.y+=scaleOffset(level);
+    }
+    for(int i=0; i<steps; i++){
+        atomicAdd(thebufferrrr[pos.x][pos.y],data);
+        pos+=step;
+    }
+
+    #else
+
+    for(int i=0; i<steps; i++){
+        drawPoint(pos,level,data);
+        pos+=step;
+    }
+
+    #endif
+}
+
+void drawRectangle(ivec4 bounds, uint color, uint startingLevel){
+    uint level;
+    for(level = startingLevel; level <= MAX_LEVEL; level++){
+        bounds = (bounds+ivec4(1,1,-1,-1))>>1;
+        if(bounds.z<bounds.x || bounds.w<bounds.y)return;
+        if(((bounds.z-bounds.x<=1) && (bounds.w-bounds.y<=1)) || level==MAX_LEVEL){
+            break;
+        }
+
+        int xsteps = 1+bounds.z-bounds.x;
+        if(bool( bounds.y  &1))
+            drawLine(bounds.xy,ivec2(1,0),xsteps,level,color);
+
+        if(bool((~bounds.w)&1))
+            drawLine(bounds.xw,ivec2(1,0),xsteps,level,color);
+
+        int yIterStart = bounds.y+(bounds.y&1);
+        int ysteps = (bounds.w+((bounds.w)&1)) - yIterStart;
+
+        if(bool( bounds.x  &1))
+            drawLine(ivec2(bounds.x,yIterStart),ivec2(0,1),ysteps,level,color);
+
+        if(bool((~bounds.z)&1))
+            drawLine(ivec2(bounds.z,yIterStart),ivec2(0,1),ysteps,level,color);
+    }
+
+    //    if(bounds.z<bounds.x || bounds.w<bounds.y)return;
+    int xSteps = 1+bounds.z-bounds.x;
+    for(int y=bounds.y;y<=bounds.w;y++){
+        drawLine(ivec2(bounds.x,y),ivec2(1,0),xSteps,level,color);
     }
 }
 
@@ -141,14 +173,11 @@ void doBlurSquareExpensive(){
     float edgeWeight=1-(actualArea-desiredArea)/edgePixels;
 
     uint fullWeightColor = int(writeColorI/desiredArea);
-    #ifdef DOF2_TEST_PATTERN
-    if(fullWeightColor>0) fullWeightColor=0x00800000;
-    #endif
     uint edgeWeightedColor = uint(fullWeightColor*edgeWeight);
 
     for(int x=-rad; x<=rad; x++){
         for (int y=-rad; y<=rad; y++){
-            addColorAtPos(ivec2(x+gl_LocalInvocationID.x, y+gl_LocalInvocationID.y), 0,
+            drawPoint(ivec2(x+gl_LocalInvocationID.x, y+gl_LocalInvocationID.y), 0,
                 ((max(abs(x),abs(y))==rad))?edgeWeightedColor:fullWeightColor
             );
         }
@@ -162,9 +191,6 @@ void doBlurSquare(){
 
     float desiredArea = 4.0*radius*radius;
     uint fullWeightColor = int(writeColorI/desiredArea);
-    #ifdef DOF2_TEST_PATTERN
-    if(fullWeightColor>0) fullWeightColor=0x00400000;
-    #endif
     if(fullWeightColor<0x10)fullWeightColor=0;
 
 
@@ -172,77 +198,35 @@ void doBlurSquare(){
     miniBounds.xy-=rad;
     miniBounds.zw+=rad;
 
-    int effort = 3; //1 to rad*2
-    effort=min(effort,rad+rad);
+    int maxEdgeEffort = 3; //1 to rad*2
+    maxEdgeEffort=min(maxEdgeEffort,rad+rad);
 
     int edgePixels = rad<<3;
     float edgeWeight=1-(actualArea-desiredArea)/edgePixels;
-    uint edgeWeightedColor = uint(fullWeightColor*edgeWeight*edgePixels/(4*effort));
+    uint edgeWeightedColor = (writeColorI-(fullWeightColor*(2*rad-1)*(2*rad-1)))/(maxEdgeEffort<<2);
 
-    for (int i=0; i<effort; i++){
-        int offset = (rad*i<<1)/effort;
-        addColorAtPos(miniBounds.xy+ivec2(0, offset), 0, edgeWeightedColor);
-        addColorAtPos(miniBounds.xw+ivec2(offset, 0), 0, edgeWeightedColor);
-        addColorAtPos(miniBounds.zy-ivec2(offset, 0), 0, edgeWeightedColor);
-        addColorAtPos(miniBounds.zw-ivec2(0, offset), 0, edgeWeightedColor);
+    for (int i=0; i<maxEdgeEffort; i++){
+        int offset = (rad*i<<1)/maxEdgeEffort;
+        drawPoint(miniBounds.xy+ivec2(0, offset), 0, edgeWeightedColor);
+        drawPoint(miniBounds.xw+ivec2(offset, 0), 0, edgeWeightedColor);
+        drawPoint(miniBounds.zy-ivec2(offset, 0), 0, edgeWeightedColor);
+        drawPoint(miniBounds.zw-ivec2(0, offset), 0, edgeWeightedColor);
     }
     rad--;
 
     if(fullWeightColor==0)return;
-
 
     //min xy, max xy
     ivec4 bounds = ivec4(gl_LocalInvocationID.xyxy);
     bounds.xy-=rad;
     bounds.zw+=rad;
 
-
     ivec2 edgeXY = ivec2(bool(bounds.x&1)?bounds.x:bounds.z,bool(bounds.y&1)?bounds.y:bounds.w);
-    ivec2 marchOrigin = bounds.xy+(bounds.xy&1)-1;
-    addColorAtPos(ivec2(edgeXY), 0,fullWeightColor);
-    for (int i=1; i<rad*2+1; i++){
-        addColorAtPos(ivec2(marchOrigin.x+i,edgeXY.y), 0,fullWeightColor);
-        addColorAtPos(ivec2(edgeXY.x,marchOrigin.y+i), 0,fullWeightColor);
-    }
+    drawPoint(ivec2(edgeXY), 0,fullWeightColor);
+    drawLine(ivec2(bounds.x+(bounds.x&1),edgeXY.y),ivec2(1,0),rad+rad,0,fullWeightColor);
+    drawLine(ivec2(edgeXY.x,bounds.y+(bounds.y&1)),ivec2(0,1),rad+rad,0,fullWeightColor);
 
-
-    int level;
-    for(level = 1; level <= MAX_LEVEL; level++){
-        bounds = (bounds+ivec4(1,1,-1,-1))>>1;
-        if(bounds.z<bounds.x || bounds.w<bounds.y)return;
-        if(((bounds.z-bounds.x<=1) && (bounds.w-bounds.y<=1)) || level==MAX_LEVEL){
-            break;
-        }
-
-        int xsteps = 1+bounds.z-bounds.x;
-        //TODO could probably be made to iterate less times by having the edges all be in the same loop
-        if(bool( bounds.y  &1)){
-            drawLine(bounds.xy,ivec2(1,0),xsteps,level,fullWeightColor);
-        }
-
-        if(bool((~bounds.w)&1)){
-            drawLine(bounds.xw,ivec2(1,0),xsteps,level,fullWeightColor);
-        }
-
-        int yIterStart = bounds.y+(bounds.y&1);
-        int ysteps = (bounds.w+((bounds.w)&1)) - yIterStart;
-
-        if(bool( bounds.x  &1)){
-            drawLine(ivec2(bounds.x,yIterStart),ivec2(0,1),ysteps,level,fullWeightColor);
-        }
-
-        if(bool((~bounds.z)&1)){
-            drawLine(ivec2(bounds.z,yIterStart),ivec2(0,1),ysteps,level,fullWeightColor);
-        }
-    }
-
-//    bounds = (bounds+ivec4(1,1,-1,-1))>>1;
-    if(bounds.z<bounds.x || bounds.w<bounds.y)return;
-    for(int x=bounds.x;x<=bounds.z;x++){
-        for(int y=bounds.y;y<=bounds.w;y++){
-            addColorAtPos(ivec2(x,y), level, fullWeightColor);
-        }
-    }
+    drawRectangle(bounds,fullWeightColor,1);
 }
 
 //reference implementation
@@ -254,7 +238,7 @@ void doBlurCircleExpensive(){
     for(int y=-rad; y<=rad; y++){
         int xRange = int(sqrt(radSquared-y*y));
         for (int x=-xRange; x<=xRange; x++){
-            addColorAtPos(ivec2(x+gl_LocalInvocationID.x, y+gl_LocalInvocationID.y), 0,writeColorI);
+            drawPoint(ivec2(x+gl_LocalInvocationID.x, y+gl_LocalInvocationID.y), 0,writeColorI);
         }
     }
 }
@@ -272,25 +256,21 @@ void doBlurCircle(){
         for (int i=0; i<diameter;i++){
             float angle = i*pi2/diameter;
             ivec2 offset = ivec2(round(tmpRad*vec2(cos(angle),sin(angle))));
-            addColorAtPos(basePos+offset, level,writeColorI);
+            drawPoint(basePos+offset, level,writeColorI);
         }
     }
 }
 
-//uniform float frameTimeCounter;
 
 void doTheBlurForOneColor(){
     if(radius<=0.501){
-        addColorAtPos(ivec2(gl_LocalInvocationID.xy), 0,writeColorI);
+        drawPoint(ivec2(gl_LocalInvocationID.xy), 0,writeColorI);
         return;
     }
 
     radius = clamp(radius,0.5,MAX_RAD-0.5);
 
-//    if(fract(frameTimeCounter*0.5)>0.5)
-//        doBlurSquareExpensive();
-//    else
-        doBlurSquare();
+    doBlurSquare();
 }
 
 
