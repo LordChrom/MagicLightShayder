@@ -2,7 +2,7 @@
 #include "lib/settings.glsl"
 
 
-#define SIZE 32
+#define SIZE 16
 #define MAX_RAD 10
 #define MAX_LEVEL 4
 
@@ -81,7 +81,7 @@ void flushBuffer(){
         }
 
         pos2d+=ivec2(gl_WorkGroupID.xy*SIZE)-MAX_RAD;
-        if(pos2d.x>=0 && pos2d.x<pageSize)
+        if(pos2d.x>=0 && pos2d.x<pageSize && value!=0)
             imageAtomicAdd(dynamicDofImg,ivec2(pos2d.x+pageOffset,pos2d.y),value);
     }
 }
@@ -135,9 +135,10 @@ void doBlurSquare(){
     #ifdef DOF2_TEST_PATTERN
     if(fullWeightColor>0) fullWeightColor=0x00800000;
     #endif
+    if(fullWeightColor<0x100)fullWeightColor=0;
 
-    int edgePixels = rad<<3;
-    float edgeWeight=1-(actualArea-desiredArea)/edgePixels;
+
+
 
 //    if(rad<7 || edgeWeight<0.5)
     if(true)
@@ -147,15 +148,18 @@ void doBlurSquare(){
         miniBounds.xy-=rad;
         miniBounds.zw+=rad;
 
-        int laziness = max(1,rad);
-//        laziness=1;
+        int effort = 2; //0 to rad*2
 
-        uint edgeWeightedColor = uint(fullWeightColor*laziness*edgeWeight);
-        for (int i=(rad<<1); i>0; i-=laziness){
-            addColorAtPos(miniBounds.xy+ivec2(0, i), 0, edgeWeightedColor);
-            addColorAtPos(miniBounds.xw+ivec2(i, 0), 0, edgeWeightedColor);
-            addColorAtPos(miniBounds.zy-ivec2(i, 0), 0, edgeWeightedColor);
-            addColorAtPos(miniBounds.zw-ivec2(0, i), 0, edgeWeightedColor);
+        int edgePixels = rad<<3;
+        float edgeWeight=1-(actualArea-desiredArea)/edgePixels;
+        uint edgeWeightedColor = uint(fullWeightColor*edgeWeight*edgePixels/(4*effort));
+
+        for (int i=effort; i>0; i--){
+            int offset = (rad*i<<1)/effort;
+            addColorAtPos(miniBounds.xy+ivec2(0, offset), 0, edgeWeightedColor);
+            addColorAtPos(miniBounds.xw+ivec2(offset, 0), 0, edgeWeightedColor);
+            addColorAtPos(miniBounds.zy-ivec2(offset, 0), 0, edgeWeightedColor);
+            addColorAtPos(miniBounds.zw-ivec2(0, offset), 0, edgeWeightedColor);
         }
         rad--;
     }else{
@@ -165,6 +169,7 @@ void doBlurSquare(){
     #else
     uint fullWeightColor = int(writeColorI/actualArea);
     #endif
+    if(fullWeightColor<0x100)return;
 
     #ifdef DOF2_TEST_PATTERN
     if(fullWeightColor>0) fullWeightColor=0x00800000;
@@ -289,13 +294,17 @@ void main(){
     ivec2 globalPos = ivec2(gl_WorkGroupID.xy*SIZE+gl_LocalInvocationID.xy);
 
     vec3 color = texelFetch(colortex0,globalPos,0).rgb;
-    radius=texelFetch(colortex12,globalPos,0).y;
+    float ogRadius = radius=texelFetch(colortex12,globalPos,0).y;
     pageSize = textureSize(colortex0,0).x;
 
 
     for(int i=0; i<3; i++){
         #ifdef DOF2_TEST_PATTERN
         debugNum = i;
+        #endif
+        #ifdef DOF_ABBERATION
+        radius = clamp(radius,0.5,MAX_RAD-0.5);
+        radius = ogRadius*(0.4+0.3*i);
         #endif
 
         initBuffer();

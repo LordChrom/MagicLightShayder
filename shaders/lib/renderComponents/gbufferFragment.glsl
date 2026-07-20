@@ -353,7 +353,7 @@ void main()
             color.rgb*=(EMISSIVE_BRIGHTNESS*emissive);
         else{
             vec3 incidentLightColor=voxelSample(vec3(worldPos.xy,worldPos.z-0.1), normalize(normalOut.xyz*2-1), subsurface, ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
-            color.rgb=mix(color.rgb,color.rgb*incidentLightColor,color.a);
+            color.rgb=mix(color.rgb*min(1,(incidentLightColor.r+incidentLightColor.g+incidentLightColor.b)),color.rgb*incidentLightColor,color.a);
         }
             //I cannot explain the 0.1 z
     }
