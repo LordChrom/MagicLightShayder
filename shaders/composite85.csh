@@ -2,8 +2,8 @@
 #include "lib/settings.glsl"
 
 
-#define SIZE 16
-#define MAX_RAD 10
+#define SIZE 32
+#define MAX_RAD 8
 #define MAX_LEVEL 4
 
 
@@ -11,115 +11,125 @@ const vec2 workGroupsRender = vec2(1.0,1.0);
 layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
 
 
-const uint bufferWidth = (SIZE+2*MAX_RAD);
-const ivec2 actualBufferSize = ivec2(bufferWidth+(bufferWidth>>1)+1,bufferWidth);
 
 layout (r32ui) uniform restrict uimage2D dynamicDofImg;
-shared uint[actualBufferSize.x][actualBufferSize.y] thebufferrrr;
+shared uint[SIZE+SIZE][SIZE+SIZE] thebufferrrr;
 
 
 uniform sampler2D colortex0;
 uniform sampler2D colortex12;
 
-
+ivec2 samplePos;
 uint writeColorI;
-uint pageOffset;
-uint pageSize;
+int pageOffset;
+int pageSize;
 float radius;
 
 #ifdef DOF2_TEST_PATTERN
 int debugNum;
 #endif
 
-
-int bufferBorder(uint level){
-    return int((MAX_RAD+((1<<level)-1))>>level);
-}
-
-int scaleOffset(uint level){
-    if(level==0) return 0;
-    level--;
-    return int(
-        bufferWidth-(bufferWidth>>level)+level//bitCount(bufferWidth<<(32-level))
-    );
-}
-
 void initBuffer(){
-    const uint fullBufferSize = actualBufferSize.x*actualBufferSize.y;
-
-    for(uint pos = gl_LocalInvocationIndex; pos<fullBufferSize;pos+=SIZE*SIZE){
-        ivec2 pos2d = ivec2(pos/actualBufferSize.y,pos%actualBufferSize.y);
-        thebufferrrr[pos2d.x][pos2d.y]=0u;
+    int id = int(gl_LocalInvocationIndex);
+    id<<=2;
+    ivec2 pos = ivec2(id/(2*SIZE),id%(2*SIZE));
+    for(int i=0;i<4;i++){
+        thebufferrrr[pos.x][pos.y+i]=0u;
     }
 }
 
 void flushBuffer(){
-    const uint mainBufferSize = bufferWidth*bufferWidth;
+    uint value = 0;
 
-    for(uint pos = gl_LocalInvocationIndex; pos<mainBufferSize;pos+=SIZE*SIZE){
-        ivec2 pos2d = ivec2(pos%bufferWidth,pos/bufferWidth);
-
-        uint value = thebufferrrr[pos2d.x][pos2d.y];
-
-        ivec2 levelPosBase = pos2d-bufferBorder(0);
-        for(int level=1; level<=MAX_LEVEL;level++){
-            ivec2 levelPos = levelPosBase>>level;
-            levelPos += bufferBorder(level);
-            levelPos.x+=int(bufferWidth);
-            levelPos.y+=scaleOffset(level);
+    ivec2 level;
+    for(level.x=0; level.x<=MAX_LEVEL;level.x++){
+        for(level.y=0; level.y<=MAX_LEVEL;level.y++){
+            ivec2 levelPos = ivec2(gl_LocalInvocationID.xy+SIZE)>>level;
             value+=thebufferrrr[levelPos.x][levelPos.y];
         }
-
-        pos2d+=ivec2(gl_WorkGroupID.xy*SIZE)-MAX_RAD;
-        if(pos2d.x>=0 && pos2d.x<pageSize && value!=0)
-        imageAtomicAdd(dynamicDofImg,ivec2(pos2d.x+pageOffset,pos2d.y),value);
     }
+
+    ivec2 pos = ivec2(gl_WorkGroupID.xy*SIZE+gl_LocalInvocationID.xy);
+    if(pos.x>=0 && pos.x<pageSize && value!=0)
+        imageAtomicAdd(dynamicDofImg,ivec2(pos.x+pageOffset,pos.y),value);
 }
 
 
 
-void drawPoint(ivec2 pos,uint level, uint data){
+void write(ivec2 pos,ivec2 level, uint data){
+    if((pos.x>=(SIZE>>level.x))||(pos.y>=(SIZE>>level.y))||(pos.x<0) || (pos.y<0))
+        return;
     #ifdef DOF2_TEST_PATTERN
-    if(bool(level&(1u<<debugNum))) return;
+    if(bool(((level.x+level.y)%7)&(1<<debugNum))) return;
     #endif
 
-    pos += bufferBorder(level);
-    if(bool(level)){
-        pos.x+=int(bufferWidth);
-        pos.y+=scaleOffset(level);
-    }
+    pos+=ivec2(SIZE)>>level;
     atomicAdd(thebufferrrr[pos.x][pos.y],data);
 }
 
-void drawLine(ivec2 pos, ivec2 step, int steps, uint level, uint data){
-    #define DRAW_SHORTCUT
-    #ifdef DRAW_SHORTCUT
-        #ifdef DOF2_TEST_PATTERN
-        if(bool(level&(1u<<debugNum))) return;
-        #endif
 
-    pos += bufferBorder(level);
-    if(level!=0){
-        pos.x+=int(bufferWidth);
-        pos.y+=scaleOffset(level);
-    }
+void drawLine(ivec2 pos, ivec2 step, int steps, int level, uint data){
     for(int i=0; i<steps; i++){
-        atomicAdd(thebufferrrr[pos.x][pos.y],data);
+        write(pos,ivec2(level),data);
         pos+=step;
     }
-
-    #else
-
-    for(int i=0; i<steps; i++){
-        drawPoint(pos,level,data);
-        pos+=step;
-    }
-
-    #endif
 }
 
-void drawRectangle(ivec4 bounds, uint color, uint startingLevel){
-    uint level;
+void drawLineX(ivec2 pos, int steps, int startingLevel, uint color){
+    int level;
+    ivec2 bounds = ivec2(pos.x,pos.x+steps-1);
+
+    for(level = startingLevel; level < MAX_LEVEL; level++){
+        if(bounds.y<bounds.x)return;
+        if(bounds.y-bounds.x<=1){
+            break;
+        }
+
+        if(bool( bounds.x  &1))
+            write(ivec2(bounds.x,pos.y),ivec2(level,startingLevel),color);
+
+        if(bool((~bounds.y)&1))
+            write(ivec2(bounds.y,pos.y),ivec2(level,startingLevel),color);
+
+        bounds = (bounds+ivec2(1,-1))>>1;
+    }
+
+    if(bounds.y<bounds.x)return;
+    for(int x=bounds.x;x<=bounds.y;x++){
+        write(ivec2(x,pos.y),ivec2(level,startingLevel),color);
+    }
+}
+
+void drawLineY(ivec2 pos, int steps, int startingLevel, uint color){
+    int level;
+    ivec2 bounds = ivec2(pos.y,pos.y+steps-1);
+
+    for(level = startingLevel; level < MAX_LEVEL; level++){
+        if(bounds.y<bounds.x)return;
+        if(bounds.y-bounds.x<=1){
+            break;
+        }
+
+        if(bool( bounds.x  &1))
+        write(ivec2(pos.x,bounds.x),ivec2(startingLevel,level),color);
+
+        if(bool((~bounds.y)&1))
+        write(ivec2(pos.x,bounds.y),ivec2(startingLevel,level),color);
+
+        bounds = (bounds+ivec2(1,-1))>>1;
+    }
+
+    if(bounds.y<bounds.x)return;
+    for(int y=bounds.x;y<=bounds.y;y++){
+        write(ivec2(pos.x,y),ivec2(startingLevel,level),color);
+    }
+}
+
+
+void drawRectangle(ivec4 bounds, uint color, int startingLevel){
+    int level;
+
+    bounds = clamp(bounds,0,SIZE);
 
     for(int i=0; i<startingLevel;i++){
         bounds = (bounds+ivec4(1,1,-1,-1))>>1;
@@ -133,27 +143,27 @@ void drawRectangle(ivec4 bounds, uint color, uint startingLevel){
 
         int xsteps = 1+bounds.z-bounds.x;
         if(bool( bounds.y  &1))
-            drawLine(bounds.xy,ivec2(1,0),xsteps,level,color);
+            drawLineX(bounds.xy,xsteps,level,color);
 
         if(bool((~bounds.w)&1))
-            drawLine(bounds.xw,ivec2(1,0),xsteps,level,color);
+            drawLineX(bounds.xw,xsteps,level,color);
 
         int yIterStart = bounds.y+(bounds.y&1);
         int ysteps = (bounds.w+((bounds.w)&1)) - yIterStart;
 
         if(bool( bounds.x  &1))
-            drawLine(ivec2(bounds.x,yIterStart),ivec2(0,1),ysteps,level,color);
+            drawLineY(ivec2(bounds.x,yIterStart),ysteps,level,color);
 
         if(bool((~bounds.z)&1))
-            drawLine(ivec2(bounds.z,yIterStart),ivec2(0,1),ysteps,level,color);
+            drawLineY(ivec2(bounds.z,yIterStart),ysteps,level,color);
 
         bounds = (bounds+ivec4(1,1,-1,-1))>>1;
     }
 
-//    if(bounds.z<bounds.x || bounds.w<bounds.y)return;
+    if(bounds.z<bounds.x || bounds.w<bounds.y)return;
     int xSteps = 1+bounds.z-bounds.x;
     for(int y=bounds.y;y<=bounds.w;y++){
-        drawLine(ivec2(bounds.x,y),ivec2(1,0),xSteps,level,color);
+        drawLineX(ivec2(bounds.x,y),xSteps,level,color);
     }
 }
 
@@ -183,7 +193,7 @@ void doBlurSquareExpensive(){
 
     for(int x=-rad; x<=rad; x++){
         for (int y=-rad; y<=rad; y++){
-            drawPoint(ivec2(x+gl_LocalInvocationID.x, y+gl_LocalInvocationID.y), 0,
+            write(ivec2(x+samplePos.x, y+samplePos.y), ivec2(0),
                 ((max(abs(x),abs(y))==rad))?edgeWeightedColor:fullWeightColor
             );
         }
@@ -200,7 +210,7 @@ void doBlurSquare(){
     if(fullWeightColor<0x10)fullWeightColor=0;
 
 
-    ivec4 miniBounds = ivec4(gl_LocalInvocationID.xyxy);
+    ivec4 miniBounds = ivec4(samplePos.xyxy);
     miniBounds.xy-=rad;
     miniBounds.zw+=rad;
 
@@ -213,24 +223,24 @@ void doBlurSquare(){
 
     for (int i=0; i<maxEdgeEffort; i++){
         int offset = (rad*i<<1)/maxEdgeEffort;
-        drawPoint(miniBounds.xy+ivec2(0, offset), 0, edgeWeightedColor);
-        drawPoint(miniBounds.xw+ivec2(offset, 0), 0, edgeWeightedColor);
-        drawPoint(miniBounds.zy-ivec2(offset, 0), 0, edgeWeightedColor);
-        drawPoint(miniBounds.zw-ivec2(0, offset), 0, edgeWeightedColor);
+//        write(miniBounds.xy+ivec2(0, offset), ivec2(0), edgeWeightedColor);
+//        write(miniBounds.xw+ivec2(offset, 0), ivec2(0), edgeWeightedColor);
+//        write(miniBounds.zy-ivec2(offset, 0), ivec2(0), edgeWeightedColor);
+//        write(miniBounds.zw-ivec2(0, offset), ivec2(0), edgeWeightedColor);
     }
     rad--;
 
     if(fullWeightColor==0)return;
 
     //min xy, max xy
-    ivec4 bounds = ivec4(gl_LocalInvocationID.xyxy);
+    ivec4 bounds = ivec4(samplePos.xyxy);
     bounds.xy-=rad;
     bounds.zw+=rad;
 
     ivec2 edgeXY = ivec2(bool(bounds.x&1)?bounds.x:bounds.z,bool(bounds.y&1)?bounds.y:bounds.w);
-    drawPoint(ivec2(edgeXY), 0,fullWeightColor);
-    drawLine(ivec2(bounds.x+(bounds.x&1),edgeXY.y),ivec2(1,0),rad+rad,0,fullWeightColor);
-    drawLine(ivec2(edgeXY.x,bounds.y+(bounds.y&1)),ivec2(0,1),rad+rad,0,fullWeightColor);
+    write(ivec2(edgeXY), ivec2(0),fullWeightColor);
+    drawLineX(ivec2(bounds.x+(bounds.x&1),edgeXY.y),rad+rad,0,fullWeightColor);
+    drawLineY(ivec2(edgeXY.x,bounds.y+(bounds.y&1)),rad+rad,0,fullWeightColor);
 
     drawRectangle(bounds,fullWeightColor,1);
 }
@@ -244,33 +254,20 @@ void doBlurCircleExpensive(){
     for(int y=-rad; y<=rad; y++){
         int xRange = int(sqrt(radSquared-y*y));
         for (int x=-xRange; x<=xRange; x++){
-            drawPoint(ivec2(x+gl_LocalInvocationID.x, y+gl_LocalInvocationID.y), 0,writeColorI);
+            write(ivec2(x+samplePos.x, y+samplePos.y), ivec2(0),writeColorI);
         }
     }
 }
 
 void doBlurCircle(){
     //veeeeery rough approximation, but i do still kinda like the pixely look
-    int rad = clamp(int(radius),0,MAX_RAD);
-    writeColorI/=quantizedCircleArea(rad);
 
-    for(int level = 0; level <= MAX_LEVEL; level++){
-        int tmpRad = rad>>level;
-        ivec2 basePos = ivec2(gl_LocalInvocationID.xy)>>level;
-        const float pi2 = PI*2;
-        int diameter = int(round(tmpRad*pi2));
-        for (int i=0; i<diameter;i++){
-            float angle = i*pi2/diameter;
-            ivec2 offset = ivec2(round(tmpRad*vec2(cos(angle),sin(angle))));
-            drawPoint(basePos+offset, level,writeColorI);
-        }
-    }
 }
 
 
 void doTheBlurForOneColor(){
     if(radius<=0.501){
-        drawPoint(ivec2(gl_LocalInvocationID.xy), 0,writeColorI);
+        write(samplePos, ivec2(0),writeColorI);
         return;
     }
 
@@ -279,32 +276,51 @@ void doTheBlurForOneColor(){
     doBlurSquare();
 }
 
-
+uniform float frameTimeCounter;
 
 void main(){
-    ivec2 globalPos = ivec2(gl_WorkGroupID.xy*SIZE+gl_LocalInvocationID.xy);
-
-    vec3 color = texelFetch(colortex0,globalPos,0).rgb;
-    float ogRadius = radius=texelFetch(colortex12,globalPos,0).y;
-    pageSize = textureSize(colortex0,0).x;
+    ivec2 texSize = textureSize(colortex0,0);
+    pageSize = texSize.x;
 
 
     for(int i=0; i<3; i++){
+        pageOffset = i*pageSize;
         #ifdef DOF2_TEST_PATTERN
         debugNum = i;
-        #endif
-        #ifdef DOF_ABBERATION
-        radius = min(ogRadius,MAX_RAD-0.5);
-        radius = max(0.5,radius-2*i);
         #endif
 
         initBuffer();
         barrier();
 
-        pageOffset = i*pageSize;
-        writeColorI = uint(color[i]*0x00800000u);
+        ivec2 scanAreaStart = ivec2(-MAX_RAD);
+        ivec2 scanAreaEndExclusive = ivec2(SIZE+MAX_RAD);
+//        scanAreaStart=ivec2(0);
+//        scanAreaEndExclusive=ivec2(SIZE);
+        int wrap = scanAreaEndExclusive.y-scanAreaStart.y;
+        const int maxIndex = (SIZE+2*MAX_RAD)*(SIZE+2*MAX_RAD);
 
-        doTheBlurForOneColor();
+        for(int id = int(gl_LocalInvocationIndex);id<maxIndex;id+=SIZE*SIZE){
+            samplePos = ivec2(id/wrap, id%wrap)+scanAreaStart;
+            ivec2 globalPos = samplePos + ivec2(gl_WorkGroupID.xy*SIZE);
+            if(globalPos.x<0 || globalPos.y<0 || globalPos.x>=texSize.x || globalPos.y>=texSize.y)
+                continue;
+
+            writeColorI = uint(texelFetch(colortex0,globalPos,0).rgb[i]*0x00800000u);
+            radius=texelFetch(colortex12,globalPos,0).y;
+
+            #ifdef DOF_ABBERATION
+            radius = min(radius ,MAX_RAD-0.5);
+            radius = max(0.5 ,radius-2*i);
+            #endif
+
+            doTheBlurForOneColor();
+//            drawLineX(ivec2(-3,SIZE+SIZE-int(4*frameTimeCounter)),SIZE+SIZE,0,writeColorI);
+//            drawLineY(ivec2(SIZE-int(4*frameTimeCounter),-3),SIZE+SIZE,0,0x00400);
+        }
+
+
+
+
         barrier();
         flushBuffer();
 

@@ -10,6 +10,7 @@ layout(location = 0) out vec3 outputColor;
 uniform usampler2D dynamicDofSampler;
 uniform sampler2D colortex0;
 
+uniform float frameTimeCounter;
 void main(){
     vec3 sampledColor;
     ivec2 samplePos = ivec2(gl_FragCoord.xy);
@@ -25,15 +26,15 @@ void main(){
 
     #ifdef DOF2_TEST_PATTERN
 
-    float refColor = 0;
-    for(int i=0; i<3; i++){
-        refColor=max(refColor,float(texelFetch(dynamicDofSampler,ivec2(i*pageSize,0),0).x)/float(0x00800000u));
-    }
-    sampledColor*=0.5/refColor;
+    float refColor = 16*fract(frameTimeCounter*0.2);
+//    refColor=3;
+    sampledColor*=4*refColor*refColor;
+    sampledColor*=0.5;
 
     float testColor = 1;
-    for(int i=0;i<=2;i+=2){
-        if (bool((samplePos.x^samplePos.y)&(1<<i)))
+    const int[] gridlevels = {0,2,5};
+    for(int i=0;i<3;i++){
+        if (bool((samplePos.x^samplePos.y)&(1<<gridlevels[i])))
             testColor-=0.3;
     }
             sampledColor=mix(sampledColor,vec3(testColor),0.1);
