@@ -3,7 +3,7 @@
 
 
 #define SIZE 32
-#define MAX_RAD 10
+#define MAX_RAD 48
 #define MAX_LEVEL 4
 
 
