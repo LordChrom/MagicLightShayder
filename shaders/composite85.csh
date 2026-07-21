@@ -3,8 +3,8 @@
 
 
 #define SIZE 32
-#define MAX_RAD 10
-#define MAX_LEVEL 4
+#define MAX_RAD 32
+#define MAX_LEVEL 5
 
 
 const vec2 workGroupsRender = vec2(1.0,1.0);
@@ -56,8 +56,9 @@ void flushBuffer(){
 }
 
 void bufferDirectWrite(ivec2 pos, uvec3 color){
-    for(int i=0;i<3;i++)
-        atomicAdd(thebufferrrr[pos.x][pos.y][i],color[i]);
+    atomicAdd(thebufferrrr[pos.x][pos.y][0],color[0]);
+    atomicAdd(thebufferrrr[pos.x][pos.y][1],color[1]);
+    atomicAdd(thebufferrrr[pos.x][pos.y][2],color[2]);
 }
 
 void write(ivec2 pos,ivec2 level, uvec3 color){
@@ -77,57 +78,36 @@ void drawLine(ivec2 pos, ivec2 step, int steps, int level, uvec3 data){
 }
 
 void drawLineX(ivec2 bounds, int y, int levelY, uvec3 color){
-
-//    for(int x=bounds.x;x<=bounds.y;x++){
-//        write(ivec2(x,y),ivec2(0,levelY),color);
-//    }
+//    bounds.x=max(bounds.x,0);
+//    bounds.y=min(bounds.y,SIZE-1);
+//    bounds+=SIZE;
 
     if((y>=(SIZE>>levelY))|| (y<0))
         return;
 
     y+=SIZE>>levelY;
 
-    int level;
+    for(int level = 0; level <= MAX_LEVEL; level++){
+        uint levelBits = (1<<level)-1;
+        ivec2 newBounds = (bounds+SIZE+ivec2(levelBits,-levelBits))>>level;
+        if(newBounds.y<newBounds.x)return;
 
 
-    for(level = 0; level < MAX_LEVEL; level++){
-        if(bounds.y<bounds.x)return;
-        if(bounds.y-bounds.x<=1){
-            break;
-        }
-        int levelOffset = SIZE>>level;
+        if (bool(newBounds.x  &1))
+            bufferDirectWrite(ivec2(newBounds.x,y), color);
 
-        if (bool(bounds.x  &1) && !((bounds.x>=levelOffset)||(bounds.x<0)))
-            bufferDirectWrite(ivec2(bounds.x+levelOffset,y), color);
-
-        if (bool((~bounds.y)&1) && !((bounds.y>=levelOffset)||(bounds.y<0)))
-            bufferDirectWrite(ivec2(bounds.y+levelOffset,y), color);
-
-        bounds.x++;
-        bounds.y--;
-        bounds>>=1;
+        if (bool((~newBounds.y)&1))
+            bufferDirectWrite(ivec2(newBounds.y,y), color);
     }
-
-    if((y>=2*(SIZE>>levelY))||(y<SIZE>>levelY))
-        return;
-
-    bounds.x=max(bounds.x,0);
-    bounds.y=min(bounds.y,(SIZE>>level)-1);
-    bounds+=(SIZE>>level);
-
-    for(int x=bounds.x;x<=bounds.y;x++)
-        bufferDirectWrite(ivec2(x,y), color);
 }
 
 void drawRectangle(ivec4 bounds, uvec3 color){
-    int level;
+    bounds.xy=max(bounds.xy,0);
+    bounds.zw=min(bounds.zw,SIZE-1);
+    if(bounds.z<bounds.x || bounds.w<bounds.y)return;
 
-
-    for(level = 0; level < MAX_LEVEL; level++){
+    for(int level = 0; level <= MAX_LEVEL; level++){
         if(bounds.w<bounds.y)return;
-        if(bounds.w-bounds.y<=1){
-            break;
-        }
         int levelOffset = SIZE>>level;
 
         if (bool(bounds.y  &1))
@@ -139,13 +119,6 @@ void drawRectangle(ivec4 bounds, uvec3 color){
         bounds.y++;
         bounds.w--;
         bounds.yw>>=1;
-    }
-
-    bounds.y=max(bounds.y,0);
-    bounds.w=min(bounds.w,(SIZE>>level)-1);
-
-    for(int y=bounds.y;y<=bounds.w;y++){
-        drawLineX(bounds.xz,y,level,color);
     }
 }
 
@@ -191,11 +164,12 @@ void doBlurSquare(uvec3 color){
     uvec3 fullWeightColor = uvec3(color/desiredArea);
 //    if(fullWeightColor<0x10)fullWeightColor=0;
 
+    //min xy, max xy
+    ivec4 bounds = ivec4(samplePos.xyxy);
+    bounds.xy-=rad;
+    bounds.zw+=rad;
 
-    ivec4 miniBounds = ivec4(samplePos.xyxy);
-    miniBounds.xy-=rad;
-    miniBounds.zw+=rad;
-
+    #if 1
     int maxEdgeEffort = 3; //1 to rad*2
     maxEdgeEffort=min(maxEdgeEffort,rad+rad);
 
@@ -205,19 +179,18 @@ void doBlurSquare(uvec3 color){
 
     for (int i=0; i<maxEdgeEffort; i++){
         int offset = (rad*i<<1)/maxEdgeEffort;
-        write(miniBounds.xy+ivec2(0, offset), ivec2(0), edgeWeightedColor);
-        write(miniBounds.xw+ivec2(offset, 0), ivec2(0), edgeWeightedColor);
-        write(miniBounds.zy-ivec2(offset, 0), ivec2(0), edgeWeightedColor);
-        write(miniBounds.zw-ivec2(0, offset), ivec2(0), edgeWeightedColor);
+        write(bounds.xy+ivec2(0, offset), ivec2(0), edgeWeightedColor);
+        write(bounds.xw+ivec2(offset, 0), ivec2(0), edgeWeightedColor);
+        write(bounds.zy-ivec2(offset, 0), ivec2(0), edgeWeightedColor);
+        write(bounds.zw-ivec2(0, offset), ivec2(0), edgeWeightedColor);
     }
-    rad--;
+    bounds.xy++;
+    bounds.zw--;
+    #endif
 
     if(fullWeightColor==0)return;
 
-    //min xy, max xy
-    ivec4 bounds = ivec4(samplePos.xyxy);
-    bounds.xy-=rad;
-    bounds.zw+=rad;
+
 
     drawRectangle(bounds,fullWeightColor);
 }
@@ -273,8 +246,8 @@ void main(){
 
         int rad = clamp(int(radius),0,MAX_RAD);
 
-        if(samplePos.x+rad<scanAreaStart.x || samplePos.y+rad<scanAreaStart.y || samplePos.x-rad>=scanAreaEndExclusive.x || samplePos.y-rad>=scanAreaEndExclusive.y)
-            continue;
+//        if(samplePos.x+rad<scanAreaStart.x || samplePos.y+rad<scanAreaStart.y || samplePos.x-rad>=scanAreaEndExclusive.x || samplePos.y-rad>=scanAreaEndExclusive.y)
+//            continue;
 
         doTheBlurForOneColor(color);
     }
