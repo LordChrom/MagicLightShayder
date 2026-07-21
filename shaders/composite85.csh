@@ -3,7 +3,7 @@
 
 
 #define SIZE 32
-#define MAX_RAD 8
+#define MAX_RAD 10
 #define MAX_LEVEL 4
 
 
@@ -76,8 +76,13 @@ void drawLine(ivec2 pos, ivec2 step, int steps, int level, uint data){
 }
 
 void drawLineX(ivec2 pos, int steps, int startingLevel, uint color){
-    int level;
     ivec2 bounds = ivec2(pos.x,pos.x+steps-1);
+    if((pos.y>=(SIZE>>startingLevel))|| (pos.y<0))
+        return;
+
+    pos.y+=SIZE>>startingLevel;
+
+    int level;
 
     for(level = startingLevel; level < MAX_LEVEL; level++){
         if(bounds.y<bounds.x)return;
@@ -85,24 +90,31 @@ void drawLineX(ivec2 pos, int steps, int startingLevel, uint color){
             break;
         }
 
-        if(bool( bounds.x  &1))
-            write(ivec2(bounds.x,pos.y),ivec2(level,startingLevel),color);
+        if(bool( bounds.x  &1) && !((bounds.x>=(SIZE>>level))||(bounds.x<0)))
+            atomicAdd(thebufferrrr[bounds.x+(SIZE>>level)][pos.y],color);
 
-        if(bool((~bounds.y)&1))
-            write(ivec2(bounds.y,pos.y),ivec2(level,startingLevel),color);
+        if(bool((~bounds.y)&1) && !((bounds.y>=(SIZE>>level))||(bounds.y<0)))
+            atomicAdd(thebufferrrr[bounds.y+(SIZE>>level)][pos.y],color);
 
         bounds = (bounds+ivec2(1,-1))>>1;
     }
 
-    if(bounds.y<bounds.x)return;
+    if((bounds.y<bounds.x) || ((bounds.x>=(SIZE>>level))||(bounds.x<0)||(bounds.y>=(SIZE>>level))||(bounds.y<0)))return;
+    bounds+=(SIZE>>level);
+
     for(int x=bounds.x;x<=bounds.y;x++){
-        write(ivec2(x,pos.y),ivec2(level,startingLevel),color);
+        atomicAdd(thebufferrrr[x][pos.y],color);
     }
 }
 
 void drawLineY(ivec2 pos, int steps, int startingLevel, uint color){
-    int level;
     ivec2 bounds = ivec2(pos.y,pos.y+steps-1);
+    if((pos.x>=(SIZE>>startingLevel))|| (pos.x<0))
+    return;
+
+    pos.x+=SIZE>>startingLevel;
+
+    int level;
 
     for(level = startingLevel; level < MAX_LEVEL; level++){
         if(bounds.y<bounds.x)return;
@@ -110,18 +122,20 @@ void drawLineY(ivec2 pos, int steps, int startingLevel, uint color){
             break;
         }
 
-        if(bool( bounds.x  &1))
-        write(ivec2(pos.x,bounds.x),ivec2(startingLevel,level),color);
+        if(bool( bounds.x  &1) && !((bounds.x>=(SIZE>>level))||(bounds.x<0)))
+            atomicAdd(thebufferrrr[pos.x][bounds.x+(SIZE>>level)],color);
 
-        if(bool((~bounds.y)&1))
-        write(ivec2(pos.x,bounds.y),ivec2(startingLevel,level),color);
+        if(bool((~bounds.y)&1) && !((bounds.y>=(SIZE>>level))||(bounds.y<0)))
+            atomicAdd(thebufferrrr[pos.x][bounds.y+(SIZE>>level)],color);
 
         bounds = (bounds+ivec2(1,-1))>>1;
     }
 
-    if(bounds.y<bounds.x)return;
+    if((bounds.y<bounds.x) || ((bounds.x>=(SIZE>>level))||(bounds.x<0)||(bounds.y>=(SIZE>>level))||(bounds.y<0)))return;
+    bounds+=(SIZE>>level);
+
     for(int y=bounds.x;y<=bounds.y;y++){
-        write(ivec2(pos.x,y),ivec2(startingLevel,level),color);
+        atomicAdd(thebufferrrr[pos.x][y],color);
     }
 }
 
@@ -223,10 +237,10 @@ void doBlurSquare(){
 
     for (int i=0; i<maxEdgeEffort; i++){
         int offset = (rad*i<<1)/maxEdgeEffort;
-//        write(miniBounds.xy+ivec2(0, offset), ivec2(0), edgeWeightedColor);
-//        write(miniBounds.xw+ivec2(offset, 0), ivec2(0), edgeWeightedColor);
-//        write(miniBounds.zy-ivec2(offset, 0), ivec2(0), edgeWeightedColor);
-//        write(miniBounds.zw-ivec2(0, offset), ivec2(0), edgeWeightedColor);
+        write(miniBounds.xy+ivec2(0, offset), ivec2(0), edgeWeightedColor);
+        write(miniBounds.xw+ivec2(offset, 0), ivec2(0), edgeWeightedColor);
+        write(miniBounds.zy-ivec2(offset, 0), ivec2(0), edgeWeightedColor);
+        write(miniBounds.zw-ivec2(0, offset), ivec2(0), edgeWeightedColor);
     }
     rad--;
 
@@ -313,9 +327,12 @@ void main(){
             radius = max(0.5 ,radius-2*i);
             #endif
 
+            int rad = clamp(int(radius),0,MAX_RAD);
+
+            if(samplePos.x+rad<scanAreaStart.x || samplePos.y+rad<scanAreaStart.y || samplePos.x-rad>=scanAreaEndExclusive.x || samplePos.y-rad>=scanAreaEndExclusive.y)
+                continue;
+
             doTheBlurForOneColor();
-//            drawLineX(ivec2(-3,SIZE+SIZE-int(4*frameTimeCounter)),SIZE+SIZE,0,writeColorI);
-//            drawLineY(ivec2(SIZE-int(4*frameTimeCounter),-3),SIZE+SIZE,0,0x00400);
         }
 
 
