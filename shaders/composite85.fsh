@@ -28,8 +28,9 @@ void main(){
 
     float refColor = 16*fract(frameTimeCounter*0.2);
 //    refColor=3;
-    sampledColor*=4*refColor*refColor;
-    sampledColor*=0.5;
+//    sampledColor*=4*refColor*refColor;
+//    sampledColor*=0.5;
+    sampledColor*=4e9;
 
     float testColor = 1;
     const int[] gridlevels = {0,2,5};

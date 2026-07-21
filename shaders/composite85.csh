@@ -3,7 +3,7 @@
 
 
 #define SIZE 32
-#define MAX_RAD 48
+#define MAX_RAD 16
 #define MAX_LEVEL 4
 
 
@@ -75,109 +75,117 @@ void drawLine(ivec2 pos, ivec2 step, int steps, int level, uint data){
     }
 }
 
-void drawLineX(ivec2 pos, int steps, int startingLevel, uint color){
-    ivec2 bounds = ivec2(pos.x,pos.x+steps-1);
-    if((pos.y>=(SIZE>>startingLevel))|| (pos.y<0))
+void drawLineX(ivec2 bounds, int y, int levelY, uint color){
+
+//    for(int x=bounds.x;x<=bounds.y;x++){
+//        write(ivec2(x,y),ivec2(0,levelY),color);
+//    }
+
+    if((y>=(SIZE>>levelY))|| (y<0))
         return;
 
-    pos.y+=SIZE>>startingLevel;
+    y+=SIZE>>levelY;
 
     int level;
 
-    for(level = startingLevel; level < MAX_LEVEL; level++){
+
+    for(level = 0; level < MAX_LEVEL; level++){
         if(bounds.y<bounds.x)return;
         if(bounds.y-bounds.x<=1){
             break;
         }
+        int levelOffset = SIZE>>level;
 
-        if(bool( bounds.x  &1) && !((bounds.x>=(SIZE>>level))||(bounds.x<0)))
-            atomicAdd(thebufferrrr[bounds.x+(SIZE>>level)][pos.y],color);
+        #ifdef DOF2_TEST_PATTERN
+        if(!bool(((level+levelY)%7)&(1<<debugNum)))
+        #endif
+        {
+            if (bool(bounds.x  &1) && !((bounds.x>=levelOffset)||(bounds.x<0)))
+                atomicAdd(thebufferrrr[bounds.x+levelOffset][y], color);
 
-        if(bool((~bounds.y)&1) && !((bounds.y>=(SIZE>>level))||(bounds.y<0)))
-            atomicAdd(thebufferrrr[bounds.y+(SIZE>>level)][pos.y],color);
+            if (bool((~bounds.y)&1) && !((bounds.y>=levelOffset)||(bounds.y<0)))
+                atomicAdd(thebufferrrr[bounds.y+levelOffset][y], color);
+        }
 
-        bounds = (bounds+ivec2(1,-1))>>1;
+        bounds.x++;
+        bounds.y--;
+        bounds>>=1;
     }
 
-    if((bounds.y<bounds.x) || ((bounds.x>=(SIZE>>level))||(bounds.x<0)||(bounds.y>=(SIZE>>level))||(bounds.y<0)))return;
-    bounds+=(SIZE>>level);
+    if((y>=2*(SIZE>>levelY))||(y<SIZE>>levelY))
+        return;
+
+    bounds.x=max(bounds.x,0);
+    bounds.y=min(bounds.y,(SIZE>>level)-1);
 
     for(int x=bounds.x;x<=bounds.y;x++){
-        atomicAdd(thebufferrrr[x][pos.y],color);
+        #ifdef DOF2_TEST_PATTERN
+        if(bool(((level+levelY)%7)&(1<<debugNum))) continue;
+        #endif
+        atomicAdd(thebufferrrr[x+(SIZE>>level)][y],color);
     }
 }
 
-void drawLineY(ivec2 pos, int steps, int startingLevel, uint color){
-    ivec2 bounds = ivec2(pos.y,pos.y+steps-1);
-    if((pos.x>=(SIZE>>startingLevel))|| (pos.x<0))
-    return;
+//void drawLineY(ivec2 pos, int steps, int startingLevel, uint color){
+//    ivec2 bounds = ivec2(pos.y,pos.y+steps-1);
+//    if((pos.x>=(SIZE>>startingLevel))|| (pos.x<0))
+//    return;
+//
+//    pos.x+=SIZE>>startingLevel;
+//
+//    int level;
+//
+//    for(level = startingLevel; level < MAX_LEVEL; level++){
+//        if(bounds.y<bounds.x)return;
+//        if(bounds.y-bounds.x<=1){
+//            break;
+//        }
+//
+//        if(bool( bounds.x  &1) && !((bounds.x>=(SIZE>>level))||(bounds.x<0)))
+//            atomicAdd(thebufferrrr[pos.x][bounds.x+(SIZE>>level)],color);
+//
+//        if(bool((~bounds.y)&1) && !((bounds.y>=(SIZE>>level))||(bounds.y<0)))
+//            atomicAdd(thebufferrrr[pos.x][bounds.y+(SIZE>>level)],color);
+//
+//        bounds = (bounds+ivec2(1,-1))>>1;
+//    }
+//
+//    if((bounds.y<bounds.x) || ((bounds.x>=(SIZE>>level))||(bounds.x<0)||(bounds.y>=(SIZE>>level))||(bounds.y<0)))return;
+//    bounds+=(SIZE>>level);
+//
+//    for(int y=bounds.x;y<=bounds.y;y++){
+//        atomicAdd(thebufferrrr[pos.x][y],color);
+//    }
+//}
 
-    pos.x+=SIZE>>startingLevel;
 
+void drawRectangle(ivec4 bounds, uint color){
     int level;
 
-    for(level = startingLevel; level < MAX_LEVEL; level++){
-        if(bounds.y<bounds.x)return;
-        if(bounds.y-bounds.x<=1){
+
+    for(level = 0; level < MAX_LEVEL; level++){
+        if(bounds.w<bounds.y)return;
+        if(bounds.w-bounds.y<=1){
             break;
         }
+        int levelOffset = SIZE>>level;
 
-        if(bool( bounds.x  &1) && !((bounds.x>=(SIZE>>level))||(bounds.x<0)))
-            atomicAdd(thebufferrrr[pos.x][bounds.x+(SIZE>>level)],color);
+        if (bool(bounds.y  &1))
+            drawLineX(bounds.xz,bounds.y,level,color);
 
-        if(bool((~bounds.y)&1) && !((bounds.y>=(SIZE>>level))||(bounds.y<0)))
-            atomicAdd(thebufferrrr[pos.x][bounds.y+(SIZE>>level)],color);
+        if (bool((~bounds.w)&1))
+            drawLineX(bounds.xz,bounds.w,level,color);
 
-        bounds = (bounds+ivec2(1,-1))>>1;
+        bounds.y++;
+        bounds.w--;
+        bounds.yw>>=1;
     }
 
-    if((bounds.y<bounds.x) || ((bounds.x>=(SIZE>>level))||(bounds.x<0)||(bounds.y>=(SIZE>>level))||(bounds.y<0)))return;
-    bounds+=(SIZE>>level);
+    bounds.y=max(bounds.y,0);
+    bounds.w=min(bounds.w,(SIZE>>level)-1);
 
-    for(int y=bounds.x;y<=bounds.y;y++){
-        atomicAdd(thebufferrrr[pos.x][y],color);
-    }
-}
-
-
-void drawRectangle(ivec4 bounds, uint color, int startingLevel){
-    int level;
-
-    bounds = clamp(bounds,0,SIZE);
-
-    for(int i=0; i<startingLevel;i++){
-        bounds = (bounds+ivec4(1,1,-1,-1))>>1;
-    }
-
-    for(level = startingLevel; level < MAX_LEVEL; level++){
-        if(bounds.z<bounds.x || bounds.w<bounds.y)return;
-        if((bounds.z-bounds.x<=1) && (bounds.w-bounds.y<=1)){
-            break;
-        }
-
-        int xsteps = 1+bounds.z-bounds.x;
-        if(bool( bounds.y  &1))
-            drawLineX(bounds.xy,xsteps,level,color);
-
-        if(bool((~bounds.w)&1))
-            drawLineX(bounds.xw,xsteps,level,color);
-
-        int yIterStart = bounds.y+(bounds.y&1);
-        int ysteps = (bounds.w+((bounds.w)&1)) - yIterStart;
-
-        if(bool( bounds.x  &1))
-            drawLineY(ivec2(bounds.x,yIterStart),ysteps,level,color);
-
-        if(bool((~bounds.z)&1))
-            drawLineY(ivec2(bounds.z,yIterStart),ysteps,level,color);
-
-        bounds = (bounds+ivec4(1,1,-1,-1))>>1;
-    }
-
-    if(bounds.z<bounds.x || bounds.w<bounds.y)return;
-    int xSteps = 1+bounds.z-bounds.x;
     for(int y=bounds.y;y<=bounds.w;y++){
-        drawLineX(ivec2(bounds.x,y),xSteps,level,color);
+        drawLineX(bounds.xz,y,level,color);
     }
 }
 
@@ -251,12 +259,7 @@ void doBlurSquare(){
     bounds.xy-=rad;
     bounds.zw+=rad;
 
-    ivec2 edgeXY = ivec2(bool(bounds.x&1)?bounds.x:bounds.z,bool(bounds.y&1)?bounds.y:bounds.w);
-    write(ivec2(edgeXY), ivec2(0),fullWeightColor);
-    drawLineX(ivec2(bounds.x+(bounds.x&1),edgeXY.y),rad+rad,0,fullWeightColor);
-    drawLineY(ivec2(edgeXY.x,bounds.y+(bounds.y&1)),rad+rad,0,fullWeightColor);
-
-    drawRectangle(bounds,fullWeightColor,1);
+    drawRectangle(bounds,fullWeightColor);
 }
 
 //reference implementation
