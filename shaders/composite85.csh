@@ -3,7 +3,7 @@
 
 
 #define SIZE 32
-#define MAX_RAD 16
+#define MAX_RAD 10
 #define MAX_LEVEL 4
 
 
@@ -12,70 +12,71 @@ layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
 
 
 
-layout (r32ui) uniform restrict uimage2D dynamicDofImg;
-shared uint[SIZE+SIZE][SIZE+SIZE] thebufferrrr;
+layout (rgba32ui) uniform restrict uimage2D dynamicDofImg;
+shared uint[SIZE+SIZE][SIZE+SIZE][3] thebufferrrr;
 
 
 uniform sampler2D colortex0;
 uniform sampler2D colortex12;
 
 ivec2 samplePos;
-uint writeColorI;
-int pageOffset;
-int pageSize;
 float radius;
-
-#ifdef DOF2_TEST_PATTERN
-int debugNum;
-#endif
 
 void initBuffer(){
     int id = int(gl_LocalInvocationIndex);
     id<<=2;
     ivec2 pos = ivec2(id/(2*SIZE),id%(2*SIZE));
     for(int i=0;i<4;i++){
-        thebufferrrr[pos.x][pos.y+i]=0u;
+        for(int j=0;j<3;j++){
+            thebufferrrr[pos.x][pos.y+i][j]=0u;
+        }
     }
 }
 
 void flushBuffer(){
-    uint value = 0;
+    uvec3 value = uvec3(0);
 
     ivec2 level;
     for(level.x=0; level.x<=MAX_LEVEL;level.x++){
         for(level.y=0; level.y<=MAX_LEVEL;level.y++){
             ivec2 levelPos = ivec2(gl_LocalInvocationID.xy+SIZE)>>level;
-            value+=thebufferrrr[levelPos.x][levelPos.y];
+            for(int i=0;i<3;i++){
+                #ifdef DOF2_TEST_PATTERN
+                if(bool(((level.x+level.y)%7)&(1<<i)))
+                    continue;
+                #endif
+                value[i]+=thebufferrrr[levelPos.x][levelPos.y][i];
+            }
         }
     }
 
     ivec2 pos = ivec2(gl_WorkGroupID.xy*SIZE+gl_LocalInvocationID.xy);
-    if(pos.x>=0 && pos.x<pageSize && value!=0)
-        imageAtomicAdd(dynamicDofImg,ivec2(pos.x+pageOffset,pos.y),value);
+    if(value!=uvec3(0))
+        imageStore(dynamicDofImg,pos,uvec4(value,0));
 }
 
+void bufferDirectWrite(ivec2 pos, uvec3 color){
+    for(int i=0;i<3;i++)
+        atomicAdd(thebufferrrr[pos.x][pos.y][i],color[i]);
+}
 
-
-void write(ivec2 pos,ivec2 level, uint data){
+void write(ivec2 pos,ivec2 level, uvec3 color){
     if((pos.x>=(SIZE>>level.x))||(pos.y>=(SIZE>>level.y))||(pos.x<0) || (pos.y<0))
         return;
-    #ifdef DOF2_TEST_PATTERN
-    if(bool(((level.x+level.y)%7)&(1<<debugNum))) return;
-    #endif
 
     pos+=ivec2(SIZE)>>level;
-    atomicAdd(thebufferrrr[pos.x][pos.y],data);
+    bufferDirectWrite(pos,color);
 }
 
 
-void drawLine(ivec2 pos, ivec2 step, int steps, int level, uint data){
+void drawLine(ivec2 pos, ivec2 step, int steps, int level, uvec3 data){
     for(int i=0; i<steps; i++){
         write(pos,ivec2(level),data);
         pos+=step;
     }
 }
 
-void drawLineX(ivec2 bounds, int y, int levelY, uint color){
+void drawLineX(ivec2 bounds, int y, int levelY, uvec3 color){
 
 //    for(int x=bounds.x;x<=bounds.y;x++){
 //        write(ivec2(x,y),ivec2(0,levelY),color);
@@ -96,16 +97,11 @@ void drawLineX(ivec2 bounds, int y, int levelY, uint color){
         }
         int levelOffset = SIZE>>level;
 
-        #ifdef DOF2_TEST_PATTERN
-        if(!bool(((level+levelY)%7)&(1<<debugNum)))
-        #endif
-        {
-            if (bool(bounds.x  &1) && !((bounds.x>=levelOffset)||(bounds.x<0)))
-                atomicAdd(thebufferrrr[bounds.x+levelOffset][y], color);
+        if (bool(bounds.x  &1) && !((bounds.x>=levelOffset)||(bounds.x<0)))
+            bufferDirectWrite(ivec2(bounds.x+levelOffset,y), color);
 
-            if (bool((~bounds.y)&1) && !((bounds.y>=levelOffset)||(bounds.y<0)))
-                atomicAdd(thebufferrrr[bounds.y+levelOffset][y], color);
-        }
+        if (bool((~bounds.y)&1) && !((bounds.y>=levelOffset)||(bounds.y<0)))
+            bufferDirectWrite(ivec2(bounds.y+levelOffset,y), color);
 
         bounds.x++;
         bounds.y--;
@@ -117,49 +113,13 @@ void drawLineX(ivec2 bounds, int y, int levelY, uint color){
 
     bounds.x=max(bounds.x,0);
     bounds.y=min(bounds.y,(SIZE>>level)-1);
+    bounds+=(SIZE>>level);
 
-    for(int x=bounds.x;x<=bounds.y;x++){
-        #ifdef DOF2_TEST_PATTERN
-        if(bool(((level+levelY)%7)&(1<<debugNum))) continue;
-        #endif
-        atomicAdd(thebufferrrr[x+(SIZE>>level)][y],color);
-    }
+    for(int x=bounds.x;x<=bounds.y;x++)
+        bufferDirectWrite(ivec2(x,y), color);
 }
 
-//void drawLineY(ivec2 pos, int steps, int startingLevel, uint color){
-//    ivec2 bounds = ivec2(pos.y,pos.y+steps-1);
-//    if((pos.x>=(SIZE>>startingLevel))|| (pos.x<0))
-//    return;
-//
-//    pos.x+=SIZE>>startingLevel;
-//
-//    int level;
-//
-//    for(level = startingLevel; level < MAX_LEVEL; level++){
-//        if(bounds.y<bounds.x)return;
-//        if(bounds.y-bounds.x<=1){
-//            break;
-//        }
-//
-//        if(bool( bounds.x  &1) && !((bounds.x>=(SIZE>>level))||(bounds.x<0)))
-//            atomicAdd(thebufferrrr[pos.x][bounds.x+(SIZE>>level)],color);
-//
-//        if(bool((~bounds.y)&1) && !((bounds.y>=(SIZE>>level))||(bounds.y<0)))
-//            atomicAdd(thebufferrrr[pos.x][bounds.y+(SIZE>>level)],color);
-//
-//        bounds = (bounds+ivec2(1,-1))>>1;
-//    }
-//
-//    if((bounds.y<bounds.x) || ((bounds.x>=(SIZE>>level))||(bounds.x<0)||(bounds.y>=(SIZE>>level))||(bounds.y<0)))return;
-//    bounds+=(SIZE>>level);
-//
-//    for(int y=bounds.x;y<=bounds.y;y++){
-//        atomicAdd(thebufferrrr[pos.x][y],color);
-//    }
-//}
-
-
-void drawRectangle(ivec4 bounds, uint color){
+void drawRectangle(ivec4 bounds, uvec3 color){
     int level;
 
 
@@ -201,7 +161,7 @@ int quantizedCircleArea(int rad){
 }
 
 //reference implementation
-void doBlurSquareExpensive(){
+void doBlurSquareExpensive(uvec3 color){
     int rad = clamp(int(radius+0.5),0,MAX_RAD);
 
     int actualArea = (rad+rad+1);
@@ -210,8 +170,8 @@ void doBlurSquareExpensive(){
     int edgePixels = rad<<3;
     float edgeWeight=1-(actualArea-desiredArea)/edgePixels;
 
-    uint fullWeightColor = int(writeColorI/desiredArea);
-    uint edgeWeightedColor = uint(fullWeightColor*edgeWeight);
+    uvec3 fullWeightColor = uvec3(color/desiredArea);
+    uvec3 edgeWeightedColor = uvec3(fullWeightColor*edgeWeight);
 
     for(int x=-rad; x<=rad; x++){
         for (int y=-rad; y<=rad; y++){
@@ -222,14 +182,14 @@ void doBlurSquareExpensive(){
     }
 }
 
-void doBlurSquare(){
+void doBlurSquare(uvec3 color){
     int rad = clamp(int(radius+0.5),0,MAX_RAD);
     int actualArea = (rad+rad+1);
     actualArea*=actualArea;
 
     float desiredArea = 4.0*radius*radius;
-    uint fullWeightColor = int(writeColorI/desiredArea);
-    if(fullWeightColor<0x10)fullWeightColor=0;
+    uvec3 fullWeightColor = uvec3(color/desiredArea);
+//    if(fullWeightColor<0x10)fullWeightColor=0;
 
 
     ivec4 miniBounds = ivec4(samplePos.xyxy);
@@ -241,7 +201,7 @@ void doBlurSquare(){
 
     int edgePixels = rad<<3;
     float edgeWeight=1-(actualArea-desiredArea)/edgePixels;
-    uint edgeWeightedColor = (writeColorI-(fullWeightColor*(2*rad-1)*(2*rad-1)))/(maxEdgeEffort<<2);
+    uvec3 edgeWeightedColor = (color-(fullWeightColor*(2*rad-1)*(2*rad-1)))/(maxEdgeEffort<<2);
 
     for (int i=0; i<maxEdgeEffort; i++){
         int offset = (rad*i<<1)/maxEdgeEffort;
@@ -263,15 +223,15 @@ void doBlurSquare(){
 }
 
 //reference implementation
-void doBlurCircleExpensive(){
+void doBlurCircleExpensive(uvec3 color){
     int rad = clamp(int(radius),0,MAX_RAD);
     int radSquared = rad*rad;
-    writeColorI/=quantizedCircleArea(rad);
+    color/=quantizedCircleArea(rad);
 
     for(int y=-rad; y<=rad; y++){
         int xRange = int(sqrt(radSquared-y*y));
         for (int x=-xRange; x<=xRange; x++){
-            write(ivec2(x+samplePos.x, y+samplePos.y), ivec2(0),writeColorI);
+            write(ivec2(x+samplePos.x, y+samplePos.y), ivec2(0),color);
         }
     }
 }
@@ -282,69 +242,43 @@ void doBlurCircle(){
 }
 
 
-void doTheBlurForOneColor(){
+void doTheBlurForOneColor(uvec3 color){
     if(radius<=0.501){
-        write(samplePos, ivec2(0),writeColorI);
+        write(samplePos, ivec2(0),color);
         return;
     }
 
     radius = clamp(radius,0.5,MAX_RAD-0.5);
 
-    doBlurSquare();
+    doBlurSquare(color);
 }
 
 uniform float frameTimeCounter;
 
 void main(){
-    ivec2 texSize = textureSize(colortex0,0);
-    pageSize = texSize.x;
+    initBuffer();
+    barrier();
 
+    ivec2 scanAreaStart = max(ivec2(-MAX_RAD),-ivec2(gl_WorkGroupID.xy*SIZE));
+    ivec2 scanAreaEndExclusive = min(ivec2(SIZE+MAX_RAD),textureSize(colortex0,0)-ivec2(gl_WorkGroupID.xy*SIZE));
+    int wrap = scanAreaEndExclusive.y-scanAreaStart.y;
+    const int maxIndex = (SIZE+2*MAX_RAD)*(SIZE+2*MAX_RAD);
 
-    for(int i=0; i<3; i++){
-        pageOffset = i*pageSize;
-        #ifdef DOF2_TEST_PATTERN
-        debugNum = i;
-        #endif
+    for(int id = int(gl_LocalInvocationIndex);id<maxIndex;id+=SIZE*SIZE){
+        samplePos = ivec2(id/wrap, id%wrap)+scanAreaStart;
+        ivec2 globalPos = samplePos + ivec2(gl_WorkGroupID.xy*SIZE);
 
-        initBuffer();
-        barrier();
+        uvec3 color = uvec3(texelFetch(colortex0,globalPos,0).rgb*0x00800000u);
+        radius=texelFetch(colortex12,globalPos,0).y;
 
-        ivec2 scanAreaStart = ivec2(-MAX_RAD);
-        ivec2 scanAreaEndExclusive = ivec2(SIZE+MAX_RAD);
-//        scanAreaStart=ivec2(0);
-//        scanAreaEndExclusive=ivec2(SIZE);
-        int wrap = scanAreaEndExclusive.y-scanAreaStart.y;
-        const int maxIndex = (SIZE+2*MAX_RAD)*(SIZE+2*MAX_RAD);
+        int rad = clamp(int(radius),0,MAX_RAD);
 
-        for(int id = int(gl_LocalInvocationIndex);id<maxIndex;id+=SIZE*SIZE){
-            samplePos = ivec2(id/wrap, id%wrap)+scanAreaStart;
-            ivec2 globalPos = samplePos + ivec2(gl_WorkGroupID.xy*SIZE);
-            if(globalPos.x<0 || globalPos.y<0 || globalPos.x>=texSize.x || globalPos.y>=texSize.y)
-                continue;
+        if(samplePos.x+rad<scanAreaStart.x || samplePos.y+rad<scanAreaStart.y || samplePos.x-rad>=scanAreaEndExclusive.x || samplePos.y-rad>=scanAreaEndExclusive.y)
+            continue;
 
-            writeColorI = uint(texelFetch(colortex0,globalPos,0).rgb[i]*0x00800000u);
-            radius=texelFetch(colortex12,globalPos,0).y;
-
-            #ifdef DOF_ABBERATION
-            radius = min(radius ,MAX_RAD-0.5);
-            radius = max(0.5 ,radius-2*i);
-            #endif
-
-            int rad = clamp(int(radius),0,MAX_RAD);
-
-            if(samplePos.x+rad<scanAreaStart.x || samplePos.y+rad<scanAreaStart.y || samplePos.x-rad>=scanAreaEndExclusive.x || samplePos.y-rad>=scanAreaEndExclusive.y)
-                continue;
-
-            doTheBlurForOneColor();
-        }
-
-
-
-
-        barrier();
-        flushBuffer();
-
-        if(i<2)
-            barrier();
+        doTheBlurForOneColor(color);
     }
+
+    barrier();
+    flushBuffer();
 }

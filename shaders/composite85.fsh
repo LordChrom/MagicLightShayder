@@ -19,10 +19,9 @@ void main(){
     #endif
 //    samplePos = (textureSize(colortex0,0)>>1)+((samplePos-(textureSize(colortex0,0)>>1))>>3);
 
-    uint pageSize = textureSize(colortex0,0).x;
-    for(int i=0; i<3; i++){
-        sampledColor[i]=float(texelFetch(dynamicDofSampler,ivec2(samplePos.x+i*pageSize,samplePos.y),0).x)/float(0x00800000u);
-    }
+//    for(int i=0; i<3; i++){
+    sampledColor=vec3(texelFetch(dynamicDofSampler,samplePos,0).rgb)/float(0x00800000u);
+//    }
 
     #ifdef DOF2_TEST_PATTERN
 
