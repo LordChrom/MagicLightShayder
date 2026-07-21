@@ -7,27 +7,16 @@
 #define MAX_RAD 10
 #define MAX_LEVEL 4
 
-const uint bufferWidth = (SIZE+2*MAX_RAD);
-const int[] bufferBorder = {MAX_RAD,(MAX_RAD+0x1)>>1,(MAX_RAD+0x3)>>2,(MAX_RAD+0x7)>>3,(MAX_RAD+0xf)>>4,(MAX_RAD+0x1f)>>5,(MAX_RAD+0x1f)>>6};
-const int[] scaleOffsets = {
-    0,0,
-    ((SIZE>>1)+2*bufferBorder[1]),
-    ((SIZE>>1)+2*bufferBorder[1]) + ((SIZE>>2)+2*bufferBorder[2]),
-    ((SIZE>>1)+2*bufferBorder[1]) + ((SIZE>>2)+2*bufferBorder[2]) + ((SIZE>>3)+2*bufferBorder[3]),
-    ((SIZE>>1)+2*bufferBorder[1]) + ((SIZE>>2)+2*bufferBorder[2]) + ((SIZE>>3)+2*bufferBorder[3]) + ((SIZE>>4)+2*bufferBorder[4]),
-    ((SIZE>>1)+2*bufferBorder[1]) + ((SIZE>>2)+2*bufferBorder[2]) + ((SIZE>>3)+2*bufferBorder[3]) + ((SIZE>>4)+2*bufferBorder[4]) + ((SIZE>>5)+2*bufferBorder[5]),
-};
-
 
 const vec2 workGroupsRender = vec2(1.0,1.0);
 layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
 
 
+const uint bufferWidth = (SIZE+2*MAX_RAD);
 const ivec2 actualBufferSize = ivec2(bufferWidth+(bufferWidth>>1)+1,bufferWidth);
 
 layout (r32ui) uniform restrict uimage2D dynamicDofImg;
 shared uint[actualBufferSize.x][actualBufferSize.y] thebufferrrr;
-
 
 
 uniform sampler2D colortex0;
@@ -44,6 +33,17 @@ int debugNum;
 #endif
 
 
+int bufferBorder(uint level){
+    return int((MAX_RAD+((1<<level)-1))>>level);
+}
+
+int scaleOffset(uint level){
+    if(level==0) return 0;
+    level--;
+    return int(
+        bufferWidth-(bufferWidth>>level)+level//bitCount(bufferWidth<<(32-level))
+    );
+}
 
 void initBuffer(){
     const uint fullBufferSize = actualBufferSize.x*actualBufferSize.y;
@@ -60,36 +60,39 @@ void addColorAtPos(ivec2 pos,uint level, uint data){
     return;
     #endif
 
-    pos += bufferBorder[level];
-    if(level!=0){
+    pos += bufferBorder(level);
+    if(bool(level)){
         pos.x+=int(bufferWidth);
-        pos.y+=scaleOffsets[level];
+        pos.y+=scaleOffset(level);
     }
     atomicAdd(thebufferrrr[pos.x][pos.y],data);
 }
 
 void drawLine(ivec2 pos, ivec2 step, int steps, uint level, uint data){
-//    #define DRAW_SHORTCUT
+    #define DRAW_SHORTCUT
     #ifdef DRAW_SHORTCUT
         #ifdef DOF2_TEST_PATTERN
         if(bool(level&(1u<<debugNum)))
         return;
         #endif
 
-    pos += bufferBorder[level];
+    pos += bufferBorder(level);
     if(level!=0){
         pos.x+=int(bufferWidth);
-        pos.y+=scaleOffsets[level];
+        pos.y+=scaleOffset(level);
     }
     for(int i=0; i<steps; i++){
         atomicAdd(thebufferrrr[pos.x][pos.y],data);
         pos+=step;
     }
+
     #else
+
     for(int i=0; i<steps; i++){
         addColorAtPos(pos,level,data);
         pos+=step;
     }
+
     #endif
 }
 
@@ -100,13 +103,13 @@ void flushBuffer(){
         ivec2 pos2d = ivec2(pos%bufferWidth,pos/bufferWidth);
 
         uint value = thebufferrrr[pos2d.x][pos2d.y];
-//        value=0;
-        ivec2 levelPosBase = pos2d-bufferBorder[0];
+
+        ivec2 levelPosBase = pos2d-bufferBorder(0);
         for(int level=1; level<=MAX_LEVEL;level++){
             ivec2 levelPos = levelPosBase>>level;
-            levelPos += bufferBorder[level];
+            levelPos += bufferBorder(level);
             levelPos.x+=int(bufferWidth);
-            levelPos.y+=scaleOffsets[level];
+            levelPos.y+=scaleOffset(level);
             value+=thebufferrrr[levelPos.x][levelPos.y];
         }
 
