@@ -40,7 +40,7 @@ float calcRadius(ivec2 texpos){
 
 in vec2 texcoord;
 
-
+uniform float frameTimeCounter;
 
 void main() {
     ivec2 texpos = ivec2(gl_FragCoord.xy);
@@ -49,9 +49,9 @@ void main() {
     testColor=vec3(0);
     CoCbuff.y=0;
 
-    bool awa = (texpos%29)==ivec2(0);
+    bool awa = (texpos%63)==ivec2(0);
     if(awa){
-        CoCbuff.y=6.19;
+        CoCbuff.y=5+5*sin(frameTimeCounter*0.5);
         testColor=vec3(1);
     }
     #else

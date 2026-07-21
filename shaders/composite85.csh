@@ -1,4 +1,5 @@
 #version 430
+#extension GL_KHR_shader_subgroup_vote : enable
 #include "lib/settings.glsl"
 
 
@@ -7,12 +8,14 @@
 #define MAX_LEVEL 4
 
 const uint bufferWidth = (SIZE+2*MAX_RAD);
-const int[] bufferBorder = {MAX_RAD,(MAX_RAD+0x1)>>1,(MAX_RAD+0x3)>>2,(MAX_RAD+0x7)>>3,(MAX_RAD+0xf)>>4};
+const int[] bufferBorder = {MAX_RAD,(MAX_RAD+0x1)>>1,(MAX_RAD+0x3)>>2,(MAX_RAD+0x7)>>3,(MAX_RAD+0xf)>>4,(MAX_RAD+0x1f)>>5,(MAX_RAD+0x1f)>>6};
 const int[] scaleOffsets = {
     0,0,
     ((SIZE>>1)+2*bufferBorder[1]),
     ((SIZE>>1)+2*bufferBorder[1]) + ((SIZE>>2)+2*bufferBorder[2]),
     ((SIZE>>1)+2*bufferBorder[1]) + ((SIZE>>2)+2*bufferBorder[2]) + ((SIZE>>3)+2*bufferBorder[3]),
+    ((SIZE>>1)+2*bufferBorder[1]) + ((SIZE>>2)+2*bufferBorder[2]) + ((SIZE>>3)+2*bufferBorder[3]) + ((SIZE>>4)+2*bufferBorder[4]),
+    ((SIZE>>1)+2*bufferBorder[1]) + ((SIZE>>2)+2*bufferBorder[2]) + ((SIZE>>3)+2*bufferBorder[3]) + ((SIZE>>4)+2*bufferBorder[4]) + ((SIZE>>5)+2*bufferBorder[5]),
 };
 
 
@@ -20,8 +23,10 @@ const vec2 workGroupsRender = vec2(1.0,1.0);
 layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
 
 
+const ivec2 actualBufferSize = ivec2(bufferWidth+(bufferWidth>>1)+1,bufferWidth);
+
 layout (r32ui) uniform restrict uimage2D dynamicDofImg;
-shared uint[bufferWidth+(bufferWidth>>1)+1][bufferWidth] thebufferrrr;
+shared uint[actualBufferSize.x][actualBufferSize.y] thebufferrrr;
 
 
 
@@ -41,10 +46,10 @@ int debugNum;
 
 
 void initBuffer(){
-    const uint fullBufferSize = bufferWidth*(bufferWidth+(bufferWidth>>1)+1);
+    const uint fullBufferSize = actualBufferSize.x*actualBufferSize.y;
 
     for(uint pos = gl_LocalInvocationIndex; pos<fullBufferSize;pos+=SIZE*SIZE){
-        ivec2 pos2d = ivec2(pos/bufferWidth,pos%bufferWidth);
+        ivec2 pos2d = ivec2(pos/actualBufferSize.y,pos%actualBufferSize.y);
         thebufferrrr[pos2d.x][pos2d.y]=0u;
     }
 }
@@ -61,6 +66,31 @@ void addColorAtPos(ivec2 pos,uint level, uint data){
         pos.y+=scaleOffsets[level];
     }
     atomicAdd(thebufferrrr[pos.x][pos.y],data);
+}
+
+void drawLine(ivec2 pos, ivec2 step, int steps, uint level, uint data){
+//    #define DRAW_SHORTCUT
+    #ifdef DRAW_SHORTCUT
+        #ifdef DOF2_TEST_PATTERN
+        if(bool(level&(1u<<debugNum)))
+        return;
+        #endif
+
+    pos += bufferBorder[level];
+    if(level!=0){
+        pos.x+=int(bufferWidth);
+        pos.y+=scaleOffsets[level];
+    }
+    for(int i=0; i<steps; i++){
+        atomicAdd(thebufferrrr[pos.x][pos.y],data);
+        pos+=step;
+    }
+    #else
+    for(int i=0; i<steps; i++){
+        addColorAtPos(pos,level,data);
+        pos+=step;
+    }
+    #endif
 }
 
 void flushBuffer(){
@@ -123,57 +153,40 @@ void doBlurSquareExpensive(){
 }
 
 void doBlurSquare(){
-
     int rad = clamp(int(radius+0.5),0,MAX_RAD);
     int actualArea = (rad+rad+1);
     actualArea*=actualArea;
 
-    #ifdef DOF_FIX_SEAMS
-
     float desiredArea = 4.0*radius*radius;
     uint fullWeightColor = int(writeColorI/desiredArea);
     #ifdef DOF2_TEST_PATTERN
-    if(fullWeightColor>0) fullWeightColor=0x00800000;
+    if(fullWeightColor>0) fullWeightColor=0x00400000;
     #endif
-    if(fullWeightColor<0x100)fullWeightColor=0;
+    if(fullWeightColor<0x10)fullWeightColor=0;
 
 
+    ivec4 miniBounds = ivec4(gl_LocalInvocationID.xyxy);
+    miniBounds.xy-=rad;
+    miniBounds.zw+=rad;
 
+    int effort = 3; //1 to rad*2
+    effort=min(effort,rad+rad);
 
-//    if(rad<7 || edgeWeight<0.5)
-    if(true)
-    {
+    int edgePixels = rad<<3;
+    float edgeWeight=1-(actualArea-desiredArea)/edgePixels;
+    uint edgeWeightedColor = uint(fullWeightColor*edgeWeight*edgePixels/(4*effort));
 
-        ivec4 miniBounds = ivec4(gl_LocalInvocationID.xyxy);
-        miniBounds.xy-=rad;
-        miniBounds.zw+=rad;
-
-        int effort = 2; //0 to rad*2
-
-        int edgePixels = rad<<3;
-        float edgeWeight=1-(actualArea-desiredArea)/edgePixels;
-        uint edgeWeightedColor = uint(fullWeightColor*edgeWeight*edgePixels/(4*effort));
-
-        for (int i=effort; i>0; i--){
-            int offset = (rad*i<<1)/effort;
-            addColorAtPos(miniBounds.xy+ivec2(0, offset), 0, edgeWeightedColor);
-            addColorAtPos(miniBounds.xw+ivec2(offset, 0), 0, edgeWeightedColor);
-            addColorAtPos(miniBounds.zy-ivec2(offset, 0), 0, edgeWeightedColor);
-            addColorAtPos(miniBounds.zw-ivec2(0, offset), 0, edgeWeightedColor);
-        }
-        rad--;
-    }else{
-        fullWeightColor = int(writeColorI/actualArea);
+    for (int i=0; i<effort; i++){
+        int offset = (rad*i<<1)/effort;
+        addColorAtPos(miniBounds.xy+ivec2(0, offset), 0, edgeWeightedColor);
+        addColorAtPos(miniBounds.xw+ivec2(offset, 0), 0, edgeWeightedColor);
+        addColorAtPos(miniBounds.zy-ivec2(offset, 0), 0, edgeWeightedColor);
+        addColorAtPos(miniBounds.zw-ivec2(0, offset), 0, edgeWeightedColor);
     }
+    rad--;
 
-    #else
-    uint fullWeightColor = int(writeColorI/actualArea);
-    #endif
-    if(fullWeightColor<0x100)return;
+    if(fullWeightColor==0)return;
 
-    #ifdef DOF2_TEST_PATTERN
-    if(fullWeightColor>0) fullWeightColor=0x00800000;
-    #endif
 
     //min xy, max xy
     ivec4 bounds = ivec4(gl_LocalInvocationID.xyxy);
@@ -189,54 +202,43 @@ void doBlurSquare(){
         addColorAtPos(ivec2(edgeXY.x,marchOrigin.y+i), 0,fullWeightColor);
     }
 
-    for(int level = 1; level <= MAX_LEVEL; level++){
-        bounds = (bounds+ivec4(1,1,-1,-1))>>1;
-        if(bounds.z<bounds.x || bounds.w<bounds.y)break;
 
-        if(bounds.xy==bounds.zw){
-            addColorAtPos(bounds.xy,level,fullWeightColor);
+    int level;
+    for(level = 1; level <= MAX_LEVEL; level++){
+        bounds = (bounds+ivec4(1,1,-1,-1))>>1;
+        if(bounds.z<bounds.x || bounds.w<bounds.y)return;
+        if(((bounds.z-bounds.x<=1) && (bounds.w-bounds.y<=1)) || level==MAX_LEVEL){
             break;
         }
 
-        bvec4 allowableEdges = bvec4(
-            (bounds.x&1),
-            (bounds.y&1),
-            ((~bounds.z)&1),
-            ((~bounds.w)&1)
-        );
-
-
-
+        int xsteps = 1+bounds.z-bounds.x;
         //TODO could probably be made to iterate less times by having the edges all be in the same loop
-        if(allowableEdges.y){
-            for (int x=bounds.x;x<=bounds.z;x++){
-                addColorAtPos(ivec2(x, bounds.y), level, fullWeightColor);
-            }
+        if(bool( bounds.y  &1)){
+            drawLine(bounds.xy,ivec2(1,0),xsteps,level,fullWeightColor);
         }
 
-        if(allowableEdges.w){
-            for (int x=bounds.x;x<=bounds.z;x++){
-                addColorAtPos(ivec2(x, bounds.w), level, fullWeightColor);
-            }
+        if(bool((~bounds.w)&1)){
+            drawLine(bounds.xw,ivec2(1,0),xsteps,level,fullWeightColor);
         }
 
-        ivec2 iterBounds = bounds.yw;
-        iterBounds.x+=int(allowableEdges.y);
-        iterBounds.y-=int(allowableEdges.w);
+        int yIterStart = bounds.y+(bounds.y&1);
+        int ysteps = (bounds.w+((bounds.w)&1)) - yIterStart;
 
-
-        if(allowableEdges.x){
-            for (int y=iterBounds.x;y<=iterBounds.y;y++){
-                addColorAtPos(ivec2(bounds.x, y), level, fullWeightColor);
-            }
+        if(bool( bounds.x  &1)){
+            drawLine(ivec2(bounds.x,yIterStart),ivec2(0,1),ysteps,level,fullWeightColor);
         }
 
-        if(allowableEdges.z){
-            for (int y=iterBounds.x;y<=iterBounds.y;y++){
-                addColorAtPos(ivec2(bounds.z, y), level, fullWeightColor);
-            }
+        if(bool((~bounds.z)&1)){
+            drawLine(ivec2(bounds.z,yIterStart),ivec2(0,1),ysteps,level,fullWeightColor);
         }
+    }
 
+//    bounds = (bounds+ivec4(1,1,-1,-1))>>1;
+    if(bounds.z<bounds.x || bounds.w<bounds.y)return;
+    for(int x=bounds.x;x<=bounds.z;x++){
+        for(int y=bounds.y;y<=bounds.w;y++){
+            addColorAtPos(ivec2(x,y), level, fullWeightColor);
+        }
     }
 }
 
@@ -303,8 +305,8 @@ void main(){
         debugNum = i;
         #endif
         #ifdef DOF_ABBERATION
-        radius = clamp(radius,0.5,MAX_RAD-0.5);
-        radius = ogRadius*(0.4+0.3*i);
+        radius = min(ogRadius,MAX_RAD-0.5);
+        radius = max(0.5,radius-2*i);
         #endif
 
         initBuffer();
