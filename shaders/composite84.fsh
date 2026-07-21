@@ -37,7 +37,7 @@ float calcRadius(ivec2 texpos){
 
     rad = clamp(abs(rad),0,1);
     rad*=viewHeight;
-    return clamp(rad,0,32)*sign(solidDepth+transDepth-2*depthTarget);
+    return max(rad,0)*sign(solidDepth+transDepth-2*depthTarget);
 }
 
 
@@ -63,5 +63,5 @@ void main() {
     #else
     CoCbuff.y=calcRadius(texpos);
     #endif
-    CoCbuff.y=clamp(abs(CoCbuff.y),0,32);
+    CoCbuff.y=clamp(abs(CoCbuff.y),0,256);
 }
