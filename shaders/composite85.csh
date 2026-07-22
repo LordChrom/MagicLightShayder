@@ -2,7 +2,7 @@
 #include "lib/settings.glsl"
 
 
-#define SIZE 32
+#define SIZE 8
 #define MAX_RAD 32
 #define MAX_LEVEL 5
 
@@ -12,103 +12,63 @@ layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
 
 
 
-layout (rgba32ui) uniform restrict uimage2D dynamicDofImg;
-shared uint[SIZE+SIZE][SIZE+SIZE][3] thebufferrrr;
+layout (r32ui) uniform restrict uimage2D dynamicDofImg;
 
 
 uniform sampler2D colortex0;
 uniform sampler2D colortex12;
 
+ivec2 bufferSize;
 ivec2 samplePos;
 float radius;
 
-void initBuffer(){
-    int id = int(gl_LocalInvocationIndex);
-    id<<=2;
-    ivec2 pos = ivec2(id/(2*SIZE),id%(2*SIZE));
-    for(int i=0;i<4;i++){
-        for(int j=0;j<3;j++){
-            thebufferrrr[pos.x][pos.y+i][j]=0u;
-        }
-    }
-}
-
-void flushBuffer(){
-    uvec3 value = uvec3(0);
-
-    ivec2 level;
-    for(level.x=0; level.x<=MAX_LEVEL;level.x++){
-        for(level.y=0; level.y<=MAX_LEVEL;level.y++){
-            ivec2 levelPos = ivec2(gl_LocalInvocationID.xy+SIZE)>>level;
-            for(int i=0;i<3;i++){
-                #ifdef DOF2_TEST_PATTERN
-                if(bool(((level.x+level.y)%7)&(1<<i)))
-                    continue;
-                #endif
-                value[i]+=thebufferrrr[levelPos.x][levelPos.y][i];
-            }
-        }
-    }
-
-    ivec2 pos = ivec2(gl_WorkGroupID.xy*SIZE+gl_LocalInvocationID.xy);
-    if(value!=uvec3(0))
-        imageStore(dynamicDofImg,pos,uvec4(value,0));
-}
-
 void bufferDirectWrite(ivec2 pos, uvec3 color){
-    atomicAdd(thebufferrrr[pos.x][pos.y][0],color[0]);
-    atomicAdd(thebufferrrr[pos.x][pos.y][1],color[1]);
-    atomicAdd(thebufferrrr[pos.x][pos.y][2],color[2]);
+    for(int i=0; i<3; i++){
+        imageAtomicAdd(dynamicDofImg,pos,color[i]);
+        pos.x+=bufferSize.x<<1;
+    }
 }
 
 void write(ivec2 pos,ivec2 level, uvec3 color){
-    if((pos.x>=(SIZE>>level.x))||(pos.y>=(SIZE>>level.y))||(pos.x<0) || (pos.y<0))
+    if((pos.x>=(bufferSize.x>>level.x))||(pos.y>=(bufferSize.y>>level.y))||(pos.x<0) || (pos.y<0))
         return;
 
-    pos+=ivec2(SIZE)>>level;
+    pos+=bufferSize>>level;
     bufferDirectWrite(pos,color);
 }
 
-
-void drawLine(ivec2 pos, ivec2 step, int steps, int level, uvec3 data){
-    for(int i=0; i<steps; i++){
-        write(pos,ivec2(level),data);
-        pos+=step;
-    }
-}
-
 void drawLineX(ivec2 bounds, int y, int levelY, uvec3 color){
-//    bounds.x=max(bounds.x,0);
-//    bounds.y=min(bounds.y,SIZE-1);
-//    bounds+=SIZE;
-
-    if((y>=(SIZE>>levelY))|| (y<0))
+    if((y>=(bufferSize.y>>levelY))|| (y<0))
         return;
 
-    y+=SIZE>>levelY;
+    y+=bufferSize.y>>levelY;
+    bounds+=bufferSize.x;
+
 
     for(int level = 0; level <= MAX_LEVEL; level++){
-        uint levelBits = (1<<level)-1;
-        ivec2 newBounds = (bounds+SIZE+ivec2(levelBits,-levelBits))>>level;
-        if(newBounds.y<newBounds.x)return;
+        if(bounds.y<bounds.x)return;
 
 
-        if (bool(newBounds.x  &1))
-            bufferDirectWrite(ivec2(newBounds.x,y), color);
+        if (bool(bounds.x  &1))
+            bufferDirectWrite(ivec2(bounds.x,y),color);
 
-        if (bool((~newBounds.y)&1))
-            bufferDirectWrite(ivec2(newBounds.y,y), color);
+        if (bool((~bounds.y)&1))
+            bufferDirectWrite(ivec2(bounds.y,y),color);
+
+        bounds.x++;
+        bounds.y--;
+        bounds>>=1;
+
     }
 }
 
 void drawRectangle(ivec4 bounds, uvec3 color){
     bounds.xy=max(bounds.xy,0);
-    bounds.zw=min(bounds.zw,SIZE-1);
+    bounds.zw=min(bounds.zw,bufferSize-1);
     if(bounds.z<bounds.x || bounds.w<bounds.y)return;
 
     for(int level = 0; level <= MAX_LEVEL; level++){
         if(bounds.w<bounds.y)return;
-        int levelOffset = SIZE>>level;
 
         if (bool(bounds.y  &1))
             drawLineX(bounds.xz,bounds.y,level,color);
@@ -211,7 +171,6 @@ void doBlurCircleExpensive(uvec3 color){
 
 void doBlurCircle(){
     //veeeeery rough approximation, but i do still kinda like the pixely look
-
 }
 
 
@@ -229,29 +188,13 @@ void doTheBlurForOneColor(uvec3 color){
 uniform float frameTimeCounter;
 
 void main(){
-    initBuffer();
-    barrier();
+    bufferSize=((textureSize(colortex0,0)>>MAX_LEVEL)+1)<<MAX_LEVEL;
+    samplePos = ivec2(gl_WorkGroupID.xy*SIZE+gl_LocalInvocationID.xy);
 
-    ivec2 scanAreaStart = max(ivec2(-MAX_RAD),-ivec2(gl_WorkGroupID.xy*SIZE));
-    ivec2 scanAreaEndExclusive = min(ivec2(SIZE+MAX_RAD),textureSize(colortex0,0)-ivec2(gl_WorkGroupID.xy*SIZE));
-    int wrap = scanAreaEndExclusive.y-scanAreaStart.y;
-    const int maxIndex = (SIZE+2*MAX_RAD)*(SIZE+2*MAX_RAD);
+    uvec3 color = uvec3(texelFetch(colortex0,samplePos,0).rgb*0x00800000u);
+    radius=texelFetch(colortex12,samplePos,0).y;
 
-    for(int id = int(gl_LocalInvocationIndex);id<maxIndex;id+=SIZE*SIZE){
-        samplePos = ivec2(id/wrap, id%wrap)+scanAreaStart;
-        ivec2 globalPos = samplePos + ivec2(gl_WorkGroupID.xy*SIZE);
+    int rad = clamp(int(radius),0,MAX_RAD);
 
-        uvec3 color = uvec3(texelFetch(colortex0,globalPos,0).rgb*0x00800000u);
-        radius=texelFetch(colortex12,globalPos,0).y;
-
-        int rad = clamp(int(radius),0,MAX_RAD);
-
-//        if(samplePos.x+rad<scanAreaStart.x || samplePos.y+rad<scanAreaStart.y || samplePos.x-rad>=scanAreaEndExclusive.x || samplePos.y-rad>=scanAreaEndExclusive.y)
-//            continue;
-
-        doTheBlurForOneColor(color);
-    }
-
-    barrier();
-    flushBuffer();
+    doTheBlurForOneColor(color);
 }
