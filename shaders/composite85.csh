@@ -277,7 +277,7 @@ void main(){
     ivec2 scanAreaStart = max(ivec2(-MAX_RAD),-ivec2(gl_WorkGroupID.xy*SIZE));
     ivec2 scanAreaEndExclusive = min(ivec2(SIZE+MAX_RAD),textureSize(colortex0,0)-ivec2(gl_WorkGroupID.xy*SIZE));
     int wrap = scanAreaEndExclusive.y-scanAreaStart.y;
-    const int maxIndex = (SIZE+2*MAX_RAD)*(SIZE+2*MAX_RAD);
+    const int maxIndex = wrap*(scanAreaEndExclusive.x-scanAreaStart.x);
 
     for(int id = int(gl_LocalInvocationIndex);id<maxIndex;id+=SIZE*SIZE){
         samplePos = ivec2(id/wrap, id%wrap)+scanAreaStart;
@@ -286,10 +286,10 @@ void main(){
         uvec3 color = uvec3(texelFetch(colortex0,globalPos,0).rgb*0x00800000u);
         radius=texelFetch(colortex12,globalPos,0).y;
 
-        int rad = clamp(int(radius),0,MAX_RAD);
+        int rad = clamp(int(radius+0.5),0,MAX_RAD);
 
-//        if(samplePos.x+rad<scanAreaStart.x || samplePos.y+rad<scanAreaStart.y || samplePos.x-rad>=scanAreaEndExclusive.x || samplePos.y-rad>=scanAreaEndExclusive.y)
-//            continue;
+        if (samplePos.x+rad<0 || samplePos.y+rad<0 || samplePos.x-rad>=SIZE || samplePos.y-rad>=SIZE)
+            continue;
 
         doTheBlurForOneColor(color);
     }
