@@ -42,7 +42,7 @@ void main(){
             }
         }
     }
-    sampledColor=value/float(0x00800000u);
+    sampledColor=value/float(~0u);
 
     #ifdef DOF2_TEST_PATTERN
 
