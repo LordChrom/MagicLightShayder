@@ -1,6 +1,8 @@
 #version 430 compatibility
 #include "/lib/settings.glsl"
 
+#define SCALEFACTOR 0x01000000u
+
 uniform float centerDepthSmooth;
 
 
@@ -12,6 +14,7 @@ uniform sampler2D colortex0;
 
 uniform float frameTimeCounter;
 void main(){
+//    return;
     vec3 sampledColor;
     ivec2 samplePos = ivec2(gl_FragCoord.xy);
     #ifdef DOF2_TEST_PATTERN
@@ -20,7 +23,7 @@ void main(){
 //    samplePos = (textureSize(colortex0,0)>>1)+((samplePos-(textureSize(colortex0,0)>>1))>>3);
 
 //    for(int i=0; i<3; i++){
-    sampledColor=vec3(texelFetch(dynamicDofSampler,samplePos,0).rgb)/float(0x00800000u);
+    sampledColor=vec3(texelFetch(dynamicDofSampler,samplePos,0).rgb)/float(SCALEFACTOR);
 //    }
 
     #ifdef DOF2_TEST_PATTERN
