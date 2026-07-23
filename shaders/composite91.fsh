@@ -1,2 +1,2 @@
 #define PASS 0
-#include "/lib/renderComponents/dofPass.glsl"
+#include "/lib/renderComponents/oldDofPass.glsl"

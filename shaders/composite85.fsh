@@ -25,11 +25,12 @@ void main(){
 #ifdef DOF_TEST_PATTERN
     float refColor;
 //        refColor = 64*fract(frameTimeCounter*0.5);
-    refColor=10*fract(frameTimeCounter*0.2);
+    refColor=30*fract(frameTimeCounter*0.2);
 
-    refColor*=4*refColor;
+    refColor*=PI*refColor;
+//    refColor*=4*refColor;
 
-    outputColor*=refColor;
+    outputColor*=0.5*refColor;
 
     float gridColor = 1;
     const int[] gridlevels = {0,2,5};

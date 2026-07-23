@@ -220,6 +220,7 @@ int quantizedCircleArea(int rad){
     return (ret<<2)+1;
 }
 
+//TODO needs work
 void doBlurCircle(){
     int rad = clamp(int(radius+0.5),0,DOF_RADIUS);
     int radSquared = rad*rad;
@@ -236,6 +237,42 @@ void doBlurCircle(){
         shiftedY = samplePos.y-y;
         if(shiftedY<SIZE && shiftedY>=0)
             drawLineX(xBounds,shiftedY+SIZE);
+    }
+}
+
+//TODO needs work
+void doBlurOctagon(){
+    int rad = clamp(int(radius+0.5),0,DOF_RADIUS);
+    //W-2x = sqrt(2)*x
+    //W/sqrt(2)=(1+sqrt(2))x
+    //W = 2+sqrt(2)x
+    // x = W/(2+sqrt(2)
+
+    int partialHeight = rad-int((2*rad+1)/(2.0+sqrt(2)));
+    int area =
+    2*(1+2*partialHeight)*(rad-partialHeight) //top and bottom rects
+    +(1+2*(rad-partialHeight))*(1+2*partialHeight) //center rect
+    +2*(rad-partialHeight)*(rad-partialHeight) //triangles
+    ;
+    color/=area;
+
+    drawRectangle(samplePos.xyxy+ivec4(-rad,-partialHeight,rad,partialHeight));
+//    if(partialHeight!=rad)
+    drawRectangle(samplePos.xyxy+ivec4(-partialHeight,partialHeight+1,partialHeight,rad));
+    drawRectangle(samplePos.xyxy+ivec4(-partialHeight,-rad,partialHeight,-partialHeight-1));
+
+    for(int y=partialHeight+1;y<rad;y++){
+        ivec2 boundsXRelative = ivec2(1, rad-y)+partialHeight;
+        int relativeY = samplePos.y+y;
+        if(relativeY<SIZE && relativeY>=0){
+            drawLineX(ivec2(max(0,samplePos.x+boundsXRelative.x),min(samplePos.x+boundsXRelative.y,SIZE-1)), relativeY+SIZE);
+            drawLineX(ivec2(max(0,samplePos.x-boundsXRelative.y),min(samplePos.x-boundsXRelative.x,SIZE-1)), relativeY+SIZE);
+        }
+        relativeY = samplePos.y-y;
+        if(relativeY<SIZE && relativeY>=0){
+            drawLineX(ivec2(max(0,samplePos.x+boundsXRelative.x),min(samplePos.x+boundsXRelative.y,SIZE-1)), relativeY+SIZE);
+            drawLineX(ivec2(max(0,samplePos.x-boundsXRelative.y),min(samplePos.x-boundsXRelative.x,SIZE-1)), relativeY+SIZE);
+        }
     }
 }
 
@@ -271,6 +308,8 @@ void main(){
 
         #if DOF_SHAPE == 1
         doBlurCircle();
+        #elif DOF_SHAPE == 2
+        doBlurOctagon();
         #else
         doBlurSquare();
         #endif
