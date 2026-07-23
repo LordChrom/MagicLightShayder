@@ -112,16 +112,17 @@ Packing
 - lava POM
 - sun shadows
 - voxelizing end gates
+- SSAO at edge cases
 - subsurface on lava
 - other subsurface edge cases
 
 ### Needs Improvement
 - TAA unoptimized
 - proper system for unlit geometry
-- SSS
 - DoF at lower renderscale
 
 ### Necessary additions
+- shadowmap sun shadows, unfortunately
 - multiple occlusion indicators per sample
 - ambient light
 - Merge adjacent unoccluded lights of same type

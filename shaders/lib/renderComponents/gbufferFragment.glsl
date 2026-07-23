@@ -257,7 +257,7 @@ void main()
     #endif
 
     const float pomDistFalloffMult = 4;
-    pomEdgeNormal=normalize(mix(vec3(0,0,1),pomEdgeNormal,clamp(pomDistFalloffMult/(max(1e-4,worldLength)),0,1)));
+    pomEdgeNormal=normalize(mix(vec3(0,0,1),pomEdgeNormal+vec3(0,0,0.1),clamp(pomDistFalloffMult/(max(1e-4,worldLength)),0,1)));
 
     float texNormalWeight = max(1e-6,pomEdgeNormal.z);
 
