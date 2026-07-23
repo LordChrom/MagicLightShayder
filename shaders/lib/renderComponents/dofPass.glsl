@@ -1,8 +1,8 @@
 #version 430 compatibility
 #include "/lib/settings.glsl"
-#define LEVEL (DOF_PASSES-(PASS)-1)
+#define LEVEL (OLDDOF_PASSES-(PASS)-1)
 const int d = 1<<LEVEL;
-const int DOF_SAMPLE_RAD = DOF_RAD>>(DOF_PASSES-1);
+const int OLDDOF_SAMPLE_RAD = OLDDOF_RAD>>(OLDDOF_PASSES-1);
 
 uniform float viewHeight;
 
@@ -31,7 +31,7 @@ uniform float viewHeight;
 
         rad = clamp(abs(rad),0,1);
         rad*=viewHeight;
-        return clamp(rad,0,DOF_RAD)*sign(depth-depthTarget);
+        return clamp(rad,0,OLDDOF_RAD)*sign(depth-depthTarget);
     }
 #else
     uniform sampler2D colortex0, colortex12;
@@ -57,12 +57,12 @@ float weightAtOffset(float rad,float len, int d){
     if(len==0)
         return 1;
 
-    float fuzzyUniform = clamp(4*d*(rad-len)/(rad+DOF_RAD), 0, 1);
+    float fuzzyUniform = clamp(4*d*(rad-len)/(rad+OLDDOF_RAD), 0, 1);
     if(d<=1 || (d>1&&len>rad))
         return fuzzyUniform;
-    float lenDif = len+len-DOF_SAMPLE_RAD;
+    float lenDif = len+len-OLDDOF_SAMPLE_RAD;
 
-    return fuzzyUniform*max(0.00000001,exp2(-2.4e-4*DOF_PASSES*(rad-len)*lenDif)*1e0/d);
+    return fuzzyUniform*max(0.00000001,exp2(-2.4e-4*OLDDOF_PASSES*(rad-len)*lenDif)*1e0/d);
 }
 
 void main() {
@@ -74,23 +74,23 @@ void main() {
     colorOut=vec3(0);
     CoCbuff.y = texelFetch(colortex12,texpos,0).y;
 
-    #define MIN_Y -DOF_SAMPLE_RAD
+    #define MIN_Y -OLDDOF_SAMPLE_RAD
 #else
     CoCbuff.y=calcRadius(texpos);
     #define MIN_Y 1
 #endif
-    float maxrad = DOF_SAMPLE_RAD;
+    float maxrad = OLDDOF_SAMPLE_RAD;
     maxrad*=maxrad;
 
     float antibleedMult =  8e-2/(abs(CoCbuff.y)/d+1);
     float unobstructedSamples=0;
     float takenSamples=0;
-    for(int y=MIN_Y; y<=DOF_SAMPLE_RAD; y++){
+    for(int y=MIN_Y; y<=OLDDOF_SAMPLE_RAD; y++){
        #if LEVEL>0
         if(y>=1){
             for(int x=0;x<=y;x++){
                 float len = length(ivec2(x,y));
-                if(len>DOF_SAMPLE_RAD) continue;
+                if(len>OLDDOF_SAMPLE_RAD) continue;
                 len*=d;
                 float weight = weightAtOffset(CoCbuff.y,len*0.5,d>>1);
                 nextTotalWeight+=(x==0 || x==y)?weight:(weight+weight);

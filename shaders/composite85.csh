@@ -38,7 +38,7 @@ void initBuffer(){
     }
 }
 
-#ifdef DOF2_TEST_PATTERN
+#ifdef DOF_TEST_PATTERN
 void flushBuffer(){
     uvec3 value = uvec3(0);
     ivec2 level;

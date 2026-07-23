@@ -16,13 +16,13 @@ uniform float frameTimeCounter;
 void main(){
     ivec2 samplePos = ivec2(gl_FragCoord.xy);
 
-#ifdef DOF2_TEST_PATTERN
+#ifdef DOF_TEST_PATTERN
     samplePos>>=3;
 #endif
 
     outputColor=vec3(texelFetch(dynamicDofSampler,samplePos,0).rgb)/float(SCALEFACTOR);
 
-#ifdef DOF2_TEST_PATTERN
+#ifdef DOF_TEST_PATTERN
     float refColor;
 //        refColor = 64*fract(frameTimeCounter*0.5);
     refColor=10*fract(frameTimeCounter*0.2);

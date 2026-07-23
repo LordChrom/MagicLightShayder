@@ -11,7 +11,7 @@ uniform float centerDepthSmooth;
 
 #include "/lib/util/conversions.glsl"
 
-#ifdef DOF2_TEST_PATTERN
+#ifdef DOF_TEST_PATTERN
 /* RENDERTARGETS: 12,0 */
 layout(location=1) out vec3 testColor;
 #else
@@ -50,7 +50,7 @@ uniform float frameTimeCounter;
 void main() {
     ivec2 texpos = ivec2(gl_FragCoord.xy);
 
-    #ifdef DOF2_TEST_PATTERN
+    #ifdef DOF_TEST_PATTERN
     testColor=vec3(0);
     CoCbuff.y=0;
 

@@ -87,14 +87,14 @@
 
 #define POST_DITHER
 
-//#define DOF2_TEST_PATTERN
-#define DOF2
+//#define DOF_TEST_PATTERN
+#define DOF_ENABLED
 //#define DOF_ABBERATION
 
-#define DOF_QUALITY -1 //[-1 0 1 2 3 4]
+#define OLDDOF_QUALITY -1 //[-1 0 1 2 3 4]
 #define DOF_FOCAL_LENGTH 23 //[2.5 5 7.5 10 12.5 15 17.5 20 22 23 24 25 26 30 35 40 45 50 60 70]
-#define DOF_RAD 16 //[8 16 24 32 40 48 56 64]
-#define DOF_ANTIBLEED 4 //[-1 2 3 4 8 16]
+#define OLDDOF_RAD 16 //[8 16 24 32 40 48 56 64]
+#define OLDDOF_ANTIBLEED 4 //[-1 2 3 4 8 16]
 
 #define MATERIALS_TYPE 1 //[-1 0 1]
 #define POM
@@ -212,11 +212,11 @@
 
 #define MEM_LAYERS LIGHT_LAYERS
 
-#define DOF_MAX_QUALITY 5
-#if DOF_QUALITY >= 0
-    #define DOF_PASSES (DOF_MAX_QUALITY-DOF_QUALITY)
+#define OLDDOF_MAX_QUALITY 5
+#if OLDDOF_QUALITY >= 0
+    #define OLDDOF_PASSES (OLDDOF_MAX_QUALITY-OLDDOF_QUALITY)
 #else
-    #define DOF_PASSES -1
+    #define OLDDOF_PASSES -1
 #endif
 /////
 
@@ -226,7 +226,7 @@
 #ifdef KEEP_FULLY_OCCLUDED_SAMPLES
 #ifdef FOG_PENUMBRAS
 #ifdef ENTITY_POM
-#ifdef DOF2
+#ifdef DOF_ENABLED
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
 #endif
 #endif
