@@ -3,7 +3,6 @@
 
 
 #define SIZE 32
-#define MAX_RAD 64
 #define MAX_LEVEL 4
 #define POS_OFFSET 1
 #define SCALEFACTOR 0x01000000u
@@ -26,6 +25,8 @@ uniform sampler2D colortex12;
 uvec3 color;
 ivec2 samplePos;
 float radius;
+
+
 
 void initBuffer(){
     for(int i=0;i<4;i++){
@@ -103,6 +104,8 @@ void flushBuffer(){
 }
 #endif
 
+
+
 void bufferDirectWrite(ivec2 pos){
     pos-=POS_OFFSET;
     atomicAdd(thebufferrrR[pos.x][pos.y],color[0]);
@@ -116,6 +119,19 @@ void write(ivec2 pos,ivec2 level){
 
     pos+=ivec2(SIZE)>>level;
     bufferDirectWrite(pos);
+}
+
+void drawLineX(ivec2 bounds, int y){
+    bounds+=SIZE;
+    while(bounds.x<=bounds.y){
+        int awa = bounds.x|0xffffff00;
+        awa |= awa<<4;
+        awa |= awa<<2;
+        awa |= awa<<1;
+        int levelX=min(MAX_LEVEL,min(bitCount(~awa),int(log2(1+bounds.y-bounds.x))));
+        bufferDirectWrite(ivec2(bounds.x>>levelX, y));
+        bounds.x+=1<<levelX;
+    }
 }
 
 void drawRectangle(ivec4 bounds){
@@ -147,7 +163,7 @@ void drawRectangle(ivec4 bounds){
 
 
 void doBlurSquare(){
-    int rad = clamp(int(radius+0.5),0,MAX_RAD);
+    int rad = clamp(int(radius+0.5),0,DOF_RADIUS);
     //min xy, max xy
     ivec4 bounds = ivec4(samplePos.xyxy);
     bounds.xy-=rad;
@@ -195,13 +211,42 @@ void doBlurSquare(){
     drawRectangle(bounds);
 }
 
+int quantizedCircleArea(int rad){
+    int radSquared = rad*rad;
+    int ret = rad;
+    for(int y=1; y<=rad; y++){
+        ret+= int(sqrt(radSquared-y*y));
+    }
+    return (ret<<2)+1;
+}
+
+void doBlurCircle(){
+    int rad = clamp(int(radius+0.5),0,DOF_RADIUS);
+    int radSquared = rad*rad;
+    color/=quantizedCircleArea(rad);
+
+    for(int y=0;y<=rad;y++){
+        int x= int(sqrt(radSquared-y*y));
+        int shiftedY = samplePos.y+y;
+        ivec2 xBounds = ivec2(max(0,samplePos.x-x),min(samplePos.x+x,SIZE-1));
+        if(shiftedY<SIZE && shiftedY>=0)
+            drawLineX(xBounds,shiftedY+SIZE);
+
+        if(y==0) continue;
+        shiftedY = samplePos.y-y;
+        if(shiftedY<SIZE && shiftedY>=0)
+            drawLineX(xBounds,shiftedY+SIZE);
+    }
+}
+
+
 
 void main(){
     initBuffer();
     barrier();
 
-    ivec2 scanAreaStart = max(ivec2(-MAX_RAD),-ivec2(gl_WorkGroupID.xy*SIZE));
-    ivec2 scanAreaEndExclusive = min(ivec2(SIZE+MAX_RAD),textureSize(colortex0,0)-ivec2(gl_WorkGroupID.xy*SIZE));
+    ivec2 scanAreaStart = max(ivec2(-DOF_RADIUS),-ivec2(gl_WorkGroupID.xy*SIZE));
+    ivec2 scanAreaEndExclusive = min(ivec2(SIZE+DOF_RADIUS),textureSize(colortex0,0)-ivec2(gl_WorkGroupID.xy*SIZE));
     int wrap = scanAreaEndExclusive.y-scanAreaStart.y;
     int id = wrap*(scanAreaEndExclusive.x-scanAreaStart.x)-int(gl_LocalInvocationIndex);
 
@@ -210,7 +255,7 @@ void main(){
 
         radius=texelFetch(colortex12,samplePos + ivec2(gl_WorkGroupID.xy*SIZE),0).y;
 
-        int rad = clamp(int(radius+0.5),0,MAX_RAD);
+        int rad = clamp(int(radius+0.5),0,DOF_RADIUS);
         if (samplePos.x+rad<0 || samplePos.y+rad<0 || samplePos.x-rad>=SIZE || samplePos.y-rad>=SIZE)
             continue;
 
@@ -222,9 +267,13 @@ void main(){
             continue;
         }
 
-        radius = clamp(radius,0.5,MAX_RAD-0.5);
+        radius = clamp(radius,0.5,DOF_RADIUS-0.5);
 
+        #if DOF_SHAPE == 1
+        doBlurCircle();
+        #else
         doBlurSquare();
+        #endif
     }
 
     barrier();

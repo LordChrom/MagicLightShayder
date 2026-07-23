@@ -88,8 +88,9 @@
 #define POST_DITHER
 
 //#define DOF_TEST_PATTERN
-#define DOF_ENABLED
-//#define DOF_ABBERATION
+//#define DOF_ENABLED
+#define DOF_RADIUS 32 //[8 16 32 48 64 96 128]
+#define DOF_SHAPE 0 //[0 1]
 
 #define OLDDOF_QUALITY -1 //[-1 0 1 2 3 4]
 #define DOF_FOCAL_LENGTH 23 //[2.5 5 7.5 10 12.5 15 17.5 20 22 23 24 25 26 30 35 40 45 50 60 70]
