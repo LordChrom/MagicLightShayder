@@ -3,7 +3,7 @@
 
 
 #define SIZE 32
-#define MAX_RAD 48
+#define MAX_RAD 64
 #define MAX_LEVEL 4
 #define POS_OFFSET 1
 #define SCALEFACTOR 0x01000000u
@@ -14,6 +14,7 @@ layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
 
 layout (rgba32ui) uniform writeonly restrict uimage2D dynamicDofImg;
 #define BUFFERSIZE (SIZE+SIZE-POS_OFFSET)
+//yes it matters both that these buffers are separated, and that we're saving the one index of space.
 shared uint[BUFFERSIZE][BUFFERSIZE] thebufferrrR;
 shared uint[BUFFERSIZE][BUFFERSIZE] thebufferrrG;
 shared uint[BUFFERSIZE][BUFFERSIZE] thebufferrrB;
@@ -37,9 +38,30 @@ void initBuffer(){
     }
 }
 
+#ifdef DOF2_TEST_PATTERN
 void flushBuffer(){
-    uvec3 value;
-    value= uvec3(0);
+    uvec3 value = uvec3(0);
+    ivec2 level;
+    for(level.x=0;level.x<=MAX_LEVEL;level.x++){
+        for(level.y=0;level.y<=MAX_LEVEL;level.y++){
+            ivec2 levelPos = (ivec2(gl_LocalInvocationID.xy+SIZE)>>level)-POS_OFFSET;
+            uvec3 mipColor = uvec3(
+                thebufferrrR[levelPos.x][levelPos.y],
+                thebufferrrG[levelPos.x][levelPos.y],
+                thebufferrrB[levelPos.x][levelPos.y]
+            );
+            int levelColor = ~((level.x+level.y)%7);
+            mipColor*=1u&uvec3(levelColor>>2,levelColor>>1,levelColor);
+            value+=mipColor;
+        }
+    }
+
+
+    imageStore(dynamicDofImg,ivec2(gl_WorkGroupID.xy*SIZE+gl_LocalInvocationID.xy),uvec4(value,0));
+}
+#else
+void flushBuffer(){
+    uvec3 value = uvec3(0);
     ivec2 pos = ivec2((gl_LocalInvocationID.x+SIZE)>>1, gl_LocalInvocationID.y+SIZE*(gl_LocalInvocationID.x&1u));
 
     if(pos.y>=POS_OFFSET){
@@ -79,6 +101,7 @@ void flushBuffer(){
 
     imageStore(dynamicDofImg,ivec2(gl_WorkGroupID.xy*SIZE+gl_LocalInvocationID.xy),uvec4(value,0));
 }
+#endif
 
 void bufferDirectWrite(ivec2 pos){
     pos-=POS_OFFSET;
