@@ -54,9 +54,9 @@ void main() {
     testColor=vec3(0);
     CoCbuff.y=0;
 
-    bool awa = (texpos%63)==ivec2(0);
+    bool awa = (texpos%61)==ivec2(0);
     if(awa){
-        CoCbuff.y=32*fract(frameTimeCounter);
+        CoCbuff.y=10*fract(frameTimeCounter*0.2);
 //        CoCbuff.y=3;
         testColor=vec3(1);
     }
