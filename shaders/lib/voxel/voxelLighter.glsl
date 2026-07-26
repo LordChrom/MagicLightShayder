@@ -155,7 +155,7 @@ void saveSharedSample(int a, int b){
         if(cascadeLevel>=(NUM_CASCADES-1)){
             setSharedVoxels(a,b,0u,0u);
             uvec4 defaultLight = ((!hasCeiling) && zonePosZ<=0) ? getSunlight(axis) : uvec4(0);
-    #ifdef DEBUG_DISABLE_SUN
+    #ifdef DISABLE_BLOCKLIGHT_SUN
             defaultLight=uvec4(0);
     #endif
             for(int layer = 0; layer<VOX_LAYERS; layer++){

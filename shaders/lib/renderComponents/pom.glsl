@@ -8,11 +8,13 @@
 #endif
 
 const float pomDepth = 0.25*POM_DEPTH_STRENGTH;
+#define POM_WRAP_THRESHOLD 0.5
 
 #if POM_ROUNDING_RAD!=-1
     #define POM_ROUNDED_EDGES
 #endif
 
+bool shouldWrap = false;
 #ifdef POM_NORMALS
 ivec2 pomEdgeDif=ivec2(0);
 #else
@@ -20,21 +22,19 @@ ivec2 pomEdgeDif=ivec2(0);
 #endif
 
 
-#ifdef POM_ROUNDED_EDGES
-vec3 pomBubble=vec3(0,0,1);
+#ifdef POM_NORMALS
+vec3 pomNormal=vec3(0,0,1);
 #endif
 
-void pomEdge(inout vec2 tc){
+void pomEdge(inout vec2 tc, float rayDepth){
     #ifdef POM_DISCARD
     if(tc.x<0 || tc.y<0 || tc.x>=texsize.x || tc.y>=texsize.y)
     discard;
     #endif
 
-    #ifdef POM_WRAP
-    tc= fract(tc/texsize)*texsize;
-    #else
-    tc= clamp(tc,vec2(0),texsize-1e-5);
-    #endif
+    tc = shouldWrap?
+        tc= fract(tc/texsize)*texsize:
+        tc= clamp(tc,vec2(0),texsize-1e-5);
 }
 
 #define POM_PERFECT_EDGES
@@ -64,9 +64,10 @@ vec2 doPixPom(vec2 initialTc){
         #endif
 
         vec2 prePomTc = tc;
-        pomEdge(tc);
+        pomEdge(tc,rayDepth);
         lastTc-=tc-prePomTc;
         float texdepth = float(1.0-texelFetch(normals,baseTexpos+ivec2(tc),0).a)*pomDepth;
+        shouldWrap=texdepth>=pomDepth*POM_WRAP_THRESHOLD;
 
         #ifdef POM_NORMALS
         if(rayDepth>texdepth+tiny){
@@ -96,9 +97,10 @@ vec2 doSparsePom(vec2 initialTc){
             break;
         }
         #else
-        pomEdge(tc);
+        pomEdge(tc,rayDepth);
         #endif
         float depth = float(1.0-texelFetch(normals,(baseTexpos+ivec2(tc)),0).a)*pomDepth;
+        shouldWrap=depth>=pomDepth*POM_WRAP_THRESHOLD;
 
         if(rayDepth+1e-4>=depth){
             break;
@@ -135,30 +137,45 @@ vec2 doPom(vec2 tc){
 
     float texMaxSize = max(texsize.x,texsize.y);
     if(pomEdgeDif.xy!=ivec2(0)){
-        pomBubble.xy=(fract(ret)-0.5)*2;
-        pomBubble.z=max((1-(rayDepth-texDepth)*2*texMaxSize),0);
+        pomNormal.xy=(fract(ret)-0.5)*2;
+        pomNormal.z=max((1-(rayDepth-texDepth)*2*texMaxSize),0);
     }else{
-        pomBubble.xy=(fract(initialTc+differential*texDepth)-0.5)*2;
-        float m = max(abs(pomBubble.x),abs(pomBubble.y));
-        pomBubble.z=1;
+        pomNormal.xy=(fract(initialTc+differential*texDepth)-0.5)*2;
+        float m = max(abs(pomNormal.x),abs(pomNormal.y));
+        pomNormal.z=1;
     }
 
     float pomRoundingRatio = min((float(POM_ROUNDING_RAD)/50.0)*texMaxSize,1.0);
 
-    pomBubble=sign(pomBubble)*max(abs(pomBubble)-(1-(pomRoundingRatio)),0)/pomRoundingRatio;
+    pomNormal=sign(pomNormal)*max(abs(pomNormal)-(1-(pomRoundingRatio)),0)/pomRoundingRatio;
 
     #if 1
-    if(float(1.0-texelFetch(normals,ivec2(retTexpos.x+int(sign(pomBubble.x)),retTexpos.y),0).a)*pomDepth<=texDepth)
-        pomBubble.x=0;
+    if(float(1.0-texelFetch(normals,ivec2(retTexpos.x+int(sign(pomNormal.x)),retTexpos.y),0).a)*pomDepth<=texDepth)
+        pomNormal.x=0;
 
-    if(float(1.0-texelFetch(normals,ivec2(retTexpos.x,retTexpos.y+int(sign(pomBubble.y))),0).a)*pomDepth<=texDepth)
-        pomBubble.y=0;
+    if(float(1.0-texelFetch(normals,ivec2(retTexpos.x,retTexpos.y+int(sign(pomNormal.y))),0).a)*pomDepth<=texDepth)
+        pomNormal.y=0;
     #endif
 
     #endif
 
     #ifdef POM_WRITE_DEPTH
     rayDepth = texDepth;
+    #endif
+
+    #ifdef POM_NORMALS
+    if(length(pomEdgeDif)>1)
+        pomEdgeDif=ivec2(0);
+    #ifdef POM_ROUNDED_EDGES
+    pomNormal = normalize(pomNormal);
+
+    #else
+    pomEdgeDif=ivec2(sign(differential))*-abs(pomEdgeDif);
+    pomNormal = vec3(
+        pomEdgeDif,float(pomEdgeDif==ivec2(0))
+    );
+    #endif
+
     #endif
 
     return (0.5+vec2(retTexpos))/atlasSize;

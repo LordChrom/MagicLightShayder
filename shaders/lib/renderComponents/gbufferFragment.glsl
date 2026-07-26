@@ -144,6 +144,9 @@ flat in int materialID;
     float rayDepth=0;
     #include "/lib/renderComponents/pom.glsl"
     #include "/lib/util/conversions.glsl"
+#else
+#undef POM_WRITE_DEPTH
+#undef POM_NORMALS
 #endif
 
 layout(location = 0) out vec4 color;
@@ -242,26 +245,13 @@ void main()
 
     vec3 pbrNormal = normalize(vec3(PBR_NORMALS_STRENGTH*pbrNormalSample.xy,sqrt(1.0 - dot(pbrNormalSample.xy, pbrNormalSample.xy))));
 
-    #if (defined POM_NORMALS) && (defined POM)
-    if(length(pomEdgeDif)>1)
-        pomEdgeDif=ivec2(0);
-
-    #ifdef POM_ROUNDED_EDGES
-    vec3 pomEdgeNormal=normalize(pomBubble);
-
-    #else
-    pomEdgeDif=ivec2(sign(differential))*-abs(pomEdgeDif);
-    vec3 pomEdgeNormal = vec3(
-        pomEdgeDif,float(pomEdgeDif==ivec2(0))
-    );
-    #endif
-
+    #ifdef POM_NORMALS
     const float pomDistFalloffMult = 4;
-    pomEdgeNormal=normalize(mix(vec3(0,0,1),pomEdgeNormal+vec3(0,0,0.1),clamp(pomDistFalloffMult/(max(1e-4,worldLength)),0,1)));
+    pomNormal=normalize(mix(vec3(0,0,1),pomNormal+vec3(0,0,0.1),clamp(pomDistFalloffMult/(max(1e-4,worldLength)),0,1)));
 
-    float texNormalWeight = max(1e-6,pomEdgeNormal.z);
+    float texNormalWeight = max(1e-6,pomNormal.z);
 
-    pbrNormal = normalize(pomEdgeNormal+texNormalWeight*pbrNormal);
+    pbrNormal = normalize(pomNormal+texNormalWeight*pbrNormal);
     #endif
 
 

@@ -3,8 +3,6 @@
 
 #define SCALEFACTOR 0x01000000u
 
-uniform float centerDepthSmooth;
-
 
 /* RENDERTARGETS: 0 */
 layout(location = 0) out vec3 outputColor;

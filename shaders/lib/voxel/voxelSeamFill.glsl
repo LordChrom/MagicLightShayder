@@ -63,7 +63,7 @@ void trimLight(ivec3 zonePos){
         if(unpackLightType(light)!=LIGHT_TYPE_SUN)
             setPackedLightTravel(light,unpackLightTravel(light)+zonePosRemnants);
     }
-#ifndef DEBUG_DISABLE_SUN
+#ifndef DISABLE_BLOCKLIGHT_SUN
     if((!hasCeiling) && axis==2 && zonePos.z<=0){
         float height = getGlobalOrigin(scale).y+scale*(0.5*AREA_SIZE-zonePos.z);
         if((height>=(heightLimit+bedrockLevel)) || (cascadeLevel==(NUM_CASCADES-1)))

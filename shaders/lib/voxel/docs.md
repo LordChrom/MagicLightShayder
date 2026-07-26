@@ -109,7 +109,7 @@ Packing
 
 # General TODO List
 ### Needs fixing
-- lava POM
+- POM on non-square surfaces
 - sun shadows
 - voxelizing end gates
 - SSAO at edge cases
