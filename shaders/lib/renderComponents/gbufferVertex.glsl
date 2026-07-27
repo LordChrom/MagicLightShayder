@@ -1,4 +1,5 @@
 #version 430 compatibility
+#define GBUFFER_SHADER
 #include "/lib/settings.glsl"
 #include "/lib/util/materialId.glsl"
 

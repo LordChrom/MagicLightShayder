@@ -18,7 +18,7 @@ uniform mat4 gbufferModelViewProjectionInverse;
 uniform vec3 cameraPosition;
 uniform vec2 scaledScreenDim;
 
-#include "/lib/voxel/voxelSampler.glsl"
+#include "/lib/lightingWrapper/lightSampler.glsl"
 #include "/lib/util/dither.glsl"
 #include "/lib/util/taaJitter.glsl"
 
@@ -111,7 +111,7 @@ void main() {
 
     voxelLighting = vec3(0);
     if(!((depth==1)|| solidTransInFront))
-        voxelLighting = voxelSample(worldPosRelative.xyz+cameraPosition,normal.xyz,subsurface,ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
+        voxelLighting = lightingSample(worldPosRelative.xyz+cameraPosition,normal.xyz,subsurface,ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
 
 #ifdef SSAO
     float ssao;
@@ -147,7 +147,7 @@ void main() {
         //TODO better fog amount calc, and fix the banding, maybe smarter spacing
         float weight = 1-(float(i)+ditherValue)*fogSampleLen;
         vec3 fogSamplePos = cameraPosition +worldPosRelative.xyz*weight;
-        vec3 newSample = voxelSampleFog(fogSamplePos,ditherValue2*0,ditherValue);
+        vec3 newSample = lightingSampleFog(fogSamplePos,ditherValue2*0,ditherValue);
 
         float localFogDensity = fogDensityMult;
         float prevFogDecay= exp(localFogDensity*hitDistance*prevWeight);

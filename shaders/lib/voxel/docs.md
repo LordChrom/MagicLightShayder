@@ -117,12 +117,12 @@ Packing
 - other subsurface edge cases
 
 ### Needs Improvement
-- TAA unoptimized
+- shadowmap sun shadows
+- TAA performance
 - proper system for unlit geometry
-- DoF at lower renderscale
+- DoF perf at lower renderscale
 
 ### Necessary additions
-- shadowmap sun shadows, unfortunately
 - multiple occlusion indicators per sample
 - ambient light
 - Merge adjacent unoccluded lights of same type

@@ -12,6 +12,9 @@ uniform sampler2D depthtex1;
 #if DEBUG_SPECIAL_VIEW >= 0
 uniform sampler2D colortex15;
 #endif
+#if DEBUG_SPECIAL_VIEW == 203
+uniform sampler2D shadowtex0;
+#endif
 
 
 #ifdef TAA
@@ -44,7 +47,6 @@ in vec2 texcoord;
 
 const float voxelDistance = 160.0;
 const float shadowDistance = 160.0;
-const int shadowMapResolution = 1;
 const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 
 
@@ -126,6 +128,8 @@ void main() {
     #if DEBUG_SPECIAL_VIEW >= 0
     #if DEBUG_SPECIAL_VIEW == 200 || (DEBUG_SPECIAL_VIEW==202)
     outputColor = voxelLighting;
+    #elif DEBUG_SPECIAL_VIEW == 203
+    outputColor=vec3(texture(shadowtex0,texcoord).rgb);
     #elif (DEBUG_SPECIAL_VIEW) != 201
     outputColor = texelFetch(colortex15,ivec2(floor(0.1+texcoord*scaledScreenDim)),0).xyz;
     #endif

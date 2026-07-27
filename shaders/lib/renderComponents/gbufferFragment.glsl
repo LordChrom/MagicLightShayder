@@ -1,6 +1,7 @@
 #ifndef VOXY_PATCH
 #version 430 compatibility
 #endif
+#define GBUFFER_SHADER
 
 #include "/lib/settings.glsl"
 const float translucentPrecedenceCutoff = 0.99;
@@ -94,7 +95,7 @@ flat in int materialID;
     #if SUBSURFACE_MODE==2
         #define SUBSURFACE_MODE 0
     #endif
-    #include "/lib/voxel/voxelSampler.glsl"
+    #include "/lib/lightingWrapper/lightSampler.glsl"
     #include "/lib/util/dither.glsl"
     /* RENDERTARGETS: 1 */
 #elif defined TRANSLUCENT
@@ -341,7 +342,7 @@ void main()
         if(emissive>0)
             color.rgb*=(EMISSIVE_BRIGHTNESS*emissive);
         else{
-            vec3 incidentLightColor=voxelSample(vec3(worldPos.xy,worldPos.z-0.1), normalize(normalOut.xyz*2-1), subsurface, ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
+            vec3 incidentLightColor=lightingSample(vec3(worldPos.xy,worldPos.z-0.1), normalize(normalOut.xyz*2-1), subsurface, ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
             color.rgb=mix(color.rgb*min(1,(incidentLightColor.r+incidentLightColor.g+incidentLightColor.b)),color.rgb*incidentLightColor,color.a);
         }
             //I cannot explain the 0.1 z
