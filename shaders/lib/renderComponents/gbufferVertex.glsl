@@ -95,7 +95,6 @@ in vec2 mc_Entity;
 #endif
 in vec4 at_midBlock;
 
-uniform float frameTimeCounter;
 void main() {
     gl_Position = ftransform();
 
@@ -133,13 +132,15 @@ void main() {
     baseTexpos = ivec2(atlasSize*(mc_midTexCoord-abs(mc_midTexCoord-texcoord)));
 
     differential=-texsize*texHitVec.xy/texHitVec.z;
+    if(length(gl_Vertex.xyz-gl_ProjectionMatrix[3].xyz)>POM_DISTANCE)
+        differential=vec2(0);
 
             #ifdef ENTITY
     if(texsize.x*texsize.y<=1)
         differential=vec2(0);
             #else
     if(abs(normal.x)+abs(normal.y)+abs(normal.z)>1.000001){
-        //TODO fix lava
+        //TODO fix non-square blocks
 //        texsize=ivec2(16);
 //        baseTexpos=(ivec2(atlasSize*texcoord)/texsize)*texsize;
         differential=vec2(0);

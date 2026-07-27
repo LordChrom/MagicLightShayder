@@ -106,6 +106,7 @@
 #define POM_NORMALS
 #define ENTITY_POM
 #define POM_ROUNDING_RAD 0.375 //[-1 0.1875 0.25 0.375 0.5 0.625 0.75 1.0 1.25 1.5 1.75 2.0 2.5 3.0]
+#define POM_DISTANCE 64 //[8 16 32 48 64 96 128 192 256]
 //in cm
 //#define POM_WRITE_DEPTH
 //#define POM_DISCARD

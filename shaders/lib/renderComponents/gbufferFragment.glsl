@@ -143,7 +143,9 @@ flat in int materialID;
     uniform mat4 gbufferProjectionInverse;
     float rayDepth=0;
     #include "/lib/renderComponents/pom.glsl"
+    #ifdef POM_WRITE_DEPTH
     #include "/lib/util/conversions.glsl"
+    #endif
 #else
 #undef POM_WRITE_DEPTH
 #undef POM_NORMALS
@@ -159,6 +161,8 @@ layout(location = 1) out vec4 normalOut;
 
 #ifdef VANILLA_FALLBACK
 layout(location = 2) out vec4 vanillaLighting;
+#else
+vec4 vanillaLighting;
 #endif
 #ifdef WRITE_MATERIALS
 layout(location = 3) out uvec4 materialInfo;
@@ -170,7 +174,7 @@ const vec4 colortex1ClearColor = vec4(0.0,0.0,0.0,0.0);
 */
 
 #ifdef VOXY_PATCH
-void handleFragment(vec4 glcolor,vec3 normal, vec2 lmcoord, vec4 voxySampledColor, int materialID)
+void handleFragment(vec4 glcolor,vec3 normal, vec2 lmcoord, vec4 voxycolor, int materialID)
 
 #if 0
 ;//for my IDE :/
@@ -183,8 +187,8 @@ void main()
 #ifdef TEXTURED
     #ifdef POM
         vec2 newTexcoord=doPom(texcoord);
-        float linearDepth = depthToLinear(gl_FragCoord.z);
         #ifdef POM_WRITE_DEPTH
+        float linearDepth = depthToLinear(gl_FragCoord.z);
         rayDepth = length(vec3(differential/texsize,1))*rayDepth;
         linearDepth+=rayDepth;
         gl_FragDepth=depthToBuf(linearDepth);
@@ -197,42 +201,41 @@ void main()
 
 #ifdef LIT
     #ifdef VOXY_PATCH
-    vec4 lighting = voxyLighting(lmcoord);
+    vanillaLighting = voxyLighting(lmcoord);
     #else
-    vec4 lighting = min(texture(lightmap, lmcoord),0.99);
+    vanillaLighting = min(texture(lightmap, lmcoord),0.99);
     #endif
 #elif defined BASIC
     bool isLeash = length(glcolor.xyz-vec3(0.425,0.34,0.25))<0.5;
-    vec4 lighting = isLeash?vec4(0.9,0.9,0.9,1):vec4(1.0);
+    vanillaLighting = isLeash?vec4(0.9,0.9,0.9,1):vec4(1.0);
 #else
-    vec4 lighting = vec4(1.0);
+    vanillaLighting = vec4(1.0);
 #endif
 
 #ifdef MAYBE_END_GATEWAY
     bool isEndGateway = materialID==55498;
-    vec4 sampledColor;
 
     if(isEndGateway){
-        lighting=vec4(1.0);
-        sampledColor = vec4(doEndGateway(gl_FragCoord.xy/vec2(viewWidth,viewHeight)),1);
+        vanillaLighting=vec4(1.0);
+        color = vec4(doEndGateway(gl_FragCoord.xy/vec2(viewWidth,viewHeight)),1);
     }else{
-        sampledColor = glcolor*texture(gtexture, newTexcoord);
+        color = glcolor*texture(gtexture, newTexcoord);
     }
 
 #elif defined VOXY_PATCH
-    vec4 sampledColor = voxySampledColor*glcolor;
+    color = voxycolor*glcolor;
 #elif defined TEXTURED
-    vec4 sampledColor = glcolor * texture(gtexture, newTexcoord);
+    color = glcolor * texture(gtexture, newTexcoord);
 #else
-    vec4 sampledColor = glcolor * lighting;
+    color = glcolor * vanillaLighting;
 #endif
 
 #ifdef ENTITY
-    sampledColor.rgb = mix(sampledColor.rgb, entityColor.rgb, entityColor.a);
+    color.rgb = mix(color.rgb, entityColor.rgb, entityColor.a);
 #endif
 
 #ifdef ALPHATEST
-    if (sampledColor.a < alphaTestRef) {
+    if (color.a < alphaTestRef) {
         discard;
     }
 #endif
@@ -243,7 +246,7 @@ void main()
 
     pbrNormalSample.xy = (pbrNormalSample.xy-0.5)*2;
 
-    vec3 pbrNormal = normalize(vec3(PBR_NORMALS_STRENGTH*pbrNormalSample.xy,sqrt(1.0 - dot(pbrNormalSample.xy, pbrNormalSample.xy))));
+    normalOut.xyz = normalize(vec3(PBR_NORMALS_STRENGTH*pbrNormalSample.xy,sqrt(1.0 - dot(pbrNormalSample.xy, pbrNormalSample.xy))));
 
     #ifdef POM_NORMALS
     const float pomDistFalloffMult = 4;
@@ -251,47 +254,43 @@ void main()
 
     float texNormalWeight = max(1e-6,pomNormal.z);
 
-    pbrNormal = normalize(pomNormal+texNormalWeight*pbrNormal);
+    normalOut.xyz = normalize(pomNormal+texNormalWeight*normalOut.xyz);
     #endif
 
 
-    pbrNormal = normalize(TBN*pbrNormal);
+    normalOut.xyz = normalize(TBN*normalOut.xyz);
 
     #ifdef POM
         #if DEBUG_SPECIAL_VIEW==104
 
         ivec2 checkerPos = (ivec2(floor(texcoord*atlasSize))-baseTexpos)%texsize;
         float checkerf=((bitCount(checkerPos.x^checkerPos.y)&3))/3.0;
-        sampledColor.xyz=vec3(min(abs(differential.xy*0.3),1)*vec2((differential.x<=0)?1-checkerf:1,(differential.y<=0)?1-checkerf:1),0.1);
+        color.xyz=vec3(min(abs(differential.xy*0.3),1)*vec2((differential.x<=0)?1-checkerf:1,(differential.y<=0)?1-checkerf:1),0.1);
         #elif DEBUG_SPECIAL_VIEW==106
         ivec2 checkerPos = (ivec2(floor(newTexcoord*atlasSize))-baseTexpos)%texsize;
         float checkerf=((bitCount(checkerPos.x^checkerPos.y)&3))/3.0;
-        sampledColor.xyz=mix(sampledColor.xyz,vec3(checkerf.x),0.5);
+        color.xyz=mix(color.xyz,vec3(checkerf.x),0.5);
         if(checkerPos.x==0 || checkerPos.y==0)
-            sampledColor.r=1;
+            color.r=1;
         else if(checkerPos.x==(texsize.x-1) || checkerPos.y==(texsize.y-1))
-            sampledColor.b=1;
+            color.b=1;
         #endif
     #endif
 
-    normalOut = vec4((pbrNormal+1)*0.5,NORMAL_A);
+    normalOut.xyz = (normalOut.xyz+1)*0.5;
     #else
-    normalOut = vec4((normal+1)*0.5,NORMAL_A);
+    normalOut.xyz = (normal+1)*0.5;
     #endif
 
+    normalOut.a=NORMAL_A;
+
+
     #ifdef TRANSLUCENT
-    if(sampledColor.a<=translucentPrecedenceCutoff)
+    if(color.a<=translucentPrecedenceCutoff)
         normalOut.a=0;
     #endif
 #endif
 
-
-//TODO the translucent part is for viewing fully lit stuff thru transparents, prolly a better solution tho
-#if defined VANILLA_FALLBACK && ((!defined TRANSLUCENT) || (defined FAKE_TRANSLUCENT))
-    vanillaLighting=lighting;
-#endif
-
-    color = sampledColor;
 
 #ifdef WRITE_MATERIALS
     #if MATERIALS_TYPE == 0 //hardcoded
@@ -317,7 +316,7 @@ void main()
 
     #ifdef TRANSLUCENT
 
-    if(sampledColor.a<translucentPrecedenceCutoff)
+    if(color.a<translucentPrecedenceCutoff)
         materialInfo.a=255;
     #endif
 #endif
