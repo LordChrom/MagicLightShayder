@@ -47,6 +47,7 @@ in vec2 texcoord;
 
 const float voxelDistance = 176.0;
 const float shadowDistance = 176.0;
+const float shadowDistanceRenderMul = -1.0;
 const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 
 
@@ -129,7 +130,7 @@ void main() {
     #if DEBUG_SPECIAL_VIEW == 200 || (DEBUG_SPECIAL_VIEW==202)
     outputColor = voxelLighting;
     #elif DEBUG_SPECIAL_VIEW == 203
-    outputColor=vec3(texture(shadowtex0,texcoord).rgb);
+    outputColor=vec3(texture(shadowtex0,vec2(1-texcoord.y,texcoord.x)).rgb);
     #elif (DEBUG_SPECIAL_VIEW) != 201
     outputColor = texelFetch(colortex15,ivec2(floor(0.1+texcoord*scaledScreenDim)),0).xyz;
     #endif
