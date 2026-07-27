@@ -3,7 +3,8 @@ const int perLevelScale = 4;
 int getMaxLevel(vec2 pos){
     float maxDist = max(abs(pos.x),abs(pos.y))*1.1;
     maxDist=1/max(0.001,maxDist);
-    return int(log2(maxDist)/log2(perLevelScale));
+//    return int(log2(maxDist)/log2(perLevelScale));
+    return int(log2(maxDist)*0.5);
 }
 
 vec2 levelDistort(vec2 shadowpos, int level){

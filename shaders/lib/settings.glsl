@@ -46,7 +46,7 @@
 #define SSAO_STRENGTH 1.0 //[0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0 1.125 1.25 1.375 1.5 1.75 2.0 2.5 3.0]
 #define SSAO_DELBEED
 
-#define VOX_LAYERS 2 //[1 2 3 4 5 6 7 8]
+#define VOX_LAYERS 3 //[1 2 3 4 5 6 7 8]
 
 #define COLORED_TRANSLUCENTS
 //#define PRIDE_LIGHTING
