@@ -23,7 +23,7 @@ void main() {
     texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
     glcolor = gl_Color;
     gl_Position = ftransform();
-    gl_Position.xy = distort(gl_Position.xy);
+    gl_Position.xyz = distort(gl_Position.xyz);
 
     #endif
 }
