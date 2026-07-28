@@ -114,13 +114,16 @@ Packing
 - voxelizing end gates
 - SSAO at edge cases
 - subsurface on lava
-- other subsurface edge cases
+- other subsurface edge cases (directly contacting light source)
+- not voxelizing entities
+- shadowmap light leak underground (esp for subsurface)
 
 ### Needs Improvement
 - shadowmap sun shadows
 - TAA performance
 - proper system for unlit geometry
 - DoF perf at lower renderscale
+- enchant glint
 
 ### Necessary additions
 - multiple occlusion indicators per sample

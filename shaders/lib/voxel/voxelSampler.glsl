@@ -438,7 +438,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
         #endif
     }
 
-    return color + MIN_LIGHT_AMOUNT*clamp(1-(color.x+color.y+color.z),0,1);
+    return color;
 }
 
 

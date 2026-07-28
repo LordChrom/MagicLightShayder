@@ -1,15 +1,17 @@
 #ifdef CASCADED_SHADOWS
-const int perLevelScale = 4;
+const float perLevelScale = 3.33;
 int getMaxLevel(vec2 pos){
     float maxDist = max(abs(pos.x),abs(pos.y))*1.1;
     maxDist=1/max(0.001,maxDist);
-//    return int(log2(maxDist)/log2(perLevelScale));
-    return int(log2(maxDist)*0.5);
+    const float returnMul = log2(perLevelScale);
+    return int(log2(maxDist)/returnMul);
 }
 
 vec2 levelDistort(vec2 shadowpos, int level){
     vec2 levelCenter = vec2(level>>1,level&1)-0.5;
-    int levelScale = 1<<(level+level);
+    float levelScale=bool(level&2)? perLevelScale*perLevelScale : 1;
+    if(bool(level&1))
+        levelScale*=perLevelScale;
     return clamp(shadowpos*0.5*levelScale,-0.5,0.5)+levelCenter;
 }
 vec2 distort(vec2 shadowpos){
