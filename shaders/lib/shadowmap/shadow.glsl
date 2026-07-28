@@ -17,6 +17,8 @@ const vec3 moonColor = vec3(0.22,0.22,0.48);
 
 //#define SHADOW_SAMPLING_ANGULAR
 float shadowSample(vec3 shadowpos){
+    if(shadowpos.x<0)
+        return 1;
     vec4 depths = textureGather(shadowtex0,shadowpos.xy,0); //BL BR TR TL
     //TL TR BL BR
     ivec4 visibilities = ivec4(depths.w>=shadowpos.z,depths.z>=shadowpos.z,depths.x>=shadowpos.z,depths.y>=shadowpos.z);

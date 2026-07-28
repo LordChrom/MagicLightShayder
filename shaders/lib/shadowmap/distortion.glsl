@@ -13,6 +13,8 @@ vec2 levelDistort(vec2 shadowpos, int level){
     return clamp(shadowpos*0.5*levelScale,-0.5,0.5)+levelCenter;
 }
 vec2 distort(vec2 shadowpos){
+    if(shadowpos.x<-1 || shadowpos.y<-1 || shadowpos.x>1 || shadowpos.y>1)
+        return vec2(-100);
     return levelDistort(shadowpos,clamp(getMaxLevel(shadowpos*1.01),0,3));
 }
 #else
