@@ -76,22 +76,23 @@ vec3 shadowmapSample(vec3 worldPos, vec3 normal, float subsurface, float ditherV
     vec3 lightSrcPosRel = (gbufferModelViewInverse*vec4(shadowLightPosition,1)).xyz;
     lightSrcPosRel-=worldPos;
     float nol = dot(normalize(lightSrcPosRel),normal);
-
-    vec3 shadowPos = worldSpaceToShadowSunBiased(worldPos+clamp(0.01*length(worldPos),1e-1,0.8)*normal);
+    float worldPosLen = length(worldPos)*0.01;
+    vec3 shadowPos = worldSpaceToShadowSunBiased(worldPos+clamp(worldPosLen,1e-1,0.8)*normal);
     float sampl = shadowSample(shadowPos);
     float strength = clamp(nol*sampl,0,1)*0.8+0.2;
     #if SUBSURFACE_MODE==2 && defined SUN_SHADOW_SUBSURFACE
     if(subsurface>0)
     {
-        shadowPos = worldSpaceToShadow(worldPos-clamp(0.01*length(worldPos),0.1,0.8)*normal);
+        shadowPos = worldSpaceToShadow(worldPos-clamp(mix(nol*-0.5+0.1,0.5,max(0,worldPosLen-0.1)),0,1)*normal);
+//        shadowPos = worldSpaceToShadow(worldPos);
         float sunHitDepth = shadowDepthToLinear(texture(shadowtex0,shadowPos.xy).x);
         float actualHitDepth = shadowDepthToLinear(shadowPos.z);
         float subSurfaceDepth = max(0,(sunHitDepth-actualHitDepth))*1.79+0.01;
 //        return vec3(fract(subSurfaceDepth));
-        subSurfaceDepth = min(-0.1,-3*subSurfaceDepth);
+        subSurfaceDepth = min(-0.15,-3*subSurfaceDepth);
 
-        float subsurfaceStrength = exp(subSurfaceDepth/max(0.01,subsurface));
-        subsurfaceStrength=max(0,subsurfaceStrength*sampl);
+        float subsurfaceStrength = 0.66*exp(subSurfaceDepth/max(0.01,subsurface));
+        subsurfaceStrength=max(0,subsurfaceStrength);
         strength=sqrt(strength*strength+subsurfaceStrength*subsurfaceStrength);
     }
     #endif
