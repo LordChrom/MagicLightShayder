@@ -137,6 +137,8 @@
 
 #define SHADOWMAP_SHADOWS
 #define SHADOW_RESOLUTION 768 //[256 384 512 768 1024 1536 2048 3072 4096 6144 8192]
+#define SUN_PATH_ROTATION 15 //[0 5 10 15 20 25 30 35 40 45]
+//#define SUN_SHADOW_SUBSURFACE
 //#define CASCADED_SHADOWS
 
 /////
@@ -235,7 +237,9 @@
 #ifdef FOG_PENUMBRAS
 #ifdef ENTITY_POM
 #ifdef DOF_ENABLED
+#ifdef SUN_SHADOW_SUBSURFACE
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
+#endif
 #endif
 #endif
 #endif

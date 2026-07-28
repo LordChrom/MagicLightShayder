@@ -44,7 +44,7 @@ uniform sampler2D colortex5;
 in vec2 texcoord;
 
 
-
+const float sunPathRotation=SUN_PATH_ROTATION;
 const float voxelDistance = 176.0;
 const float shadowDistance = 176.0;
 const float shadowDistanceRenderMul = -1.0;
