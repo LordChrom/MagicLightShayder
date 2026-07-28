@@ -116,9 +116,7 @@ void main() {
 #ifdef SSAO
     float ssao;
     if(emissive<0.4 && !isHand && (depth!=1)){
-        vec2 worldNormalDir = (gbufferModelView*vec4(normal.xyz, 0)).xy;
-        worldNormalDir=normalize(worldNormalDir);
-        ssao = doSsao(sampleTexcoord, worldNormalDir, solidDepth, ditherValue);
+        ssao = doSsao(sampleTexcoord, normal.xyz, solidDepth, ditherValue);
         voxelLighting*=ssao;
     }
 #endif
