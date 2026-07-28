@@ -45,11 +45,11 @@ in vec2 texcoord;
 
 
 const float sunPathRotation=SUN_PATH_ROTATION;
-const float voxelDistance = 176.0;
+const float voxelDistance = 64.0;
 #ifdef SHADOWMAP_SHADOWS
 const float shadowDistance = SHADOW_DISTANCE;
 #else
-const float shadowDistance = 176.0;
+const float shadowDistance = 128.0;
 #endif
 const float shadowDistanceRenderMul = 1.0;
 const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
