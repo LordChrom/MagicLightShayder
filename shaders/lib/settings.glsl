@@ -41,7 +41,7 @@
 #define SUBSURFACE_MODE 2 //[-1 0 2]
 
 //#define SSAO
-#define SSAO_QUALITY 3 //[1 2 3 4 6 8 10 16]
+#define SSAO_QUALITY 2 //[1 2 3 4 6 8 10]
 #define SSAO_RADIUS 0.5 //[0.025 0.05 0.075 0.1 0.15 0.2 0.3 0.4 0.5 0.6 0.8 1.0 1.2 1.6 2.0]
 #define SSAO_STRENGTH 1.0 //[0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0 1.125 1.25 1.375 1.5 1.75 2.0 2.5 3.0]
 #define SSAO_DELBEED
