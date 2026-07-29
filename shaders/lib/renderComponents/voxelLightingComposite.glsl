@@ -3,18 +3,16 @@
 in vec2 texcoord;
 
 #if DEBUG_SPECIAL_VIEW >= 0
-/* RENDERTARGETS: 6,7,15 */
+/* RENDERTARGETS: 6,15 */
 layout(location = 2) out vec3 funnyDebug;
 #else
-/* RENDERTARGETS: 6,7 */
+/* RENDERTARGETS: 6 */
 #endif
 
 layout(location = 0) out vec3 voxelLighting;
-layout(location = 1) out vec4 voxelFog;
 
 
 uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
-uniform mat4 gbufferModelViewProjectionInverse;
 uniform vec3 cameraPosition;
 uniform vec2 scaledScreenDim;
 
@@ -49,11 +47,6 @@ uniform sampler2D colortex11;
 #elif DEBUG_SPECIAL_VIEW == 105 && !defined SSAO
 #include "/lib/util/conversions.glsl"
 #endif
-
-#if VOLUMETRIC_FOG_SAMPLES > 0
-uniform vec3 fogColor;
-#endif
-
 
 
 void main() {
@@ -106,7 +99,7 @@ void main() {
 
     worldPosRelative = gbufferProjectionInverse*worldPosRelative;
     worldPosRelative/=worldPosRelative.w;
-    worldPosRelative.xyz.xyz = (gbufferModelViewInverse*worldPosRelative).xyz;
+    worldPosRelative.xyz = mat3(gbufferModelViewInverse)*worldPosRelative.xyz;
 
 
     voxelLighting = vec3(0);
@@ -119,49 +112,6 @@ void main() {
         ssao = doSsao(sampleTexcoord, normal.xyz, solidDepth, ditherValue);
         voxelLighting*=ssao;
     }
-#endif
-
-#if VOLUMETRIC_FOG_SAMPLES > 0
-    const float maxFogDepth = min(MAX_FOG_DEPTH,MIN_SCALE*0.5*AREA_SIZE*(1<<NUM_CASCADES));
-    const float fogSampleLen = 1.0/VOLUMETRIC_FOG_SAMPLES;
-    const float fogDensityMult = FOG_THICKNESS*log(0.5)/FOG_HALF_LIFE;
-
-    if(length(worldPosRelative.xyz)>maxFogDepth || (depth==1)){
-        worldPosRelative.xyz*=maxFogDepth/length(worldPosRelative.xyz);
-    }
-
-
-    #ifdef FOG_TEMPORAL_NOISE
-    ditherValue = temporalNoise(ditherValue);
-    #endif
-    float ditherValue2 = fract(ditherValue*-13+1.3);
-
-    voxelFog = vec4(0,0,0,1);
-    float hitDistance = length(worldPosRelative);
-    float prevWeight = 1.0;
-
-
-    for(int i=0; i<VOLUMETRIC_FOG_SAMPLES; i++){
-        //TODO better fog amount calc, and fix the banding, maybe smarter spacing
-        float weight = 1-(float(i)+ditherValue)*fogSampleLen;
-        vec3 fogSamplePos = cameraPosition +worldPosRelative.xyz*weight;
-        vec3 newSample = lightingSampleFog(fogSamplePos,ditherValue2*0,ditherValue);
-
-        float localFogDensity = fogDensityMult;
-        float prevFogDecay= exp(localFogDensity*hitDistance*prevWeight);
-        float fogDecay = (i==VOLUMETRIC_FOG_SAMPLES-1)? 1 : exp(localFogDensity*hitDistance*weight);
-
-        voxelFog *= prevFogDecay/fogDecay;
-        voxelFog.rgb += newSample*(fogDecay-prevFogDecay);
-        prevWeight=weight;
-    }
-
-    vec3 fogCol = max(fogColor,0.01);
-    fogCol=fogCol*(FOG_BIOME_TINT_STRENGTH/length(fogCol)) + (1-FOG_BIOME_TINT_STRENGTH);
-    voxelFog.rgb*=fogCol.rgb;
-
-
-
 #endif
 
 

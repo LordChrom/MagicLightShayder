@@ -31,10 +31,11 @@ float normalFactor(vec3 normal, vec3 displacement, float subsurface){
 float baseLightStrength(uint type, vec3 displacement, vec3 travel){
     const float b = 1/float(MAX_LIGHT_STRENGTH*MAX_LIGHT_STRENGTH);
 
-    #ifndef EVERYTHING_IS_THE_SUN
-    if(type==LIGHT_TYPE_SUN)
+    #ifdef EVERYTHING_IS_THE_SUN
+        if(true) return 1;
+    #elif !defined DISABLE_BLOCKLIGHT_SUN
+        if(type==LIGHT_TYPE_SUN) return 1;
     #endif
-        return 1;
 
     float lengthSquared = dot(displacement,displacement);
     float lightStrength = BLOCK_LIGHT_STRENGTH*inversesqrt(lengthSquared*lengthSquared*(1-MIN_COLUMNATION)+b);
@@ -279,6 +280,7 @@ vec3 getDirectedLight(uint cascadeLevel, uint layer, float subsurface, ivec3 zon
 
     vec3 displacement = travel + subVoxelOffset;
 
+    #ifndef DISABLE_BLOCKLIGHT_SUN
 
     if(type==LIGHT_TYPE_SUN){
         subVoxelOffset.xy*=sign(travel.xy);
@@ -286,18 +288,26 @@ vec3 getDirectedLight(uint cascadeLevel, uint layer, float subsurface, ivec3 zon
         displacement.xy=subVoxelOffset.xy-abs(travel.xy)*(subVoxelOffset.z/travel.z);
         displacement.z=7;
     }
+    #endif
 
     float lightStrength = baseLightStrength(type,displacement, travel);
     float baseStrength = lightStrength;
     if(isForFog){
-        lightStrength *=(type==LIGHT_TYPE_SUN)?FOG_BRIGHTNESS_SUN:FOG_BRIGHTNESS_BLOCK;
+        lightStrength *=
+        #ifndef DISABLE_BLOCKLIGHT_SUN
+        (type==LIGHT_TYPE_SUN)?FOG_BRIGHTNESS_SUN:
+        #endif
+        FOG_BRIGHTNESS_BLOCK;
     }else{
         lightStrength*=normalFactor(normal, displacement, subsurface);
     }
 
+    #ifndef DISABLE_BLOCKLIGHT_SUN
     if(type==LIGHT_TYPE_SUN)
         lightStrength *= doSunOcclusion(displacement,travel,getPackedOcclusion(packedLightSrc));
-    else{
+    else
+    #endif
+    {
         if(isForFog)
             lightStrength*=doFogOcclusion(displacement,travel,getPackedOcclusion(packedLightSrc));
         else
@@ -442,7 +452,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
 }
 
 
-vec3 voxelSampleFog(vec3 worldPos, float fogNoise, float ditherValue){
+vec3 voxelSampleFog(vec3 worldPos, float ditherValue){
     //TODO add a computationally cheap option and an option that weights based on how much of the fog line thru the voxel is lit
     uint cascadeLevel = getCascadeLevel(worldPos);
     float scale = getScale(cascadeLevel);
@@ -467,7 +477,7 @@ vec3 voxelSampleFog(vec3 worldPos, float fogNoise, float ditherValue){
 
 #ifdef FOG_RANDOM_LESSER_SOURCE
     const int lightsInLoop = min(LIGHTS_PER_FOG_SAMPLE-1,VOX_LAYERS);
-    uint randLayer = int(floor(float(VOX_LAYERS-lightsInLoop)*fract(fogNoise)))+lightsInLoop;
+    uint randLayer = int(floor(float(VOX_LAYERS-lightsInLoop)*fract(37*fogNoise)))+lightsInLoop;
 #else
     const int lightsInLoop = min(LIGHTS_PER_FOG_SAMPLE,VOX_LAYERS);
 #endif
