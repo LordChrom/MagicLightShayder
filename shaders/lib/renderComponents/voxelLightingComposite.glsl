@@ -1,6 +1,6 @@
 #include "/lib/settings.glsl"
 
-in vec2 texcoord;
+in vec2 jitteredTexcoord;
 
 #if DEBUG_SPECIAL_VIEW >= 0
 /* RENDERTARGETS: 6,15 */
@@ -14,11 +14,10 @@ layout(location = 0) out vec3 voxelLighting;
 
 uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
 uniform vec3 cameraPosition;
-uniform vec2 scaledScreenDim;
+//uniform vec2 scaledScreenDim;
 
 #include "/lib/lightingWrapper/lightSampler.glsl"
 #include "/lib/util/dither.glsl"
-#include "/lib/util/taaJitter.glsl"
 
 uniform sampler2D colortex2;
 uniform sampler2D depthtex2;
@@ -52,12 +51,7 @@ uniform sampler2D colortex11;
 void main() {
     float ditherValue = dither(ivec2(gl_FragCoord.xy));
 
-#ifdef TAA
-    vec2 sampleTexcoord = texcoord+jitter();
-#else
-    #define sampleTexcoord texcoord
-#endif
-    ivec2 sourceTexpos = ivec2((sampleTexcoord*textureSize(depthtex0,0)+0.01));
+    ivec2 sourceTexpos = ivec2((jitteredTexcoord*textureSize(depthtex0,0)+0.01));
 
     bool solidTransInFront = texelFetch(colortex1,sourceTexpos,0).a>=1;
     float depth = texelFetch(depthtex0,sourceTexpos,0).x;
@@ -71,7 +65,7 @@ void main() {
     }else{
         solidDepth = texelFetch(depthtex2,sourceTexpos,0).x;
     }
-    vec4 worldPosRelative = vec4(vec3(sampleTexcoord,solidDepth)*2-1,1);
+    vec4 worldPosRelative = vec4(vec3(jitteredTexcoord,solidDepth)*2-1,1);
     if(isHand){
         worldPosRelative.z=depth/MC_HAND_DEPTH;
     }
@@ -109,7 +103,7 @@ void main() {
 #ifdef SSAO
     float ssao;
     if(emissive<0.4 && !isHand && (depth!=1)){
-        ssao = doSsao(sampleTexcoord, normal.xyz, solidDepth, ditherValue);
+        ssao = doSsao(jitteredTexcoord, normal.xyz, solidDepth, ditherValue);
         voxelLighting*=ssao;
     }
 #endif
@@ -117,9 +111,9 @@ void main() {
 
 
 #if (DEBUG_SPECIAL_VIEW == 0) || ((DEBUG_SPECIAL_VIEW==104) || (DEBUG_SPECIAL_VIEW==106))
-    funnyDebug=texture(colortex0,sampleTexcoord).rgb;
+    funnyDebug=texture(colortex0,jitteredTexcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 1
-    funnyDebug=texture(colortex1,sampleTexcoord).rgb;
+    funnyDebug=texture(colortex1,jitteredTexcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 2
     ivec2 texpos = ivec2(gl_FragCoord.xy);
     float debugCheckerScale = 7;
@@ -127,25 +121,25 @@ void main() {
     vec3 mult = checker?vec3(1):sign(normal.xyz)*0.2+0.8;
     funnyDebug = abs(normal.xyz)*mult;
 #elif DEBUG_SPECIAL_VIEW == 3
-    uvec4 mat = texture(colortex3,sampleTexcoord);
+    uvec4 mat = texture(colortex3,jitteredTexcoord);
     float funnyEmissive = (mat.a==255)?0.0:(mat.a/254.0);
         funnyDebug=funnyEmissive+mat.rgb*((1.0-funnyEmissive)/255.0);
 //        funnyDebug=funnyEmissive*mat.rgb*(1.0/255.0);
 #elif DEBUG_SPECIAL_VIEW == 4
-    uvec4 mat = texture(colortex4,sampleTexcoord);
+    uvec4 mat = texture(colortex4,jitteredTexcoord);
     funnyDebug=mat.rgb*(1.0/255.0);
     if(mat.a>0 && mat.a<255)
         funnyDebug=0.5+0.5*funnyDebug;
 #elif DEBUG_SPECIAL_VIEW == 5
-    funnyDebug=texture(colortex5,sampleTexcoord).rgb;
+    funnyDebug=texture(colortex5,jitteredTexcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 6
     funnyDebug = voxelLighting.xyz;
 #elif DEBUG_SPECIAL_VIEW == 7
     funnyDebug = voxelFog.xyz;
 #elif (DEBUG_SPECIAL_VIEW == 10) || (DEBUG_SPECIAL_VIEW == 200)
-    funnyDebug = texture(colortex10,sampleTexcoord).rgb;
+    funnyDebug = texture(colortex10,jitteredTexcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 11
-    funnyDebug = texture(colortex11,sampleTexcoord).rgb;
+    funnyDebug = texture(colortex11,jitteredTexcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 100
     funnyDebug = vec3(clamp(0.05*sqrt(length(worldPosRelative)),0,1),float(isHand)*0.1,float(depth==1)*0.5);
 #elif DEBUG_SPECIAL_VIEW == 101

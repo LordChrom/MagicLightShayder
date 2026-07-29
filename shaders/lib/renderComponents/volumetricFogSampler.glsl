@@ -1,6 +1,7 @@
 #include "/lib/settings.glsl"
 
-in vec2 texcoord;
+in vec2 jitteredTexcoord;
+in vec3 worldPosDirection;
 
 /* RENDERTARGETS: 7 */
 
@@ -9,11 +10,10 @@ layout(location = 0) out vec4 voxelFog;
 
 uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
 uniform vec3 cameraPosition;
-uniform vec2 scaledScreenDim;
 
 #include "/lib/lightingWrapper/lightSampler.glsl"
 #include "/lib/util/dither.glsl"
-#include "/lib/util/taaJitter.glsl"
+#include "/lib/util/conversions.glsl"
 
 uniform sampler2D colortex2;
 uniform sampler2D depthtex2;
@@ -27,10 +27,7 @@ uniform vec3 fogColor;
 
 void main() {
     vec4 worldPosRelative;
-    worldPosRelative.xy=texcoord;
-    #ifdef TAA
-    worldPosRelative.xy+=jitter();
-    #endif
+    worldPosRelative.xy=jitteredTexcoord;
     ivec2 sourceTexpos = ivec2((worldPosRelative.xy*textureSize(depthtex0,0)+0.01));
 
     bool solidTransInFront = texelFetch(colortex1,sourceTexpos,0).a>=1;
