@@ -3,11 +3,29 @@
 #include "/lib/renderComponents/shadow/shadowProgramFeatures.glsl"
 
 layout(triangles) in;
+#ifdef CAN_VOXELIZE
+#include "/lib/voxel/voxelMapper.glsl"
+uniform vec3 cameraPosition;
+
+in flat int[] mc_Entity_x;
+in flat int[] midblockW;
+in vec3[] worldPosRel;
+in vec3[] toMidblock;
+in vec3[] normal;
+void voxelize(){
+    vec3 centerPos = cameraPosition+(worldPosRel[0]+worldPosRel[1]+worldPosRel[2])/3.0;
+    writeVoxelMap(centerPos, mc_Entity_x[0], (toMidblock[0]+toMidblock[1]+toMidblock[2])/3.0, normal[0], midblockW[0]);
+}
+#endif
+
 
 #ifndef SHADOWMAP_SHADOWS
-//no shadows
 layout(triangle_strip, max_vertices = 0) out;
-void main(){}
+void main(){
+    #ifdef CAN_VOXELIZE
+    voxelize();
+    #endif
+}
 #else
 
 
@@ -32,6 +50,9 @@ uniform bool hasCeiling;
 layout(triangle_strip, max_vertices = 3) out;
 
 void main(){
+    #ifdef CAN_VOXELIZE
+    voxelize();
+    #endif
     if(hasCeiling) return;
     for(int i=0;i<3;i++){
         gl_Position = gl_in[i].gl_Position;
@@ -57,6 +78,9 @@ layout(triangle_strip, max_vertices = 12) out;
 #include "/lib/shadowmap/distortion.glsl"
 
 void main(){
+    #ifdef CAN_VOXELIZE
+    voxelize();
+    #endif
     if(hasCeiling) return;
     vec2 avgPos = (gl_in[0].gl_Position.xy+gl_in[1].gl_Position.xy+gl_in[2].gl_Position.xy)/3.0;
     int maxLevel = getMaxLevel(avgPos*0.8);

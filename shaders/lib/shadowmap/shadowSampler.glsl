@@ -6,6 +6,7 @@ uniform mat4 gbufferModelViewInverse;
 uniform sampler2D shadowtex0;
 uniform vec3 shadowLightPosition;
 uniform vec2 shadowDepthConvConsts;
+uniform bool hasCeiling;
 
 //uniform vec3 cameraPosition;
 #include "/lib/shadowmap/distortion.glsl"

@@ -2,7 +2,6 @@
 
 uniform vec3 globalOrigin, previousGlobalOrigin;
 uniform int frameCounter;
-uniform bool hasCeiling;
 
 //caps out at 31 but its whatever
 uint countTrailingZeroes(uint x){

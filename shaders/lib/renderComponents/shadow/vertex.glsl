@@ -3,11 +3,17 @@
 #include "/lib/renderComponents/shadow/shadowProgramFeatures.glsl"
 
 #ifdef CAN_VOXELIZE
-#include "/lib/voxel/voxelMapper.glsl"
-uniform vec3 cameraPosition;
+//#include "/lib/voxel/voxelMapper.glsl"
+//uniform vec3 cameraPosition;
 
 in vec4 at_midBlock;
 in vec2 mc_Entity;
+
+out flat int mc_Entity_x;
+out flat int midblockW;
+out vec3 worldPosRel;
+out vec3 toMidblock;
+out vec3 normal;
 #endif
 
 #ifdef SHADOWMAP_SHADOWS
@@ -27,10 +33,15 @@ out float glcolorAlphaVert;
 
 void main() {
     #ifdef CAN_VOXELIZE
-    if((gl_VertexID%3)==0){
-        vec3 centerPos = gl_Vertex.xyz-gl_ProjectionMatrix[3].xyz+cameraPosition;
-        writeVoxelMap(centerPos, int(mc_Entity.x), at_midBlock.xyz/64.0, gl_Normal, int(at_midBlock.w));
-    }
+    worldPosRel = gl_Vertex.xyz-gl_ProjectionMatrix[3].xyz;
+    toMidblock = at_midBlock.xyz/64.0;
+    mc_Entity_x = int(mc_Entity.x);
+    midblockW = int(at_midBlock.w);
+    normal = gl_Normal;
+//    if((gl_VertexID%3)==0){
+//        vec3 centerPos = gl_Vertex.xyz-gl_ProjectionMatrix[3].xyz+cameraPosition;
+//        writeVoxelMap(centerPos, int(mc_Entity.x), at_midBlock.xyz/64.0, gl_Normal, int(at_midBlock.w));
+//    }
     #endif
 
     #ifdef SHADOWMAP_SHADOWS
