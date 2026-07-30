@@ -36,12 +36,22 @@ layout(triangle_strip, max_vertices = 12) out;
 
 void main(){
     vec2 avgPos = (gl_in[0].gl_Position.xy+gl_in[1].gl_Position.xy+gl_in[2].gl_Position.xy)/3.0;
-    int maxLevel = getMaxLevel(avgPos*0.8);
+    int maxLevel = getMaxLevel(avgPos*0.9);
     maxLevel=min(maxLevel,3);
     for(int level=0;level<=maxLevel;level++){
+        vec2[3] positions;
+        bool allOob = true;
         for (int i=0;i<3;i++){
-            gl_Position = gl_in[i].gl_Position;
-            gl_Position.xy=levelDistort(gl_Position.xy,level);
+            bool oob;
+            positions[i]=levelDistortAndReport(gl_in[i].gl_Position.xy,level,oob);
+//            positions[i]=levelDistort(gl_in[i].gl_Position.xy,level);
+            allOob = allOob&& oob;
+        }
+        if(allOob)
+            return;
+        for (int i=0;i<3;i++){
+            gl_Position.xy = positions[i];
+            gl_Position.zw=gl_in[i].gl_Position.zw;
             texcoord = texcoordVert[i];
             glcolor = glcolorVert[i];
             EmitVertex();

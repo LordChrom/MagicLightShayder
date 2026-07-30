@@ -14,6 +14,15 @@ vec2 levelDistort(vec2 shadowpos, int level){
         levelScale*=perLevelScale;
     return clamp(shadowpos*0.5*levelScale,-0.5,0.5)+levelCenter;
 }
+vec2 levelDistortAndReport(vec2 shadowpos, int level, out bool oob){
+    vec2 levelCenter = vec2(level>>1,level&1)-0.5;
+    float levelScale=bool(level&2)? perLevelScale*perLevelScale : 1;
+    if(bool(level&1))
+    levelScale*=perLevelScale;
+    shadowpos*=levelScale;
+    oob = shadowpos.x<-1 || shadowpos.y<-1 || shadowpos.x>1 || shadowpos.y>1;
+    return clamp(shadowpos*0.5,-10.5,10.5)+levelCenter;
+}
 vec2 distort(vec2 shadowpos){
     if(shadowpos.x<-1 || shadowpos.y<-1 || shadowpos.x>1 || shadowpos.y>1)
         return vec2(-100);

@@ -17,7 +17,7 @@ float doSsao(vec2 texcoord, vec3 normal, float solidDepth, float dither){
     float radius = (SSAO_RADIUS*0.3)/solidDepth;
     radius = min(radius,0.15);
 
-    const int numDirections = ((3*SSAO_QUALITY)+1)&~1;
+    const int numDirections = ((2*SSAO_QUALITY))&~1;
     float[numDirections] directions;
     for(int i=0;i<numDirections;i++)
         directions[i]=0;
@@ -37,7 +37,7 @@ float doSsao(vec2 texcoord, vec3 normal, float solidDepth, float dither){
             vec4 pos = gbufferProjectionInverse*(vec4(offsetPos,texture(depthtex2,offsetPos).x,1)*2-1);
             pos.xyz=mat3(gbufferModelViewInverse)*(pos.xyz/pos.w);
             pos.xyz-=worldPos.xyz;
-            float wallAngle = asin(max(0,dot(normalize(pos.xyz),normal)));
+            float wallAngle = asin(clamp(dot(pos.xyz,normal),0,1)/min(length(pos.xyz),3));
             int index = int(floor(angle*numDirections/TWOPI));
             directions[index]=max(directions[index],wallAngle);
         }
@@ -53,7 +53,7 @@ float doSsao(vec2 texcoord, vec3 normal, float solidDepth, float dither){
     sum*=0.25;
 
     float ssao = 1-sum*PI/numDirections;
-    ssao*=ssao;
+//    ssao*=ssao;
     ssao=1-(1-ssao)*SSAO_STRENGTH;
     return clamp(ssao,0.2,1);
 }
