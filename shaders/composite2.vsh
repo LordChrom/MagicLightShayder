@@ -1,6 +1,6 @@
 #version 430 compatibility
-uniform vec2 scaledScreenDim;
 uniform int frameCounter;
+uniform vec2 scaledScreenDim;
 #include "/lib/settings.glsl"
 
 #ifdef TAA
@@ -8,7 +8,6 @@ uniform int frameCounter;
 #endif
 
 out vec2 jitteredTexcoord;
-out vec3 worldPosDirection;
 
 void main() {
 	gl_Position = ftransform();

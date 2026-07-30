@@ -15,12 +15,12 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
 }
 
 
-vec3 lightingSampleFog(vec3 worldPos, float fogNoise, float ditherValue){
+vec3 lightingSampleFog(vec3 worldPos, float ditherValue){
     vec3 ret = vec3(0);
-    ret += voxelSampleFog(worldPos, fogNoise, ditherValue);
+    ret += voxelSampleFog(worldPos, ditherValue);
 
     #ifdef SHADOWMAP_SHADOWS
-    ret+= shadowmapSampleFog(worldPos, fogNoise, ditherValue);
+    ret+= shadowmapSampleFog(worldPos, ditherValue);
     #endif
 
     return ret;

@@ -6,6 +6,7 @@ uniform mat4 gbufferModelViewInverse;
 uniform sampler2D shadowtex0;
 uniform vec3 shadowLightPosition;
 uniform vec2 shadowDepthConvConsts;
+uniform bool hasCeiling;
 
 //uniform vec3 cameraPosition;
 #include "/lib/shadowmap/distortion.glsl"
@@ -74,6 +75,7 @@ vec3 worldSpaceToShadowSunBiased(vec3 worldPos){
 
 
 vec3 shadowmapSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue){
+    if(hasCeiling) return vec3(0);
     worldPos-=cameraPosition;
     vec3 lightSrcPosRel = (gbufferModelViewInverse*vec4(shadowLightPosition,1)).xyz;
     lightSrcPosRel-=worldPos;
@@ -101,7 +103,8 @@ vec3 shadowmapSample(vec3 worldPos, vec3 normal, float subsurface, float ditherV
     return (strength)*(sunAngle>0.5?moonColor:sunColor);
 }
 
-vec3 shadowmapSampleFog(vec3 worldPos, float fogNoise, float ditherValue){
+vec3 shadowmapSampleFog(vec3 worldPos, float ditherValue){
+    if(hasCeiling) return vec3(0);
     if(sunAngle>0.5)
         return vec3(0.1);
     worldPos-=cameraPosition;
