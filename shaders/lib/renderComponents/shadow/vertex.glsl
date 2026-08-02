@@ -38,10 +38,6 @@ void main() {
     mc_Entity_x = int(mc_Entity.x);
     midblockW = int(at_midBlock.w);
     normal = gl_Normal;
-//    if((gl_VertexID%3)==0){
-//        vec3 centerPos = gl_Vertex.xyz-gl_ProjectionMatrix[3].xyz+cameraPosition;
-//        writeVoxelMap(centerPos, int(mc_Entity.x), at_midBlock.xyz/64.0, gl_Normal, int(at_midBlock.w));
-//    }
     #endif
 
     #ifdef SHADOWMAP_SHADOWS

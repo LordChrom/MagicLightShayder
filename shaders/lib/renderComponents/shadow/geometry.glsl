@@ -82,8 +82,8 @@ void main(){
     voxelize();
     #endif
     if(hasCeiling) return;
-    vec2 avgPos = (gl_in[0].gl_Position.xy+gl_in[1].gl_Position.xy+gl_in[2].gl_Position.xy)/3.0;
-    int maxLevel = getMaxLevel(avgPos*0.9);
+    float fudge = 0.9;
+    int maxLevel=max(getMaxLevel(gl_in[0].gl_Position.xy*fudge),max(getMaxLevel(gl_in[1].gl_Position.xy*fudge),getMaxLevel(gl_in[2].gl_Position.xy*fudge)));
     maxLevel=min(maxLevel,3);
     for(int level=0;level<=maxLevel;level++){
         vec2[3] positions;
