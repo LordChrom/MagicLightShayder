@@ -323,7 +323,18 @@ vec3 getDirectedLight(uint cascadeLevel, uint layer, float subsurface, ivec3 zon
             subsurfaceStrength=subsurface;
         }else{
             float lightDirz = normalize(displacement).z;
-            subsurfaceStrength = lightDirz*exp(subsurfaceLightDepth/max(0.01,lightDirz*subsurface));
+
+            float lightDepth=subsurfaceLightDepth;
+
+            //for block touching light source
+            float lightManhattDistXY = abs(travel.x)+abs(travel.y);
+            if(travel.z<=1.01*scale && dot(travel,normal)>0.5
+                && lightManhattDistXY>0.99*scale && lightManhattDistXY<1.01*scale
+            ){
+                lightDepth=abs(dot(displacement.xy,travel.xy))-scale*0.5;
+                lightDirz=1;
+            }
+            subsurfaceStrength = lightDirz*exp(-3*lightDepth/max(0.01,lightDirz*subsurface));
         }
 
         subsurfaceStrength=max(0,subsurfaceStrength*baseStrength);
@@ -426,10 +437,8 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
             ivec3 newPos = clamp(hitBlockAreaPos-lVec,0,AREA_SIZE-1);
             uint hitBlockPotentialBlocker = getVoxData(newPos, areaShift, areaOffset(cascadeLevel));
             float terrainBeforeBlock =(bool(hitBlockPotentialBlocker&WORLDVOX_OPAQUE))?scale:0;
-            float depthIntoBlock = dot(subSurfaceOffset,lVec);
-
-            float z = depthIntoBlock+0.5*scale;
-            subsurfaceLightDepth=-3*(z+terrainBeforeBlock);
+            float depthIntoBlock = dot(subSurfaceOffset,lVec)+0.5*scale;
+            subsurfaceLightDepth = depthIntoBlock+terrainBeforeBlock;
         }
        #endif
         vec3 zoneNorm = areaToZoneSpaceRelative(normal,axis);
