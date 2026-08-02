@@ -29,3 +29,7 @@
     #undef CUTOUT
     #undef TEXTURED
 #endif
+
+#ifndef COLORED_SHADOWS
+    #undef COLORED
+#endif

@@ -425,7 +425,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
             ivec3 lVec = lVec(axis);
             ivec3 newPos = clamp(hitBlockAreaPos-lVec,0,AREA_SIZE-1);
             uint hitBlockPotentialBlocker = getVoxData(newPos, areaShift, areaOffset(cascadeLevel));
-            float terrainBeforeBlock =bool(hitBlockPotentialBlocker)?scale:0;
+            float terrainBeforeBlock =(bool(hitBlockPotentialBlocker&WORLDVOX_OPAQUE))?scale:0;
             float depthIntoBlock = dot(subSurfaceOffset,lVec);
 
             float z = depthIntoBlock+0.5*scale;
