@@ -50,6 +50,10 @@ ivec3 upperShift = ivec3(0);
 ivec3 movement   = ivec3(0);
 bool cascadeVisitedThisFrame = false;
 
+#ifndef DISABLE_BLOCKLIGHT_SUN
+uniform bool hasCeiling;
+#endif
+
 void trimLight(ivec3 zonePos){
     uvec4 light = uvec4(0);
 
