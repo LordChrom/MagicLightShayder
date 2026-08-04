@@ -27,7 +27,7 @@ void main() {
         ivec2 stageSize = texsize>>stage;
         float mipBase = (float(texsize.x-stageSize.x))/texsize.x;
 
-        vec2 minTex = 0.5/(stageSize>>1);
+        vec2 minTex = 1.5/(stageSize>>1);
         vec2 maxTex = (vec2(stageSize>>1)-1.5)/vec2(stageSize>>1);
         vec2 thePos = vec2(mipBase,0)+clamp(texcoord,minTex,maxTex)/(1<<(stage+1));
 
