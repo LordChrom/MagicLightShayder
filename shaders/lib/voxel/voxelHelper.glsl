@@ -1,3 +1,5 @@
+#ifndef VOXEL_HELPER
+#define VOXEL_HELPER
 #include "/lib/settings.glsl"
 
 uniform vec3 globalOrigin, previousGlobalOrigin;
@@ -401,6 +403,23 @@ void setVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift, uint areaMemOff
 }
 #endif
 
+#ifdef SAMPLES_FLOOD
+uniform sampler3D floodfillSampler;
+
+vec4 getFloodData(ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
+    return texelFetch(floodfillSampler,toMemPos(areaPos,areaShift,areaMemOffset),0);
+}
+#endif
+
+
+#ifdef WRITES_FLOOD
+layout (rgba8) uniform writeonly restrict image3D floodfillVox;
+
+void setFloodData(vec4 data, ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
+    ivec3 memPos = toMemPos(areaPos,areaShift,areaMemOffset);
+    imageStore(floodfillVox,memPos,data);
+}
+#endif
 
 uint bvec4ToUint(bvec4 b){
     return (uint(b.x)<<3u)|(uint(b.y)<<2u)|(uint(b.z)<<1u)|(uint(b.w));
@@ -485,3 +504,4 @@ uvec4 getSunlight(uint axis){
         return uvec4(0);
     return packLightData(vec2(0),0xfu,vec3(242,242,242)/255,sunLightTravel,0f,1,0xfeu);
 }
+#endif
