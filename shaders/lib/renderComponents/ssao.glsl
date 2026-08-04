@@ -35,7 +35,7 @@ float doSsao(vec2 texcoord, vec3 normal, float solidDepth, float dither){
             vec2 offsetPos = texcoord + vec2(cos(angle),sin(angle))*tempRadius;
 
             vec4 pos = gbufferProjectionInverse*(vec4(offsetPos,texture(depthtex2,offsetPos).x,1)*2-1);
-            pos.xyz=mat3(gbufferModelViewInverse)*(pos.xyz/pos.w);
+            pos.xyz=mat3(gbufferModelViewInverse)*(pos.xyz/pos.w)+gbufferModelViewInverse[3].xyz;;
             pos.xyz-=worldPos.xyz;
             float wallAngle = asin(clamp(dot(pos.xyz,normal),0,1)/min(length(pos.xyz),3));
             int index = int(floor(angle*numDirections/TWOPI));

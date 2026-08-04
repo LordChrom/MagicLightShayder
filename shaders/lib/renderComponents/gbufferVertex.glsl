@@ -128,12 +128,12 @@ void main() {
 
     texHitVec = transpose(gl_NormalMatrix*texTBN)*texHitVec;
 
-    worldLength = length(gl_Vertex.xyz-gl_ProjectionMatrix[3].xyz);
+    worldLength = length(gl_Vertex.xyz);
     texsize = ivec2(ceil(2*atlasSize*abs(mc_midTexCoord-texcoord)));
     baseTexpos = ivec2(atlasSize*(mc_midTexCoord-abs(mc_midTexCoord-texcoord)));
 
     differential=-texsize*texHitVec.xy/texHitVec.z;
-    if(length(gl_Vertex.xyz-gl_ProjectionMatrix[3].xyz)>POM_DISTANCE)
+    if(length(gl_Vertex.xyz)>POM_DISTANCE)
         differential=vec2(0);
 
             #ifdef ENTITY
@@ -179,7 +179,7 @@ void main() {
     #if NEEDS_WORLD_POS<1
         vec3
     #endif
-    worldPos = gl_Vertex.xyz-gl_ProjectionMatrix[3].xyz+cameraPosition;
+    worldPos = gl_Vertex.xyz+cameraPosition;
 #endif
 
 #ifdef UPDATE_VOXEL_MAP

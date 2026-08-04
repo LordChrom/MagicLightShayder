@@ -93,7 +93,7 @@ void main() {
 
     worldPosRelative = gbufferProjectionInverse*worldPosRelative;
     worldPosRelative/=worldPosRelative.w;
-    worldPosRelative.xyz = mat3(gbufferModelViewInverse)*worldPosRelative.xyz;
+    worldPosRelative.xyz = mat3(gbufferModelViewInverse)*worldPosRelative.xyz+gbufferModelViewInverse[3].xyz;
 
 
     voxelLighting = vec3(0);

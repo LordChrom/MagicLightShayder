@@ -42,7 +42,7 @@ void main() {
 
     worldPosRelative = gbufferProjectionInverse*vec4(worldPosRelative.xyz*2-1,1);
     worldPosRelative/=worldPosRelative.w;
-    worldPosRelative.xyz = mat3(gbufferModelViewInverse)*worldPosRelative.xyz;
+    worldPosRelative.xyz = mat3(gbufferModelViewInverse)*worldPosRelative.xyz+gbufferModelViewInverse[3].xyz;;
 
     const float maxFogDepth = min(MAX_FOG_DEPTH,MIN_SCALE*0.5*AREA_SIZE*(1<<NUM_CASCADES));
 
