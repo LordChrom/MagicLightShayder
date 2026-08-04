@@ -5,7 +5,7 @@ vec2 jitter2(int entropy){
     return vec2(ivec2(entropy,entropy>>1)&1)-0.5;
 }
 
-vec2 jitter(){
+vec2 unscaledJitter(){
     vec2 jitter = vec2(0);
 
     #if TAA_JITTER_INTERVAL >= 4
@@ -26,6 +26,14 @@ vec2 jitter(){
     timer = timer<0.5?2*timer:2-2*timer;
     jitter=vec2(timer);
     #endif
-    return jitter/scaledScreenDim;
+    return jitter;
+}
+
+vec2 jitter(){
+    return unscaledJitter()/scaledScreenDim;
+}
+
+vec2 shadowJitter(){
+    return unscaledJitter()/SHADOW_RESOLUTION;
 }
 #endif

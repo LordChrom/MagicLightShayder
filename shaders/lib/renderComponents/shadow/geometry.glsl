@@ -75,6 +75,10 @@ void main(){
 uniform bool hasCeiling;
 //yes cascasdes
 layout(triangle_strip, max_vertices = 12) out;
+#ifndef CAN_VOXELIZE
+uniform int frameCounter;
+#endif
+
 #include "/lib/shadowmap/distortion.glsl"
 
 void main(){

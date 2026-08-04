@@ -16,6 +16,8 @@ out vec3 normal;
 #endif
 
 #ifdef SHADOWMAP_SHADOWS
+uniform int frameCounter;
+
 #include "/lib/shadowmap/distortion.glsl"
 
 #ifdef TEXTURED

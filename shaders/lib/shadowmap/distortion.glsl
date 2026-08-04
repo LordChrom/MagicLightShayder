@@ -2,6 +2,13 @@ float distortZ(float z){
     return 0.5*z;
 }
 
+
+#ifdef TAA
+uniform vec2 scaledScreenDim;
+#include "/lib/util/taaJitter.glsl"
+#endif
+
+
 #ifdef CASCADED_SHADOWS
 const float perLevelScale = 3;
 float getFloatMaxLevel(vec2 pos){
@@ -19,7 +26,12 @@ vec2 levelDistort(vec2 shadowpos, int level){
     float levelScale=bool(level&2)? perLevelScale*perLevelScale : 1;
     if(bool(level&1))
         levelScale*=perLevelScale;
-    return clamp(shadowpos*0.5*levelScale,-0.5,0.5)+levelCenter;
+    shadowpos*=levelScale;
+    #ifdef TAA
+    shadowpos+=2*shadowJitter();
+    #endif
+    shadowpos = clamp(shadowpos,-1,1);
+    return shadowpos*0.5+levelCenter;
 }
 vec2 levelDistortAndReport(vec2 shadowpos, int level, out bool oob){
     vec2 levelCenter = vec2(level>>1,level&1)-0.5;
@@ -27,6 +39,9 @@ vec2 levelDistortAndReport(vec2 shadowpos, int level, out bool oob){
     if(bool(level&1))
     levelScale*=perLevelScale;
     shadowpos*=levelScale;
+    #ifdef TAA
+    shadowpos+=2*shadowJitter();
+    #endif
     oob = shadowpos.x<-1 || shadowpos.y<-1 || shadowpos.x>1 || shadowpos.y>1;
     shadowpos = clamp(shadowpos,-1,1);
     return shadowpos*0.5+levelCenter;
@@ -43,7 +58,11 @@ vec3 distort(vec3 shadowpos, float noise){
 }
 #else
 vec2 distort(vec2 shadowpos){
-    return shadowpos/((pow(abs(shadowpos),vec2(0.8)))+0.08);
+    shadowpos = shadowpos/((pow(abs(shadowpos),vec2(0.8)))+0.08);
+    #ifdef TAA
+    shadowpos+=shadowJitter();
+    #endif
+    return shadowpos;
 }
 vec3 distort(vec3 shadowpos, float noise){
     return vec3(distort(shadowpos.xy),distortZ(shadowpos.z));

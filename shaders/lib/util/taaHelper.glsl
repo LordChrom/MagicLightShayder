@@ -6,8 +6,8 @@ float lightSampleWeight(vec2 jitteredTexpos){
     vec2 diffPx = abs(jitteredTexpos*scaledScreenDim-round(jitteredTexpos*scaledScreenDim+0.5)+0.5);
     float spatialFactor =(diffPx.x+diffPx.y);
     spatialFactor *= (TAA_SPATIALITY*(1.2-LIGHTING_RENDERSCALE));
-    spatialFactor -= (TAA_SPATIALITY*TAA_MOTION_REJECTION)*length(cameraPosition-previousCameraPosition);
-
+//    spatialFactor -= 10*(TAA_SPATIALITY*TAA_MOTION_REJECTION)*length(cameraPosition-previousCameraPosition);
+//    spatialFactor /= max(1,TAA_MOTION_REJECTION*length(cameraPosition-previousCameraPosition));
     float weight = clamp(1-spatialFactor,0,1);
     weight*=weight;
     return clamp(weight,TAA_MIN_ACCUMULATION_RATE,TAA_MAX_ACCUMULATION_RATE);
@@ -22,7 +22,9 @@ float fogSampleWeight(vec2 jitteredTexpos){
     vec2 diffPx = abs(jitteredTexpos*scaledScreenDim-round(jitteredTexpos*scaledScreenDim+0.5)+0.5);
     float spatialFactor =(diffPx.x+diffPx.y);
     spatialFactor *= (TAA_FOG_FACTOR*TAA_SPATIALITY*(1.2-LIGHTING_RENDERSCALE));
-    spatialFactor -= (TAA_SPATIALITY*TAA_MOTION_REJECTION*200/TAA_FOG_FACTOR)*length(cameraPosition-previousCameraPosition);
+    spatialFactor -= (TAA_SPATIALITY*TAA_MOTION_REJECTION*0.1/TAA_FOG_FACTOR)*length(cameraPosition-previousCameraPosition);
+//    spatialFactor /= max(1,TAA_MOTION_REJECTION*length(cameraPosition-previousCameraPosition));
+
     float weight = clamp(1-spatialFactor,0,1);
     weight*=weight;
 
