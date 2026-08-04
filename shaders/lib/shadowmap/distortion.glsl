@@ -3,7 +3,7 @@ float distortZ(float z){
 }
 
 #ifdef CASCADED_SHADOWS
-const float perLevelScale = 4;
+const float perLevelScale = 3;
 float getFloatMaxLevel(vec2 pos){
     float maxDist = max(abs(pos.x),abs(pos.y))*1.1;
     maxDist=1/max(0.001,maxDist);
@@ -43,9 +43,7 @@ vec3 distort(vec3 shadowpos, float noise){
 }
 #else
 vec2 distort(vec2 shadowpos){
-//    float distortFactor = 1/(0.1+max(length(shadowpos)/1.2,0.05));
-//    return vec2(shadowpos.xy*distortFactor);
-    return shadowpos/(sqrt(abs(shadowpos))*0.97+0.03);
+    return shadowpos/((pow(abs(shadowpos),vec2(0.8)))+0.08);
 }
 vec3 distort(vec3 shadowpos, float noise){
     return vec3(distort(shadowpos.xy),distortZ(shadowpos.z));

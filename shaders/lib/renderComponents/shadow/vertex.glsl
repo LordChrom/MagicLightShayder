@@ -9,10 +9,9 @@
 in vec4 at_midBlock;
 in vec2 mc_Entity;
 
-out flat int mc_Entity_x;
-out flat int midblockW;
+out flat int blockID;
+out flat int blockEmission;
 out vec3 worldPosRel;
-out vec3 toMidblock;
 out vec3 normal;
 #endif
 
@@ -34,9 +33,8 @@ out float glcolorAlphaVert;
 void main() {
     #ifdef CAN_VOXELIZE
     worldPosRel = gl_Vertex.xyz;
-    toMidblock = at_midBlock.xyz/64.0;
-    mc_Entity_x = int(mc_Entity.x);
-    midblockW = int(at_midBlock.w);
+    blockID = int(mc_Entity.x);
+    blockEmission = int(at_midBlock.w);
     normal = gl_Normal;
     #endif
 

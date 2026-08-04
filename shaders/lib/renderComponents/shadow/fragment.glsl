@@ -30,7 +30,7 @@ void main(){
         discard;
     }
     #elif defined CUTOUT
-    float alpha = texture(gtexture, texcoord).a * glcolorAlpha;
+    float alpha = texture(gtexture, texcoord,-1).a * glcolorAlpha;
     if(alpha < 0.1){
         discard;
     }

@@ -7,21 +7,14 @@ layout(triangles) in;
 #include "/lib/voxel/voxelMapper.glsl"
 uniform vec3 cameraPosition;
 
-in flat int[] mc_Entity_x;
-in flat int[] midblockW;
+in flat int[] blockID;
+in flat int[] blockEmission;
 in vec3[] worldPosRel;
-in vec3[] toMidblock;
 in vec3[] normal;
 void voxelize(){
-    #if 0
-    vec3 centerPos = cameraPosition+(worldPosRel[0]+worldPosRel[1]+worldPosRel[2])/3.0;
-    writeVoxelMap(centerPos, mc_Entity_x[0], (toMidblock[0]+toMidblock[1]+toMidblock[2])/3.0, normal[0], midblockW[0]);
-    #else
     vec3 minWorldPos = cameraPosition+min(min(worldPosRel[0],worldPosRel[1]),worldPosRel[2]);
     vec3 maxWorldPos = cameraPosition+max(max(worldPosRel[0],worldPosRel[1]),worldPosRel[2]);
-    writeVoxelMap(minWorldPos, maxWorldPos, mc_Entity_x[0], normal[0], midblockW[0]);
-    #endif
-
+    writeVoxelMap(minWorldPos, maxWorldPos, blockID[0], normal[0], blockEmission[0]);
 }
 #endif
 
