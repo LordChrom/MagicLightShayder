@@ -33,7 +33,7 @@ out float glcolorAlphaVert;
 
 void main() {
     #ifdef CAN_VOXELIZE
-    worldPosRel = gl_Vertex.xyz-gl_ProjectionMatrix[3].xyz;
+    worldPosRel = gl_Vertex.xyz;
     toMidblock = at_midBlock.xyz/64.0;
     mc_Entity_x = int(mc_Entity.x);
     midblockW = int(at_midBlock.w);

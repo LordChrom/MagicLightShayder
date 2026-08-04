@@ -845,8 +845,11 @@ void lightVoxelFace(){
             vec3 subBlockOffset = areaToZoneSpaceRelative((worldPos-round(worldPos)),axis);
             lightTravel = subBlockOffset;
         }
+        if(lightTravel.z>=-0.001)
 #endif
-        setBestLight(VOX_LAYERS-1,packLightData(vec2(0),15u,worldVoxColor(front),lightTravel,0,(front>>VOXEL_TYPE_SHIFT)&0xfu,0));
+        {
+            setBestLight(VOX_LAYERS-1,packLightData(vec2(0),15u,worldVoxColor(front),lightTravel,0,(front>>VOXEL_TYPE_SHIFT)&0xfu,0));
+        }
     }
 
     ivec3 zoneShift =  areaToZoneSpace(getAreaShift(scale),axis);

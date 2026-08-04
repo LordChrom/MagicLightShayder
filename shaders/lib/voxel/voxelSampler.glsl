@@ -105,6 +105,8 @@ float doSunOcclusion(vec3 displacement, vec3 travel, uint packedOcclusionData){
 void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, vec3 normal, float scale){
     uint type = unpackLightType(packedLightSrc);
     bool isSun = type==LIGHT_TYPE_SUN;
+    vec3 travel = unpackLightTravel(packedLightSrc);
+    uint map = unpackOcclusionMap(packedLightSrc.z);
 
 #ifdef PRIDE_LIGHTING
     #define BONUS_EFFECTS_NEEDED
