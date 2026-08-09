@@ -154,15 +154,11 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
 #endif
 #ifdef DEBUG_OCCLUSION_MAP
     #define BONUS_EFFECTS_NEEDED
-    vec3 travel = unpackLightTravel(packedLightSrc);
-//    if(!is
     vec3 subVoxelOffset = displacement;
     if(isSun)
         subVoxelOffset-=0.5*scale;
     else
         subVoxelOffset-=travel;
-
-    uint map = unpackOcclusionMap(getPackedOcclusion(packedLightSrc));
 
     //Debug Coloring
     //green = fully lit,

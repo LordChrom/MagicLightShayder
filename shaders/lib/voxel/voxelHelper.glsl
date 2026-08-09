@@ -409,6 +409,16 @@ uniform sampler3D floodfillSampler;
 vec4 getFloodData(ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
     return texelFetch(floodfillSampler,toMemPos(areaPos,areaShift,areaMemOffset),0);
 }
+
+#define BASIC_FLOODFILL_SIZE AREA_SIZE
+vec4 sampleFloodData(vec3 worldPos){
+    vec3 distFromCenter = worldPos-globalOrigin;
+    distFromCenter=abs(distFromCenter);
+    if(max(max(distFromCenter.x,distFromCenter.y),distFromCenter.z)>0.5*(BASIC_FLOODFILL_SIZE-4))
+        return vec4(0);
+    worldPos=(worldPos/BASIC_FLOODFILL_SIZE)+0.5;
+    return texture(floodfillSampler,fract(worldPos));
+}
 #endif
 
 
