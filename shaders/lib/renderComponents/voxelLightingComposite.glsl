@@ -4,7 +4,7 @@ in vec2 jitteredTexcoord;
 
 #if DEBUG_SPECIAL_VIEW >= 0
 /* RENDERTARGETS: 6,15 */
-layout(location = 2) out vec3 funnyDebug;
+layout(location = 1) out vec3 funnyDebug;
 #else
 /* RENDERTARGETS: 6 */
 #endif

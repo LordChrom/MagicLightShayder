@@ -8,18 +8,11 @@
     #define SIZE 16
 #endif
 
-#ifdef USE_DEPTH_A
-    uniform sampler2D depthtex1;
-    #include "/lib/util/conversions.glsl"
-#endif
 
-//TODO figure out how to multiply by PASS_SCALE, since the workGroupsRender thing is super annoying with floats
 const vec2 workGroupsRender = vec2(0.5,0.5);
 layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
 
-uniform sampler2D source;
 
-const float scale = 1048576;
 const int ARRAY_SIZE = ((1<<(2*STAGES))-1)/3;
 shared uvec4[ARRAY_SIZE] averages;
 
@@ -27,7 +20,7 @@ shared uint anyoneThere;
 
 void main(){
     ivec2 globalPos = ivec2(gl_WorkGroupID.xy*SIZE+gl_LocalInvocationID.xy);
-    ivec2 texsize = textureSize(source,0);
+    ivec2 texsize = sourceSize();
     vec2 texcoord = vec2(2*globalPos+1)/(texsize);
     bool stillContributing = texcoord.x<=1 && texcoord.y<=1;
 
@@ -46,12 +39,8 @@ void main(){
 
     uvec4 avg;
     if(stillContributing){
-        vec4 self = texture(colortex7, texcoord);
-        #ifdef USE_DEPTH_A
-            self.a=depthToLinear(texture(depthtex1 ,texcoord).x);
-        #endif
-        imageStore(dest, globalPos, self);
-        avg = uvec4(self*scale);
+        avg = getValue(texcoord);
+        writeValue(globalPos,avg);
     }
 
     uint contributorMask = ~(gl_LocalInvocationID.x|gl_LocalInvocationID.y);
@@ -66,16 +55,17 @@ void main(){
             baseIndex+=1<<(stageShift+stageShift);
 
             stillContributing = bool(contributorMask&(1u<<stage));
-            atomicAdd(averages[bucket].x,avg.x);
-            atomicAdd(averages[bucket].y,avg.y);
-            atomicAdd(averages[bucket].z,avg.z);
-            atomicAdd(averages[bucket].w,avg.w);
+            combine(averages[bucket].x,avg.x);
+            combine(averages[bucket].y,avg.y);
+            combine(averages[bucket].z,avg.z);
+            combine(averages[bucket].w,avg.w);
         }
         barrier();
         if(stillContributing){
-            avg=averages[bucket]>>2u;
+            avg=averages[bucket];
+            correction(avg);
             int mipBase = texsize.x-(texsize.x>>(stage+1));
-            imageStore(dest,ivec2(mipBase,0)+(globalPos>>(stage+1)),avg/scale);
+            writeValue(ivec2(mipBase,0)+(globalPos>>(stage+1)),avg);
         }
     }
 }
