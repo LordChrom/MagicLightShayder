@@ -106,9 +106,9 @@ flat in int materialID;
     #endif
 #else
     #ifdef WRITE_MATERIALS
-    /* RENDERTARGETS: 0,2,5,3 */
+    /* RENDERTARGETS: 4,2,5,3 */
     #else
-    /* RENDERTARGETS: 0,2,5 */
+    /* RENDERTARGETS: 4,2,5 */
     #endif
 #endif
 

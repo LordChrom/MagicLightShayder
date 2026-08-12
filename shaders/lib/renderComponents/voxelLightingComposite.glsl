@@ -3,7 +3,7 @@
 in vec2 jitteredTexcoord;
 
 #if DEBUG_SPECIAL_VIEW >= 0
-/* RENDERTARGETS: 6,15 */
+/* RENDERTARGETS: 6,19 */
 layout(location = 1) out vec3 funnyDebug;
 #else
 /* RENDERTARGETS: 6 */
@@ -32,11 +32,10 @@ uniform mat4 gbufferModelView;
 
 #if MATERIALS_TYPE >= 0
 uniform usampler2D colortex3;
-uniform usampler2D colortex4;
 #endif
 
-#if (DEBUG_SPECIAL_VIEW == 0) || ((DEBUG_SPECIAL_VIEW==104) || (DEBUG_SPECIAL_VIEW==106))
-uniform sampler2D colortex0;
+#if (DEBUG_SPECIAL_VIEW == 4) || ((DEBUG_SPECIAL_VIEW==104) || (DEBUG_SPECIAL_VIEW==106))
+uniform sampler2D colortex4;
 #elif DEBUG_SPECIAL_VIEW == 5
 uniform sampler2D colortex5;
 #elif (DEBUG_SPECIAL_VIEW == 10)  || (DEBUG_SPECIAL_VIEW == 200)
@@ -77,8 +76,8 @@ void main() {
 
     if(!isHand){
         #ifndef FORWARD_TRANSLUCENTS
-        matInfo = texelFetch(colortex4 ,sourceTexpos ,0);
-        if((matInfo.a==255) || matInfo==uvec4(0))
+//        matInfo = texelFetch(colortex4 ,sourceTexpos ,0);
+//        if((matInfo.a==255) || matInfo==uvec4(0))
         #endif
             matInfo = texelFetch(colortex3, sourceTexpos, 0);
     }
@@ -111,7 +110,7 @@ void main() {
 
 
 #if (DEBUG_SPECIAL_VIEW == 0) || ((DEBUG_SPECIAL_VIEW==104) || (DEBUG_SPECIAL_VIEW==106))
-    funnyDebug=texture(colortex0,jitteredTexcoord).rgb;
+    funnyDebug=texture(colortex4,jitteredTexcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 1
     funnyDebug=texture(colortex1,jitteredTexcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 2
@@ -126,10 +125,7 @@ void main() {
         funnyDebug=funnyEmissive+mat.rgb*((1.0-funnyEmissive)/255.0);
 //        funnyDebug=funnyEmissive*mat.rgb*(1.0/255.0);
 #elif DEBUG_SPECIAL_VIEW == 4
-    uvec4 mat = texture(colortex4,jitteredTexcoord);
-    funnyDebug=mat.rgb*(1.0/255.0);
-    if(mat.a>0 && mat.a<255)
-        funnyDebug=0.5+0.5*funnyDebug;
+    funnyDebug= texture(colortex4,jitteredTexcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 5
     funnyDebug=texture(colortex5,jitteredTexcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 6

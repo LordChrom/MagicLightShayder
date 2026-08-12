@@ -50,24 +50,25 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 
 
 # Colortexes
-| format   | num | purpose                                                | scale |
-|----------|-----|--------------------------------------------------------|-------|
-|          | 0   | opaque albedo & main output                            |       |
-|          | 1   | transparent albedo (optionally pre-lit)                |       |
-|          | 2   | normals                                                |       |
-| RGBA8UI  | 3   | opaque materials info (labpbr specular)                |       |
-| RGBA8UI  | 4   | transparent materials info (labpbr specular) (optional |       |
-|          | 5   | vanilla fallback (optional)                            |       |
-| RGB16F   | 6   | multiplicative lighting                                | y     |
-| RGBA16F  | 7   | additive light                                         | y     |
-|          | 8   |                                                        |       |
-| R32F     | 9   | prev frame depth                                       |       |
-| RGB16F   | 10  | multiplicative accumulation.                           |       |
-| RGBA16F  | 11  | additive accumulation.                                 |       |
-| RG16F    | 12  | DoF stuff                                              |       |
-| RGBA16UI | 13  | Downsampling stuff                                     |       |
-|          | 14  |                                                        |       |
-|          | 15  | debug (optional)                                       | y     |
+| format   | num | purpose                                 | scale |
+|----------|-----|-----------------------------------------|-------|
+|          | 0   | main output                             |       |
+|          | 1   | transparent albedo (optionally pre-lit) |       |
+|          | 2   | normals                                 |       |
+| RGBA8UI  | 3   | opaque materials info (labpbr specular) |       |
+| RGBA8    | 4   | opaque albedo                           |       |
+|          | 5   | vanilla fallback (optional)             |       |
+| RGB16F   | 6   | multiplicative lighting                 | y     |
+| RGBA16F  | 7   | additive light                          | y     |
+|          | 8   |                                         |       |
+| R32F     | 9   | prev frame depth                        |       |
+| RGB16F   | 10  | multiplicative accumulation.            |       |
+| RGBA16F  | 11  | additive accumulation.                  |       |
+| RG16F    | 12  | DoF stuff                               |       |
+| RGBA16UI | 13  | Downsampling stuff                      |       |
+|          | 14  |                                         |       |
+|          | 15  |                                         |       |
+|          | 19  | debug (optional)                        | y     |
 
 
 # Layouts

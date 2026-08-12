@@ -12,6 +12,7 @@ in vec3 worldDirNormalizeMe;
 uniform sampler2D depthtex2;
 uniform sampler2D colortex0;
 uniform sampler2D colortex2;
+uniform sampler2D colortex4;
 uniform usampler2D colortex3;
 
 float noise;
@@ -85,13 +86,14 @@ void main() {
     for(int i=0;i<BOUNCES;i++)
     {
         uint reflectance = texture(colortex3,screenPos.xy).g;
+        vec3 albedo = texture(colortex4,screenPos.xy).rgb;
         vec3 normal = normalize(texture(colortex2,screenPos.xy).rgb*2-1);
         #ifndef PERFECT_MIRRORS
         if(reflectance<=229){
             reflectionMult*=(reflectance/255.0);
         }else{
             //TODO hardcoded metals
-            reflectionMult*=outputColor;
+            reflectionMult*=albedo;
         }
         #endif
         if(reflectance<=2)

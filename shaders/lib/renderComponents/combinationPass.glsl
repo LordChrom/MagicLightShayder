@@ -10,7 +10,7 @@ uniform sampler2D depthtex1;
 #include "/lib/util/dither.glsl"
 
 #if DEBUG_SPECIAL_VIEW >= 0
-uniform sampler2D colortex15;
+uniform sampler2D colortex19;
 #endif
 #if DEBUG_SPECIAL_VIEW == 203
 uniform sampler2D shadowtex0;
@@ -31,7 +31,7 @@ uniform sampler2D shadowtex0;
 #endif
 uniform sampler2D additiveLightTex, multiplicativeLightTex;
 
-uniform sampler2D colortex0;
+uniform sampler2D colortex4;
 uniform sampler2D colortex1;
 
 #ifdef VANILLA_FALLBACK
@@ -57,7 +57,7 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 
 /*
 const int colortex3Format = RGBA8UI;
-const int colortex4Format = RGBA8UI;
+const int colortex4Format = RGB8;
 const int colortex6Format = RGB16F;
 const int colortex7Format = RGBA16F;
 const int colortex9Format = R32F;
@@ -75,7 +75,7 @@ layout(location = 0) out vec3 outputColor;
 
 void main() {
     ivec2 texpos = ivec2(gl_FragCoord.xy);
-    vec4 albedo = texelFetch(colortex0,texpos,0);
+    vec4 albedo = texelFetch(colortex4,texpos,0);
     vec4 transColor = texelFetch(colortex1,texpos,0);
 
     #ifdef VANILLA_FALLBACK
@@ -136,7 +136,7 @@ void main() {
     #elif DEBUG_SPECIAL_VIEW == 203
     outputColor=vec3(texture(shadowtex0,vec2(1-texcoord.y,texcoord.x)).rgb);
     #elif (DEBUG_SPECIAL_VIEW) != 201
-    outputColor = texelFetch(colortex15,ivec2(floor(0.1+texcoord*scaledScreenDim)),0).xyz;
+    outputColor = texelFetch(colortex19,ivec2(floor(0.1+texcoord*scaledScreenDim)),0).xyz;
     #endif
     #endif
 }
