@@ -9,17 +9,74 @@ in vec2 texcoord;
 in vec3 worldDirNormalizeMe;
 
 uniform sampler2D depthtex0;
+uniform sampler2D depthtex2;
+
 uniform sampler2D colortex0;
 uniform sampler2D colortex1;
 uniform sampler2D colortex2;
 uniform sampler2D colortex3;
 uniform usampler2D colortex8;
 
-#include "/lib/util/reflect.glsl"
-
-
 /* RENDERTARGETS: 0 */
 layout(location = 0) out vec3 outputColor;
+
+vec3 reflect(vec3 dir, vec3 norm){
+    return normalize(dir-norm*(2*dot(norm,dir)));
+}
+
+vec3 worldPosToScreen(vec3 worldPos){
+    vec4 pos = vec4(mat3(gbufferModelView)*worldPos,1);
+    pos=gbufferProjection*pos;
+    return (pos.xyz*(0.5/pos.w))+0.5;
+}
+
+vec3 screenPosToWorld(vec3 screenPos){
+    vec4 pos = vec4(screenPos*2-1,1);
+    pos=gbufferProjectionInverse*pos;
+    pos/=pos.w;
+    return mat3(gbufferModelViewInverse)*pos.xyz;
+}
+
+//TODO gotta be a better way to do this
+vec3 worldDirToScreen(vec3 worldNormal, vec3 screenPos){
+    float dif = 0.1;
+    vec3 worldPos = screenPosToWorld(screenPos);
+    vec3 offsetScreenPos = worldPosToScreen(worldPos+dif*worldNormal);
+    return normalize(offsetScreenPos-screenPos);
+}
+
+const int stepsPerBounce=REFLECTION_QUALITY/REFLECTION_BOUNCES;
+#define REFLECTION_THRESHOLD 0.05
+
+vec3 doMarch(vec3 initialPos, vec3 viewDir, float ditherValue, out uint hitReason){
+    viewDir*=1/(REFLECTION_QUALITY*length(viewDir.xy));
+    #if REFLECTION_BOUNCES>1
+    viewDir*=min(2,1+0.3*REFLECTION_BOUNCES);
+    #endif
+    for(int i=0;i<stepsPerBounce;i++){
+        vec3 newPos = initialPos+(i+ditherValue)*viewDir;
+        float distFromEdge =min(min(newPos.x,newPos.y),1-max(newPos.x,newPos.y));
+        if(distFromEdge<ditherValue*0.0 || newPos.z>=0.9999){
+            hitReason=1;
+            return newPos;
+        }
+
+        //TODO check both depthtexes, for reflections of terrain visible thru glass
+        float texDepth = texture(depthtex0,newPos.xy).x;
+        if(texDepth<=newPos.z){
+            hitReason=0;
+            float linearTargetDepth = depthToLinear(newPos.z);
+            float depthDif = (linearTargetDepth-depthToLinear(texDepth))/linearTargetDepth;
+            if(depthDif>0.1)
+            hitReason=1;
+            return newPos;
+        }
+    }
+
+    hitReason=2;
+    return initialPos+stepsPerBounce*vec3(viewDir);
+}
+
 
 
 
@@ -44,10 +101,10 @@ void main() {
         vec4 normal = texture(colortex2,screenPos.xy);
         normal.xyz=normalize(normal.rgb*2-1);
         #ifndef PERFECT_MIRRORS
-        if(transAlpha>0.05 && transAlpha<1){
+        if(transAlpha>0.05){
             reflectance=229;
         }
-        if(abs(normal.a-0.5)<0.1)
+        if(abs(normal.a-0.5)<0.1 || transAlpha==1)
             return;
         if(reflectance<=229){
             reflectionMult*=(reflectance/255.0);
@@ -63,11 +120,13 @@ void main() {
         if(!continuing)
             worldDir = reflect(worldDir, normal.xyz);
         vec3 viewDir=worldDirToScreen(worldDir,screenPos);
-        if(viewDir.z<=0)
-            return;
+//        if(viewDir.z<=0)
+//            return;
 
         uint rayHitReason;
+
         screenPos = doMarch(screenPos,viewDir,ditherValue,rayHitReason);
+
         continuing=rayHitReason==2;
         if(rayHitReason==1)
             return;
