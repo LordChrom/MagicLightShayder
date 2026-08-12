@@ -113,22 +113,22 @@ Packing
 # General TODO List
 ### Needs fixing
 - POM on non-square surfaces
-- sun shadows
 - voxelizing end gates
-- SSAO at edge cases
 - subsurface on lava
 - other subsurface edge cases (directly contacting light source)
-- not voxelizing entities
 - shadowmap light leak underground (esp for subsurface)
 
 ### Needs Improvement
+- trans reflections in composite
+- resolution scaling reflections
 - shadowmap sun shadows
 - TAA performance
 - proper system for unlit geometry
-- DoF perf at lower renderscale
+- resolution scaling DoF
 - enchant glint
 
 ### Necessary additions
+- water waves
 - multiple occlusion indicators per sample
 - ambient light
 - Merge adjacent unoccluded lights of same type
@@ -139,8 +139,6 @@ Packing
 - make voxel map a lower bit size
 - halftones
 - awareness of which block faces are full
-- reflections
-- water waves
 - sky stuff & clouds
 
 ### Potential additions
