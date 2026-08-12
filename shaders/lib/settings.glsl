@@ -46,7 +46,7 @@
 #define SSAO_STRENGTH 1.0 //[0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0 1.125 1.25 1.375 1.5 1.75 2.0 2.5 3.0]
 #define SSAO_DELBEED
 
-#define VOX_LAYERS 3 //[1 2 3 4 5 6 7 8]
+#define VOX_LAYERS 2 //[1 2 3 4 5 6 7 8]
 
 #define COLORED_TRANSLUCENTS
 //#define PRIDE_LIGHTING
@@ -65,7 +65,8 @@
 //#define FOG_RANDOM_LESSER_SOURCE
 #define FOG_BIOME_TINT_STRENGTH 0.4 //[0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0]
 #define FOG_BRIGHTNESS_SUN 0.8 //[0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0 1.2 1.4 1.6 1.8 2.0]
-#define FOG_BRIGHTNESS_BLOCK 1.25 //[0.0 0.5 0.75 1.0 1.25 1.5 1.75 2.0 2.5 3.0 4.0 5.0 6.0 7.0 8.0 12.0 16.0]
+#define FOG_BRIGHTNESS_BLOCK 3.0 //[0.0 0.5 0.75 1.0 1.25 1.5 1.75 2.0 2.5 3.0 4.0 5.0 6.0 7.0 8.0 12.0 16.0]
+//#define ADVANCED_BLOCKLIGHT_FOG
 //#define FOG_PENUMBRAS
 
 #define LIGHTING_RENDERSCALE 1 //[0.01 0.015625 0.1 0.15 0.2 0.25 0.3333 0.5 0.625 0.6666 0.75 0.8 0.9 1]
@@ -250,7 +251,9 @@
 #ifdef DOF_ENABLED
 #ifdef SUN_SHADOW_SUBSURFACE
 #ifdef REFLECTIONS
+#ifdef ADVANCED_BLOCKLIGHT_FOG
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
+#endif
 #endif
 #endif
 #endif

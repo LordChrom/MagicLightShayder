@@ -42,7 +42,7 @@ vec3 lightingSampleFog(vec3 worldPos, float ditherValue){
     ret+= sampleFloodfillFog(worldPos);
     #endif
 
-    #ifdef ADVANCED_VOXEL_TRACE
+    #if defined ADVANCED_VOXEL_TRACE && defined ADVANCED_BLOCKLIGHT_FOG
     ret += voxelSampleFog(worldPos, ditherValue);
     #endif
 
