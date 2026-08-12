@@ -111,6 +111,8 @@
 //#define POM_WRITE_DEPTH
 //#define POM_DISCARD
 
+//#define REFLECTIONS
+
 #define SSBO_WORKSPACE
 
 #define NUM_CASCADES 4 //[1 2 3 4 5 6 7 8 9 10]
@@ -243,7 +245,9 @@
 #ifdef ENTITY_POM
 #ifdef DOF_ENABLED
 #ifdef SUN_SHADOW_SUBSURFACE
+#ifdef REFLECTIONS
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
+#endif
 #endif
 #endif
 #endif
