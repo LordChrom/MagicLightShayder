@@ -31,8 +31,8 @@ uniform sampler2D shadowtex0;
 #endif
 uniform sampler2D additiveLightTex, multiplicativeLightTex;
 
-uniform sampler2D colortex4;
 uniform sampler2D colortex1;
+uniform sampler2D colortex3;
 
 #ifdef VANILLA_FALLBACK
 uniform sampler2D colortex5;
@@ -56,18 +56,23 @@ const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
 
 
 /*
-const int colortex3Format = RGBA8UI;
-const int colortex4Format = RGB8;
+const int colortex1Format = RGB8;
+const int colortex2Format = RGBA8;
+const int colortex3Format = RGBA8;
+const int colortex4Format = RGBA8;
+const int colortex5Format = RGBA8;
 const int colortex6Format = RGB16F;
 const int colortex7Format = RGBA16F;
+const int colortex8Format = RGBA8UI;
 const int colortex9Format = R32F;
 const int colortex10Format = RGB16F;
 const int colortex11Format = RGBA16F;
 const int colortex12Format = RG16F;
+const int colortex13Format = RGBA16F;
+
 const bool colortex9Clear = false;
 const bool colortex10Clear = false;
 const bool colortex11Clear = false;
-const int colortex13Format = RGBA16F;
 */
 
 /* RENDERTARGETS: 0 */
@@ -75,8 +80,8 @@ layout(location = 0) out vec3 outputColor;
 
 void main() {
     ivec2 texpos = ivec2(gl_FragCoord.xy);
-    vec4 albedo = texelFetch(colortex4,texpos,0);
-    vec4 transColor = texelFetch(colortex1,texpos,0);
+    vec4 albedo = texelFetch(colortex1,texpos,0);
+    vec4 transColor = texelFetch(colortex3,texpos,0);
 
     #ifdef VANILLA_FALLBACK
     vec3 light = texelFetch(colortex5,texpos,0).xyz;

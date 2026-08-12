@@ -20,7 +20,7 @@ uniform sampler2D colortex2;
 uniform sampler2D depthtex2;
 uniform sampler2D depthtex0;
 
-uniform sampler2D colortex1;
+uniform sampler2D colortex3;
 
 uniform vec3 fogColor;
 
@@ -31,7 +31,7 @@ void main() {
     worldPosRelative.xy=jitteredTexcoord;
     ivec2 sourceTexpos = ivec2((worldPosRelative.xy*textureSize(depthtex0,0)+0.01));
 
-    bool solidTransInFront = texelFetch(colortex1,sourceTexpos,0).a>=1;
+    bool solidTransInFront = texelFetch(colortex3,sourceTexpos,0).a>=1;
 
     if(abs(texelFetch(colortex2,sourceTexpos,0).a-0.5)<0.1){//hand
         worldPosRelative.z/=MC_HAND_DEPTH;

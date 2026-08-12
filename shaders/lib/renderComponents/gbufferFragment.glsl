@@ -108,25 +108,25 @@ flat in int materialID;
         uniform mat4 gbufferProjectionInverse;
 
         uniform sampler2D depthtex2;
-        uniform sampler2D colortex4;
+        uniform sampler2D colortex1;
         uniform sampler2D colortex6;
         #include "/lib/util/conversions.glsl"
 
         #define REFLECTION_BOUNCES 1
         #include "/lib/util/reflect.glsl"
     #endif
-    /* RENDERTARGETS: 1 */
+    /* RENDERTARGETS: 3,2 */
 #elif defined TRANSLUCENT
     #ifdef WRITE_MATERIALS
-    /* RENDERTARGETS: 1,2,5,4 */
+    /* RENDERTARGETS: 3,2,5,8 */
     #else
-    /* RENDERTARGETS: 1,2,5 */
+    /* RENDERTARGETS: 3,2,5 */
     #endif
 #else
     #ifdef WRITE_MATERIALS
-    /* RENDERTARGETS: 4,2,5,3 */
+    /* RENDERTARGETS: 1,2,5,8 */
     #else
-    /* RENDERTARGETS: 4,2,5 */
+    /* RENDERTARGETS: 1,2,5 */
     #endif
 #endif
 
@@ -173,12 +173,13 @@ flat in int materialID;
 #endif
 
 layout(location = 0) out vec4 color;
+layout(location = 1) out vec4 normalOut;
+
 #ifdef FORWARD_TRANSLUCENTS
-vec4 normalOut;
+//vec4 normalOut;
 vec4 vanillaLighting;
 uvec4 materialInfo;
 #else
-layout(location = 1) out vec4 normalOut;
 
 #ifdef VANILLA_FALLBACK
 layout(location = 2) out vec4 vanillaLighting;
@@ -372,7 +373,7 @@ void main()
         vec3 worldDir = normalize(worldPos-cameraPosition);
 
         worldDir = reflect(worldDir,normalize(normalOut.xyz*2-1));
-        vec3 screenPos = vec3(gl_FragCoord.xy/textureSize(colortex4,0),gl_FragCoord.z);
+        vec3 screenPos = vec3(gl_FragCoord.xy/textureSize(colortex1,0),gl_FragCoord.z);
         vec3 viewDir=worldDirToScreen(worldDir,screenPos);
         if(viewDir.z<=0)
             return;
@@ -380,12 +381,13 @@ void main()
         uint rayHitReason;
         vec3 reflectPos = doMarch(screenPos,viewDir,ditherValue,rayHitReason);
         if(rayHitReason==0){
-            vec3 reflectLight = texture(colortex4,reflectPos.xy).rgb*texture(colortex6,reflectPos.xy).rgb;
+            vec3 reflectLight = texture(colortex1,reflectPos.xy).rgb*texture(colortex6,reflectPos.xy).rgb;
             color.rgb+=reflectLight;
 
         }
     #endif
     }
 
+    normalOut.a=1;
     #endif
 }
