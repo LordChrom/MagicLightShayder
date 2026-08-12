@@ -17,6 +17,7 @@ uniform vec3 cameraPosition;
 //uniform vec2 scaledScreenDim;
 
 #include "/lib/lightingWrapper/lightSampler.glsl"
+#define TEMPORAL_DITHER
 #include "/lib/util/dither.glsl"
 
 uniform sampler2D colortex2;

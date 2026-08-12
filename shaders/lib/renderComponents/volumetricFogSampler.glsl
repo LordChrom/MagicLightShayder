@@ -12,6 +12,7 @@ uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
 uniform vec3 cameraPosition;
 
 #include "/lib/lightingWrapper/lightSampler.glsl"
+#define TEMPORAL_DITHER
 #include "/lib/util/dither.glsl"
 #include "/lib/util/conversions.glsl"
 

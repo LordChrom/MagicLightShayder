@@ -39,9 +39,11 @@ float dither(ivec2 pos){
 #endif
 }
 
+#ifdef TEMPORAL_DITHER
 float temporalNoise(float x){
     const uint temporalLoop = 256;
     const uint temporalMult = 203;
     uint fc = uint(frameCounter);
     return fract((bool(fc&1u)?x:-x) + float(((fc>>1u)*temporalMult)&(temporalLoop-1u))/temporalLoop);
 }
+#endif

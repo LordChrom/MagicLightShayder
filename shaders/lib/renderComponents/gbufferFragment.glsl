@@ -89,6 +89,10 @@ flat in int materialID;
     #include "/lib/renderComponents/endGateway.glsl"
 #endif
 
+#if !(defined TRANSLUCENT_REFLECTIONS && defined FORWARD_TRANSLUCENTS)
+#undef REFLECTIONS
+#endif
+
 #ifdef FORWARD_TRANSLUCENTS
     in vec3 worldPos;
     uniform vec3 cameraPosition;
@@ -97,6 +101,20 @@ flat in int materialID;
     #endif
     #include "/lib/lightingWrapper/lightSampler.glsl"
     #include "/lib/util/dither.glsl"
+
+    #ifdef REFLECTIONS
+        uniform mat4 gbufferModelView, gbufferProjection;
+        //uniform mat4 gbufferModelViewInverse;
+        uniform mat4 gbufferProjectionInverse;
+
+        uniform sampler2D depthtex2;
+        uniform sampler2D colortex4;
+        uniform sampler2D colortex6;
+        #include "/lib/util/conversions.glsl"
+
+        #define REFLECTION_BOUNCES 1
+        #include "/lib/util/reflect.glsl"
+    #endif
     /* RENDERTARGETS: 1 */
 #elif defined TRANSLUCENT
     #ifdef WRITE_MATERIALS
@@ -141,7 +159,9 @@ flat in int materialID;
     #else
     #define atlasSize textureSize(normals,0)
     #endif
-    uniform mat4 gbufferProjectionInverse;
+    #ifndef REFLECTIONS
+        uniform mat4 gbufferProjectionInverse;
+    #endif
     float rayDepth=0;
     #include "/lib/renderComponents/pom.glsl"
     #ifdef POM_WRITE_DEPTH
@@ -346,6 +366,26 @@ void main()
             color.rgb=mix(color.rgb*min(1,(incidentLightColor.r+incidentLightColor.g+incidentLightColor.b)),color.rgb*incidentLightColor,color.a);
         }
             //I cannot explain the 0.1 z
+
+        #ifdef REFLECTIONS
+        uint reflectance = materialInfo.g;
+        vec3 worldDir = normalize(worldPos-cameraPosition);
+
+        worldDir = reflect(worldDir,normalize(normalOut.xyz*2-1));
+        vec3 screenPos = vec3(gl_FragCoord.xy/textureSize(colortex4,0),gl_FragCoord.z);
+        vec3 viewDir=worldDirToScreen(worldDir,screenPos);
+        if(viewDir.z<=0)
+            return;
+
+        uint rayHitReason;
+        vec3 reflectPos = doMarch(screenPos,viewDir,ditherValue,rayHitReason);
+        if(rayHitReason==0){
+            vec3 reflectLight = texture(colortex4,reflectPos.xy).rgb*texture(colortex6,reflectPos.xy).rgb;
+            color.rgb+=reflectLight;
+
+        }
+    #endif
     }
+
     #endif
 }
