@@ -76,7 +76,9 @@ vec3 doMarch(vec3 initialPos, vec3 viewDir, float ditherValue, out uint hitReaso
 
     if(hitReason==0){
         texDepth=depthToLinear(texDepth);
-        if(texDepth<0.5)
+        float targetDepth = depthToLinear(newPos.z);
+        float depthDif = abs(texDepth-targetDepth)/targetDepth;
+        if(depthDif>0.1)
             hitReason=1;
     }
 

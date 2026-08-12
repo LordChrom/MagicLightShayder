@@ -52,7 +52,7 @@ const float shadowDistance = SHADOW_DISTANCE;
 const float shadowDistance = 128.0;
 #endif
 const float shadowDistanceRenderMul = 1.0;
-const float ambientOcclusionLevel = 1.0; //[0.0 0.25 0.5 0.75 1.0]
+const float ambientOcclusionLevel = 0.0; //[0.0 0.25 0.5 0.75 1.0]
 
 
 /*
