@@ -33,27 +33,22 @@ vec3 doMarch(vec3 initialPos, vec3 viewDir, float ditherValue, out uint hitReaso
     #if REFLECTION_BOUNCES>1
     stepSize*=min(2,1+0.3*REFLECTION_BOUNCES);
     #endif
-    bool seenAir = false;
     for(int i=0;i<=stepsPerBounce;i++){
         float depthDist = stepSize*(i+ditherValue)+0.001;
         vec3 newPos = initialPos+vec3(depthDist*differential,depthDist);
         float distFromEdge =min(min(newPos.x,newPos.y),1-max(newPos.x,newPos.y));
-        if(distFromEdge<ditherValue*0.1){
+        if(distFromEdge<ditherValue*0.0 || newPos.z>=0.9999){
             hitReason=1;
             return newPos;
         }
-        float texDepth = texture(depthtex2,newPos.xy).x;
+        float texDepth = texture(depthtex0,newPos.xy).x;
         if(texDepth<=newPos.z){
             hitReason=0;
             float linearTargetDepth = depthToLinear(newPos.z);
             float depthDif = (linearTargetDepth-depthToLinear(texDepth))/linearTargetDepth;
             if(depthDif>0.1)
-            hitReason=1;
-            if(seenAir){
-                return newPos;
-            }
-        }else{
-            seenAir=true;
+                hitReason=1;
+            return newPos;
         }
     }
 
