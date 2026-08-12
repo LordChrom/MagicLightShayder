@@ -74,11 +74,13 @@ vec3 doMarch(vec3 initialPos, vec3 viewDir, float ditherValue, out uint hitReaso
         }
     }
 
+    const float depthLeniency = clamp(2.0/REFLECTION_QUALITY,0.05,0.8);
+
     if(hitReason==0){
         texDepth=depthToLinear(texDepth);
         float targetDepth = depthToLinear(newPos.z);
         float depthDif = abs(texDepth-targetDepth)/targetDepth;
-        if(depthDif>0.1)
+        if(depthDif>depthLeniency)
             hitReason=1;
     }
 

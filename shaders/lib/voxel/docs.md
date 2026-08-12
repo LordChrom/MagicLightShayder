@@ -116,6 +116,7 @@ Packing
 - subsurface on lava
 - other subsurface edge cases (directly contacting light source)
 - shadowmap light leak underground (esp for subsurface)
+- flickering on back of well-lit vines
 
 ### Needs Improvement
 - trans reflections in composite

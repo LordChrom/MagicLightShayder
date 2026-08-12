@@ -1,4 +1,6 @@
 #include "/lib/settings.glsl"
+uniform bool hasCeiling;
+
 
 #ifdef BASIC_FLOODFILL
 #define SAMPLES_FLOOD
@@ -42,8 +44,13 @@ vec3 lightingSampleFog(vec3 worldPos, float ditherValue){
     ret+= sampleFloodfillFog(worldPos);
     #endif
 
-    #if defined ADVANCED_VOXEL_TRACE && defined ADVANCED_BLOCKLIGHT_FOG
-    ret += voxelSampleFog(worldPos, ditherValue);
+    #if defined ADVANCED_VOXEL_TRACE && (ADVANCED_BLOCKLIGHT_FOG>=0)
+        #if ADVANCED_BLOCKLIGHT_FOG ==0
+        if(hasCeiling)
+        #endif
+        {
+            ret += voxelSampleFog(worldPos, ditherValue);
+        }
     #endif
 
     #ifdef SHADOWMAP_SHADOWS
