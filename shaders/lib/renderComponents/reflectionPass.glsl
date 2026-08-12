@@ -1,7 +1,9 @@
 uniform mat4 gbufferModelView, gbufferProjection;
 uniform mat4 gbufferModelViewInverse, gbufferProjectionInverse;
 uniform float near,far;
+uniform int frameCounter;
 #include "/lib/util/conversions.glsl"
+#include "/lib/util/dither.glsl"
 
 
 in vec2 texcoord;
@@ -12,6 +14,7 @@ uniform sampler2D colortex0;
 uniform sampler2D colortex2;
 uniform usampler2D colortex3;
 
+float noise;
 
 /* RENDERTARGETS: 0 */
 layout(location = 0) out vec3 outputColor;
@@ -20,24 +23,24 @@ vec3 reflect(vec3 dir, vec3 norm){
     return normalize(dir-norm*(2*dot(norm,dir)));
 }
 
-vec3 worldPosToView(vec3 worldPos){
+vec3 worldPosToScreen(vec3 worldPos){
     vec4 pos = vec4(mat3(gbufferModelView)*worldPos,1);
     pos=gbufferProjection*pos;
     return (pos.xyz*(0.5/pos.w))+0.5;
 }
 
-vec3 viewPosToWorld(vec3 view){
-    vec4 pos = vec4(view*2-1,1);
+vec3 screenPosToWorld(vec3 screenPos){
+    vec4 pos = vec4(screenPos*2-1,1);
     pos=gbufferProjectionInverse*pos;
     pos/=pos.w;
     return mat3(gbufferModelViewInverse)*pos.xyz;
 }
 
 //TODO gotta be a better way to do this
-vec3 worldDirToView(vec3 worldNormal, vec3 viewPos){
+vec3 worldDirToScreen(vec3 worldNormal, vec3 screenPos){
     float dif = 0.01;
-    vec3 worldPos = viewPosToWorld(viewPos);
-    vec3 viewPosDif = worldPosToView(worldPos+dif*worldNormal)-viewPos;
+    vec3 worldPos = screenPosToWorld(screenPos);
+    vec3 viewPosDif = worldPosToScreen(worldPos+dif*worldNormal)-screenPos;
     return normalize(viewPosDif);
 }
 
@@ -50,11 +53,13 @@ vec3 debugChecker(vec3 value){
 }
 
 
-vec3 doMarch(vec3 initialPos, vec2 differential){
-    const int steps=1000;
-    float stepSize =0.004/length(differential);
-    for(int i=1;i<=steps;i++){
-        float depthDist = stepSize*i;
+vec3 doMarch(vec3 initialPos, vec3 viewDir){
+    vec2 differential = viewDir.xy/viewDir.z;
+    const int steps=REFLECTION_QUALITY;
+    vec2 remainingScreen = vec2(differential.x>0?1-initialPos.x:initialPos.x,differential.y>0?1-initialPos.y:initialPos.y);
+    float stepSize=min(remainingScreen.x/abs(differential.x),remainingScreen.y/abs(differential.y))/REFLECTION_QUALITY;
+    for(int i=0;i<=steps;i++){
+        float depthDist = stepSize*(i+noise)+0.001;
         vec3 newPos = initialPos+vec3(depthDist*differential,depthDist);
         if(newPos.x<0||newPos.y<0||newPos.x>1||newPos.y>1)
             return vec3(-1);
@@ -67,44 +72,41 @@ vec3 doMarch(vec3 initialPos, vec2 differential){
 }
 
 void main() {
-    outputColor = texelFetch(colortex0,ivec2(gl_FragCoord.xy),0).rgb;
-    vec3 normal = normalize(texelFetch(colortex2,ivec2(gl_FragCoord.xy),0).rgb*2-1);
-    uint reflectance = texelFetch(colortex3,ivec2(gl_FragCoord.xy),0).g;
-
-//    return;
-    //TODO remove testing threshold
-    if(reflectance<128)
-        return;
-
-
-
-    float depth = texelFetch(depthtex2,ivec2(gl_FragCoord.xy),0).x;
-//    depth=depthToLinear(depth);
+    vec3 screenPos;
+    screenPos.xy=texcoord;
+    screenPos.z = texture(depthtex2,texcoord).x;
     vec3 worldDir = normalize(worldDirNormalizeMe);
-    worldDir=reflect(worldDir,normal);
-    vec3 viewDir;
-//    viewDir= mat3(gbufferModelView)*worldDir;
-    viewDir=worldDirToView(worldDir,vec3(texcoord,depth));
 
-    if(viewDir.z<0)
-        return;
+    noise = dither(ivec2(gl_FragCoord.xy));
+    outputColor = texture(colortex0,texcoord,0).rgb;
+    vec3 reflectionMult = vec3(1);
 
-    vec3 marchedPos = doMarch(vec3(texcoord,depth),viewDir.xy/viewDir.z);
-    if(marchedPos==vec3(-1))
-        return;
+    #define BOUNCES 1
+    for(int i=0;i<BOUNCES;i++)
+    {
+        uint reflectance = texture(colortex3,screenPos.xy).g;
+        vec3 normal = normalize(texture(colortex2,screenPos.xy).rgb*2-1);
+        #ifndef PERFECT_MIRRORS
+        if(reflectance<=229){
+            reflectionMult*=(reflectance/255.0);
+        }else{
+            //TODO hardcoded metals
+            reflectionMult*=outputColor;
+        }
+        #endif
+        if(reflectance<=2)
+            return;
 
-//    outputColor=vec3(marchedtc,0);
-    vec3 reflectionColor = texture(colortex0,marchedPos.xy).rgb;
-    if(reflectance<=229)
-        reflectionColor*=(reflectance/255.0);
-    else{
-        reflectionColor*=outputColor;
+        worldDir = reflect(worldDir,normal);
+        vec3 viewDir=worldDirToScreen(worldDir,screenPos);
+        if(viewDir.z<0)
+            return;
+
+        screenPos = doMarch(screenPos,viewDir);
+
+        if(screenPos==vec3(-1))
+            return;
+
+        outputColor+= texture(colortex0,screenPos.xy).rgb*reflectionMult;
     }
-    outputColor+=reflectionColor;
-
-//    outputColor=debugChecker(vec3(viewDir.xy/viewDir.z,0));
-//    viewDir.xyz=vec3(0,0,viewDir.z*0.4);
-//    outputColor=debugChecker(viewDir.xyz);
-
-
 }
