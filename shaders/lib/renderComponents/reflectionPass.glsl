@@ -49,32 +49,38 @@ const int stepsPerBounce=REFLECTION_QUALITY/REFLECTION_BOUNCES;
 #define REFLECTION_THRESHOLD 0.05
 
 vec3 doMarch(vec3 initialPos, vec3 viewDir, float ditherValue, out uint hitReason){
+    hitReason=2;
     viewDir*=1/(REFLECTION_QUALITY*length(viewDir.xy));
     #if REFLECTION_BOUNCES>1
     viewDir*=min(2,1+0.3*REFLECTION_BOUNCES);
     #endif
+    vec3 newPos;
+    float texDepth;
+
     for(int i=0;i<stepsPerBounce;i++){
-        vec3 newPos = initialPos+(i+ditherValue)*viewDir;
+        newPos = initialPos+(i+ditherValue)*viewDir;
         float distFromEdge =min(min(newPos.x,newPos.y),1-max(newPos.x,newPos.y));
         if(distFromEdge<ditherValue*0.0 || newPos.z>=0.9999){
             hitReason=1;
-            return newPos;
+            break;
         }
 
         //TODO check both depthtexes, for reflections of terrain visible thru glass
-        float texDepth = texture(depthtex0,newPos.xy).x;
+        texDepth = texture(depthtex0,newPos.xy).x;
         if(texDepth<=newPos.z){
             hitReason=0;
-            float linearTargetDepth = depthToLinear(newPos.z);
-            float depthDif = (linearTargetDepth-depthToLinear(texDepth))/linearTargetDepth;
-            if(depthDif>0.1)
-            hitReason=1;
-            return newPos;
+            break;
+
         }
     }
 
-    hitReason=2;
-    return initialPos+stepsPerBounce*vec3(viewDir);
+    if(hitReason==0){
+        texDepth=depthToLinear(texDepth);
+        if(texDepth<0.5)
+            hitReason=1;
+    }
+
+    return newPos;
 }
 
 
@@ -91,37 +97,35 @@ void main() {
     vec3 reflectionMult = vec3(1);
 
     bool continuing = false;
+    vec3 viewDir;
     #if REFLECTION_BOUNCES!=1
     for(int i=0;i<REFLECTION_BOUNCES;i++)
     #endif
     {
-        float transAlpha = texture(colortex3,screenPos.xy).a;
-        uint reflectance = texture(colortex8,screenPos.xy).g;
-        vec3 albedo = texture(colortex1,screenPos.xy).rgb;
-        vec4 normal = texture(colortex2,screenPos.xy);
-        normal.xyz=normalize(normal.rgb*2-1);
-        #ifndef PERFECT_MIRRORS
-        if(transAlpha>0.05){
-            reflectance=229;
-        }
-        if(abs(normal.a-0.5)<0.1 || transAlpha==1)
-            return;
-        if(reflectance<=229){
-            reflectionMult*=(reflectance/255.0);
-        }else{
-            //TODO hardcoded metals
-            reflectionMult*=albedo;
-        }
-        #endif
-        if(reflectionMult.r+reflectionMult.g+reflectionMult.b<REFLECTION_THRESHOLD)
-            return;
-
-        float surfacedot = dot(worldDir,normal.xyz);
-        if(!continuing)
+        if(!continuing){
+            float transAlpha = texture(colortex3,screenPos.xy).a;
+            uint reflectance = texture(colortex8,screenPos.xy).g;
+            vec3 albedo = texture(colortex1,screenPos.xy).rgb;
+            vec4 normal = texture(colortex2,screenPos.xy);
+            #ifndef PERFECT_MIRRORS
+            if(transAlpha>0.05){
+                reflectance=229;
+            }
+            if(abs(normal.a-0.5)<0.1 || transAlpha==1)
+                return;
+            if(reflectance<=229){
+                reflectionMult*=(reflectance/255.0);
+            }else{
+                //TODO hardcoded metals
+                reflectionMult*=albedo;
+            }
+            #endif
+            if(reflectionMult.r+reflectionMult.g+reflectionMult.b<REFLECTION_THRESHOLD)
+                return;
+            normal.xyz=normalize(normal.rgb*2-1);
             worldDir = reflect(worldDir, normal.xyz);
-        vec3 viewDir=worldDirToScreen(worldDir,screenPos);
-//        if(viewDir.z<=0)
-//            return;
+            viewDir=worldDirToScreen(worldDir, screenPos);
+        }
 
         uint rayHitReason;
 
@@ -130,7 +134,9 @@ void main() {
         continuing=rayHitReason==2;
         if(rayHitReason==1)
             return;
-        if(rayHitReason==0){
+        vec3 normal = normalize(texture(colortex2,screenPos.xy).xyz*2-1);
+
+        if(rayHitReason==0 && dot(worldDir,normal)<0){
             outputColor+= texture(colortex0,screenPos.xy).rgb*reflectionMult;
         }
     }
