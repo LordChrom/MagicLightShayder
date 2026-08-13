@@ -17,7 +17,9 @@ const float translucentPrecedenceCutoff = 0.99;
     #if MATERIALS_TYPE < 0
         #undef WRITE_MATERIALS
     #endif
-    #undef FORWARD_TRANSLUCENTS
+    #ifndef TRANSLUCENT
+        #undef FORWARD_TRANSLUCENTS
+    #endif
     #undef POM
 #else
 
@@ -329,6 +331,11 @@ void main()
     #endif
 
     #ifdef FORWARD_TRANSLUCENTS
+    #ifdef VOXY_PATCH
+    vec3 incidentLightColor = vanillaLighting.rgb;
+    color.rgb=mix(color.rgb*min(1,(incidentLightColor.r+incidentLightColor.g+incidentLightColor.b)),color.rgb*incidentLightColor,color.a);
+
+    #else
     float ditherValue = dither(ivec2(gl_FragCoord.xy));
     float emissive = (materialInfo.a!=255)?materialInfo.a/254.0:0;
     float subsurface = clamp(float(int(materialInfo.b)-64)/190.0, 0.0,1.0);
@@ -348,5 +355,6 @@ void main()
         }
             //I cannot explain the 0.1 z
     }
+    #endif
     #endif
 }

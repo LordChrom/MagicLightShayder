@@ -60,8 +60,11 @@ void main() {
     vec4 worldPosRelative = vec4(jitteredTexcoord,solidDepth,1);
 
     if(isHand){
+        #if IRIS_VERSION < 11008
         return;
-//        worldPosRelative.z=texture(depthtex0,jitteredTexcoord).x/MC_HAND_DEPTH;
+        #else
+        worldPosRelative.z=texture(depthtex0,jitteredTexcoord).x/MC_HAND_DEPTH;
+        #endif
     }
 
     worldPosRelative.xyz=worldPosRelative.xyz*2-1;

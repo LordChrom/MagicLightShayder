@@ -41,7 +41,7 @@ vec3 doMarch(vec3 initialPos, vec3 viewDir, float ditherValue, out uint hitReaso
     for(int i=0;i<stepsPerBounce;i++){
         newPos = initialPos+(i+ditherValue)*viewDir;
         float distFromEdge =min(min(newPos.x,newPos.y),1-max(newPos.x,newPos.y));
-        if(distFromEdge<ditherValue*0.05){
+        if(distFromEdge<ditherValue*0.05 || newPos.z<=0.4 || newPos.z>=1){
             hitReason=1;
             break;
         }
