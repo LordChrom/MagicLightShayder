@@ -1,6 +1,4 @@
 uniform mat4 gbufferModelView, gbufferProjection;
-uniform mat4 gbufferModelViewInverse, gbufferProjectionInverse;
-uniform int frameCounter;
 #include "/lib/util/conversions.glsl"
 #include "/lib/util/dither.glsl"
 
@@ -24,25 +22,10 @@ vec3 reflect(vec3 dir, vec3 norm){
     return normalize(dir-norm*(2*dot(norm,dir)));
 }
 
-vec3 worldPosToScreen(vec3 worldPos){
-    vec4 pos = vec4(mat3(gbufferModelView)*worldPos,1);
-    pos=gbufferProjection*pos;
-    return (pos.xyz*(0.5/pos.w))+0.5;
-}
+vec3 worldDirToScreen(vec3 worldDirection, vec3 screenPos){
+    vec4 pos = mat3x4(gbufferProjection)*(mat3(gbufferModelView)*worldDirection);
 
-vec3 screenPosToWorld(vec3 screenPos){
-    vec4 pos = vec4(screenPos*2-1,1);
-    pos=gbufferProjectionInverse*pos;
-    pos/=pos.w;
-    return mat3(gbufferModelViewInverse)*pos.xyz;
-}
-
-//TODO gotta be a better way to do this
-vec3 worldDirToScreen(vec3 worldNormal, vec3 screenPos){
-    float dif = 0.1;
-    vec3 worldPos = screenPosToWorld(screenPos);
-    vec3 offsetScreenPos = worldPosToScreen(worldPos+dif*worldNormal);
-    return normalize(offsetScreenPos-screenPos);
+    return normalize(pos.xyz-pos.w*(2*screenPos-1));
 }
 
 const int stepsPerBounce=REFLECTION_QUALITY/REFLECTION_BOUNCES;
