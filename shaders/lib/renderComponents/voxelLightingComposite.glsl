@@ -45,40 +45,33 @@ uniform sampler2D colortex10;
 
 
 void main() {
+    vec4 normal = texture(colortex2,jitteredTexcoord);
+    float solidDepth = texture(depthtex2,jitteredTexcoord).x;
+    #if MATERIALS_TYPE >= 0
+    uvec4 matInfo = texture(colortex8,jitteredTexcoord);
+    #endif
+
     float ditherValue = dither(ivec2(gl_FragCoord.xy));
 
-    ivec2 sourceTexpos = ivec2((jitteredTexcoord*textureSize(depthtex0,0)+0.01));
-
-    bool solidTransInFront = texelFetch(colortex3,sourceTexpos,0).a>=1;
-    float depth = texelFetch(depthtex0,sourceTexpos,0).x;
-    vec4 normal = texelFetch(colortex2,sourceTexpos,0);
-    float solidDepth;
-
-    normal.xyz = normalize(normal.xyz*2-1);
     bool isHand = normal.a>0.4 && normal.a<0.6;
-    if(solidTransInFront){
-        solidDepth=depth;
-    }else{
-        solidDepth = texelFetch(depthtex2,sourceTexpos,0).x;
-    }
-    vec4 worldPosRelative = vec4(vec3(jitteredTexcoord,solidDepth)*2-1,1);
+
+    if(solidDepth==1)
+        return;
+    vec4 worldPosRelative = vec4(jitteredTexcoord,solidDepth,1);
+
     if(isHand){
-        worldPosRelative.z=depth/MC_HAND_DEPTH;
+        return;
+//        worldPosRelative.z=texture(depthtex0,jitteredTexcoord).x/MC_HAND_DEPTH;
     }
+
+    worldPosRelative.xyz=worldPosRelative.xyz*2-1;
+    worldPosRelative = gbufferProjectionInverse*worldPosRelative;
+    worldPosRelative/=worldPosRelative.w;
+    worldPosRelative.xyz = mat3(gbufferModelViewInverse)*worldPosRelative.xyz+gbufferModelViewInverse[3].xyz;
 
     float subsurface = 0;
     float emissive = 0;
 #if MATERIALS_TYPE >= 0
-    uvec4 matInfo = uvec4(0);
-
-    if(!isHand){
-        #ifndef FORWARD_TRANSLUCENTS
-//        matInfo = texelFetch(colortex1 ,sourceTexpos ,0);
-//        if((matInfo.a==255) || matInfo==uvec4(0))
-        #endif
-            matInfo = texelFetch(colortex8, sourceTexpos, 0);
-    }
-
     subsurface = clamp(float(int(matInfo.b)-64)/190.0, 0.0,1.0);
 
     //TODO subsurface on porous materials like wool
@@ -87,23 +80,18 @@ void main() {
         emissive = (matInfo.a/254.0);
 #endif
 
-    worldPosRelative = gbufferProjectionInverse*worldPosRelative;
-    worldPosRelative/=worldPosRelative.w;
-    worldPosRelative.xyz = mat3(gbufferModelViewInverse)*worldPosRelative.xyz+gbufferModelViewInverse[3].xyz;
 
 
-    voxelLighting = vec3(0);
-    if(!((depth==1)|| solidTransInFront))
-        voxelLighting = lightingSample(worldPosRelative.xyz+cameraPosition,normal.xyz,subsurface,ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
+    normal.xyz = normalize(normal.xyz*2-1);
 
-#ifdef SSAO
-    float ssao;
-    if(emissive<0.4 && !isHand && (depth!=1)){
+    float ssao=1;
+    #ifdef SSAO
+    if(emissive<0.4 && !isHand){
         ssao = doSsao(jitteredTexcoord, normal.xyz, solidDepth, ditherValue);
-        voxelLighting*=ssao;
     }
-#endif
+    #endif
 
+    voxelLighting = ssao*lightingSample(worldPosRelative.xyz+cameraPosition,normal.xyz,subsurface,ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
 
 #if (DEBUG_SPECIAL_VIEW == 103) && (defined SSAO)
     voxelLighting = vec3(ssao);
