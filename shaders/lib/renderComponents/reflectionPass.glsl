@@ -46,7 +46,6 @@ vec3 worldDirToScreen(vec3 worldNormal, vec3 screenPos){
 }
 
 const int stepsPerBounce=REFLECTION_QUALITY/REFLECTION_BOUNCES;
-#define REFLECTION_THRESHOLD 0.05
 
 vec3 doMarch(vec3 initialPos, vec3 viewDir, float ditherValue, out uint hitReason){
     hitReason=2;
@@ -89,6 +88,7 @@ vec3 doMarch(vec3 initialPos, vec3 viewDir, float ditherValue, out uint hitReaso
 
 
 
+#define REFLECTION_THRESHOLD 0.05*3
 
 void main() {
     vec3 screenPos;
