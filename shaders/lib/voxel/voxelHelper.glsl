@@ -379,18 +379,22 @@ void setLightData(uvec4 light, ivec3 zonePos, ivec3 zoneShift, uint zoneMemOffse
 #endif
 
 
+#if defined SAMPLES_VOX || defined WRITES_VOX
+layout (r32ui) uniform restrict uimage3D worldVox;
+#endif
+
 #ifdef SAMPLES_VOX
 uniform usampler3D worldVoxSampler;
 
 uint getVoxData(ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
-    return texelFetch(worldVoxSampler,toMemPos(areaPos,areaShift,areaMemOffset),0).x;
+    ivec3 memPos = toMemPos(areaPos,areaShift,areaMemOffset);
+//    return texelFetch(worldVoxSampler,memPos,0).x;
+    return imageLoad(worldVox,memPos).x;
 }
 #endif
 
 
 #ifdef WRITES_VOX
-layout (r32ui) uniform restrict uimage3D worldVox;
-
 //doesnt reset timer
 void updateVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
     ivec3 memPos = toMemPos(areaPos,areaShift,areaMemOffset);

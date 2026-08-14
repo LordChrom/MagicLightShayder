@@ -30,6 +30,10 @@
     #undef TEXTURED
 #endif
 
+#if (VOXELIZATION_MODE!=0)
+    #undef CAN_VOXELIZE
+#endif
+
 #ifndef COLORED_SHADOWS
     #undef COLORED
 #endif

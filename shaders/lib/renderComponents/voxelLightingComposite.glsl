@@ -55,8 +55,10 @@ void main() {
 
     bool isHand = normal.a>0.4 && normal.a<0.6;
 
-    if(solidDepth==1)
+    if(solidDepth==1){
+        voxelLighting=vec3(0);
         return;
+    }
     vec4 worldPosRelative = vec4(jitteredTexcoord,solidDepth,1);
 
     if(isHand){
