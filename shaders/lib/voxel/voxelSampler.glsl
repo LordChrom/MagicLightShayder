@@ -392,7 +392,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
     scale = getScale(cascadeLevel);
 #endif
 
-    voxelCenter = (floor(worldPos/scale+normal*(scale/20))+0.5) * scale;
+    voxelCenter = (floor(worldPos/scale+normal*(scale/40))+0.5) * scale;
 
     ivec3 areaPos = worldPosToArea(voxelCenter,scale).xyz;
     vec3 subVoxelOffset = worldPos-voxelCenter;
