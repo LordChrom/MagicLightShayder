@@ -355,18 +355,23 @@ vec3 worldVoxColor(uint packedData){
 
 
 //sampler/image access functions
-#ifdef SAMPLES_LIGHT_FACE
-uniform usampler3D lightVoxSampler;
 
+#if defined SAMPLES_LIGHT_FACE || defined WRITES_LIGHT_FACE
+layout (rgba32ui) uniform restrict
+#ifndef WRITES_LIGHT_FACE
+readonly
+#endif
+uimage3D lightVox;
+#endif
+
+#ifdef SAMPLES_LIGHT_FACE
 uvec4 sampleLightData(ivec3 zonePos, ivec3 zoneShift, uint zoneMemOffset){
-    return texelFetch(lightVoxSampler, toMemPos(zonePos,zoneShift,zoneMemOffset),0);
+    return imageLoad(lightVox, toMemPos(zonePos,zoneShift,zoneMemOffset));
 }
 #endif
 
 
 #ifdef WRITES_LIGHT_FACE
-layout (rgba32ui) uniform writeonly restrict uimage3D lightVox;
-
 void setLightData(uvec4 light, ivec3 zonePos, ivec3 zoneShift, uint zoneMemOffset){
 #if DEBUG_SHOW_UPDATES>=0
     for(int layer = 0; layer<VOX_LAYERS; layer++){
@@ -380,7 +385,11 @@ void setLightData(uvec4 light, ivec3 zonePos, ivec3 zoneShift, uint zoneMemOffse
 
 
 #if defined SAMPLES_VOX || defined WRITES_VOX
-layout (r32ui) uniform restrict uimage3D worldVox;
+layout (r32ui) uniform restrict
+#ifndef WRITES_VOX
+readonly
+#endif
+uimage3D worldVox;
 #endif
 
 #ifdef SAMPLES_VOX
