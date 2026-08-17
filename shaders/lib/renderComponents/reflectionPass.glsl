@@ -2,12 +2,13 @@
 uniform mat4 gbufferModelView, gbufferProjection;
 #include "/lib/settings.glsl"
 
-#ifdef DENOISE_REFLECTIONS
+#define REFLECTIONS_TEMPORAL_NOISE
+
+#ifdef REFLECTIONS_TEMPORAL_NOISE
 uniform int frameCounter;
 #define TEMPORAL_DITHER
 #endif
 
-#include "/lib/util/conversions.glsl"
 #include "/lib/util/dither.glsl"
 #include "/lib/util/blend.glsl"
 
@@ -39,8 +40,13 @@ vec3 worldDirToScreen(vec3 worldDirection, vec3 screenPos){
     return normalize(pos.xyz-pos.w*(2*screenPos-1));
 }
 
+//reasons
+//0: no hits
+//1: hit edge of screen
+//2: hit something, but depth too different
+//4: hit solid terrain
 vec3 doMarch(vec3 initialPos, vec3 viewDir, float ditherValue, out uint hitReason){
-    hitReason=2;
+    hitReason=0;
     viewDir*=1/(REFLECTION_QUALITY*length(viewDir.xy));
     #if REFLECTION_BOUNCES>1
     viewDir*=min(2,1+0.3*REFLECTION_BOUNCES);
@@ -52,7 +58,7 @@ vec3 doMarch(vec3 initialPos, vec3 viewDir, float ditherValue, out uint hitReaso
     for(int i=0;i<stepsPerBounce;i++){
         newPos = initialPos+(i+ditherValue)*viewDir;
         float distFromEdge =min(min(newPos.x,newPos.y),1-max(newPos.x,newPos.y));
-        if(distFromEdge<ditherValue*0.05 || newPos.z<=0.4 || newPos.z>=1){
+        if(distFromEdge<ditherValue*0.1 || newPos.z<=0.4 || newPos.z>=1){
             hitReason=1;
             break;
         }
@@ -60,21 +66,27 @@ vec3 doMarch(vec3 initialPos, vec3 viewDir, float ditherValue, out uint hitReaso
         //TODO check both depthtexes, for reflections of terrain visible thru glass
         texDepth = texture(depthtex2,newPos.xy).x;
         if(texDepth<=newPos.z){
-            hitReason=0;
+            hitReason=4;
             break;
         }
     }
 
-    const float depthLeniency = 4.0/REFLECTION_QUALITY;
+    if(hitReason==4){
+        vec3 initialPos2= newPos;
+        viewDir/=-stepsPerBounce;
 
-    if(hitReason==0){
-        texDepth=depthToLinear(texDepth);
-        float targetDepth = depthToLinear(newPos.z);
-        float depthDif = (texDepth-targetDepth);
-        depthDif*=depthDif/targetDepth;
-        if(depthDif>depthLeniency){
-            hitReason=1;
+        for(int i=0;i<stepsPerBounce;i++){
+            newPos = initialPos2+i*viewDir;
+
+            texDepth = texture(depthtex2,newPos.xy).x;
+            if(texDepth>=newPos.z){
+                break;
+            }
         }
+    }
+
+    if((hitReason==4) && (abs(texDepth-newPos.z)>0.001)){
+        hitReason=2;
     }
 
     return newPos;
@@ -96,7 +108,7 @@ void main() {
 
 
     float ditherValue = dither(ivec2(gl_FragCoord.xy));
-    #ifdef DENOISE_REFLECTIONS
+    #ifdef REFLECTIONS_TEMPORAL_NOISE
     ditherValue = temporalNoise(ditherValue);
     #endif
 
@@ -148,29 +160,28 @@ void main() {
         screenPos = doMarch(screenPos,worldDirToScreen(worldDir, screenPos),ditherValue,rayHitReason);
 
         #if REFLECTION_BOUNCES>1
-        continuing=rayHitReason==2;
+        continuing=rayHitReason==0;
         if(continuing)
             continue;
         #endif
 
-        if(rayHitReason==1){
+        if(rayHitReason<4){
             return;
         }
-        if(rayHitReason==0){
-            normal = texture(colortex2,screenPos.xy);
-            vec3 lightColor = texture(colortex6,screenPos.xy).rgb;
-            albedo = texture(colortex1, screenPos.xy).rgb;
-            transColor = texture(colortex3,screenPos.xy);
-            reflectance = texture(colortex8,screenPos.xy).g;
 
-            if(abs(normal.a-0.5)<0.1){
-                return;
-            }
-            normal.xyz=normalize(normal.xyz*2-1);
+        normal = texture(colortex2,screenPos.xy);
+        vec3 lightColor = texture(colortex6,screenPos.xy).rgb;
+        albedo = texture(colortex1, screenPos.xy).rgb;
+        transColor = texture(colortex3,screenPos.xy);
+        reflectance = texture(colortex8,screenPos.xy).g;
 
-            if(dot(worldDir,normal.xyz)<0){
-                fogColorOut.rgb+= blend(vec4(lightColor*albedo,1),transColor)*reflectionMult;
-            }
+        if(abs(normal.a-0.5)<0.1){
+            return;
+        }
+        normal.xyz=normalize(normal.xyz*2-1);
+
+        if(dot(worldDir,normal.xyz)<0){
+            fogColorOut.rgb+= blend(vec4(lightColor*albedo,1),transColor)*reflectionMult;
         }
     }
 }
