@@ -17,7 +17,7 @@ uint currentBlock;
 const uint areaMemOffset = 0;
 
 vec4 decayBlocklight(vec4 source){
-    float intensity = length(source.rgb);
+    float intensity = (source.r+source.g+source.b)/3.0;
     source.rgb/=intensity;
     intensity=max(0,intensity-oneLightLevel);
     source.rgb*=intensity;
@@ -62,8 +62,11 @@ void main(){
         considerSample(0, 0, -1);
     }
 
+    vec3 blockColor = worldVoxColor(currentBlock);
     if (bool(currentBlock&(0xfu<<VOXEL_TYPE_SHIFT))){
-        lightOutput.rgb=max(lightOutput.rgb,worldVoxColor(currentBlock));
+        lightOutput.rgb=max(lightOutput.rgb,blockColor);
+    }else if(bool(currentBlock&WORLDVOX_TRANSLUCENT)){
+        lightOutput.rgb*=normalize(blockColor);
     }
 
     setFloodData(lightOutput, areaPos, areaShift, areaMemOffset);

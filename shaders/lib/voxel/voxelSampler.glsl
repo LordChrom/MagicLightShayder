@@ -29,7 +29,6 @@ float normalFactor(vec3 normal, vec3 displacement, float subsurface){
 
 
 float baseLightStrength(uint type, vec3 displacement, vec3 travel){
-    const float b = 1/float(MAX_LIGHT_STRENGTH*MAX_LIGHT_STRENGTH);
 
     #ifdef EVERYTHING_IS_THE_SUN
         if(true) return 1;
@@ -37,8 +36,14 @@ float baseLightStrength(uint type, vec3 displacement, vec3 travel){
         if(type==LIGHT_TYPE_SUN) return 1;
     #endif
 
+    #ifdef MC_SHAPED_LIGHT_FALLOFF
+    displacement=max(abs(displacement)-0.5,0);
+    float lightStrength = 2*max(0,1-(displacement.x+displacement.y+displacement.z)/15.0);
+    #else
+    const float b = 1/float(MAX_LIGHT_STRENGTH*MAX_LIGHT_STRENGTH);
     float lengthSquared = dot(displacement,displacement);
     float lightStrength = BLOCK_LIGHT_STRENGTH*inversesqrt(lengthSquared*lengthSquared*(1-MIN_COLUMNATION)+b);
+    #endif
 
     #ifdef BLOCKLIGHT_ANIMATION
     if(type==3u) lightStrength *= pulsate();
@@ -297,7 +302,11 @@ vec3 getDirectedLight(uint cascadeLevel, uint layer, float subsurface, ivec3 zon
         #endif
         FOG_BRIGHTNESS_BLOCK;
     }else{
-        lightStrength*=normalFactor(normal, displacement, subsurface);
+        float normalMult = normalFactor(normal, displacement, subsurface);
+        #ifdef MC_SHAPED_LIGHT_FALLOFF
+        normalMult=clamp(normalMult,0.1,0.5);
+        #endif
+        lightStrength*=normalMult;
     }
 
     #ifndef DISABLE_BLOCKLIGHT_SUN
