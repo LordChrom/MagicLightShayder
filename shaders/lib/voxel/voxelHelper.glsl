@@ -300,9 +300,16 @@ uint getLightStrength(uvec4 lightSrc){
     if(type==0)
         return 0;
     ivec3 travel = intLightTravel(lightSrc.x);
+    #ifdef MC_SHAPED_LIGHT_FALLOFF
+    vec3 displacement =max(abs(unpackLightTravel(lightSrc))-0.5,0);
+
+    vec3 a = unpackLightColor(lightSrc);
+    float base = (a.x+a.y+a.b)/3.0;
+    float strength = 2*max(0,base-(displacement.x+displacement.y+displacement.z)/15.0)/base;
+    #else
     float lenSquared = float(dot(travel, travel)+1);
     float strength = (1+length(unpackLightColor(lightSrc)))/lenSquared;
-
+    #endif
     return uint(clamp(strength*1e7,0,1e9));
 }
 

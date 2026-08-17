@@ -28,7 +28,8 @@ float normalFactor(vec3 normal, vec3 displacement, float subsurface){
 
 
 
-float baseLightStrength(uint type, vec3 displacement, vec3 travel){
+float baseLightStrength(uvec4 packedLightSrc, vec3 displacement){
+    uint type = unpackLightType(packedLightSrc);
 
     #ifdef EVERYTHING_IS_THE_SUN
         if(true) return 1;
@@ -38,7 +39,9 @@ float baseLightStrength(uint type, vec3 displacement, vec3 travel){
 
     #ifdef MC_SHAPED_LIGHT_FALLOFF
     displacement=max(abs(displacement)-0.5,0);
-    float lightStrength = 2*max(0,1-(displacement.x+displacement.y+displacement.z)/15.0);
+    vec3 a = unpackLightColor(packedLightSrc);
+    float base = (a.x+a.y+a.b)/3.0;
+    float lightStrength = 2*max(0,base-(displacement.x+displacement.y+displacement.z)/15.0)/base;
     #else
     const float b = 1/float(MAX_LIGHT_STRENGTH*MAX_LIGHT_STRENGTH);
     float lengthSquared = dot(displacement,displacement);
@@ -47,7 +50,7 @@ float baseLightStrength(uint type, vec3 displacement, vec3 travel){
 
     #ifdef BLOCKLIGHT_ANIMATION
     if(type==3u) lightStrength *= pulsate();
-    if(type==4u) lightStrength *= flicker(ivec3(floor(voxelCenter))-zoneToAreaSpaceRelative(ivec3(round(travel)),axis));
+    if(type==4u) lightStrength *= flicker(ivec3(floor(voxelCenter))-zoneToAreaSpaceRelative(ivec3(round(unpackLightTravel(packedLightSrc))),axis));
     #endif
 
     return lightStrength;
@@ -293,7 +296,7 @@ vec3 getDirectedLight(uint cascadeLevel, uint layer, float subsurface, ivec3 zon
     }
     #endif
 
-    float lightStrength = baseLightStrength(type,displacement, travel);
+    float lightStrength = baseLightStrength(packedLightSrc,displacement);
     float baseStrength = lightStrength;
     if(isForFog){
         lightStrength *=
