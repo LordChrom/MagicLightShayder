@@ -53,6 +53,7 @@ const float ambientOcclusionLevel = 0.0; //[0.0 0.25 0.5 0.75 1.0]
 
 
 /*
+const int colortex0Format = RGBA8;
 const int colortex1Format = RGBA8;
 const int colortex2Format = RGBA8;
 const int colortex3Format = RGBA8;

@@ -120,10 +120,9 @@ Packing
 - other subsurface edge cases (directly contacting light source)
 - shadowmap light leak underground (esp for subsurface)
 - flickering on back of well-lit vines
+- reflections secondary bouncing on translucent
 
 ### Needs Improvement
-- trans reflections in composite
-- resolution scaling reflections
 - shadowmap sun shadows
 - TAA performance
 - proper system for unlit geometry

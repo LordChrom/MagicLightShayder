@@ -117,6 +117,7 @@
 //#define PERFECT_MIRRORS
 #define REFLECTION_BOUNCES 1 //[1 2 3 4 5]
 #define TRANSLUCENT_REFLECTIONS
+//#define DENOISE_REFLECTIONS
 
 #define SSBO_WORKSPACE
 
@@ -243,7 +244,6 @@
     #define OLDDOF_PASSES -1
 #endif
 /////
-
 
 
 #if BLOOM>0
