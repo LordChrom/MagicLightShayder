@@ -51,7 +51,6 @@ void main() {
     uvec4 matInfo = texture(colortex8,jitteredTexcoord);
     #endif
 
-    float ditherValue = dither(ivec2(gl_FragCoord.xy));
 
     bool isHand = normal.a>0.4 && normal.a<0.6;
 
@@ -89,6 +88,7 @@ void main() {
 
     normal.xyz = normalize(normal.xyz*2-1);
 
+    float ditherValue = dither(ivec2(gl_FragCoord.xy));
     float ssao=1;
     #ifdef SSAO
     if(emissive<0.4 && !isHand){

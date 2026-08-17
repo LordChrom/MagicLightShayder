@@ -53,11 +53,11 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 | format  | num | purpose                      | scale |
 |---------|-----|------------------------------|-------|
 |         | 0   | main output                  |       |
-| RGB8    | 1   | albedo                       |       |
+| RGBA8   | 1   | albedo                       |       |
 | RGBA8   | 2   | normals                      |       |
 | RGBA8   | 3   | transparent abledo           |       |
 |         | 4   |                              |       |
-| RGB8    | 5   | vanilla fallback (optional)  |       |
+|         | 5   |                              |       |
 | RGB16F  | 6   | multiplicative lighting      | y     |
 | RGBA16F | 7   | additive light               | y     |
 | RGBA8UI | 8   | Materials                    |       |
@@ -69,6 +69,9 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 |         | 14  |                              |       |
 |         | 15  |                              |       |
 |         | 19  | debug (optional)             | y     |
+
+- albedo.a is 1 exclusively for pre-lit geometry
+- normals.a is 0 for solid, 0.5 for hand, 1 for translucent
 
 # Layouts
 ### Voxel map

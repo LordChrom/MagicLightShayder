@@ -8,7 +8,6 @@ uniform sampler2D colortex1;
 uniform sampler2D colortex2;
 uniform sampler2D colortex3;
 uniform sampler2D colortex4;
-uniform sampler2D colortex5;
 uniform sampler2D colortex6;
 uniform sampler2D colortex7;
 uniform usampler2D colortex8;
@@ -37,8 +36,6 @@ void main() {
     outColor=texture(colortex3,texcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 4
     outColor= texture(colortex4,texcoord).rgb*2-1;
-#elif DEBUG_SPECIAL_VIEW == 5
-    outColor=texture(colortex5,texcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 6
     outColor=texture(colortex6,texcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 7

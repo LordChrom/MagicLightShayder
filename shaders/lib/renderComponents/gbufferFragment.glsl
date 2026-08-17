@@ -103,15 +103,15 @@ flat in int materialID;
     /* RENDERTARGETS: 3,2 */
 #elif defined TRANSLUCENT
     #ifdef WRITE_MATERIALS
-    /* RENDERTARGETS: 3,2,5,8 */
+    /* RENDERTARGETS: 3,2,8 */
     #else
-    /* RENDERTARGETS: 3,2,5 */
+    /* RENDERTARGETS: 3,2 */
     #endif
 #else
     #ifdef WRITE_MATERIALS
-    /* RENDERTARGETS: 1,2,5,8 */
+    /* RENDERTARGETS: 1,2,8 */
     #else
-    /* RENDERTARGETS: 1,2,5 */
+    /* RENDERTARGETS: 1,2 */
     #endif
 #endif
 
@@ -159,17 +159,10 @@ layout(location = 0) out vec4 color;
 layout(location = 1) out vec4 normalOut;
 
 #ifdef FORWARD_TRANSLUCENTS
-vec4 vanillaLighting;
 uvec4 materialInfo;
 #else
-
-#ifdef VANILLA_FALLBACK
-layout(location = 2) out vec4 vanillaLighting;
-#else
-vec4 vanillaLighting;
-#endif
 #ifdef WRITE_MATERIALS
-layout(location = 3) out uvec4 materialInfo;
+layout(location = 2) out uvec4 materialInfo;
 #endif
 #endif
 
@@ -203,35 +196,21 @@ void main()
     #endif
 #endif
 
-#ifdef LIT
-    #ifdef VOXY_PATCH
-    vanillaLighting = voxyLighting(lmcoord);
-    #else
-    vanillaLighting = min(texture(lightmap, lmcoord),0.99);
-    #endif
-#elif defined BASIC
-    bool isLeash = length(glcolor.xyz-vec3(0.425,0.34,0.25))<0.5;
-    vanillaLighting = isLeash?vec4(0.9,0.9,0.9,1):vec4(1.0);
-#else
-    vanillaLighting = vec4(1.0);
-#endif
 
+    color=glcolor;
 #ifdef MAYBE_END_GATEWAY
     bool isEndGateway = materialID==55498;
 
     if(isEndGateway){
-        vanillaLighting=vec4(1.0);
         color = vec4(doEndGateway(gl_FragCoord.xy/vec2(viewWidth,viewHeight)),1);
     }else{
-        color = glcolor*texture(gtexture, newTexcoord);
+        color *= texture(gtexture, newTexcoord);
     }
 
 #elif defined VOXY_PATCH
-    color = voxycolor*glcolor;
+    color *= voxycolor;
 #elif defined TEXTURED
-    color = glcolor * texture(gtexture, newTexcoord);
-#else
-    color = glcolor * vanillaLighting;
+    color *= texture(gtexture, newTexcoord);
 #endif
 
 #ifdef ENTITY
@@ -332,7 +311,7 @@ void main()
 
     #ifdef FORWARD_TRANSLUCENTS
     #ifdef VOXY_PATCH
-    vec3 incidentLightColor = vanillaLighting.rgb;
+    vec3 incidentLightColor = voxyLighting(lmcoord).rgb;
     color.rgb=mix(color.rgb*min(1,(incidentLightColor.r+incidentLightColor.g+incidentLightColor.b)),color.rgb*incidentLightColor,color.a);
 
     #else
@@ -357,4 +336,17 @@ void main()
     }
     #endif
     #endif
+
+#ifndef TRANSLUCENT
+    #ifdef MAYBE_END_GATEWAY
+    color.a=float(isEndGateway);
+    #elif defined LIT
+    color.a=0;
+    #elif defined BASIC
+    bool isLeash = length(glcolor.xyz-vec3(0.425,0.34,0.25))<0.5;
+    color.a=float(!isLeash);
+    #else
+    color.a=1;
+    #endif
+#endif
 }

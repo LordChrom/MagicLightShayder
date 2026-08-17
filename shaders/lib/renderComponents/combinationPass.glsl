@@ -34,9 +34,6 @@ uniform sampler2D additiveLightTex, multiplicativeLightTex;
 uniform sampler2D colortex1;
 uniform sampler2D colortex3;
 
-#ifdef VANILLA_FALLBACK
-uniform sampler2D colortex5;
-#endif
 
 
 
@@ -56,11 +53,10 @@ const float ambientOcclusionLevel = 0.0; //[0.0 0.25 0.5 0.75 1.0]
 
 
 /*
-const int colortex1Format = RGB8;
+const int colortex1Format = RGBA8;
 const int colortex2Format = RGBA8;
 const int colortex3Format = RGBA8;
 const int colortex4Format = RGBA8;
-const int colortex5Format = RGBA8;
 const int colortex6Format = RGB16F;
 const int colortex7Format = RGBA16F;
 const int colortex8Format = RGBA8UI;
@@ -83,18 +79,11 @@ void main() {
     vec4 albedo = texelFetch(colortex1,texpos,0);
     vec4 transColor = texelFetch(colortex3,texpos,0);
 
-    #ifdef VANILLA_FALLBACK
-    vec3 light = texelFetch(colortex5,texpos,0).xyz;
-    #else
-    vec3 light = vec3(1/15.0);
-    #endif
-
-
 
     #if (BLOOM_LEVEL > 0) && !defined TAA
-    vec3 voxelLighting = doBloom(multiplicativeLightTex,texcoord,1).rgb;
+    vec3 light = doBloom(multiplicativeLightTex,texcoord,1).rgb;
     #else
-    vec3 voxelLighting = texture(multiplicativeLightTex,texcoord).rgb;
+    vec3 light = texture(multiplicativeLightTex,texcoord).rgb;
     #endif
 
     #if (FOG_BLUR > 0) && !(defined TAA && defined TAA_FOG)
@@ -103,9 +92,8 @@ void main() {
     vec4 voxelFog = texture(additiveLightTex,texcoord);
     #endif
 
-    if( voxelLighting.r>=0 && light!=vec3(1)){
-        light=voxelLighting.xyz;
-    }
+    if(albedo.a==1)
+        light=vec3(1);
 
     vec3 color;
     if(transColor.a>=0.99){
