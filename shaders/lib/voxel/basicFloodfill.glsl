@@ -1,3 +1,9 @@
+#include "/lib/settings.glsl"
+
+#ifdef OBSTRUCTION_MAPPING
+#define SAMPLES_OBSTRUCTION
+#endif
+
 #define SAMPLES_FLOOD
 #define WRITES_FLOOD
 #define SAMPLES_VOX
@@ -52,14 +58,25 @@ void main(){
     areaShift=getAreaShift(1.0);
 
     currentBlock = getVoxData(areaPos, areaShift, areaMemOffset);
+    #ifdef OBSTRUCTION_MAPPING
+    uint obstruction = getObstructionData(areaPos, areaShift, areaMemOffset);
+    #else
+    uint obstruction = 0u;
+    #endif
 
     if(!bool(currentBlock&WORLDVOX_OPAQUE)){
-        considerSample(1, 0, 0);
-        considerSample(-1, 0, 0);
-        considerSample(0, 1, 0);
-        considerSample(0, -1, 0);
-        considerSample(0, 0, 1);
-        considerSample(0, 0, -1);
+        if(!bool(obstruction&0x02u))
+            considerSample(1, 0, 0);
+        if(!bool(obstruction&0x01u))
+            considerSample(-1, 0, 0);
+        if(!bool(obstruction&0x08u))
+            considerSample(0, 1, 0);
+        if(!bool(obstruction&0x04u))
+            considerSample(0, -1, 0);
+        if(!bool(obstruction&0x20u))
+            considerSample(0, 0, 1);
+        if(!bool(obstruction&0x10u))
+            considerSample(0, 0, -1);
     }
 
     vec3 blockColor = worldVoxColor(currentBlock);
