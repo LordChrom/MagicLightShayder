@@ -74,7 +74,7 @@ void main(){
 #else
 uniform bool hasCeiling;
 //yes cascasdes
-layout(triangle_strip, max_vertices = 12) out;
+layout(triangle_strip, max_vertices = 6) out;
 #ifndef CAN_VOXELIZE
 uniform int frameCounter;
 #endif
@@ -86,19 +86,35 @@ void main(){
     voxelize();
     #endif
     if(hasCeiling) return;
-    float fudge = 0.9;
-    int maxLevel=max(getMaxLevel(gl_in[0].gl_Position.xy*fudge),max(getMaxLevel(gl_in[1].gl_Position.xy*fudge),getMaxLevel(gl_in[2].gl_Position.xy*fudge)));
-    maxLevel=min(maxLevel,3);
-    for(int level=0;level<=maxLevel;level++){
+
+    float maxDist = 0;
+    for(int i=0;i<3;i++){
+        vec2 absPos = abs(gl_in[i].gl_Position.xy);
+        maxDist=max(maxDist,max(absPos.x,absPos.y));
+    }
+
+    float floatLevel = getFloatMaxLevel(maxDist);
+
+    int minLevel=clamp(int(floatLevel-0.15),0,MAX_SHADOW_CASCADE);
+    int maxLevel=clamp(int(floatLevel+0.5),0,MAX_SHADOW_CASCADE);
+
+    #ifdef TAA
+        vec2 posJitter = INDIVIDUAL_CASCADE_SCALE*shadowJitter();
+    #endif
+    for(int level=minLevel;level<=maxLevel;level++){
         vec2[3] positions;
-        bool allOob = true;
-        for (int i=0;i<3;i++){
-            bool oob;
-            positions[i]=levelDistortAndReport(gl_in[i].gl_Position.xy,level,oob);
-            allOob = allOob&& oob;
+
+        float scale = getLevelScale(level);
+        vec2 center = getLevelCenter(level);
+        for(int i=0;i<3;i++){
+            positions[i]=gl_in[i].gl_Position.xy*scale;
+            #ifdef TAA
+            positions[i]+=posJitter;
+            #endif
+
+            positions[i] = clamp(positions[i],-1,1);
+            positions[i] = positions[i]/INDIVIDUAL_CASCADE_SCALE+center;
         }
-        if(allOob)
-            return;
 
         for (int i=0;i<3;i++){
             gl_Position.zw = gl_in[i].gl_Position.zw;

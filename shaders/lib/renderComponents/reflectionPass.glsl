@@ -2,7 +2,9 @@
 uniform mat4 gbufferModelView, gbufferProjection;
 #include "/lib/settings.glsl"
 
+#if (defined TAA) || (defined DENOISE_REFLECTIONS)
 #define REFLECTIONS_TEMPORAL_NOISE
+#endif
 
 #ifdef REFLECTIONS_TEMPORAL_NOISE
 uniform int frameCounter;

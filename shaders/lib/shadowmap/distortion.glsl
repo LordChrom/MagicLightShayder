@@ -8,53 +8,49 @@ uniform vec2 scaledScreenDim;
 #include "/lib/util/taaJitter.glsl"
 #endif
 
+#define MAX_SHADOW_CASCADE 7
+#define INDIVIDUAL_CASCADE_SCALE 3.0
 
 #ifdef CASCADED_SHADOWS
-const float perLevelScale = 3;
+float getFloatMaxLevel(float dist){
+    return -log2(max(0.001,dist));
+}
 float getFloatMaxLevel(vec2 pos){
-    float maxDist = max(abs(pos.x),abs(pos.y))*1.1;
-    maxDist=1/max(0.001,maxDist);
-    const float returnMul = log2(perLevelScale);
-    return log2(maxDist)/returnMul;
+    return getFloatMaxLevel(max(abs(pos.x),abs(pos.y)));
 }
 int getMaxLevel(vec2 pos){
     return int(getFloatMaxLevel(pos));
 }
+int getMaxLevel(float pos){
+    return int(getFloatMaxLevel(pos));
+}
+
+vec2 getLevelCenter(int level){
+    return (vec2(level/3,level%3)-1)*2.0/3.0;
+}
+
+float getLevelScale(int level){
+    return float(1<<level);
+}
 
 vec2 levelDistort(vec2 shadowpos, int level){
-    vec2 levelCenter = vec2(level>>1,level&1)-0.5;
-    float levelScale=bool(level&2)? perLevelScale*perLevelScale : 1;
-    if(bool(level&1))
-        levelScale*=perLevelScale;
-    shadowpos*=levelScale;
+    shadowpos*=getLevelScale(level);
     #ifdef TAA
-    shadowpos+=2*shadowJitter();
+    shadowpos+=INDIVIDUAL_CASCADE_SCALE*shadowJitter();
     #endif
     shadowpos = clamp(shadowpos,-1,1);
-    return shadowpos*0.5+levelCenter;
+    return shadowpos/INDIVIDUAL_CASCADE_SCALE+getLevelCenter(level);
 }
-vec2 levelDistortAndReport(vec2 shadowpos, int level, out bool oob){
-    vec2 levelCenter = vec2(level>>1,level&1)-0.5;
-    float levelScale=bool(level&2)? perLevelScale*perLevelScale : 1;
-    if(bool(level&1))
-    levelScale*=perLevelScale;
-    shadowpos*=levelScale;
-    #ifdef TAA
-    shadowpos+=2*shadowJitter();
-    #endif
-    oob = shadowpos.x<-1 || shadowpos.y<-1 || shadowpos.x>1 || shadowpos.y>1;
-    shadowpos = clamp(shadowpos,-1,1);
-    return shadowpos*0.5+levelCenter;
-}
+
 vec2 distort(vec2 shadowpos){
     if(shadowpos.x<-1 || shadowpos.y<-1 || shadowpos.x>1 || shadowpos.y>1)
         return vec2(-100);
-    return levelDistort(shadowpos,clamp(getMaxLevel(shadowpos*1.01),0,3));
+    return levelDistort(shadowpos,clamp(getMaxLevel(shadowpos*1.01),0,MAX_SHADOW_CASCADE));
 }
 
 vec3 distort(vec3 shadowpos, float noise){
-    int level = int(getFloatMaxLevel(shadowpos.xy*1.01)-0.04*noise);
-    return vec3(levelDistort(shadowpos.xy, min(level,3)),distortZ(shadowpos.z));
+    int level = int(getFloatMaxLevel(shadowpos.xy*1.07)-0.04*noise);
+    return vec3(levelDistort(shadowpos.xy, min(level,MAX_SHADOW_CASCADE)),distortZ(shadowpos.z));
 }
 #else
 vec2 distort(vec2 shadowpos){
