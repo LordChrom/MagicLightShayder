@@ -72,20 +72,17 @@ vec3 doMarch(vec3 initialPos, vec3 viewDir, float ditherValue, out uint hitReaso
     }
 
     if(hitReason==4){
-        vec3 initialPos2= newPos;
-        viewDir/=-stepsPerBounce;
+        viewDir*=0.5;
+        newPos-=viewDir;
 
-        for(int i=0;i<stepsPerBounce;i++){
-            newPos = initialPos2+i*viewDir;
-
+        for(int i=0;i<min(stepsPerBounce,8);i++){
             texDepth = texture(depthtex2,newPos.xy).x;
-            if(texDepth>=newPos.z){
-                break;
-            }
+            viewDir*=0.5;
+            newPos+=(texDepth>=newPos.z)?viewDir:-viewDir;
         }
     }
 
-    if((hitReason==4) && (abs(texDepth-newPos.z)>0.001)){
+    if((hitReason==4) && (abs(texDepth-newPos.z)>0.005)){
         hitReason=2;
     }
 

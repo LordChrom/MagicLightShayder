@@ -112,7 +112,7 @@
 //#define POM_WRITE_DEPTH
 //#define POM_DISCARD
 
-#define REFLECTION_QUALITY 32 //[12 16 24 32 48 64 96 128 194 256 512 1024]
+#define REFLECTION_QUALITY 16 //[4 6 8 12 16 24 32 48 64 96 128 1024]
 //#define REFLECTIONS
 //#define PERFECT_MIRRORS
 #define REFLECTION_BOUNCES 1 //[1 2 3 4 5]
@@ -254,7 +254,9 @@
 #ifdef SUN_SHADOW_SUBSURFACE
 #ifdef REFLECTIONS
 #ifdef ADVANCED_BLOCKLIGHT_FOG
+#ifdef DENOISE_REFLECTIONS
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
+#endif
 #endif
 #endif
 #endif
