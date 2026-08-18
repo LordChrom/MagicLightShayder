@@ -13,6 +13,7 @@ uniform int frameCounter;
 
 #include "/lib/util/dither.glsl"
 #include "/lib/util/blend.glsl"
+#include "/lib/util/conversions.glsl"
 
 
 in vec2 texcoord;
@@ -84,7 +85,7 @@ vec3 doMarch(vec3 initialPos, vec3 viewDir, float ditherValue, out uint hitReaso
         }
     }
 
-    if((hitReason==4) && (abs(texDepth-newPos.z)>0.005)){
+    if((hitReason==4) && (abs(depthToLinear(texDepth)/depthToLinear(newPos.z)-1)>0.1)){
         hitReason=2;
     }
 

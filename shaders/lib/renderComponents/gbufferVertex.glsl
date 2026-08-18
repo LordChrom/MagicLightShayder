@@ -25,16 +25,16 @@ out vec4 glcolor;
 out vec2 texcoord;
     #if MATERIALS_TYPE == 1
     in vec4 at_tangent;
-    flat out mat3 TBN;
+    flat out vec4 tangent;
     #endif
 #endif
 
 #ifdef VERTEX_NORMALS
-out vec3 normal;
+flat out vec3 normal;
 #endif
 
 #ifdef LIT
-out vec2 lmcoord;
+//out vec2 lmcoord;
 #endif
 
 #if defined NORMALS_NOT_INCLUDED || defined HAND
@@ -82,7 +82,7 @@ uniform vec3 cameraPosition;
   #endif
 in vec2 mc_midTexCoord;
 out vec2 differential;
-flat out ivec2 baseTexpos;
+flat out uvec2 baseTexpos;
 flat out ivec2 texsize;
 out float worldLength;
 #endif
@@ -115,18 +115,16 @@ void main() {
     #endif
 
     #if MATERIALS_TYPE == 1 && defined TEXTURED
+    tangent = at_tangent;
 
-    TBN = mat3(at_tangent.xyz,normalize(cross(at_tangent.xyz,normal)*at_tangent.w),normal);
+    #ifdef POM
+        #ifdef HAND
+            mat3 texTBN = mat3(at_tangent.xyz,normalize(cross(at_tangent.xyz,gl_Normal)*at_tangent.w),gl_Normal);
+        #else
+            mat3 texTBN = mat3(at_tangent.xyz,normalize(cross(at_tangent.xyz,normal)*at_tangent.w),normal);
+        #endif
 
-        #ifdef POM
-    vec3 texHitVec = mat3(gl_ModelViewMatrix[0].xyz,gl_ModelViewMatrix[1].xyz,gl_ModelViewMatrix[2].xyz)*gl_Vertex.xyz + gl_ModelViewMatrix[3].xyz;
-            #ifdef HAND
-                mat3 texTBN = mat3(at_tangent.xyz,normalize(cross(at_tangent.xyz,gl_Normal)*at_tangent.w),gl_Normal);
-            #else
-                #define texTBN TBN
-            #endif
-
-    texHitVec = transpose(gl_NormalMatrix*texTBN)*texHitVec;
+    vec3 texHitVec = transpose(gl_NormalMatrix*texTBN) * (mat3(gl_ModelViewMatrix)*gl_Vertex.xyz + gl_ModelViewMatrix[3].xyz);
 
     worldLength = length(gl_Vertex.xyz);
     texsize = ivec2(ceil(2*atlasSize*abs(mc_midTexCoord-texcoord)));
@@ -152,8 +150,8 @@ void main() {
 #endif
 
 #ifdef LIT
-    lmcoord = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
-    lmcoord = clamp(lmcoord,1.0/32,31.0/32);
+//    lmcoord = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
+//    lmcoord = clamp(lmcoord,1.0/32,31.0/32);
 #endif
 
 #if (defined NEEDS_MATERIAL_ID) || (defined HARDCODED_MATERIAL)

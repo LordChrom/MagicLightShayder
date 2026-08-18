@@ -46,17 +46,17 @@ uniform sampler2D gtexture;
     #if MATERIALS_TYPE ==1
 uniform sampler2D specular;
 uniform sampler2D normals;
-flat in mat3 TBN;
+flat in vec4 tangent;
     #endif
 #endif
 
 #ifdef LIT
-in vec2 lmcoord;
-uniform sampler2D lightmap;
+//in vec2 lmcoord;
+//uniform sampler2D lightmap;
 #endif
 
 #ifdef VERTEX_NORMALS
-in vec3 normal;
+flat in vec3 normal;
 #endif
 
 #ifdef ALPHATEST
@@ -96,6 +96,9 @@ flat in int materialID;
     uniform vec3 cameraPosition;
     #if SUBSURFACE_MODE==2
         #define SUBSURFACE_MODE 0
+    #endif
+    #ifdef BASIC_FLOODFILL
+    uniform sampler2D lightmap;
     #endif
     #include "/lib/lightingWrapper/lightSampler.glsl"
     #include "/lib/util/dither.glsl"
@@ -241,7 +244,7 @@ void main()
     #endif
 
 
-    normalOut.xyz = normalize(TBN*normalOut.xyz);
+    normalOut.xyz = normalize( mat3(tangent.xyz,normalize(cross(tangent.xyz,normal)*tangent.w),normal) * normalOut.xyz );
 
     #ifdef POM
         #if DEBUG_SPECIAL_VIEW==104
