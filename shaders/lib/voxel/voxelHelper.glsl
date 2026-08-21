@@ -38,6 +38,10 @@ ivec3 getAreaShift(float scale, vec3 origin){
 ivec3 getAreaShift(float scale){return getAreaShift(scale,getGlobalOrigin(scale));}
 ivec3 getPreviousAreaShift(float scale){return getAreaShift(scale,getPreviousGlobalOrigin(scale));}
 
+ivec3 getFloodShift(){
+    return ivec3(floor(globalOrigin));
+}
+
 uint modAreaSize(uint x){
     #if (AREA_SIZE&(AREA_SIZE-1))
     return (x+0x10000u*AREA_SIZE)%AREA_SIZE;
@@ -54,6 +58,24 @@ uvec3 modAreaSize(uvec3 x){
 }
 int modAreaSize(int x){ return int(modAreaSize(uint(x)));}
 ivec3 modAreaSize(ivec3 x){ return ivec3(modAreaSize(uvec3(x)));}
+
+
+uint modFloodfillSize(uint x){
+    #if (FLOODFILL_SIZE&(FLOODFILL_SIZE-1))
+    return (x+0x10000u*FLOODFILL_SIZE)%FLOODFILL_SIZE;
+    #else
+    return x&uint(FLOODFILL_SIZE-1);
+    #endif
+}
+uvec3 modFloodfillSize(uvec3 x){
+    #if (FLOODFILL_SIZE&(FLOODFILL_SIZE-1))
+    return (x+0x10000u*FLOODFILL_SIZE)%FLOODFILL_SIZE;
+    #else
+    return x&uint(FLOODFILL_SIZE-1);
+    #endif
+}
+int modFloodfillSize(int x){ return int(modFloodfillSize(uint(x)));}
+ivec3 modFloodfillSize(ivec3 x){ return ivec3(modFloodfillSize(uvec3(x)));}
 
 
 //in order from 0 to 5, -x,+x,-y,+y,-z,+z
@@ -451,19 +473,18 @@ void submitObstructionData(uint obstruction, ivec3 areaPos, ivec3 areaShift, uin
 #ifdef SAMPLES_FLOOD
 uniform sampler3D floodfillSampler;
 
-vec4 getFloodData(ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
-    return texelFetch(floodfillSampler,toMemPos(areaPos,areaShift,areaMemOffset),0);
+vec4 getFloodData(ivec3 areaPos, ivec3 areaShift){
+    return texelFetch(floodfillSampler,modFloodfillSize(areaPos+areaShift),0);
 }
 
-#define BASIC_FLOODFILL_SIZE AREA_SIZE
 vec4 sampleFloodData(vec3 worldPos){
     vec3 distFromCenter = worldPos-globalOrigin;
     distFromCenter=abs(distFromCenter);
-    if(max(max(distFromCenter.x,distFromCenter.y),distFromCenter.z)>0.5*(BASIC_FLOODFILL_SIZE-1))
+    if(max(max(distFromCenter.x,distFromCenter.y),distFromCenter.z)>0.5*(FLOODFILL_SIZE-1))
         return vec4(0);
 
-    vec3 texPosition = fract((worldPos/BASIC_FLOODFILL_SIZE)+0.5);
-    const float edgeMargin = 0.5/AREA_SIZE;
+    vec3 texPosition = fract((worldPos/FLOODFILL_SIZE)+0.5);
+    const float edgeMargin = 0.5/FLOODFILL_SIZE;
     const float topEdgeMargin = 1-edgeMargin;
 
     if(!(texPosition.x<edgeMargin || texPosition.y<edgeMargin || texPosition.z<edgeMargin ||
@@ -472,9 +493,9 @@ vec4 sampleFloodData(vec3 worldPos){
         return texture(floodfillSampler,texPosition);
     }
 
-    ivec3 lowerPos = ivec3(floor(worldPos-0.5))+AREA_SIZE/2;
-    ivec3 upperPos = modAreaSize(lowerPos+1);
-    lowerPos = modAreaSize(lowerPos);
+    ivec3 lowerPos = ivec3(floor(worldPos-0.5))+FLOODFILL_SIZE/2;
+    ivec3 upperPos = modFloodfillSize(lowerPos+1);
+    lowerPos = modFloodfillSize(lowerPos);
     worldPos=fract(worldPos+0.5);
     vec4 ret;
     for(int x=0;x<=1;x++){
@@ -495,9 +516,8 @@ vec4 sampleFloodData(vec3 worldPos){
 #ifdef WRITES_FLOOD
 layout (rgba8) uniform writeonly restrict image3D floodfillVox;
 
-void setFloodData(vec4 data, ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
-    ivec3 memPos = toMemPos(areaPos,areaShift,areaMemOffset);
-    imageStore(floodfillVox,memPos,data);
+void setFloodData(vec4 data, ivec3 areaPos, ivec3 areaShift){
+    imageStore(floodfillVox,modFloodfillSize(areaPos+areaShift),data);
 }
 #endif
 

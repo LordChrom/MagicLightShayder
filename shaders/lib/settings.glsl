@@ -150,6 +150,8 @@
 //#define CASCADED_SHADOWS
 #define SHADOW_SAMPLING_MODE 1 //[0 1 2]
 
+#define FLOODFILL_SIZE 64 //[32 64 128 192 256 384]
+
 #define OBSTRUCTION_MAPPING
 //#define BASIC_FLOODFILL
 #define ADVANCED_VOXEL_TRACE
@@ -250,7 +252,7 @@
 /////
 
 
-#if BLOOM>0
+#if (BLOOM>0) || (FLOODFILL_SIZE>0)
 #ifdef KEEP_FULLY_OCCLUDED_SAMPLES
 #ifdef FOG_PENUMBRAS
 #ifdef ENTITY_POM
@@ -269,5 +271,4 @@
 #endif
 #endif
 #endif
-
 #endif
