@@ -104,12 +104,13 @@ uvec4 radiance = uvec4(0);
 
 
 uvec4 maybeBlockLight(uvec4 light, uint voxel){
-    return (
-        bool(voxel&WORLDVOX_OPAQUE)
-        || ((bool(voxel&WORLDVOX_TRANSLUCENT)) &&!bool(unpackLightFlags(light)&1u))
-#if MAX_LIGHT_TRAVEL > 0
-        || (unpackLightTravel(light).z>MAX_LIGHT_TRAVEL)
-#endif
+    float lightTravelZ = unpackLightTravel(light).z;
+    return (lightTravelZ>0.01)&&(
+        #if MAX_LIGHT_TRAVEL > 0
+        (lightTravelZ>MAX_LIGHT_TRAVEL) ||
+        #endif
+        bool(voxel&WORLDVOX_OPAQUE) ||
+        ((bool(voxel&WORLDVOX_TRANSLUCENT)) &&!bool(unpackLightFlags(light)&1u))
     )? uvec4(0):light;
 }
 
@@ -412,7 +413,7 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
             }
 #endif
 
-            bool blockBlocked = bool((front|rear)&obstructingTerrainMask)
+            bool blockBlocked = bool(front&obstructingTerrainMask)||(bool(rear&obstructingTerrainMask)&&(lightTravel.x>1.1*scale))
             ||
                 ((!bool(front&WORLDVOX_TRANSLUCENT)&&translucentTerrain) && ( //only cutoff the outside when its at the front
                     (i==1 && aSignSrc!=0)||
