@@ -351,13 +351,13 @@ uvec4 unpackWorldVox(uint packedData){
     return ret;
 }
 
-uint packWorldVox(uvec4 data){
-    data.rgb=(data.rgb>>=1)&0x7fu;
-    return ((data.w<<21u)|(data.x<<14u))|((data.y<<7u)|(data.z));
+uint packWorldVox(vec3 color, uint metadata){
+    uvec3 intColor = uvec3(color*9.0+0.5);
+    return (metadata<<WORLDVOX_META_SHIFT)|((intColor.r<<8u))|((intColor.g<<4u)|(intColor.b));
 }
 
 vec3 worldVoxColor(uint packedData){
-    return vec3(uvec3(packedData>>14u,packedData>>7u,packedData)&0x7fu)*1.0/127;
+    return vec3(uvec3(packedData>>8u,packedData>>4u,packedData)&0xfu)/9.0;
 }
 
 

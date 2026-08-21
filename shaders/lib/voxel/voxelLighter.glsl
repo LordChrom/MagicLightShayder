@@ -837,7 +837,7 @@ void lightVoxelFace(){
         zonePosZ
     );
     uint front = getFrontVoxel(0,0);
-    if (bool(front&(0xfu<<VOXEL_TYPE_SHIFT))){
+    if (bool(front&(0xfu<<WORLDVOX_TYPE_SHIFT))){
         vec3 lightTravel = vec3(0);
 #ifdef LIGHT_SOURCES_BLOCK_CENTERIC
         if(scale<1){
@@ -848,7 +848,7 @@ void lightVoxelFace(){
         if(lightTravel.z>=-0.001)
 #endif
         {
-            setBestLight(VOX_LAYERS-1,packLightData(vec2(0),15u,worldVoxColor(front),lightTravel,0,(front>>VOXEL_TYPE_SHIFT)&0xfu,0));
+            setBestLight(VOX_LAYERS-1,packLightData(vec2(0),15u,worldVoxColor(front),lightTravel,0,(front>>WORLDVOX_TYPE_SHIFT)&0xfu,0));
         }
     }
 

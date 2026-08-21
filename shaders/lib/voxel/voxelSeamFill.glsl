@@ -153,8 +153,8 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
             if (isPosExpiryExempt(areaPos) || !(areaPos.z>=validLo.z && areaPos.z<=validHi.z))
                 continue;
             uint voxel=getVoxData(areaPos, thisShift, thisMemOffset);
-            voxel-=(uint(bool(voxel))<<VOXEL_AGE_SHIFT);
-            voxel = bool(voxel&VOXEL_AGE_MASK)?voxel:0u;
+            voxel-=(uint(bool(voxel))<<WORLDVOX_AGE_SHIFT);
+            voxel = bool(voxel&WORLDVOX_AGE_MASK)?voxel:0u;
             setVoxData(voxel, areaPos, thisShift, thisMemOffset);
         }
     }
@@ -197,11 +197,11 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
                 if(subPos.x>validHi.x || subPos.y>validHi.y || subPos.z>validHi.z)
                     continue;
                 uint sampledVox = getVoxData(subPos, thisShift, thisMemOffset);
-                if((sampledVox>>VOXEL_AGE_SHIFT)<=2) continue;
-                representative = max(representative,sampledVox&~VOXEL_AGE_MASK);
+                if((sampledVox>>WORLDVOX_AGE_SHIFT)<=2) continue;
+                representative = max(representative,sampledVox&~WORLDVOX_AGE_MASK);
             }
 
-            representative = representative | uint(VOXEL_INITIAL_TIME<<VOXEL_AGE_SHIFT);
+            representative = representative | uint(WORLDVOX_INITIAL_TIME<<WORLDVOX_AGE_SHIFT);
             updateVoxData(representative, upperAreaPos, upperShift, upperMemOffset);
         }
     }

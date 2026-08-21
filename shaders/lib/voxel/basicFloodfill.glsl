@@ -30,8 +30,8 @@ vec4 decayBlocklight(vec4 source){
     return source;
 }
 
-void considerSample(int x, int y, int z){
-    ivec3 sampleAreaPos = areaPos+ivec3(x,y,z);
+void considerSample(ivec3 offset){
+    ivec3 sampleAreaPos = areaPos+offset;
     if(sampleAreaPos.x<0 || sampleAreaPos.y<0 || sampleAreaPos.z<0
     ||sampleAreaPos.x>=AREA_SIZE || sampleAreaPos.z>=AREA_SIZE)
         return;
@@ -40,7 +40,7 @@ void considerSample(int x, int y, int z){
     sampleAreaPos=modAreaSize(sampleAreaPos);
     vec4 sampleLight = getFloodData(sampleAreaPos, areaShift, areaMemOffset);
     sampleLight=decayBlocklight(sampleLight);
-    if(y==1){
+    if(offset.y==1){
         if(currentBlock!=0)
             lightOutput.a-=oneLightLevel;
     }else{
@@ -60,27 +60,27 @@ void main(){
     currentBlock = getVoxData(areaPos, areaShift, areaMemOffset);
     #ifdef OBSTRUCTION_MAPPING
     uint obstruction = getObstructionData(areaPos, areaShift, areaMemOffset);
-    #else
-    uint obstruction = 0u;
+
+//    if(!bool(currentBlock&WORLDVOX_SHAPED_BLOCKAGE))
+//        obstruction=bool(currentBlock&WORLDVOX_OPAQUE)?0x3fu:0u;
     #endif
 
-    if(!bool(currentBlock&WORLDVOX_OPAQUE)){
-        if(!bool(obstruction&0x02u))
-            considerSample(1, 0, 0);
-        if(!bool(obstruction&0x01u))
-            considerSample(-1, 0, 0);
-        if(!bool(obstruction&0x08u))
-            considerSample(0, 1, 0);
-        if(!bool(obstruction&0x04u))
-            considerSample(0, -1, 0);
-        if(!bool(obstruction&0x20u))
-            considerSample(0, 0, 1);
-        if(!bool(obstruction&0x10u))
-            considerSample(0, 0, -1);
+
+//    if(!bool(currentBlock&WORLDVOX_OPAQUE))
+    {
+        for(uint i=0;i<6;i++){
+            uint axis = i>>1;
+            ivec3 offset = ivec3(axis==0,axis==1,axis==2)*(bool(i&1u)?1:-1);
+
+            #ifdef OBSTRUCTION_MAPPING
+            if(!bool(obstruction&(1u<<i)))
+            #endif
+                considerSample(offset);
+        }
     }
 
     vec3 blockColor = worldVoxColor(currentBlock);
-    if (bool(currentBlock&(0xfu<<VOXEL_TYPE_SHIFT))){
+    if (bool(currentBlock&(0xfu<<WORLDVOX_TYPE_SHIFT))){
         lightOutput.rgb=max(lightOutput.rgb,blockColor);
     }else if(bool(currentBlock&WORLDVOX_TRANSLUCENT)){
         lightOutput.rgb*=normalize(blockColor);

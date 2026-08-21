@@ -5,30 +5,36 @@
 #define WRITES_VOX
 #include "/lib/voxel/voxelHelper.glsl"
 
-uint voxelInfo(int rawBlockID, uint emission){
+uint voxelInfo(int blockID, uint emission){
     vec3 color = vec3(0.9,0.6,0.6);
-    uint metadata;
+    uint metadata = 0;
 
-    if(rawBlockID>=0){
-        uint blockID = uint(rawBlockID);
+    blockID = blockID&0xffff;
+    if(blockID!=0xffffu){
         color.r=(blockID/100)%10;
         color.g=(blockID/10)%10;
         color.b=(blockID)%10;
         color/=9;
 
 
-        metadata = ((blockID/1000u)%10u)&3u;
+        uint blockIDmeta = blockID/1000u;
+
+        uint obstructivenessType = (blockIDmeta)&3u;
+        metadata = (8u>>obstructivenessType)&7u;
+        //types: (0 is air, 1 is translucent, 2 is full opacity, 3 is shaped opacity)
+        //flags: translucent, opaque, shaped
+
         if(emission>0){
             color*=float(emission)*0.06666; //1/15
-            metadata&=0xfeu;
-            metadata |= ((blockID/10000u)%10u)<<(VOXEL_TYPE_SHIFT-WORLDVOX_SHIFT);
+            uint lightType = (blockIDmeta>>2u)&7u;
+            metadata |= lightType<<(WORLDVOX_TYPE_SHIFT-WORLDVOX_META_SHIFT);
         }
 
     }else{
         color=vec3(1,0,0);
-        metadata=1;
+        metadata=2;
     }
-    return packWorldVox(uvec4(255*color, metadata)) | uint(VOXEL_INITIAL_TIME<<VOXEL_AGE_SHIFT);
+    return packWorldVox(color, metadata) | uint(WORLDVOX_INITIAL_TIME<<WORLDVOX_AGE_SHIFT);
 }
 
 const float midblockWeight = MIN_SCALE* 12.0/16.0;
@@ -84,24 +90,31 @@ void writeVoxelMap(vec3 minWorldPos, vec3 maxWorldPos, int rawBlockID, vec3 norm
         for(areaPos.y=minAreaPos.y;areaPos.y<=maxAreaPos.y;areaPos.y++){
             for(areaPos.z = minAreaPos.z;areaPos.z<=maxAreaPos.z;areaPos.z++){
                 #ifdef OBSTRUCTION_MAPPING
-                vec3 lowerCorner = (vec3(areaPos)-(AREA_SIZE*0.5))*scale+getGlobalOrigin(scale);
-                vec3 upperCorner = lowerCorner+scale;
 
-                uint obstructedFaces =
-                (((minWorldPos.x<=lowerCorner.x && lowerCorner.x<=maxWorldPos.x) ?63u:   0x02u) & //x-
-                 ((minWorldPos.x<=upperCorner.x && upperCorner.x<=maxWorldPos.x) ?63u:   0x01u))& //x+
-                (((minWorldPos.y<=lowerCorner.y && lowerCorner.y<=maxWorldPos.y) ?63u:   0x08u) & //y-
-                 ((minWorldPos.y<=upperCorner.y && upperCorner.y<=maxWorldPos.y) ?63u:   0x04u))& //y+
-                (((minWorldPos.z<=lowerCorner.z && lowerCorner.z<=maxWorldPos.z) ?63u:   0x20u) & //z-
-                 ((minWorldPos.z<=upperCorner.z && upperCorner.z<=maxWorldPos.z) ?63u:   0x10u)); //z+
+                //TODO fix walls, azaleas
+                if(bool(packedData&WORLDVOX_OBSTRUCTS)){
+                    vec3 lowerCorner = (vec3(areaPos)-(AREA_SIZE*0.5))*scale+getGlobalOrigin(scale);
+                    vec3 upperCorner = lowerCorner+scale;
+
+                    uint obstructedFaces =
+                    (((minWorldPos.x<=lowerCorner.x && lowerCorner.x<=maxWorldPos.x) ?63u:   0x02u) & //x-
+                     ((minWorldPos.x<=upperCorner.x && upperCorner.x<=maxWorldPos.x) ?63u:   0x01u))& //x+
+                    (((minWorldPos.y<=lowerCorner.y && lowerCorner.y<=maxWorldPos.y) ?63u:   0x08u) & //y-
+                     ((minWorldPos.y<=upperCorner.y && upperCorner.y<=maxWorldPos.y) ?63u:   0x04u))& //y+
+                    (((minWorldPos.z<=lowerCorner.z && lowerCorner.z<=maxWorldPos.z) ?63u:   0x20u) & //z-
+                     ((minWorldPos.z<=upperCorner.z && upperCorner.z<=maxWorldPos.z) ?63u:   0x10u)); //z+
+
+                    if(bool(packedData&WORLDVOX_OPAQUE))
+                        obstructedFaces=63u;
 
 
-                if(bool(obstructedFaces)){
-                    submitObstructionData(obstructedFaces, areaPos, areaShift, areaMemOffset);
-                    if(bitCount(obstructedFaces)==1 && !bool(emission)){
-                        uint secondaryObstruction = ((obstructedFaces&0x15u)<<1)|((obstructedFaces&0x2au)>>1);
-                        ivec3 secondaryAreaPos = areaPos+(bool(secondaryObstruction&0x15u)?1:-1)*ivec3(bvec3(secondaryObstruction&3u,secondaryObstruction&12u,secondaryObstruction&48u));
-                        submitObstructionData(secondaryObstruction, secondaryAreaPos, areaShift, areaMemOffset);
+                    if(bool(obstructedFaces)){
+                        submitObstructionData(obstructedFaces, areaPos, areaShift, areaMemOffset);
+                        if(bitCount(obstructedFaces)==1 && !bool(emission)){
+                            uint secondaryObstruction = ((obstructedFaces&0x15u)<<1)|((obstructedFaces&0x2au)>>1);
+                            ivec3 secondaryAreaPos = areaPos+(bool(secondaryObstruction&0x15u)?1:-1)*ivec3(bvec3(secondaryObstruction&3u,secondaryObstruction&12u,secondaryObstruction&48u));
+                            submitObstructionData(secondaryObstruction, secondaryAreaPos, areaShift, areaMemOffset);
+                        }
                     }
                 }
                 #endif
