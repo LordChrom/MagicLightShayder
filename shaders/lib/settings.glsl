@@ -136,7 +136,8 @@
 #define HARDCODED_EMISSIVE_SELECTIVITY 1.5 //[-1 0.5 1.0 1.25 1.5 1.75 2.0 2.5 3.0 4.0 5.0]
 
 #define GATEWAYS_IN_GBUFFER
-#define PIXEL_LOCK -1 //[-1 16 32 64 128 256]
+#define PIXEL_LOCK_BLOCK -1 //[-1 16 32 64 128 256]
+#define PIXEL_LOCK_SHADOWMAP -1 //[-1 16 32 64 128 256]
 
 //-1 is none, 0 is shadow, 1 is culled vertex, 2 is unculled vertex
 #define VOXELIZATION_MODE 0 //[-1 0 1 2]

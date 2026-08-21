@@ -9,7 +9,7 @@ uniform vec2 shadowDepthConvConsts;
 
 //uniform vec3 cameraPosition;
 #include "/lib/shadowmap/distortion.glsl"
-//#include "/lib/util/misc.glsl"
+#include "/lib/util/pixelLock.glsl"
 
 
 const vec3 sunColor = vec3(240.0/255.0);
@@ -92,6 +92,9 @@ vec3 worldSpaceToShadowSunBiased(vec3 worldPos,float noise){
 
 
 vec3 shadowmapSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue){
+    #if PIXEL_LOCK_SHADOWMAP >0
+    worldPos = pixelLock(worldPos+normal*0*0.01,1.0/PIXEL_LOCK_SHADOWMAP);
+    #endif
     if(hasCeiling) return vec3(0);
     worldPos-=cameraPosition;
     vec3 lightSrcPosRel = (gbufferModelViewInverse*vec4(shadowLightPosition,1)).xyz;

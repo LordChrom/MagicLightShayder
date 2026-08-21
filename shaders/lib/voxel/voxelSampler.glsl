@@ -9,7 +9,7 @@ vec3 voxelCenter;
 
 #include "/lib/voxel/voxelHelper.glsl"
 #include "/lib/util/flicker.glsl"
-#include "/lib/util/misc.glsl"
+#include "/lib/util/pixelLock.glsl"
 
 float normalFactor(vec3 normal, vec3 displacement, float subsurface){
     float lightDotN =-dot(normalize(displacement),normal);
@@ -103,7 +103,7 @@ float doSunOcclusion(vec3 displacement, vec3 travel, uint packedOcclusionData){
 
 #ifdef PENUMBRAS_ENABLED
     #define doTerrainOcclusion doPenumbralOcclusion
-#elif PIXEL_LOCK==-1
+#elif PIXEL_LOCK_BLOCK==-1
     #define doTerrainOcclusion doSharpOcclusion
 #else
     #define doTerrainOcclusion doSharpOcclusionPixelLocked
@@ -388,8 +388,8 @@ vec3 sampleDirectedRadiance(uint cascadeLevel, float subsurface, ivec3 zoneShift
 
 
 vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue){
-#if PIXEL_LOCK >0
-    worldPos = pixelLock(worldPos+0.01*normal,1.0/PIXEL_LOCK);
+#if PIXEL_LOCK_BLOCK>0
+    worldPos = pixelLock(worldPos+0.01*normal,1.0/PIXEL_LOCK_BLOCK);
 #endif
     uint cascadeLevel = getCascadeLevel(worldPos+normal*0.1);
     float scale = getScale(cascadeLevel);
