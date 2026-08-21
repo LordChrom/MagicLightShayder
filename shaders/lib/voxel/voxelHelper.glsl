@@ -41,6 +41,9 @@ ivec3 getPreviousAreaShift(float scale){return getAreaShift(scale,getPreviousGlo
 ivec3 getFloodShift(){
     return ivec3(floor(globalOrigin));
 }
+ivec3 getPreviousFloodShift(){
+    return ivec3(floor(previousGlobalOrigin));
+}
 
 uint modAreaSize(uint x){
     #if (AREA_SIZE&(AREA_SIZE-1))

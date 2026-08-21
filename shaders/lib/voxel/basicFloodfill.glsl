@@ -80,6 +80,28 @@ uint bayer4u3d(uvec3 pos){
 }
 
 void main(){
+    floodShift=getFloodShift();
+
+    if(gl_WorkGroupID.y==0){
+        ivec3 movement = clamp(floodShift-getPreviousFloodShift(),-FLOODFILL_SIZE,FLOODFILL_SIZE);
+        ivec3 movementSigns = sign(movement);
+        ivec3 edgeToTrim = abs(movement);
+
+        ivec2 posXY = ivec2(gl_LocalInvocationID.xz)+ivec2(gl_WorkGroupID.xz<<4);
+        for(int i=0; i<edgeToTrim.x;i++){
+            int x = movementSigns.x>0?(AREA_SIZE-1)-i:i;
+            setFloodData(vec4(0),ivec3(x,posXY.xy),floodShift);
+        }
+        for(int i=0; i<edgeToTrim.y;i++){
+            int y = movementSigns.y>0?(AREA_SIZE-1)-i:i;
+            setFloodData(vec4(0),ivec3(posXY.x,y,posXY.y),floodShift);
+        }
+        for(int i=0; i<edgeToTrim.z;i++){
+            int z = movementSigns.z>0?(AREA_SIZE-1)-i:i;
+            setFloodData(vec4(0),ivec3(posXY.xy,z),floodShift);
+        }
+    }
+
     //TODO seam filling, probably shared mem also
     #define DISTANCE_BASED_FLOODFILL_SPEED
     #ifdef DISTANCE_BASED_FLOODFILL_SPEED
@@ -93,7 +115,6 @@ void main(){
         return;
     #endif
 
-    floodShift=getFloodShift();
 
     for(int i=0;i<16;i++){
         localPos = ivec3(gl_LocalInvocationID+(gl_WorkGroupID<<4));
