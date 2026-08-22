@@ -97,6 +97,7 @@
 #define DOF_FOCAL_LENGTH 23 //[2.5 5 7.5 10 12.5 15 17.5 20 22 23 24 25 26 30 35 40 45 50 60 70 400]
 #define OLDDOF_RAD 16 //[8 16 24 32 40 48 56 64]
 #define OLDDOF_ANTIBLEED 4 //[-1 2 3 4 8 16]
+#define HALF_RES_DOF
 
 #define MATERIALS_TYPE 1 //[-1 0 1]
 #define POM
