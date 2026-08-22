@@ -66,7 +66,7 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 | RGBA16F | 11  | additive accumulation.       |       |
 | RG16F   | 12  | DoF stuff                    |       |
 | RGBA16F | 13  | Downsampling stuff           |       |
-|         | 14  |                              |       |
+| RGBA8   | 14  | temporary                    |       |
 |         | 15  |                              |       |
 |         | 19  | debug (optional)             | y     |
 

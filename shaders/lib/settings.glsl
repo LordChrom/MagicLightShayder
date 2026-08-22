@@ -159,6 +159,15 @@
 #define ADVANCED_VOXEL_TRACE
 
 /////
+#define DOF_WG_SIZE 32
+
+#ifdef HALF_RES_DOF
+    #define DOF_BUCKET_SIZE (DOF_WG_SIZE+DOF_WG_SIZE)
+#else
+    #define DOF_BUCKET_SIZE DOF_WG_SIZE
+#endif
+
+
 #ifdef SHADOWMAP_SHADOWS
     #define DISABLE_BLOCKLIGHT_SUN
 #endif

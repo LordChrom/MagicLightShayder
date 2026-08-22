@@ -2,29 +2,27 @@
 #include "lib/settings.glsl"
 
 
-#define SIZE 32
+#define SIZE DOF_WG_SIZE
 #define MAX_LEVEL 4
 #define POS_OFFSET 1
 #define SCALEFACTOR 0x01000000u
 
 #ifdef HALF_RES_DOF
-    #define DOF_BUCKET_SIZE (SIZE+SIZE)
     const vec2 workGroupsRender = vec2(0.5,0.5);
 #else
-    #define DOF_BUCKET_SIZE SIZE
     const vec2 workGroupsRender = vec2(1.0,1.0);
 #endif
 
 layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
 
 
-layout(std430, binding = 0)
-#ifndef HALF_RES_DOF
-writeonly
-#endif
-restrict buffer ssbo2 {
+layout (rgba8) uniform writeonly restrict image2D colorimg14;
+
+#ifdef HALF_RES_DOF
+layout(std430, binding = 2) restrict buffer ssbo2 {
     uint[][DOF_BUCKET_SIZE][DOF_BUCKET_SIZE][3] outputBuckets;
 };
+#endif
 
 #define BUFFERSIZE (SIZE+SIZE-POS_OFFSET)
 //yes it matters both that these buffers are separated, and that we're saving the one index of space.
@@ -72,18 +70,7 @@ void flushBuffer(){
     }
 
 
-    uint bucket = gl_WorkGroupID.x*gl_NumWorkGroups.y+gl_WorkGroupID.y;
-    #ifdef HALF_RES_DOF
-    for(int i=0;i<4;i++){
-        atomicAdd(outputBuckets[bucket][(gl_LocalInvocationID.x<<1)+(i>>1)][(gl_LocalInvocationID.y<<1)+(i&1)][0], value[0]);
-        atomicAdd(outputBuckets[bucket][(gl_LocalInvocationID.x<<1)+(i>>1)][(gl_LocalInvocationID.y<<1)+(i&1)][1], value[1]);
-        atomicAdd(outputBuckets[bucket][(gl_LocalInvocationID.x<<1)+(i>>1)][(gl_LocalInvocationID.y<<1)+(i&1)][2], value[2]);
-    }
-    #else
-    outputBuckets[bucket][gl_LocalInvocationID.x][gl_LocalInvocationID.y][0]= value[0];
-    outputBuckets[bucket][gl_LocalInvocationID.x][gl_LocalInvocationID.y][1]= value[1];
-    outputBuckets[bucket][gl_LocalInvocationID.x][gl_LocalInvocationID.y][2]= value[2];
-    #endif
+    imageStore(colorimg14,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupID.xy*SIZE),vec4(value,0)/SCALEFACTOR);
 }
 #else
 void flushBuffer(){
@@ -126,17 +113,7 @@ void flushBuffer(){
     }
 
     uint bucket = gl_WorkGroupID.x*gl_NumWorkGroups.y+gl_WorkGroupID.y;
-    #ifdef HALF_RES_DOF
-    for(int i=0;i<4;i++){
-        atomicAdd(outputBuckets[bucket][(gl_LocalInvocationID.x<<1)+(i>>1)][(gl_LocalInvocationID.y<<1)+(i&1)][0], value[0]);
-        atomicAdd(outputBuckets[bucket][(gl_LocalInvocationID.x<<1)+(i>>1)][(gl_LocalInvocationID.y<<1)+(i&1)][1], value[1]);
-        atomicAdd(outputBuckets[bucket][(gl_LocalInvocationID.x<<1)+(i>>1)][(gl_LocalInvocationID.y<<1)+(i&1)][2], value[2]);
-    }
-    #else
-    outputBuckets[bucket][gl_LocalInvocationID.x][gl_LocalInvocationID.y][0]= value[0];
-    outputBuckets[bucket][gl_LocalInvocationID.x][gl_LocalInvocationID.y][1]= value[1];
-    outputBuckets[bucket][gl_LocalInvocationID.x][gl_LocalInvocationID.y][2]= value[2];
-    #endif
+    imageStore(colorimg14,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupID.xy*SIZE),vec4(value,0)/SCALEFACTOR);
 }
 #endif
 
