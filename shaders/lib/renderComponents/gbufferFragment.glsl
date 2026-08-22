@@ -169,9 +169,6 @@ layout(location = 2) out uvec4 materialInfo;
 #endif
 #endif
 
-/*
-const vec4 colortex1ClearColor = vec4(0.0,0.0,0.0,0.0);
-*/
 
 #ifdef VOXY_PATCH
 void handleFragment(vec4 glcolor,vec3 normal, vec2 lmcoord, vec4 voxycolor, int materialID)
