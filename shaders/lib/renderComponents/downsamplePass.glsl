@@ -9,12 +9,26 @@
 #endif
 
 
+#if INDEX_COUNT==1
+    #define sampleType uint
+#elif INDEX_COUNT==2
+    #define sampleType uvec2
+#elif INDEX_COUNT==3
+    #define sampleType uvec3
+#else
+    #define sampleType uvec4
+#endif
+
+#ifdef PASS_DISABLED
+const vec2 workGroupsRender = vec2(0.0,0.0);
+#else
 const vec2 workGroupsRender = vec2(0.5,0.5);
+#endif
 layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
 
 
 const int ARRAY_SIZE = ((1<<(2*STAGES))-1)/3;
-shared uvec4[ARRAY_SIZE] averages;
+shared sampleType[ARRAY_SIZE] averages;
 
 shared uint anyoneThere;
 
@@ -32,12 +46,12 @@ void main(){
 
     uint arrPos = gl_LocalInvocationID.x+(gl_LocalInvocationID.y<<STAGES);
     if(arrPos<ARRAY_SIZE)
-        averages[arrPos] = uvec4(0);
+        averages[arrPos] = sampleType(0);
     barrier();
     if(anyoneThere==0)
         return;
 
-    uvec4 avg;
+    sampleType avg;
     if(stillContributing){
         avg = getValue(texcoord);
         writeValue(globalPos,avg);
@@ -55,10 +69,12 @@ void main(){
             baseIndex+=1<<(stageShift+stageShift);
 
             stillContributing = bool(contributorMask&(1u<<stage));
-            combine(averages[bucket].x,avg.x);
-            combine(averages[bucket].y,avg.y);
-            combine(averages[bucket].z,avg.z);
-            combine(averages[bucket].w,avg.w);
+            #if INDEX_COUNT>1
+            for(int i=0;i<INDEX_COUNT;i++)
+                combine(averages[bucket][i],avg[i]);
+            #else
+                combine(averages[bucket],avg);
+            #endif
         }
         barrier();
         if(stillContributing){

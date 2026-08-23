@@ -3,6 +3,7 @@
 #include "lib/settings.glsl"
 
 #define STAGES 4
+#define INDEX_COUNT 4
 
 uniform sampler2D colortex7;
 layout (rgba16f) uniform writeonly restrict image2D colorimg13;
