@@ -5,7 +5,6 @@
 #define SIZE DOF_WG_SIZE
 #define MAX_LEVEL 4
 #define POS_OFFSET 1
-#define SCALEFACTOR 0x01000000u
 
 #ifdef HALF_RES_DOF
     const vec2 workGroupsRender = vec2(0.5,0.5);
@@ -18,11 +17,6 @@ layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
 
 layout (rgba8) uniform writeonly restrict image2D colorimg14;
 
-#ifdef HALF_RES_DOF
-layout(std430, binding = 2) restrict buffer ssbo2 {
-    uint[][DOF_BUCKET_SIZE][DOF_BUCKET_SIZE][3] outputBuckets;
-};
-#endif
 
 #define BUFFERSIZE (SIZE+SIZE-POS_OFFSET)
 //yes it matters both that these buffers are separated, and that we're saving the one index of space.
@@ -70,7 +64,7 @@ void flushBuffer(){
     }
 
 
-    imageStore(colorimg14,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupID.xy*SIZE),vec4(value,0)/SCALEFACTOR);
+    imageStore(colorimg14,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupID.xy*SIZE),vec4(value,0)/DOF_STORAGE_SCALE);
 }
 #else
 void flushBuffer(){
@@ -113,7 +107,7 @@ void flushBuffer(){
     }
 
     uint bucket = gl_WorkGroupID.x*gl_NumWorkGroups.y+gl_WorkGroupID.y;
-    imageStore(colorimg14,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupID.xy*SIZE),vec4(value,0)/SCALEFACTOR);
+    imageStore(colorimg14,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupID.xy*SIZE),vec4(value,0)/DOF_STORAGE_SCALE);
 }
 #endif
 
@@ -305,47 +299,36 @@ void main(){
         #ifdef HALF_RES_DOF
         vec2 texcoord = vec2((1+samplePos + ivec2(gl_WorkGroupID.xy*SIZE))<<1)/textureSize(colortex12,0);
 
-        vec4 radii = textureGather(colortex12,texcoord,1);
+        vec4 radii = abs(textureGather(colortex12,texcoord,1));
         vec4 r = textureGather(colortex0,texcoord,0);
         vec4 g = textureGather(colortex0,texcoord,1);
         vec4 b = textureGather(colortex0,texcoord,2);
 
+        int validRadii=0;
 
-
-        radius = 0.125*((radii.x+radii.y)+(radii.z+radii.w));
+        for(int i=0;i<4;i++){
+            if(radii[i]<=0.5)
+                radii[i]=r[i]=g[i]=b[i]=0;
+            else
+                validRadii++;
+        }
+        radius = (0.5/validRadii)*((radii.x+radii.y)+(radii.z+radii.w));
         #else
         radius=texelFetch(colortex12,samplePos + ivec2(gl_WorkGroupID.xy*SIZE),0).y;
         #endif
+
         int rad = clamp(int(radius+0.5),0,DOF_RADIUS);
         if (samplePos.x+rad<0 || samplePos.y+rad<0 || samplePos.x-rad>=SIZE || samplePos.y-rad>=SIZE)
             continue;
 
         #ifdef HALF_RES_DOF
-        uint bucket = gl_WorkGroupID.x*gl_NumWorkGroups.y+gl_WorkGroupID.y;
-        for(int i=0;i<4;i++){
-            if(radii[i]<=0.501)
-            {
-                ivec2 pos = (samplePos<<1)+(ivec2(((i+1)>>1),(i+2)>>1)&1);
-                if(pos.x<0||pos.y<0||pos.x>=(2*SIZE)||pos.y>=(2*SIZE))
-                    continue;
-
-                atomicAdd(outputBuckets[bucket][pos.x][pos.y][0], uint(r[i]*SCALEFACTOR));
-                atomicAdd(outputBuckets[bucket][pos.x][pos.y][1], uint(g[i]*SCALEFACTOR));
-                atomicAdd(outputBuckets[bucket][pos.x][pos.y][2], uint(b[i]*SCALEFACTOR));
-                r[i]=g[i]=b[i]=0;
-            }
-        }
-        color = uvec3(round(0.25*SCALEFACTOR*vec3((r.x+r.y)+(r.z+r.w),(g.x+g.y)+(g.z+g.w),(b.x+b.y)+(b.z+b.w))));
-        #else
-        color = uvec3(texelFetch(colortex0,samplePos + ivec2(gl_WorkGroupID.xy*SIZE),0).rgb*SCALEFACTOR);
-        #endif
-
-        #ifdef HALF_RES_DOF
+        color = uvec3(round(DOF_STORAGE_SCALE*vec3((r.x+r.y)+(r.z+r.w),(g.x+g.y)+(g.z+g.w),(b.x+b.y)+(b.z+b.w)))/validRadii);
         if(radius<=0.25){
             continue;
         }
         #else
-        if(radius<=0.501){
+        color = uvec3(texelFetch(colortex0,samplePos + ivec2(gl_WorkGroupID.xy*SIZE),0).rgb*DOF_STORAGE_SCALE);
+        if(radius<=0.5){
             write(samplePos, ivec2(0));
             continue;
         }

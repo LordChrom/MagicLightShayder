@@ -160,7 +160,7 @@
 
 /////
 #define DOF_WG_SIZE 32
-
+#define DOF_STORAGE_SCALE 0x01000000u
 #ifdef HALF_RES_DOF
     #define DOF_BUCKET_SIZE (DOF_WG_SIZE+DOF_WG_SIZE)
 #else

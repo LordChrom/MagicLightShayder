@@ -11,9 +11,7 @@ layout(location = 0) out vec3 outputColor;
 uniform sampler2D colortex14;
 
 #ifdef HALF_RES_DOF
-layout(std430, binding = 2) readonly restrict buffer ssbo2 {
-    uint[][DOF_BUCKET_SIZE][DOF_BUCKET_SIZE][3] outputBuckets;
-};
+uniform sampler2D colortex12;
 #endif
 
 uniform sampler2D colortex0;
@@ -27,18 +25,11 @@ void main(){
     samplePos>>=3;
 #endif
     #ifdef HALF_RES_DOF
-    ivec2 bucketPos = samplePos/(DOF_BUCKET_SIZE);
-    ivec2 bucketCoord = samplePos%(DOF_BUCKET_SIZE);
-
-    uint bucket = bucketPos.x*int(ceil(viewHeight/DOF_BUCKET_SIZE))+bucketPos.y;
-
-    outputColor=vec3(
-        outputBuckets[bucket][bucketCoord.x][bucketCoord.y][0],
-        outputBuckets[bucket][bucketCoord.x][bucketCoord.y][1],
-        outputBuckets[bucket][bucketCoord.x][bucketCoord.y][2]
-    )/float(SCALEFACTOR);
-//    outputColor+=texelFetch(colortex14,samplePos>>1,0).rgb;
-    outputColor+=texture(colortex14,(0.5*(vec2(samplePos)+0.5))/textureSize(colortex14,0),0).rgb;
+    float radius = texelFetch(colortex12,samplePos,0).y;
+    outputColor=texture(colortex14,(0.5*vec2(samplePos)-0.5)/textureSize(colortex14,0),0).rgb;
+    if(radius<=0.5){
+        outputColor+=texelFetch(colortex0,samplePos,0).rgb;
+    }
     #else
     outputColor=texelFetch(colortex14,samplePos,0).rgb;
     #endif

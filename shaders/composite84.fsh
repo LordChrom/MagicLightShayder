@@ -20,11 +20,6 @@ layout(location=1) out vec3 testColor;
 layout(location=0) out vec2 CoCbuff;
 
 
-#ifdef HALF_RES_DOF
-layout(std430, binding = 2) writeonly restrict buffer ssbo2 {
-    uint[][DOF_BUCKET_SIZE][DOF_BUCKET_SIZE][3] outputBuckets;
-};
-#endif
 
 float calcRadius(ivec2 texpos){
     if(texelFetch(depthtex1,texpos,0).x!=texelFetch(depthtex2,texpos,0).x){
@@ -56,17 +51,6 @@ uniform float frameTimeCounter;
 
 void main() {
     ivec2 texpos = ivec2(gl_FragCoord.xy);
-
-    #ifdef HALF_RES_DOF
-    ivec2 bucketPos = texpos/(DOF_BUCKET_SIZE);
-    ivec2 bucketCoord = texpos%(DOF_BUCKET_SIZE);
-
-    uint bucket = bucketPos.x*int(ceil(viewHeight/DOF_BUCKET_SIZE))+bucketPos.y;
-
-    outputBuckets[bucket][bucketCoord.x][bucketCoord.y][0]=0u;
-    outputBuckets[bucket][bucketCoord.x][bucketCoord.y][1]=0u;
-    outputBuckets[bucket][bucketCoord.x][bucketCoord.y][2]=0u;
-    #endif
 
     #ifdef DOF_TEST_PATTERN
     testColor=vec3(0);
