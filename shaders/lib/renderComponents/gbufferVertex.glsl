@@ -25,12 +25,12 @@ out vec4 glcolor;
 out vec2 texcoord;
     #if MATERIALS_TYPE == 1
     in vec4 at_tangent;
-    flat out vec4 tangent;
+    flat out uint packedTangent;
     #endif
 #endif
 
 #ifdef VERTEX_NORMALS
-flat out vec3 normal;
+flat out uint packedNormal;
 #endif
 
 #ifdef LIT
@@ -82,8 +82,8 @@ uniform vec3 cameraPosition;
   #endif
 in vec2 mc_midTexCoord;
 out vec2 differential;
-flat out uvec2 baseTexpos;
-flat out ivec2 texsize;
+flat out uint packedBaseTexpos;
+flat out uint packedTexsize;
 out float worldLength;
 #endif
 
@@ -94,7 +94,10 @@ flat out int materialID;
 #ifdef NEEDS_MC_ENTITY
 in vec2 mc_Entity;
 #endif
+
+#if defined HARDCODED_MATERIAL || defined UPDATE_VOXEL_MAP
 in vec4 at_midBlock;
+#endif
 
 void main() {
     gl_Position = ftransform();
@@ -104,6 +107,7 @@ void main() {
 #endif
 
 #ifdef VERTEX_NORMALS
+    vec3 normal;
 
     #ifdef HAND
     normal = (gbufferModelViewInverse*vec4(gl_Normal,0)).xyz;
@@ -113,22 +117,27 @@ void main() {
     #else
     normal = gl_Normal;
     #endif
+    normal = normalize(normal);
+
+    const int normPackScale = 0x7fff;
+    uvec2 h = uvec2(clamp(ivec2(round((normal.xy*0.5+0.5)*normPackScale)),0,normPackScale));
+    packedNormal = (h.x<<17)|(h.y<<2)|((normal.z>=0)?2u:0u);
+
 
     #if MATERIALS_TYPE == 1 && defined TEXTURED
-    tangent = at_tangent;
+    h = uvec2(clamp(ivec2(round((at_tangent.xy*0.5+0.5)*normPackScale)),0,normPackScale));
+    packedTangent = (h.x<<17)|(h.y<<2)|(at_tangent.z>0?2u:0u)|(at_tangent.w>0?1u:0u);
+
 
     #ifdef POM
-        #ifdef HAND
-            mat3 texTBN = mat3(at_tangent.xyz,normalize(cross(at_tangent.xyz,gl_Normal)*at_tangent.w),gl_Normal);
-        #else
-            mat3 texTBN = mat3(at_tangent.xyz,normalize(cross(at_tangent.xyz,normal)*at_tangent.w),normal);
-        #endif
-
-    vec3 texHitVec = transpose(gl_NormalMatrix*texTBN) * (mat3(gl_ModelViewMatrix)*gl_Vertex.xyz + gl_ModelViewMatrix[3].xyz);
+    mat3 texTBNinverse = transpose(mat3(at_tangent.xyz,normalize(cross(at_tangent.xyz,gl_Normal)*at_tangent.w),gl_Normal));
+    vec3 texHitVec = texTBNinverse  * gl_Vertex.xyz;
 
     worldLength = length(gl_Vertex.xyz);
-    texsize = ivec2(ceil(2*atlasSize*abs(mc_midTexCoord-texcoord)));
-    baseTexpos = ivec2(atlasSize*(mc_midTexCoord-abs(mc_midTexCoord-texcoord)));
+    ivec2 texsize = ivec2(ceil(2*atlasSize*abs(mc_midTexCoord-texcoord)));
+    packedTexsize=(texsize.x<<16)|(texsize.y&0xffff);
+    ivec2 baseTexpos = ivec2(atlasSize*(mc_midTexCoord-abs(mc_midTexCoord-texcoord)));
+    packedBaseTexpos = (baseTexpos.x<<16)|(baseTexpos.y&0xffff);
 
     differential=-texsize*texHitVec.xy/texHitVec.z;
     if(length(gl_Vertex.xyz)>POM_DISTANCE)

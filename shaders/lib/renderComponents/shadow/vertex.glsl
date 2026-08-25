@@ -26,8 +26,6 @@ out vec2 texcoordVert;
 
 #ifdef COLORED
 out vec4 glcolorVert;
-#elif defined CUTOUT
-out float glcolorAlphaVert;
 #endif
 
 #endif
@@ -46,8 +44,6 @@ void main() {
         #endif
         #ifdef COLORED
         glcolorVert = gl_Color;
-        #elif defined CUTOUT
-        glcolorAlphaVert = gl_Color.a;
         #endif
     gl_Position = ftransform();
     #ifdef CASCADED_SHADOWS

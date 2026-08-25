@@ -20,11 +20,12 @@
 #endif
 
 #ifdef PASS_DISABLED
-const vec2 workGroupsRender = vec2(0.0,0.0);
+const ivec3 workGroups = ivec3(1,1,1);
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 #else
 const vec2 workGroupsRender = vec2(0.5,0.5);
-#endif
 layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
+#endif
 
 
 const int ARRAY_SIZE = ((1<<(2*STAGES))-1)/3;

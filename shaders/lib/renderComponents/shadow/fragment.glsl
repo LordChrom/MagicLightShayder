@@ -18,8 +18,6 @@ in vec2 texcoord;
 #ifdef COLORED
 layout(location = 0) out vec4 color;
 in vec4 glcolor;
-#elif defined CUTOUT
-in float glcolorAlpha;
 #endif
 
 
@@ -30,8 +28,7 @@ void main(){
         discard;
     }
     #elif defined CUTOUT
-    float alpha = texture(gtexture, texcoord,-1).a * glcolorAlpha;
-    if(alpha < 0.1){
+    if(texture(gtexture, texcoord,-1).a < 0.1){
         discard;
     }
     #endif

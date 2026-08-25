@@ -46,7 +46,7 @@ uniform sampler2D gtexture;
     #if MATERIALS_TYPE ==1
 uniform sampler2D specular;
 uniform sampler2D normals;
-flat in vec4 tangent;
+flat in uint packedTangent;
     #endif
 #endif
 
@@ -56,7 +56,7 @@ flat in vec4 tangent;
 #endif
 
 #ifdef VERTEX_NORMALS
-flat in vec3 normal;
+flat in uint packedNormal;
 #endif
 
 #ifdef ALPHATEST
@@ -139,8 +139,9 @@ flat in int materialID;
 
 #ifdef POM
     in vec2 differential;
-    flat in ivec2 baseTexpos;
-    flat in ivec2 texsize;
+    flat in uint packedBaseTexpos;
+    flat in uint packedTexsize;
+    ivec2 baseTexpos, texsize;
     in float worldLength;
     #ifndef ENTITY
     uniform ivec2 atlasSize;
@@ -181,8 +182,29 @@ void handleFragment(vec4 glcolor,vec3 normal, vec2 lmcoord, vec4 voxycolor, int 
 void main()
 #endif
 {
+
+#if defined VERTEX_NORMALS && !defined VOXY_PATCH
+    const uint normPackScale = 0x7fff;
+
+    vec3 normal;
+
+    normal.xy=vec2((uvec2(packedNormal)>>uvec2(17,2))&normPackScale)*(2.0/normPackScale)-1;
+    normal.z=dot(normal.xy,normal.xy);
+    normal.z = normal.z>=1?0:(sqrt(1-normal.z)*(bool(packedNormal&2u)?1:-1));
+
+    #if (defined TEXTURED) && (MATERIALS_TYPE == 1)
+    vec4 tangent;
+    tangent.xy=vec2((uvec2(packedTangent)>>uvec2(17,2))&uvec2(normPackScale))*(2.0/normPackScale)-1;
+    tangent.z = dot(tangent.xy,tangent.xy);
+    tangent.z = tangent.z>=1?0:(sqrt(1-tangent.z)*(bool(packedTangent&2u)?1:-1));
+    tangent.w = bool(packedTangent&1u)?1:-1;
+    #endif
+#endif
+
 #ifdef TEXTURED
     #ifdef POM
+        baseTexpos = ivec2(packedBaseTexpos>>16,packedBaseTexpos)&0xffff;
+        texsize = ivec2(packedTexsize>>16,packedTexsize)&0xffff;
         vec2 newTexcoord=doPom(texcoord);
         #ifdef POM_WRITE_DEPTH
         float linearDepth = depthToLinear(gl_FragCoord.z);
@@ -239,13 +261,10 @@ void main()
 
     normalOut.xyz = normalize(pomNormal+texNormalWeight*normalOut.xyz);
     #endif
-
-
     normalOut.xyz = normalize( mat3(tangent.xyz,normalize(cross(tangent.xyz,normal)*tangent.w),normal) * normalOut.xyz );
 
     #ifdef POM
         #if DEBUG_SPECIAL_VIEW==104
-
         ivec2 checkerPos = (ivec2(floor(texcoord*atlasSize))-baseTexpos)%texsize;
         float checkerf=((bitCount(checkerPos.x^checkerPos.y)&3))/3.0;
         color.xyz=vec3(min(abs(differential.xy*0.3),1)*vec2((differential.x<=0)?1-checkerf:1,(differential.y<=0)?1-checkerf:1),0.1);

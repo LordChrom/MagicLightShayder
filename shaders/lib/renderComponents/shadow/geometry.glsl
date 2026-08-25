@@ -37,9 +37,6 @@ out vec2 texcoord;
 #ifdef COLORED
 in vec4[] glcolorVert;
 out vec4 glcolor;
-#elif defined CUTOUT
-in float[] glcolorAlphaVert;
-out float glcolorAlpha;
 #endif
 
 
@@ -63,8 +60,6 @@ void main(){
 
         #ifdef COLORED
         glcolor = glcolorVert[i];
-        #elif defined CUTOUT
-        glcolorAlpha = glcolorAlphaVert[i];
         #endif
         EmitVertex();
     }
@@ -125,8 +120,6 @@ void main(){
 
             #ifdef COLORED
             glcolor = glcolorVert[i];
-            #elif defined CUTOUT
-            glcolorAlpha = glcolorAlphaVert[i];
             #endif
             EmitVertex();
         }
