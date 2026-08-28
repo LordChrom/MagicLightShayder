@@ -78,6 +78,10 @@ void writeVoxelMap(vec3 minWorldPos, vec3 maxWorldPos, int rawBlockID, vec3 norm
     ivec3 minAreaPos = worldPosToArea(min(minWorldPos+inset,centerWorldPos),scale);
     ivec3 maxAreaPos = worldPosToArea(max(maxWorldPos-inset,centerWorldPos),scale);
 
+
+    if((maxAreaPos.x-minAreaPos.x)*(maxAreaPos.y-minAreaPos.y)*(maxAreaPos.z-minAreaPos.z)>16)
+    return;
+
     #ifdef OBSTRUCTION_MAPPING
     minWorldPos-=0.1;
     maxWorldPos+=0.1;

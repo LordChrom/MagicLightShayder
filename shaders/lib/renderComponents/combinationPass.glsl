@@ -15,6 +15,8 @@ uniform sampler2D colortex19;
 #endif
 #if DEBUG_SPECIAL_VIEW == 203
 uniform sampler2D shadowtex0;
+#elif DEBUG_SPECIAL_VIEW == 204
+uniform sampler2D shadowcolor0;
 #endif
 
 
@@ -109,6 +111,8 @@ void main() {
     outputColor = voxelLighting;
     #elif DEBUG_SPECIAL_VIEW == 203
     outputColor=vec3(texture(shadowtex0,vec2(1-texcoord.y,texcoord.x)).rgb);
+    #elif DEBUG_SPECIAL_VIEW == 204
+    outputColor=vec3(texture(shadowcolor0,vec2(1-texcoord.y,texcoord.x)).r*2-0.8);
     #elif (DEBUG_SPECIAL_VIEW) != 201
     outputColor = texelFetch(colortex19,ivec2(floor(0.1+texcoord*scaledScreenDim)),0).xyz;
     #endif

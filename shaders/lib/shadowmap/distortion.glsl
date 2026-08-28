@@ -8,7 +8,6 @@ uniform vec2 scaledScreenDim;
 #include "/lib/util/taaJitter.glsl"
 #endif
 
-#define MAX_SHADOW_CASCADE 7
 #define INDIVIDUAL_CASCADE_SCALE 3.0
 
 #ifdef CASCADED_SHADOWS
@@ -48,10 +47,6 @@ vec2 distort(vec2 shadowpos){
     return levelDistort(shadowpos,clamp(getMaxLevel(shadowpos*1.01),0,MAX_SHADOW_CASCADE));
 }
 
-vec3 distort(vec3 shadowpos, float noise){
-    int level = int(getFloatMaxLevel(shadowpos.xy*1.07)-0.04*noise);
-    return vec3(levelDistort(shadowpos.xy, min(level,MAX_SHADOW_CASCADE)),distortZ(shadowpos.z));
-}
 #else
 vec2 distort(vec2 shadowpos){
     shadowpos = shadowpos/((pow(abs(shadowpos),vec2(0.8)))+0.08);
@@ -59,9 +54,6 @@ vec2 distort(vec2 shadowpos){
     shadowpos+=shadowJitter();
     #endif
     return shadowpos;
-}
-vec3 distort(vec3 shadowpos, float noise){
-    return vec3(distort(shadowpos.xy),distortZ(shadowpos.z));
 }
 #endif
 

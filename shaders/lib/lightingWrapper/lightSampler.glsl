@@ -32,7 +32,7 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
     #endif
 
     #ifdef SHADOWMAP_SHADOWS
-    ret+= shadowmapSample(worldPos, normal, subsurface, ditherValue);
+    ret+= shadowmapSample(worldPos, normal, subsurface);
     #endif
     return ret + MIN_LIGHT_AMOUNT*clamp(1-(ret.x+ret.y+ret.z),0,1);
 }
@@ -54,7 +54,7 @@ vec3 lightingSampleFog(vec3 worldPos, float ditherValue){
     #endif
 
     #ifdef SHADOWMAP_SHADOWS
-    ret+= shadowmapSampleFog(worldPos, ditherValue);
+    ret+= shadowmapSampleFog(worldPos);
     #endif
 
     return ret;

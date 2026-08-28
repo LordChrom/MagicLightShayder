@@ -3,6 +3,7 @@
 #include "/lib/renderComponents/shadow/shadowProgramFeatures.glsl"
 
 layout(triangles) in;
+
 #ifdef CAN_VOXELIZE
 #include "/lib/voxel/voxelMapper.glsl"
 uniform vec3 cameraPosition;
@@ -39,9 +40,15 @@ in vec4[] glcolorVert;
 out vec4 glcolor;
 #endif
 
-
-#ifndef CASCADED_SHADOWS
 uniform bool hasCeiling;
+
+#ifdef CASCADED_SHADOWS
+    #ifndef CAN_VOXELIZE
+    uniform int frameCounter;
+    #endif
+
+    #include "/lib/shadowmap/distortion.glsl"
+#endif
 
 //no cascades, just passthru
 layout(triangle_strip, max_vertices = 3) out;
@@ -50,9 +57,42 @@ void main(){
     #ifdef CAN_VOXELIZE
     voxelize();
     #endif
+
     if(hasCeiling) return;
+
+    #ifdef CASCADED_SHADOWS
+    float maxDist = 0;
     for(int i=0;i<3;i++){
+        vec2 absPos = abs(gl_in[i].gl_Position.xy);
+        maxDist=max(maxDist,max(absPos.x,absPos.y));
+    }
+
+    float floatLevel = getFloatMaxLevel(maxDist);
+    int level = clamp(int(floatLevel-0.01),0,MAX_SHADOW_CASCADE);
+
+    #ifdef TAA
+    vec2 posJitter = INDIVIDUAL_CASCADE_SCALE*shadowJitter();
+    #endif
+
+    float scale = getLevelScale(level);
+    vec2 center = getLevelCenter(level);
+    #endif
+
+
+    for(int i=0;i<3;i++){
+        #ifdef CASCADED_SHADOWS
+
+        gl_Position.zw = gl_in[i].gl_Position.zw;
+        gl_Position.xy=gl_in[i].gl_Position.xy*scale;
+            #ifdef TAA
+            gl_Position.xy+=posJitter;
+            #endif
+
+        gl_Position.xy = clamp(gl_Position.xy,-1,1);
+        gl_Position.xy = gl_Position.xy/INDIVIDUAL_CASCADE_SCALE+center;
+        #else
         gl_Position = gl_in[i].gl_Position;
+        #endif
 
         #ifdef TEXTURED
         texcoord = texcoordVert[i];
@@ -65,66 +105,3 @@ void main(){
     }
     EndPrimitive();
 }
-
-#else
-uniform bool hasCeiling;
-//yes cascasdes
-layout(triangle_strip, max_vertices = 6) out;
-#ifndef CAN_VOXELIZE
-uniform int frameCounter;
-#endif
-
-#include "/lib/shadowmap/distortion.glsl"
-
-void main(){
-    #ifdef CAN_VOXELIZE
-    voxelize();
-    #endif
-    if(hasCeiling) return;
-
-    float maxDist = 0;
-    for(int i=0;i<3;i++){
-        vec2 absPos = abs(gl_in[i].gl_Position.xy);
-        maxDist=max(maxDist,max(absPos.x,absPos.y));
-    }
-
-    float floatLevel = getFloatMaxLevel(maxDist);
-
-    int minLevel=clamp(int(floatLevel-0.15),0,MAX_SHADOW_CASCADE);
-    int maxLevel=clamp(int(floatLevel+0.5),0,MAX_SHADOW_CASCADE);
-
-    #ifdef TAA
-        vec2 posJitter = INDIVIDUAL_CASCADE_SCALE*shadowJitter();
-    #endif
-    for(int level=minLevel;level<=maxLevel;level++){
-        vec2[3] positions;
-
-        float scale = getLevelScale(level);
-        vec2 center = getLevelCenter(level);
-        for(int i=0;i<3;i++){
-            positions[i]=gl_in[i].gl_Position.xy*scale;
-            #ifdef TAA
-            positions[i]+=posJitter;
-            #endif
-
-            positions[i] = clamp(positions[i],-1,1);
-            positions[i] = positions[i]/INDIVIDUAL_CASCADE_SCALE+center;
-        }
-
-        for (int i=0;i<3;i++){
-            gl_Position.zw = gl_in[i].gl_Position.zw;
-            gl_Position.xy=positions[i].xy;
-            #ifdef TEXTURED
-            texcoord = texcoordVert[i];
-            #endif
-
-            #ifdef COLORED
-            glcolor = glcolorVert[i];
-            #endif
-            EmitVertex();
-        }
-        EndPrimitive();
-    }
-}
-#endif
-#endif

@@ -3,7 +3,7 @@ uniform mat4 shadowModelView, shadowProjection;
 uniform mat4 gbufferModelViewInverse;
 #endif
 
-uniform sampler2D shadowtex0;
+uniform sampler2D shadowcolor0;
 uniform vec3 shadowLightPosition;
 uniform vec2 shadowDepthConvConsts;
 
@@ -18,7 +18,11 @@ const vec3 moonColor = vec3(0.22,0.22,0.48);
 float shadowSampleCheapest(vec3 shadowpos){
     if(shadowpos.x<0)
         return 1;
-    return float(texelFetch(shadowtex0,ivec2(shadowpos.xy*textureSize(shadowtex0,0)),0).x>=shadowpos.z);
+    return float(texelFetch(shadowcolor0,ivec2(shadowpos.xy*textureSize(shadowcolor0,0)),0).x>=shadowpos.z);
+}
+
+float getShadowDepth(vec2 shadowPos){
+    return texture(shadowcolor0,shadowPos.xy).x;
 }
 
 float shadowSample(vec3 shadowpos){
@@ -26,12 +30,12 @@ float shadowSample(vec3 shadowpos){
         return 1;
     #if SHADOW_SAMPLING_MODE==0
     if(true)
-        return float(texelFetch(shadowtex0,ivec2(shadowpos.xy*textureSize(shadowtex0,0)),0).x>=shadowpos.z);
+        return float(texelFetch(shadowcolor0,ivec2(shadowpos.xy*textureSize(shadowcolor0,0)),0).x>=shadowpos.z);
     #endif
-    vec4 depths = textureGather(shadowtex0,shadowpos.xy,0); //BL BR TR TL
+    vec4 depths = textureGather(shadowcolor0,shadowpos.xy,0); //BL BR TR TL
     //TL TR BL BR
     ivec4 visibilities = ivec4(depths.w>=shadowpos.z,depths.z>=shadowpos.z,depths.x>=shadowpos.z,depths.y>=shadowpos.z);
-    vec2 mix2d = fract(shadowpos.xy*textureSize(shadowtex0,0));
+    vec2 mix2d = fract(shadowpos.xy*textureSize(shadowcolor0,0));
 
     #if SHADOW_SAMPLING_MODE==1
     mix2d = fract(mix2d+0.5);
@@ -79,11 +83,11 @@ vec3 worldSpaceToShadow(vec3 worldPos){
     return shadowPos.xyz;
 }
 
-vec3 worldSpaceToShadowSunBiased(vec3 worldPos,float noise){
+vec3 worldSpaceToShadowSunBiased(vec3 worldPos){
     vec4 shadowPos = vec4(mat3(shadowModelView)*worldPos+shadowModelView[3].xyz,1);
     shadowPos = shadowProjection*shadowPos;
     shadowPos.z-=0.0005;
-    shadowPos.xyz=distort(shadowPos.xyz,noise);
+    shadowPos.xyz=distort(shadowPos.xyz);
     shadowPos.xyz/=shadowPos.w;
     shadowPos.xyz=shadowPos.xyz*0.5+0.5;
     return shadowPos.xyz;
@@ -91,7 +95,7 @@ vec3 worldSpaceToShadowSunBiased(vec3 worldPos,float noise){
 
 
 
-vec3 shadowmapSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue){
+vec3 shadowmapSample(vec3 worldPos, vec3 normal, float subsurface){
     #if PIXEL_LOCK_SHADOWMAP >0
     worldPos = pixelLock(worldPos+normal*0*0.01,1.0/PIXEL_LOCK_SHADOWMAP);
     #endif
@@ -104,18 +108,16 @@ vec3 shadowmapSample(vec3 worldPos, vec3 normal, float subsurface, float ditherV
     vec3 biasNormal = abs(normal);
     biasNormal = (biasNormal.x>=max(biasNormal.y,biasNormal.z))?vec3(1,0,0):(biasNormal.y>biasNormal.z?vec3(0,1,0):vec3(0,0,1));
     biasNormal = sign(normal)*biasNormal;
-    vec3 shadowPos = worldSpaceToShadowSunBiased(worldPos+clamp(worldPosLen,1e-1,0.8)*biasNormal,ditherValue);
+    vec3 shadowPos = worldSpaceToShadowSunBiased(worldPos+clamp(worldPosLen,1e-1,0.8)*biasNormal);
     float sampl = shadowSample(shadowPos);
     float strength = (nol*sampl)*0.8+0.2;
     #if SUBSURFACE_MODE==2 && defined SUN_SHADOW_SUBSURFACE
     if(subsurface>0)
     {
         shadowPos = worldSpaceToShadow(worldPos-clamp(mix(nol*-0.5+0.1,0.5,max(0,worldPosLen-0.1)),0,1)*biasNormal);
-//        shadowPos = worldSpaceToShadow(worldPos);
-        float sunHitDepth = shadowDepthToLinear(texture(shadowtex0,shadowPos.xy).x);
+        float sunHitDepth = shadowDepthToLinear(getShadowDepth(shadowPos.xy));
         float actualHitDepth = shadowDepthToLinear(shadowPos.z);
         float subSurfaceDepth = max(0,(sunHitDepth-actualHitDepth))*1.79+0.01;
-//        return vec3(fract(subSurfaceDepth));
         subSurfaceDepth = min(-0.15,-3*subSurfaceDepth);
 
         float subsurfaceStrength = 0.66*exp(subSurfaceDepth/max(0.01,subsurface));
@@ -126,7 +128,7 @@ vec3 shadowmapSample(vec3 worldPos, vec3 normal, float subsurface, float ditherV
     return (strength)*(sunAngle>0.5?moonColor:sunColor);
 }
 
-vec3 shadowmapSampleFog(vec3 worldPos, float ditherValue){
+vec3 shadowmapSampleFog(vec3 worldPos){
     if(hasCeiling) return vec3(0);
     if(sunAngle>0.5)
         return vec3(0.1);
