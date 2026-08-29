@@ -37,18 +37,28 @@ vec4 lightOutput;
 uint currentBlock;
 
 #ifdef MC_SHAPED_LIGHT_FALLOFF
-vec4 decayBlocklight(vec4 source){
+vec3 decayBlocklight(vec3 source){
     float intensity = (source.r+source.g+source.b)/3.0;
-    source.rgb/=intensity;
+    source/=intensity;
     intensity=max(0,intensity-oneLightLevel);
-    source.rgb*=intensity;
+    source*=intensity;
     return source;
 }
+float decaySunlight(float sunlight){
+    return sunlight==1.0?1.0:(sunlight-oneLightLevel);
+}
 #else
-vec4 decayBlocklight(vec4 source){
-    return source*0.8;
+vec3 decayBlocklight(vec3 source){
+    return source.rgb*0.8;
+}
+float decaySunlight(float sunlight){
+    return sunlight==1.0?1.0:sunlight*0.8;
 }
 #endif
+
+vec4 decay(vec4 source){
+    return vec4(decayBlocklight(source.rgb),decaySunlight(source.a));
+}
 
 void considerSample(ivec3 offset){
     ivec3 samplePos = localPos+offset;
@@ -59,11 +69,14 @@ void considerSample(ivec3 offset){
         lightOutput.a=1;
     samplePos=modFloodfillSize(samplePos);
     vec4 sampleLight = getFloodData(samplePos, floodShift);
+    bool totallyBlocked = !bool(packUnorm4x8(sampleLight)&1u);
+    if(totallyBlocked)
+        return;
     if(offset.y==1){
         if(currentBlock!=0)
-            lightOutput.a-=oneLightLevel;
+            lightOutput.a-=0.01;
     }else{
-        sampleLight.a-=oneLightLevel;
+        sampleLight.a-=0.01;
     }
 
     sampleLight.a=max(0,sampleLight.a);
@@ -79,6 +92,40 @@ uint bayer4u3d(uvec3 pos){
     return (bayer2u3d(pos)<<3)|(bayer2u3d(pos>>1));
 }
 
+uvec2 getBlockAndObstruction(ivec3 blockPos){
+    #if (FLOODFILL_SIZE!=AREA_SIZE)
+    ivec3 areaPos;
+    ivec3 areaShift;
+    uint areaMemOffset;
+    for(uint cascade = 0; cascade<NUM_CASCADES;cascade++){
+        int scale=int(getScale(cascade));
+        if(scale<1)
+        continue;
+        areaShift = getAreaShift(scale);
+        areaPos = ((blockPos-(FLOODFILL_SIZE>>1)+(floodShift&(scale-1)))/scale)+(AREA_SIZE>>1);
+        int minCoord = min(min(areaPos.x,areaPos.y),areaPos.z);
+        int maxCoord = max(max(areaPos.x,areaPos.y),areaPos.z);
+        areaMemOffset = areaOffset(cascade);
+        if((minCoord>=0) && (maxCoord<AREA_SIZE))
+        break;
+    }
+    #else
+    #define areaPos localPos
+    #define areaShift floodShift
+    #define areaMemOffset 0
+    #endif
+
+
+    currentBlock = getVoxData(areaPos, areaShift, areaMemOffset);
+    #ifdef OBSTRUCTION_MAPPING
+    uint obstruction = getObstructionData(areaPos, areaShift, areaMemOffset);
+    #else
+    uint obstruction = 0u;
+    #endif
+
+    return uvec2(currentBlock,obstruction);
+}
+
 void main(){
     floodShift=getFloodShift();
 
@@ -89,15 +136,15 @@ void main(){
 
         ivec2 posXY = ivec2(gl_LocalInvocationID.xz)+ivec2(gl_WorkGroupID.xz<<4);
         for(int i=0; i<edgeToTrim.x;i++){
-            int x = movementSigns.x>0?(AREA_SIZE-1)-i:i;
+            int x = movementSigns.x>0?(FLOODFILL_SIZE-1)-i:i;
             setFloodData(vec4(0),ivec3(x,posXY.xy),floodShift);
         }
         for(int i=0; i<edgeToTrim.y;i++){
-            int y = movementSigns.y>0?(AREA_SIZE-1)-i:i;
+            int y = movementSigns.y>0?(FLOODFILL_SIZE-1)-i:i;
             setFloodData(vec4(0),ivec3(posXY.x,y,posXY.y),floodShift);
         }
         for(int i=0; i<edgeToTrim.z;i++){
-            int z = movementSigns.z>0?(AREA_SIZE-1)-i:i;
+            int z = movementSigns.z>0?(FLOODFILL_SIZE-1)-i:i;
             setFloodData(vec4(0),ivec3(posXY.xy,z),floodShift);
         }
     }
@@ -122,55 +169,46 @@ void main(){
         lightOutput=vec4(0);
 
         //TODO make unit scale voxelization a real thing
-        #if (FLOODFILL_SIZE>AREA_SIZE)
-        ivec3 areaPos;
-        ivec3 areaShift;
-        uint areaMemOffset;
-        for(uint cascade = 0; cascade<NUM_CASCADES;cascade++){
-            int scale=int(getScale(cascade));
-            if(scale<1)
-                continue;
-            areaShift = getAreaShift(scale);
-            areaPos = ((localPos-(FLOODFILL_SIZE>>1)+(floodShift&(scale-1)))/scale)+(AREA_SIZE>>1);
-            int minCoord = min(min(areaPos.x,areaPos.y),areaPos.z);
-            int maxCoord = max(max(areaPos.x,areaPos.y),areaPos.z);
-            areaMemOffset = areaOffset(cascade);
-            if((minCoord>=0) && (maxCoord<AREA_SIZE))
-                break;
-        }
-        #else
-            #define areaPos localPos
-            #define areaShift floodShift
-            #define areaMemOffset 0
-        #endif
 
-
-        currentBlock = getVoxData(areaPos, areaShift, areaMemOffset);
+        uvec2 worldData = getBlockAndObstruction(localPos);
+        currentBlock=worldData.x;
         #ifdef OBSTRUCTION_MAPPING
-        uint obstruction = getObstructionData(areaPos, areaShift, areaMemOffset);
+        uint obstruction = worldData.y;
         #endif
 
+        bool lightTotallyBlocked = bool(currentBlock&WORLDVOX_OPAQUE);
 
-        if(!bool(currentBlock&WORLDVOX_OPAQUE))
+//        if(!lightTotallyBlocked)
         {
             for(uint i=0;i<6;i++){
                 uint axis = i>>1;
                 ivec3 offset = ivec3(axis==0,axis==1,axis==2)*(bool(i&1u)?1:-1);
 
+                //leak away from the player to fill into blocks, dont leak towards the player
+                if(lightTotallyBlocked){
+                    if(dot(offset,normalize(localPos-(FLOODFILL_SIZE/2)))>0)
+                        continue;
+                }
+
                 #ifdef OBSTRUCTION_MAPPING
-                if(!bool(obstruction&(1u<<i)))
+                if(lightTotallyBlocked || !bool(obstruction&(1u<<i)))
                 #endif
                     considerSample(offset);
             }
-            lightOutput= decayBlocklight(lightOutput);
+            lightOutput= decay(lightOutput);
         }
 
         vec3 blockColor = worldVoxColor(currentBlock);
         if (bool(currentBlock&(0xfu<<WORLDVOX_TYPE_SHIFT))){
             lightOutput.rgb=max(lightOutput.rgb,blockColor);
+            lightTotallyBlocked=false;
         }else if(bool(currentBlock&WORLDVOX_TRANSLUCENT)){
             lightOutput.rgb*=normalize(blockColor);
         }
+
+        uint packedLight = packUnorm4x8(lightOutput);
+        packedLight = (packedLight&~1u)|uint(!lightTotallyBlocked);
+        lightOutput=unpackUnorm4x8(packedLight);
 
         setFloodData(lightOutput, localPos, floodShift);
     }
