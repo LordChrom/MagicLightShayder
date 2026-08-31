@@ -14,46 +14,34 @@ float doSsao(vec2 texcoord, vec3 normal, float solidDepth, float dither){
 
     float gamma = 0;
     solidDepth = depthToLinear(solidDepth);
-    float radius = (SSAO_RADIUS*0.3)/solidDepth;
+    float radius = (SSAO_RADIUS*0.6)/solidDepth;
     radius = min(radius,0.15);
 
-    const int numDirections = ((2*SSAO_QUALITY))&~1;
-    float[numDirections] directions;
-    for(int i=0;i<numDirections;i++)
-        directions[i]=0;
+    const int numAgnles = 2*SSAO_QUALITY+1;
+    const int numDirections = numAgnles;
+
+    float sum = 0;
 
 
     float angleDither = fract(23*dither);
-    const int anglesPerLevel = 2;
-    for(int r = 1; r<=SSAO_QUALITY; r++)
     {
-        float tempRadius = radius*(r-dither)/SSAO_QUALITY;
-        int angles = (anglesPerLevel*r-1)|1;
+        float tempRadius = radius*(dither);
 
-        for(int a = 0; a<angles;a++){
-            float angle = (a+angleDither)*(TWOPI/angles);
+        for(int a = 0; a<numAgnles;a++){
+            float angle = fract(float(a)/numAgnles-angleDither)*TWOPI;
             vec2 offsetPos = texcoord + vec2(cos(angle),sin(angle))*tempRadius;
 
             vec4 pos = gbufferProjectionInverse*(vec4(offsetPos,texture(depthtex2,offsetPos).x,1)*2-1);
             pos.xyz=mat3(gbufferModelViewInverse)*(pos.xyz/pos.w)+gbufferModelViewInverse[3].xyz;;
             pos.xyz-=worldPos.xyz;
             float wallAngle = asin(clamp(dot(pos.xyz,normal),0,1)/min(length(pos.xyz),3));
-            int index = int(floor(angle*numDirections/TWOPI));
-            directions[index]=max(directions[index],wallAngle);
+            sum -= cos(2*wallAngle);
         }
     }
 
-    float sum = numDirections;
-    for(int i=0;i<numDirections>>1;i++){
-        float L = directions[i];
-        float R = directions[i+(numDirections>>1)];
-        float innerIntegral = -cos(2*L)-cos(2*R);
-        sum+=innerIntegral;
-    }
-    sum*=0.25;
 
-    float ssao = 1-sum*PI/numDirections;
-//    ssao*=ssao;
-    ssao=1-(1-ssao)*SSAO_STRENGTH;
-    return clamp(ssao,0.2,1);
+    //0 = fully lit, 1 = fully occluded
+    float ssao = 0.25*PI*(1+sum/numAgnles);
+    ssao*=SSAO_STRENGTH;
+    return clamp(1-ssao,0.2,1);
 }

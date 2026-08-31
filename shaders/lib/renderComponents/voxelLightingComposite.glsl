@@ -9,7 +9,7 @@ layout(location = 1) out vec3 funnyDebug;
 /* RENDERTARGETS: 6 */
 #endif
 
-layout(location = 0) out vec3 voxelLighting;
+layout(location = 0) out vec4 voxelLighting;
 
 
 uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
@@ -54,8 +54,8 @@ void main() {
 
     bool isHand = normal.a>0.4 && normal.a<0.6;
 
+    voxelLighting=vec4(0,0,0,1);
     if(solidDepth==1){
-        voxelLighting=vec3(0);
         return;
     }
     vec4 worldPosRelative = vec4(jitteredTexcoord,solidDepth,1);
@@ -89,16 +89,20 @@ void main() {
     normal.xyz = normalize(normal.xyz*2-1);
 
     float ditherValue = dither(ivec2(gl_FragCoord.xy));
-    float ssao=1;
+
+
     #ifdef SSAO
     if(emissive<0.4 && !isHand){
-        ssao = doSsao(jitteredTexcoord, normal.xyz, solidDepth, ditherValue);
+        voxelLighting.a = doSsao(jitteredTexcoord, normal.xyz, solidDepth, ditherValue);
     }
+        #if DEBUG_SPECIAL_VIEW == 103
+        funnyDebug = vec3(voxelLighting.a);
+        #endif
     #endif
 
-    voxelLighting = ssao*lightingSample(worldPosRelative.xyz+cameraPosition,normal.xyz,subsurface,ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
+    voxelLighting.rgb = lightingSample(worldPosRelative.xyz+cameraPosition,normal.xyz,subsurface,ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
+    #ifdef SSAO
+    voxelLighting.rgb*=voxelLighting.a;
+    #endif
 
-#if (DEBUG_SPECIAL_VIEW == 103) && (defined SSAO)
-    voxelLighting = vec3(ssao);
-#endif
 }
