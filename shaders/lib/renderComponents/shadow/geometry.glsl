@@ -5,7 +5,7 @@
 layout(triangles) in;
 
 #ifdef CAN_VOXELIZE
-#include "/lib/voxel/voxelMapper.glsl"
+#include "/lib/lighting/voxel/voxelMapper.glsl"
 uniform vec3 cameraPosition;
 
 in flat int[] blockID;
@@ -47,7 +47,7 @@ uniform bool hasCeiling;
     uniform int frameCounter;
     #endif
 
-    #include "/lib/shadowmap/distortion.glsl"
+    #include "/lib/lighting/shadowmap/distortion.glsl"
 #endif
 
 //no cascades, just passthru

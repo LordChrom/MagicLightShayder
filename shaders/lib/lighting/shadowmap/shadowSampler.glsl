@@ -8,7 +8,7 @@ uniform vec3 shadowLightPosition;
 uniform vec2 shadowDepthConvConsts;
 
 //uniform vec3 cameraPosition;
-#include "/lib/shadowmap/distortion.glsl"
+#include "/lib/lighting/shadowmap/distortion.glsl"
 #include "/lib/util/pixelLock.glsl"
 
 
@@ -16,6 +16,16 @@ const vec3 sunColor = vec3(240.0/255.0);
 const vec3 moonColor = vec3(0.22,0.22,0.48);
 
 
+
+float shadowDepthToLinear(float sampleDepth){
+    sampleDepth=sampleDepth*2-1;
+    return (shadowDepthConvConsts.x*sampleDepth+shadowDepthConvConsts.y);///(shadowProjectionInverse[3].z*sampleDepth+shadowProjectionInverse[3].w);
+}
+
+float shadowDepthToBuf(float linearDepth){
+    float sampleDepth = (linearDepth-shadowDepthConvConsts.y)/shadowDepthConvConsts.x;
+    return sampleDepth*0.5+0.5;
+}
 
 float getShadowDepth(vec2 shadowPos){
     return texture(shadowcolor0,shadowPos.xy).x;
@@ -124,14 +134,6 @@ float shadowSampleCheapest(vec3 shadowpos){
 
 
 
-uniform mat4 shadowProjectionInverse;
-
-float shadowDepthToLinear(float sampleDepth){
-    sampleDepth*=2-1;
-    sampleDepth*=2;
-    return (shadowDepthConvConsts.x*sampleDepth+shadowDepthConvConsts.y);///(shadowProjectionInverse[3].z*sampleDepth+shadowProjectionInverse[3].w);
-}
-
 vec3 worldSpaceToShadow(vec3 worldPos){
     vec4 shadowPos = vec4(mat3(shadowModelView)*worldPos+shadowModelView[3].xyz,1);
     shadowPos = shadowProjection*shadowPos;
@@ -141,16 +143,10 @@ vec3 worldSpaceToShadow(vec3 worldPos){
     return shadowPos.xyz;
 }
 
-vec3 worldSpaceToShadowSunBiased(vec3 worldPos){
-    vec4 shadowPos = vec4(mat3(shadowModelView)*worldPos+shadowModelView[3].xyz,1);
-    shadowPos = shadowProjection*shadowPos;
-    shadowPos.z-=0.0005;
-    shadowPos.xyz=distort(shadowPos.xyz);
-    shadowPos.xyz/=shadowPos.w;
-    shadowPos.xyz=shadowPos.xyz*0.5+0.5;
-    return shadowPos.xyz;
+float sunBiasZ(vec3 shadowpos){
+    float len = max(abs(shadowpos.x-0.5),abs(shadowpos.y-0.5))*0.66;
+    return shadowDepthToBuf(shadowDepthToLinear(shadowpos.z)+len);
 }
-
 
 
 vec3 shadowmapSample(vec3 worldPos, vec3 normal, float subsurface){
@@ -166,7 +162,8 @@ vec3 shadowmapSample(vec3 worldPos, vec3 normal, float subsurface){
     vec3 biasNormal = abs(normal);
     biasNormal = (biasNormal.x>=max(biasNormal.y,biasNormal.z))?vec3(1,0,0):(biasNormal.y>biasNormal.z?vec3(0,1,0):vec3(0,0,1));
     biasNormal = sign(normal)*biasNormal;
-    vec3 shadowPos = worldSpaceToShadowSunBiased(worldPos+clamp(worldPosLen,1e-1,0.8)*biasNormal);
+    vec3 shadowPos = worldSpaceToShadow(worldPos+clamp(worldPosLen,1e-1,0.8)*biasNormal);
+    shadowPos.z=sunBiasZ(shadowPos);
     float sampl = shadowSample(shadowPos);
     float strength = (nol*sampl)*0.8+0.2;
     #if SUBSURFACE_MODE==2 && defined SUN_SHADOW_SUBSURFACE

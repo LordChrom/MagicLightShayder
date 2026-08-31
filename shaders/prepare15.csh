@@ -1,3 +1,3 @@
 #version 430
 #define LIGHTER_PASS 5
-#include "lib/voxel/voxelLighter.glsl"
+#include "lib/lighting/voxel/voxelLighter.glsl"

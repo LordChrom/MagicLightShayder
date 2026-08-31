@@ -100,7 +100,7 @@ flat in int materialID;
     #ifdef BASIC_FLOODFILL
     uniform sampler2D lightmap;
     #endif
-    #include "/lib/lightingWrapper/lightSampler.glsl"
+    #include "/lib/lighting/lightWrapper.glsl"
     #include "/lib/util/dither.glsl"
 
     /* RENDERTARGETS: 3,2 */

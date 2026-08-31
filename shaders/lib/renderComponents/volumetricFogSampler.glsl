@@ -11,7 +11,7 @@ layout(location = 0) out vec4 voxelFog;
 uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
 uniform vec3 cameraPosition;
 
-#include "/lib/lightingWrapper/lightSampler.glsl"
+#include "/lib/lighting/lightWrapper.glsl"
 #define TEMPORAL_DITHER
 #include "/lib/util/dither.glsl"
 #include "/lib/util/conversions.glsl"

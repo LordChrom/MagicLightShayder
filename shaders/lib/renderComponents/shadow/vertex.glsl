@@ -3,7 +3,7 @@
 #include "/lib/renderComponents/shadow/shadowProgramFeatures.glsl"
 
 #ifdef CAN_VOXELIZE
-//#include "/lib/voxel/voxelMapper.glsl"
+//#include "/lib/lighting/voxel/voxelMapper.glsl"
 //uniform vec3 cameraPosition;
 
 in vec4 at_midBlock;
@@ -18,7 +18,7 @@ out vec3 normal;
 #ifdef SHADOWMAP_SHADOWS
 uniform int frameCounter;
 
-#include "/lib/shadowmap/distortion.glsl"
+#include "/lib/lighting/shadowmap/distortion.glsl"
 
 #ifdef TEXTURED
 out vec2 texcoordVert;

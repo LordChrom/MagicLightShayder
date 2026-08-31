@@ -3,7 +3,7 @@
 #endif
 
 #define WRITES_VOX
-#include "/lib/voxel/voxelHelper.glsl"
+#include "/lib/lighting/voxel/voxelHelper.glsl"
 
 uint voxelInfo(int blockID, uint emission){
     vec3 color = vec3(0.9,0.6,0.6);

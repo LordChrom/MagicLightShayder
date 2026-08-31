@@ -14,6 +14,7 @@ uniform int frameCounter;
 #include "/lib/util/dither.glsl"
 #include "/lib/util/blend.glsl"
 #include "/lib/util/conversions.glsl"
+#include "/lib/util/raycast.glsl"
 
 
 in vec2 texcoord;
@@ -43,54 +44,6 @@ vec3 worldDirToScreen(vec3 worldDirection, vec3 screenPos){
     return normalize(pos.xyz-pos.w*(2*screenPos-1));
 }
 
-//reasons
-//0: no hits
-//1: hit edge of screen
-//2: hit something, but depth too different
-//4: hit solid terrain
-vec3 doMarch(vec3 initialPos, vec3 viewDir, float ditherValue, out uint hitReason){
-    hitReason=0;
-    viewDir*=1/(REFLECTION_QUALITY*length(viewDir.xy));
-    #if REFLECTION_BOUNCES>1
-    viewDir*=min(2,1+0.3*REFLECTION_BOUNCES);
-    #endif
-    vec3 newPos;
-    float texDepth;
-
-    const int stepsPerBounce=REFLECTION_QUALITY/REFLECTION_BOUNCES;
-    for(int i=0;i<stepsPerBounce;i++){
-        newPos = initialPos+(i+ditherValue)*viewDir;
-        float distFromEdge =min(min(newPos.x,newPos.y),1-max(newPos.x,newPos.y));
-        if(distFromEdge<ditherValue*0.1 || newPos.z<=0.4 || newPos.z>=1){
-            hitReason=1;
-            break;
-        }
-
-        //TODO check both depthtexes, for reflections of terrain visible thru glass
-        texDepth = texture(depthtex2,newPos.xy).x;
-        if(texDepth<=newPos.z){
-            hitReason=4;
-            break;
-        }
-    }
-
-    if(hitReason==4){
-        viewDir*=0.5;
-        newPos-=viewDir;
-
-        for(int i=0;i<min(stepsPerBounce,8);i++){
-            texDepth = texture(depthtex2,newPos.xy).x;
-            viewDir*=0.5;
-            newPos+=(texDepth>=newPos.z)?viewDir:-viewDir;
-        }
-    }
-
-    if((hitReason==4) && (abs(depthToLinear(texDepth)/depthToLinear(newPos.z)-1)>0.1)){
-        hitReason=2;
-    }
-
-    return newPos;
-}
 
 
 
@@ -156,8 +109,17 @@ void main() {
         }
 
         uint rayHitReason;
-
-        screenPos = doMarch(screenPos,worldDirToScreen(worldDir, screenPos),ditherValue,rayHitReason);
+        const int stepsPerBounce=REFLECTION_QUALITY/REFLECTION_BOUNCES;
+        #if REFLECTION_BOUNCES>1
+        const float maxCastLen=min(2,1+0.3*REFLECTION_BOUNCES);
+        #else
+        const float maxCastLen = 1.0;
+        #endif
+        screenPos = screenspaceRaycast(
+            depthtex2,stepsPerBounce,maxCastLen,
+            screenPos,worldDirToScreen(worldDir, screenPos),ditherValue,
+            rayHitReason
+        );
 
         #if REFLECTION_BOUNCES>1
         continuing=rayHitReason==0;

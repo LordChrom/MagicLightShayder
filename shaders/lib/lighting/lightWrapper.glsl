@@ -7,15 +7,15 @@ uniform bool hasCeiling;
 #endif
 
 #ifdef ADVANCED_VOXEL_TRACE
-#include "/lib/voxel/voxelSampler.glsl"
+#include "/lib/lighting/voxel/voxelSampler.glsl"
 #endif
 
 #ifdef BASIC_FLOODFILL
-#include "/lib/voxel/basicFloodfillSampler.glsl"
+#include "/lib/lighting/voxel/basicFloodfillSampler.glsl"
 #endif
 
 #ifdef SHADOWMAP_SHADOWS
-#include "/lib/shadowmap/shadowSampler.glsl"
+#include "/lib/lighting/shadowmap/shadowSampler.glsl"
 #endif
 
 #define UNIVERSAL_SUBSURFACENESS 0.0

@@ -7,7 +7,7 @@
 #define SAMPLES_FLOOD
 #define WRITES_FLOOD
 #define SAMPLES_VOX
-#include "/lib/voxel/voxelHelper.glsl"
+#include "/lib/lighting/voxel/voxelHelper.glsl"
 #include "/lib/util/dither.glsl"
 
 

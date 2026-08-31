@@ -43,7 +43,7 @@ uniform mat4 gbufferModelViewInverse;
 
 
 #if ( VOXELIZATION_MODE >=1 ) && (defined IS_TERRAIN )
-    #include "/lib/voxel/voxelMapper.glsl"
+    #include "/lib/lighting/voxel/voxelMapper.glsl"
     #define NEEDS_WORLD_POS 0
     #define UPDATE_VOXEL_MAP
     #define NEEDS_MC_ENTITY

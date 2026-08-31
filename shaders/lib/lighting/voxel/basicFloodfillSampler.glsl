@@ -1,5 +1,5 @@
 #define SAMPLES_FLOOD
-#include "/lib/voxel/voxelHelper.glsl"
+#include "/lib/lighting/voxel/voxelHelper.glsl"
 uniform sampler2D lightmapTex;
 
 vec3 getFloodfillSunlight(float sunlightness){
