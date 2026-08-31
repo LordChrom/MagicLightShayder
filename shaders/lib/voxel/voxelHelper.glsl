@@ -449,29 +449,30 @@ void setVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift, uint areaMemOff
 #endif
 
 
-#if defined SAMPLES_OBSTRUCTION || defined WRITES_OBSTRUCTION
-layout (r32ui) uniform restrict
-#ifndef WRITES_VOX
-readonly
-#endif
-uimage3D obstructionVox;
-#endif
+#ifdef OBSTRUCTION_MAPPING
+    #if defined SAMPLES_OBSTRUCTION || defined WRITES_OBSTRUCTION
+    layout (r32ui) uniform restrict
+        #ifndef WRITES_VOX
+    readonly
+        #endif
+    uimage3D obstructionVox;
+    #endif
 
-#ifdef SAMPLES_OBSTRUCTION
+    #ifdef SAMPLES_OBSTRUCTION
 uint getObstructionData(ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
     ivec3 memPos = toMemPos(areaPos,areaShift,areaMemOffset);
     return imageLoad(obstructionVox,memPos).x;
 }
-#endif
+    #endif
 
 
-#ifdef WRITES_OBSTRUCTION
+    #ifdef WRITES_OBSTRUCTION
 void submitObstructionData(uint obstruction, ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
     ivec3 memPos = toMemPos(areaPos,areaShift,areaMemOffset);
     imageAtomicOr(obstructionVox,memPos,obstruction);
 }
+    #endif
 #endif
-
 
 #ifdef SAMPLES_FLOOD
 uniform sampler3D floodfillSampler;
