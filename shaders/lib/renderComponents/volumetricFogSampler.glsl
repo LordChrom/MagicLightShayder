@@ -11,11 +11,6 @@ layout(location = 0) out vec4 voxelFog;
 uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
 uniform vec3 cameraPosition;
 
-#include "/lib/lighting/lightWrapper.glsl"
-#define TEMPORAL_DITHER
-#include "/lib/util/dither.glsl"
-#include "/lib/util/conversions.glsl"
-
 uniform sampler2D colortex2;
 uniform sampler2D depthtex2;
 uniform sampler2D depthtex0;
@@ -23,6 +18,15 @@ uniform sampler2D depthtex0;
 uniform sampler2D colortex3;
 
 uniform vec3 fogColor;
+
+#include "/lib/lighting/lightWrapper.glsl"
+#define TEMPORAL_DITHER
+#if !(defined ADVANCED_VOXEL_TRACE || defined BASIC_FLOODFILL)
+uniform int frameCounter;
+#endif
+#include "/lib/util/dither.glsl"
+#include "/lib/util/conversions.glsl"
+
 
 
 

@@ -9,7 +9,7 @@ vec3 screenspaceRaycast(
     out uint hitReason
 ){
     hitReason=0;
-    viewDir*=maxCastLen/(REFLECTION_QUALITY*length(viewDir.xy));
+    viewDir*=maxCastLen/(stepsPerBounce*length(viewDir.xy));
     vec3 newPos;
     float texDepth;
 

@@ -18,6 +18,8 @@ uniform bool hasCeiling;
 #include "/lib/lighting/shadowmap/shadowSampler.glsl"
 #endif
 
+//#include "/lib/lighting/screenspaceShadow/screenspaceShadowSampler.glsl"
+
 #define UNIVERSAL_SUBSURFACENESS 0.0
 vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue){
     vec3 ret = vec3(0);
@@ -34,6 +36,8 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
     #ifdef SHADOWMAP_SHADOWS
     ret+= shadowmapSample(worldPos, normal, subsurface);
     #endif
+
+//    ret += sampleScreenspaceShadow(worldPos,normal);
     return ret + MIN_LIGHT_AMOUNT*clamp(1-(ret.x+ret.y+ret.z),0,1);
 }
 

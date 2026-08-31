@@ -1,3 +1,5 @@
+#ifndef CONVERSIONS_GLSL
+#define CONVERSIONS_GLSL
 uniform vec3 depthConvConsts;
 
 //uniform mat4 gbufferProjectionInverse;
@@ -14,3 +16,4 @@ float depthToBuf(float worldDepth){
         float sampleDepth =  (depthConvConsts.x/worldDepth-depthConvConsts.y)/depthConvConsts.z;
     return (sampleDepth+1)*0.5;
 }
+#endif

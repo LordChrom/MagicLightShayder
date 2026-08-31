@@ -15,25 +15,28 @@ layout(location = 0) out vec4 voxelLighting;
 uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
 uniform vec3 cameraPosition;
 //uniform vec2 scaledScreenDim;
-
-#include "/lib/lighting/lightWrapper.glsl"
-#define TEMPORAL_DITHER
-#include "/lib/util/dither.glsl"
-
 uniform sampler2D colortex2;
 uniform sampler2D depthtex2;
 uniform sampler2D depthtex0;
-
 uniform sampler2D colortex3;
-
-#ifdef SSAO
-uniform mat4 gbufferModelView;
-#include "/lib/renderComponents/ssao.glsl"
-#endif
 
 #if MATERIALS_TYPE >= 0
 uniform usampler2D colortex8;
 #endif
+
+#include "/lib/lighting/lightWrapper.glsl"
+#define TEMPORAL_DITHER
+#if !(defined ADVANCED_VOXEL_TRACE || defined BASIC_FLOODFILL)
+uniform int frameCounter;
+#endif
+#include "/lib/util/dither.glsl"
+
+
+
+#ifdef SSAO
+#include "/lib/renderComponents/ssao.glsl"
+#endif
+
 
 #if ((DEBUG_SPECIAL_VIEW==104) || (DEBUG_SPECIAL_VIEW==106))
 uniform sampler2D colortex1;

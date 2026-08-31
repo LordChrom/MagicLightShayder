@@ -1,3 +1,5 @@
+#ifndef DITHER_GLSL
+#define DITHER_GLSL
 uint bayer2u(ivec2 pos){
     return ((pos.x&1)<<31)-((pos.y&1)<<30);
 }
@@ -38,8 +40,10 @@ float dither(ivec2 pos){
     return 0.5;
 #endif
 }
+#endif
 
-#ifdef TEMPORAL_DITHER
+#if (defined TEMPORAL_DITHER) && ! defined DITHER_GLSL_TEMPORAL
+#define DITHER_GLSL_TEMPORAL
 float temporalNoise(float x){
     const uint temporalLoop = 256;
     const uint temporalMult = 203;
