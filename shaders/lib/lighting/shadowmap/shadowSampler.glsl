@@ -12,10 +12,6 @@ uniform vec2 shadowDepthConvConsts;
 #include "/lib/util/pixelLock.glsl"
 
 
-const vec3 sunColor = vec3(240.0/255.0);
-const vec3 moonColor = vec3(0.22,0.22,0.48);
-
-
 
 float shadowDepthToLinear(float sampleDepth){
     sampleDepth=sampleDepth*2-1;
@@ -148,12 +144,20 @@ float sunBiasZ(vec3 shadowpos){
     return shadowDepthToBuf(shadowDepthToLinear(shadowpos.z)+len);
 }
 
+bool sampleOutOfRange(vec3 shadowpos){
+    const float min = 0.1;
+    const float max = 1-min;
+    return
+    shadowpos.x<min || shadowpos.y<min || shadowpos.z<min ||
+    shadowpos.x>max || shadowpos.y>max || shadowpos.z>max;
+}
 
-vec3 shadowmapSample(vec3 worldPos, vec3 normal, float subsurface){
+
+float shadowmapSample(vec3 worldPos, vec3 normal, float subsurface){
     #if PIXEL_LOCK_SHADOWMAP >0
     worldPos = pixelLock(worldPos+normal*0*0.01,1.0/PIXEL_LOCK_SHADOWMAP);
     #endif
-    if(hasCeiling) return vec3(0);
+    if(hasCeiling) return 0;
     worldPos-=cameraPosition;
     vec3 lightSrcPosRel = (gbufferModelViewInverse*vec4(shadowLightPosition,1)).xyz;
     lightSrcPosRel-=worldPos;
@@ -164,8 +168,13 @@ vec3 shadowmapSample(vec3 worldPos, vec3 normal, float subsurface){
     biasNormal = sign(normal)*biasNormal;
     vec3 shadowPos = worldSpaceToShadow(worldPos+clamp(worldPosLen,1e-1,0.8)*biasNormal);
     shadowPos.z=sunBiasZ(shadowPos);
-    float sampl = shadowSample(shadowPos);
-    float strength = (nol*sampl)*0.8+0.2;
+
+    if(shadowPos.x<0 || shadowPos.y<0 || shadowPos.z<0 ||
+        shadowPos.x>1 || shadowPos.y>1 || shadowPos.z>1
+    ){
+        return -1;
+    }
+    float strength = nol*shadowSample(shadowPos);
     #if SUBSURFACE_MODE==2 && defined SUN_SHADOW_SUBSURFACE
     if(subsurface>0)
     {
@@ -180,15 +189,11 @@ vec3 shadowmapSample(vec3 worldPos, vec3 normal, float subsurface){
         strength=sqrt(strength*strength+subsurfaceStrength*subsurfaceStrength);
     }
     #endif
-    return (strength)*(sunAngle>0.5?moonColor:sunColor);
+    return strength;
 }
 
-vec3 shadowmapSampleFog(vec3 worldPos){
-    if(hasCeiling) return vec3(0);
-    if(sunAngle>0.5)
-        return vec3(0.1);
-    worldPos-=cameraPosition;
-    vec3 shadowPos =  worldSpaceToShadow(worldPos);
-    float strength = FOG_BRIGHTNESS_SUN*shadowSampleCheapest(shadowPos);
-    return strength*(sunAngle>0.5?moonColor:sunColor);
+float shadowmapSampleFog(vec3 worldPos){
+    if(hasCeiling) 0;
+//    if(sunAngle>0.5) return 0.1;
+    return shadowSampleCheapest(worldSpaceToShadow(worldPos-cameraPosition));
 }

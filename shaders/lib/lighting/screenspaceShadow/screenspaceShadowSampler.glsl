@@ -28,5 +28,10 @@ float sampleScreenspaceShadow(vec3 worldPos, vec3 normal){
         screenPos.xyz,viewDirToScreen(sunPosition, screenPos.xyz),ditherValue,
         rayHitReason
     );
-    return (rayHitReason<=1)?max(0,dot(normalize(mat3(gbufferModelView)*normal),normalize(sunPosition))):0.0;
+    float sunStrength = max(0,dot(normalize(mat3(gbufferModelView)*normal),normalize(sunPosition)));
+    if(rayHitReason==4)
+        sunStrength=0;
+    if(rayHitReason==2)
+        sunStrength=0.5;
+    return sunStrength;
 }

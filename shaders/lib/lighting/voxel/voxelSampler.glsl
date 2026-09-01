@@ -299,11 +299,10 @@ vec3 getDirectedLight(uint cascadeLevel, uint layer, float subsurface, ivec3 zon
     float lightStrength = baseLightStrength(packedLightSrc,displacement);
     float baseStrength = lightStrength;
     if(isForFog){
-        lightStrength *=
         #ifndef DISABLE_BLOCKLIGHT_SUN
-        (type==LIGHT_TYPE_SUN)?FOG_BRIGHTNESS_SUN:
+        if(type==LIGHT_TYPE_SUN)
+            lightStrength *= FOG_BRIGHTNESS_SUN/FOG_BRIGHTNESS_BLOCK;
         #endif
-        FOG_BRIGHTNESS_BLOCK;
     }else{
         float normalMult = normalFactor(normal, displacement, subsurface);
         #ifdef MC_SHAPED_LIGHT_FALLOFF

@@ -20,6 +20,7 @@
 #define DEBUG_SHOW_UPDATES -1 //[-1 0 1]
 //#define UNOCCLUDED_INTO_BLOCKS
 #define LIGHT_SOURCES_BLOCK_CENTERIC
+//#define DEBUG_SHOW_SHADOWMAP_RANGE
 
 #define DEBUG_SPECIAL_VIEW -1 //[-1 0 1 2 3 4 5 6 7 8 9 10 11 100 101 102 103 104 105 106 200 201 202 203 204]
 //#define DEBUG_NOTHING_EXPIRES
@@ -154,6 +155,7 @@
 #define SHADOW_SAMPLING_MODE 3 //[0 1 2 3 4]
 #define MAX_SHADOW_CASCADE 7
 
+//#define SCREENSPACE_SHADOW_FALLBACK
 
 #define FLOODFILL_SIZE 64 //[32 64 128 192 256 384]
 
@@ -264,7 +266,7 @@
     #define OLDDOF_PASSES -1
 #endif
 /////
-
+#define DUMMY_OPTION
 
 #if (BLOOM>0) || (FLOODFILL_SIZE>0)
 #ifdef KEEP_FULLY_OCCLUDED_SAMPLES
@@ -276,7 +278,9 @@
 #ifdef ADVANCED_BLOCKLIGHT_FOG
 #ifdef DENOISE_REFLECTIONS
 #ifdef SSAO_FILTERING
+#ifdef DUMMY_OPTION
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
+#endif
 #endif
 #endif
 #endif
