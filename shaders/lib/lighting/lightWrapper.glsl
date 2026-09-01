@@ -1,6 +1,6 @@
 #include "/lib/settings.glsl"
-uniform bool hasCeiling;
 
+#include "/lib/util/shadowLightInfo.glsl"
 
 #ifdef BASIC_FLOODFILL
 #define SAMPLES_FLOOD
@@ -22,23 +22,6 @@ uniform bool hasCeiling;
 #include "/lib/lighting/screenspaceShadow/screenspaceShadowSampler.glsl"
 #endif
 
-const vec3 sunColor = vec3(240.0/255.0);
-const vec3 moonColor = vec3(0.22,0.22,0.48);
-
-vec3 getSunColor(){
-    if(hasCeiling) return vec3(0);
-    return (sunAngle>0.5?moonColor:sunColor);
-}
-
-
-uniform sampler2D lightmapTex;
-
-vec3 getFloodfillSunlight(float sunlightness){
-    return texture(lightmapTex,clamp(vec2(0,sunlightness),1.0/32.0,31.0/32.0)).rgb;
-}
-
-
-
 
 #define UNIVERSAL_SUBSURFACENESS 0.0
 vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue){
@@ -54,7 +37,7 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
     #endif
 
     #ifdef SHADOWMAP_SHADOWS
-    ret.a= shadowmapSample(worldPos, normal, subsurface);
+    ret.a= shadowmapSample(worldPos, normal, subsurface, ditherValue);
 
         #ifdef DEBUG_SHOW_SHADOWMAP_RANGE
         if(ret.a==-1) ret.r++;

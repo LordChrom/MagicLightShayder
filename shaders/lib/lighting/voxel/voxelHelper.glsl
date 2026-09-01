@@ -559,7 +559,8 @@ uint getVariableCascadeLevel(bool isAuxGroup){
 
 
 //TODO ssbo?
-uniform float sunAngle;
+#ifndef DISABLE_BLOCKLIGHT_SUN
+#include "/lib/util/shadowLightInfo.glsl"
 uvec4 getSunlight(uint axis){
     if(sunAngle>=0.5 || ((axis&6u)==4u))
         return uvec4(0);
@@ -574,4 +575,6 @@ uvec4 getSunlight(uint axis){
         return uvec4(0);
     return packLightData(vec2(0),0xfu,vec3(242,242,242)/255,sunLightTravel,0f,1,0xfeu);
 }
+#endif
+
 #endif

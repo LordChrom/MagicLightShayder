@@ -1,5 +1,4 @@
 uniform mat4 gbufferModelView,gbufferProjection;
-uniform vec3 sunPosition;
 #ifdef GBUFFER_SHADER
 uniform sampler2D depthtex2;
 #endif
@@ -20,18 +19,18 @@ float sampleScreenspaceShadow(vec3 worldPos, vec3 normal){
     uint rayHitReason;
 
     const int stepsPerBounce=30;
-    const float maxCastLen = 0.5;
+    const float maxCastLen = 1.0;
 
     float ditherValue = dither(ivec2(gl_FragCoord.xy));
     screenspaceRaycast(
         depthtex2,stepsPerBounce,maxCastLen,
-        screenPos.xyz,viewDirToScreen(sunPosition, screenPos.xyz),ditherValue,
+        screenPos.xyz,viewDirToScreen(normalize(shadowLightPosition), screenPos.xyz),ditherValue,
         rayHitReason
     );
-    float sunStrength = max(0,dot(normalize(mat3(gbufferModelView)*normal),normalize(sunPosition)));
+    float sunStrength = max(0,dot(normalize(mat3(gbufferModelView)*normal),normalize(shadowLightPosition)));
     if(rayHitReason==4)
         sunStrength=0;
     if(rayHitReason==2)
-        sunStrength=0.5;
+        sunStrength=0.5; //TODO better adjustment by depth discrepancy
     return sunStrength;
 }

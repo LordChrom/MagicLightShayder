@@ -4,7 +4,6 @@ uniform mat4 gbufferModelViewInverse;
 #endif
 
 uniform sampler2D shadowcolor0;
-uniform vec3 shadowLightPosition;
 uniform vec2 shadowDepthConvConsts;
 
 //uniform vec3 cameraPosition;
@@ -144,23 +143,23 @@ float sunBiasZ(vec3 shadowpos){
     return shadowDepthToBuf(shadowDepthToLinear(shadowpos.z)+len);
 }
 
-bool sampleOutOfRange(vec3 shadowpos){
-    const float min = 0.1;
-    const float max = 1-min;
-    return
-    shadowpos.x<min || shadowpos.y<min || shadowpos.z<min ||
-    shadowpos.x>max || shadowpos.y>max || shadowpos.z>max;
-}
+uniform float far;
 
-
-float shadowmapSample(vec3 worldPos, vec3 normal, float subsurface){
+float shadowmapSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue){
+    if(hasCeiling) return 0;
     #if PIXEL_LOCK_SHADOWMAP >0
     worldPos = pixelLock(worldPos+normal*0*0.01,1.0/PIXEL_LOCK_SHADOWMAP);
     #endif
-    if(hasCeiling) return 0;
     worldPos-=cameraPosition;
-    vec3 lightSrcPosRel = (gbufferModelViewInverse*vec4(shadowLightPosition,1)).xyz;
-    lightSrcPosRel-=worldPos;
+    if(
+        (max(max(abs(worldPos.x),abs(worldPos.y)),abs(worldPos.z))>SHADOW_DISTANCE)
+        #if defined SCREENSPACE_SHADOW_FALLBACK && defined VOXY
+        || (length(worldPos.xz)>far-8.0*ditherValue)
+        #endif
+    )
+        return -1;
+
+    vec3 lightSrcPosRel = mat3(gbufferModelViewInverse)*shadowLightPosition;
     float nol = max(0,dot(normalize(lightSrcPosRel),normal));
     float worldPosLen = max(0,(length(worldPos)-2)*0.01);
     vec3 biasNormal = abs(normal);
@@ -169,11 +168,6 @@ float shadowmapSample(vec3 worldPos, vec3 normal, float subsurface){
     vec3 shadowPos = worldSpaceToShadow(worldPos+clamp(worldPosLen,1e-1,0.8)*biasNormal);
     shadowPos.z=sunBiasZ(shadowPos);
 
-    if(shadowPos.x<0 || shadowPos.y<0 || shadowPos.z<0 ||
-        shadowPos.x>1 || shadowPos.y>1 || shadowPos.z>1
-    ){
-        return -1;
-    }
     float strength = nol*shadowSample(shadowPos);
     #if SUBSURFACE_MODE==2 && defined SUN_SHADOW_SUBSURFACE
     if(subsurface>0)

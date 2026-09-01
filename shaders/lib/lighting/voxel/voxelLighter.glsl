@@ -116,10 +116,6 @@ uvec4 maybeBlockLight(uvec4 light, uint voxel){
     )? uvec4(0):light;
 }
 
-#ifndef DISABLE_BLOCKLIGHT_SUN
-uniform bool hasCeiling;
-#endif
-
 void saveSharedSample(int a, int b){
     ivec3 sampleZonePos = ivec3(
         gl_LocalInvocationID.x+a+(gl_WorkGroupID.x%AREA_WIDTH_SECTIONS)*SECTION_SIZE,
