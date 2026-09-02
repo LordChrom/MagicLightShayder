@@ -10,7 +10,10 @@ uint voxelInfo(int blockID, uint emission){
     uint metadata = 0;
 
     blockID = blockID&0xffff;
-    if(blockID!=0xffffu){
+    if(blockID==0xffff && emission>0) //unknown lights -> glowstone
+        blockID = 10763; //update when packing changes
+
+    if(blockID!=0xffff){
         color.r=(blockID/100)%10;
         color.g=(blockID/10)%10;
         color.b=(blockID)%10;
