@@ -201,11 +201,25 @@ void main()
     #endif
 #endif
 
+
+#ifdef MAYBE_END_GATEWAY
+    bool isEndGateway = materialID==55498;
+#endif
+
 #ifdef TEXTURED
     #ifdef POM
         baseTexpos = ivec2(packedBaseTexpos>>16,packedBaseTexpos)&0xffff;
         texsize = ivec2(packedTexsize>>16,packedTexsize)&0xffff;
-        vec2 newTexcoord=doPom(texcoord);
+        vec2 newTexcoord;
+
+            #ifdef MAYBE_END_GATEWAY
+            if(isEndGateway)
+                newTexcoord=texcoord;
+            else
+            #endif
+        {
+            newTexcoord=doPom(texcoord);
+        }
         #ifdef POM_WRITE_DEPTH
         float linearDepth = depthToLinear(gl_FragCoord.z);
         rayDepth = length(vec3(differential/texsize,1))*rayDepth;
@@ -221,8 +235,6 @@ void main()
 
     color=glcolor;
 #ifdef MAYBE_END_GATEWAY
-    bool isEndGateway = materialID==55498;
-
     if(isEndGateway){
         color = vec4(doEndGateway(gl_FragCoord.xy/vec2(viewWidth,viewHeight)),1);
     }else{
@@ -301,7 +313,6 @@ void main()
         #else
     materialInfo = hardcodedMaterialInfo;
         #endif
-
         #if !(HARDCODED_EMISSIVE_SELECTIVITY==-1)
     if(materialInfo.a!=255){
         vec3 lightColor = getMaterialColor(materialID);
