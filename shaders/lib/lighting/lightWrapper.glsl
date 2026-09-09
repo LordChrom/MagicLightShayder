@@ -22,6 +22,14 @@
 #include "/lib/lighting/screenspaceShadow/screenspaceShadowSampler.glsl"
 #endif
 
+float mixInSunlight(float blockSun, float shadowSun){
+    if(shadowSun<0)
+        return blockSun;
+    else if(blockSun<0)
+        return shadowSun;
+    else
+        return mix(blockSun,shadowSun,0.5);
+}
 
 #define UNIVERSAL_SUBSURFACENESS 0.0
 vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue){
@@ -37,11 +45,13 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
     #endif
 
     #ifdef SHADOWMAP_SHADOWS
-    ret.a= shadowmapSample(worldPos, normal, subsurface, ditherValue);
+        float shadowLightStrength = shadowmapSample(worldPos, normal, subsurface, ditherValue);
 
         #ifdef DEBUG_SHOW_SHADOWMAP_RANGE
-        if(ret.a==-1) ret.r++;
+        if(shadowLightStrength.a==-1) ret.r++;
         #endif
+
+        ret.a=mixInSunlight(ret.a,shadowLightStrength);
     #endif
 
     if(ret.a==-1){
@@ -61,7 +71,7 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
 vec3 lightingSampleFog(vec3 worldPos, float ditherValue){
     vec4 ret = vec4(0,0,0,-1);
     #ifdef BASIC_FLOODFILL
-    ret+= sampleFloodData(worldPos);
+    ret = sampleFloodData(worldPos);
     #endif
 
     #if defined ADVANCED_VOXEL_TRACE && (ADVANCED_BLOCKLIGHT_FOG>=0)
@@ -74,7 +84,8 @@ vec3 lightingSampleFog(vec3 worldPos, float ditherValue){
     #endif
 
     #ifdef SHADOWMAP_SHADOWS
-    ret.a= shadowmapSampleFog(worldPos);
+    float shadowLightStrength = shadowmapSampleFog(worldPos);
+    ret.a=mixInSunlight(ret.a,shadowLightStrength);
     #endif
 
     if(ret.a==-1){
