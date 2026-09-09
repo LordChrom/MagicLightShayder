@@ -12,8 +12,9 @@ float doSsao(vec2 texcoord, vec3 normal, float solidDepth, float dither){
     vec4 worldPos = gbufferProjectionInverse*(vec4(texcoord,solidDepth,1)*2-1);
     worldPos/=worldPos.w;
 
-    float radius = (SSAO_RADIUS*0.6)/depthToLinear(solidDepth);
-    radius = min(radius,0.15)*dither;
+    float radius = (SSAO_RADIUS)/depthToLinear(solidDepth);
+    radius*=0.5;
+    radius = min(radius*(0.01+sqrt(dither)),0.15);
 
     const int numAngles = 2*SSAO_QUALITY+1;
 
@@ -30,14 +31,21 @@ float doSsao(vec2 texcoord, vec3 normal, float solidDepth, float dither){
         vec4 pos = (vec4(offsetTexcoord,texture(depthtex2,offsetTexcoord).x,1)*2-1);
         pos = gbufferProjectionInverse*pos;
         pos.xyz/=pos.w;
+        pos-=worldPos;
 
-        float wallAngle = asin(clamp(dot(normalize(pos.xyz-worldPos.xyz),normal),0,1));
+        float attenuation = length(pos.xyz);
+        attenuation = clamp((SSAO_RADIUS*2.0)/length(pos.xyz),1.0-SSAO_LEAK_REDUCTION,1.0);
+
+        float wallAngle = asin(clamp(dot(normalize(pos.xyz),normal)*attenuation,0,1));
         sum -= cos(2*wallAngle);
     }
 
 
+
     //0 = fully lit, 1 = fully occluded
     float ssao = 0.25*PI*(1+sum/numAngles);
+
+//    return ssao>0.01?0:1;
     ssao*=SSAO_STRENGTH;
     return clamp(1-ssao,0.2,1);
 }
