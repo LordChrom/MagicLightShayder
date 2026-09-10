@@ -34,10 +34,9 @@ void renderAxisGizmo(inout vec3 color, vec2 texcoord){
 
     vec3 axisAngles=vec3(
         atan(gbufferModelView[0][1],gbufferModelView[0][0]),
-        PI/2,
+        atan(gbufferModelView[1][1],gbufferModelView[1][0]),
         atan(gbufferModelView[2][1],gbufferModelView[2][0])
     );
-
     axisAngles=abs(axisAngles-angle);
     axisAngles=min(axisAngles,2*PI-axisAngles);
 
@@ -49,17 +48,16 @@ void renderAxisGizmo(inout vec3 color, vec2 texcoord){
     );
 
     if(len>1-bonusHudBorderThickness){
-        hudColor=(asin(abs(axisLen))-0.5*axisAngles)/PI;
+        hudColor=(asin(min(abs(axisLen),1))-0.5*axisAngles)/PI;
         hudColor=step(-hudColor,vec3(0)) * max(step(fract(hudColor*12+0.25),vec3(0.5))*0.7+0.3,step(axisLen,vec3(0)));
         hudColor*=abs(axisLen);
-
     }else {
         len/=1-(bonusHudBorderThickness+0.1);
 
 
         axisAngles/= atan(bonusHudWidth/len);
 
-        axisLen=pow(1-abs(axisLen), vec3(0.25));//probably not correct but its pretty close & i care about perf more than the remaining difference
+        axisLen=sqrt(1-axisLen*axisLen);
 
         hudColor+=bonusHudBirghtness*clamp((1-axisAngles)*3, 0, 1)*clamp((axisLen-len)*100, 0, 1);
 
