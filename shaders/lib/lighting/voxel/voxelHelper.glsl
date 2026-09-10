@@ -487,7 +487,12 @@ vec4 getFloodData(ivec3 areaPos, ivec3 areaShift){
 layout (rgba8) uniform writeonly restrict image3D floodfillVox;
 
 void setFloodData(vec4 data, ivec3 areaPos, ivec3 areaShift){
-    imageStore(floodfillVox,modFloodfillSize(areaPos+areaShift),data);
+    areaPos = modFloodfillSize(areaPos+areaShift);
+    ivec3 p;
+    for(p.x=areaPos.x;p.x<=FLOODFILL_SIZE;p.x+=FLOODFILL_SIZE)
+        for(p.y=areaPos.y;p.y<=FLOODFILL_SIZE;p.y+=FLOODFILL_SIZE)
+            for(p.z=areaPos.z;p.z<=FLOODFILL_SIZE;p.z+=FLOODFILL_SIZE)
+                imageStore(floodfillVox,p,data);
 }
 #endif
 
