@@ -28,7 +28,7 @@ float mixInSunlight(float blockSun, float shadowSun){
     else if(blockSun<0)
         return shadowSun;
     else
-        return mix(blockSun,shadowSun,0.5);
+        return mix(blockSun,shadowSun,SHADOWMAP_FLOODFILL_MIX);
 }
 
 #define UNIVERSAL_SUBSURFACENESS 0.0
