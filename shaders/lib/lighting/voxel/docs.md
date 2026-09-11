@@ -114,12 +114,12 @@ Packing
 
 # General TODO List
 ### Needs fixing
+- reflections when view bobbing
 - POM on non-square surfaces
 - voxelizing end gates
 - subsurface on lava
 - other subsurface edge cases (directly contacting light source)
 - shadowmap light leak underground (esp for subsurface)
-- flickering on back of well-lit vines
 - reflections secondary bouncing on translucent
 
 ### Needs Improvement
@@ -140,11 +140,8 @@ Packing
 - bloom
 - make voxel map a lower bit size
 - halftones
-- awareness of which block faces are full
 - sky stuff & clouds
 
 ### Potential additions
-- redo block.properties
-- dither positive/negative axes with TAA on
-- alternate mode using visibility samples rather than the oclusion info
-- maybe try switching from fixed number of samples per direction to fixed number per voxel + list of relevant samples per voxel
+- more efficient memory scaling for advanced voxel system
+- yet another lighting mode
