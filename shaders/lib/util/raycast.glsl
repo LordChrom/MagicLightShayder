@@ -1,11 +1,11 @@
 //reasons
-//0: no hits
+//0: no hits / step limit
 //1: hit edge of screen
 //2: hit something, but depth too different
 //4: hit solid terrain
 vec3 screenspaceRaycast(
     sampler2D depthtex, int stepsPerBounce, float maxCastLen,
-    vec3 initialPos, vec3 viewDir, float ditherValue,
+    vec3 initialPos, vec3 viewDir, float ditherValue, bool fadeAtEdges,
     out uint hitReason
 ){
     hitReason=0;
@@ -16,7 +16,7 @@ vec3 screenspaceRaycast(
     for(int i=0;i<stepsPerBounce;i++){
         newPos = initialPos+(i+ditherValue)*viewDir;
         float distFromEdge =min(min(newPos.x,newPos.y),1-max(newPos.x,newPos.y));
-        if(distFromEdge<ditherValue*0.1 || newPos.z<=0.4 || newPos.z>=1){
+        if(distFromEdge<=(fadeAtEdges?ditherValue*0.1:0) || newPos.z<=0.4 || newPos.z>=1){
             hitReason=1;
             break;
         }

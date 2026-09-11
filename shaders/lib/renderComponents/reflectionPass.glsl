@@ -117,7 +117,7 @@ void main() {
         #endif
         screenPos = screenspaceRaycast(
             depthtex2,stepsPerBounce,maxCastLen,
-            screenPos,worldDirToScreen(worldDir, screenPos),ditherValue,
+            screenPos,worldDirToScreen(worldDir, screenPos),ditherValue,true,
             rayHitReason
         );
 

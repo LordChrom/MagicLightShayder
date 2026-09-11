@@ -166,6 +166,11 @@ float shadowmapSample(vec3 worldPos, vec3 normal, float subsurface, float dither
     biasNormal = (biasNormal.x>=max(biasNormal.y,biasNormal.z))?vec3(1,0,0):(biasNormal.y>biasNormal.z?vec3(0,1,0):vec3(0,0,1));
     biasNormal = sign(normal)*biasNormal;
     vec3 shadowPos = worldSpaceToShadow(worldPos+clamp(worldPosLen,1e-1,0.8)*biasNormal);
+    #ifdef SCREENSPACE_SHADOW_FALLBACK
+    float distFromEdges = min(min(shadowPos.x,shadowPos.y),1-max(shadowPos.x,shadowPos.y));
+    if(distFromEdges<0.05)
+        return -1;
+    #endif
     shadowPos.z=sunBiasZ(shadowPos);
 
     float strength = nol*shadowSample(shadowPos);

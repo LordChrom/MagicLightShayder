@@ -57,6 +57,8 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
     if(ret.a==-1){
         #ifdef SCREENSPACE_SHADOW_FALLBACK
         ret.a = sampleScreenspaceShadow(worldPos, normal);
+        #elif defined SHADOWMAP_SHADOWS
+        ret.a = max(0,dot(normalize(mat3(gbufferModelViewInverse)*shadowLightPosition),normal));
         #else
         ret.a=1;
         #endif
