@@ -10,15 +10,6 @@ uniform sampler2D depthtex1;
 #include "/lib/util/tonemap.glsl"
 #include "/lib/util/dither.glsl"
 
-#if DEBUG_SPECIAL_VIEW >= 0
-uniform sampler2D colortex19;
-#endif
-#if DEBUG_SPECIAL_VIEW == 203
-uniform sampler2D shadowtex0;
-#elif DEBUG_SPECIAL_VIEW == 204
-uniform sampler2D shadowcolor0;
-#endif
-
 
 #ifdef TAA
 #define multiplicativeLightTex colortex10
@@ -104,17 +95,5 @@ void main() {
 
     #ifdef POST_DITHER
     outputColor+=(bayer4(texpos)-0.5)/255;
-    #endif
-
-    #if DEBUG_SPECIAL_VIEW >= 0
-    #if DEBUG_SPECIAL_VIEW == 200 || (DEBUG_SPECIAL_VIEW==202)
-    outputColor = voxelLighting;
-    #elif DEBUG_SPECIAL_VIEW == 203
-    outputColor=vec3(texture(shadowtex0,vec2(1-texcoord.y,texcoord.x)).rgb);
-    #elif DEBUG_SPECIAL_VIEW == 204
-    outputColor=vec3(texture(shadowcolor0,vec2(1-texcoord.y,texcoord.x)).r*2-0.8);
-    #elif (DEBUG_SPECIAL_VIEW) != 201
-    outputColor = texelFetch(colortex19,ivec2(floor(0.1+texcoord*scaledScreenDim)),0).xyz;
-    #endif
     #endif
 }

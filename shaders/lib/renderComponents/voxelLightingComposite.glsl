@@ -38,15 +38,6 @@ uniform int frameCounter;
 #endif
 
 
-#if ((DEBUG_SPECIAL_VIEW==104) || (DEBUG_SPECIAL_VIEW==106))
-uniform sampler2D colortex1;
-#elif (DEBUG_SPECIAL_VIEW == 10)  || (DEBUG_SPECIAL_VIEW == 200)
-uniform sampler2D colortex10;
-#elif DEBUG_SPECIAL_VIEW == 105 && !defined SSAO
-#include "/lib/util/conversions.glsl"
-#endif
-
-
 void main() {
     vec4 normal = texture(colortex2,jitteredTexcoord);
     float solidDepth = texture(depthtex2,jitteredTexcoord).x;
@@ -64,7 +55,7 @@ void main() {
     vec4 worldPosRelative = vec4(jitteredTexcoord,solidDepth,1);
 
     if(isHand){
-        #if IRIS_VERSION < 11008
+        #if (IRIS_VERSION < 11008 )&& (DEBUG_SPECIAL_VIEW != 100)
         return;
         #else
         worldPosRelative.z=texture(depthtex0,jitteredTexcoord).x/MC_HAND_DEPTH;
