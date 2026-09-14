@@ -4,6 +4,7 @@
 
 #define WRITES_VOX
 #include "/lib/lighting/voxel/voxelHelper.glsl"
+#include "/lib/util/materialId.glsl"
 
 uint voxelInfo(int blockID, uint emission){
     vec3 color = vec3(0.9,0.6,0.6);
@@ -11,14 +12,10 @@ uint voxelInfo(int blockID, uint emission){
 
     blockID = blockID&0xffff;
     if(blockID==0xffff && emission>0) //unknown lights -> glowstone
-        blockID = 10763; //update when packing changes
+        blockID = 10001; //update when packing changes
 
     if(blockID!=0xffff){
-        color.r=(blockID/100)%10;
-        color.g=(blockID/10)%10;
-        color.b=(blockID)%10;
-        color/=9;
-
+        color = getMaterialColor(blockID);
 
         uint blockIDmeta = blockID/1000u;
 
