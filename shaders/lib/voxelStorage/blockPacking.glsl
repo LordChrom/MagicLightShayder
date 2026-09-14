@@ -1,4 +1,4 @@
-vec3 getLightIdColor(int lightId){
+vec3 getLightIdColor(uint lightId){
     uint packedColor = 0u;
 
     //TODO: this could also be in an SSBO or custom image, and would cache very nicely test performance thereof
@@ -57,7 +57,7 @@ vec3 getLightIdColor(int lightId){
 }
 
 vec3 getMaterialColor(int materialId){
-    return getLightIdColor(materialId % 1000);
+    return getLightIdColor(uint(materialId) % 1000);
 }
 
 bool isHardcodedSubsurface(int materialID){
@@ -89,42 +89,38 @@ uvec4 getHardcodedMaterial(int materialID){
 }
 
 uint packVoxelForStorage(int blockID, uint emission){
-    vec3 color = vec3(0.9,0.6,0.6);
-    uint metadata = 0;
 
     blockID = blockID&0xffff;
-    if(blockID==0xffff && emission>0) //unknown lights -> glowstone
-    blockID = 10001; //update when packing changes
-
-    if(blockID!=0xffff){
-        color = getMaterialColor(blockID);
-
-        uint blockIDmeta = blockID/1000u;
-
-        uint obstructivenessType = (blockIDmeta)&3u;
-        metadata = (8u>>obstructivenessType)&7u;
-        //types: (0 is air, 1 is translucent, 2 is full opacity, 3 is shaped opacity)
-        //flags: translucent, opaque, shaped
-
-        if(emission>0){
-            color*=float(emission)*0.06666; //1/15
-            uint lightType = (blockIDmeta>>2u)&7u;
-            metadata |= lightType<<(WORLDVOX_TYPE_SHIFT-WORLDVOX_META_SHIFT);
-        }
-
-    }else{
-        color=vec3(1,0,0);
-        metadata=2;
+    if(blockID==0xffff){
+        blockID = (emission>0)?
+            10001: //default emissive is glowstone
+            2000; //solid cube
     }
 
+    uint blockIDmeta = blockID/1000u;
 
-    uvec3 intColor = uvec3(color*9.0+0.5);
+    uint obstructivenessType = (blockIDmeta)&3u;
+    uint metadata = (8u>>obstructivenessType)&7u;
+    //types: (0 is air, 1 is translucent, 2 is full opacity, 3 is shaped opacity)
+    //flags: translucent, opaque, shaped
+
+    if(emission>0){
+        uint lightType = (blockIDmeta>>2u)&7u;
+        metadata |= lightType<<(WORLDVOX_TYPE_SHIFT-WORLDVOX_META_SHIFT);
+    }
+
     return (metadata<<WORLDVOX_META_SHIFT)
-    | ((intColor.r<<8u))|((intColor.g<<4u)|(intColor.b))
+    | (emission<<6) | (uint(blockID)%1000u)
     | uint(WORLDVOX_INITIAL_TIME<<WORLDVOX_AGE_SHIFT);
 }
 
 
 vec3 worldVoxColor(uint packedData){
-    return vec3(uvec3(packedData>>8u,packedData>>4u,packedData)&0xfu)/9.0;
+    uint lightID = packedData&0x3fu;
+    vec3 color = getLightIdColor(lightID);
+    if(!bool(packedData&WORLDVOX_TRANSLUCENT)){
+        uint emissive = (packedData>>6)&0xfu;
+        color*=(emissive*0.06666); // 1/15
+    }
+    return color;
 }

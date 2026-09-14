@@ -5,7 +5,7 @@
 - Section - refers to a physical area of the game and all the data associated with it,
   including block voxel maps and light samples.
 - Area - refers to a contiguous collection of sections.
-- Zone - refers to one portion of the data in an area, mapped the entirety of the physical space, 
+- Zone - refers to one portion of the data in an area, mapped the entirety of the physical space,
   but not all types of data. Eg: the light samples in an area in the east direction on the first layer
 - Layer - Each zone stores only one sample per voxel, so adding layers allows multiple samples in the same position and direction
 
@@ -42,7 +42,7 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 
 # light types
 - 0: no lighting
-- 1: sunlight
+- 1:
 - 2: steady blocklight
 - 3: pulsating blocklight (like amethyst crystals)
 - 4: analog flickering blocklight (like fire, trial spawners)
@@ -74,21 +74,36 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 - normals.a is 0 for solid, 0.5 for hand, 1 for translucent
 
 # Layouts
-### Voxel map
-- RGB are color (7 bits)
-- A, 11 bits, is, from MSB to LSB,
-- - 5 bits age tag
-- - 4 bits its emission type
-- - a bit that's 1 for translucent blocks like stained glass
-- - a bit that's 1 for surfaces that block light
+### Block.properties
+CHANGING SOON
+- number%1000 is color, number/1000 is metadata
+- leaves 6.03 bits for metadata, also allows 0xffff to not need to be an encoding state, also lets me not change how my colors are set up.
+- metadata bits are currently:
+- 1 bit unused
+- 3 bits light type
+- 2 bits opacity type (0 is air, 1 is translucent, 2 is full opacity, 3 is shaped opacity)
 
+//fences, panes, walls, stairs/slabs, layers, trapdoors,
+//rods, chests
+//fence gates, signs, torches, pots, buttons, levers, plants, anvils, rails, banners
 
+### Voxel map image storage layout
+//
+- 5: Age                      (could be separated
+- 4: light animation type     (could be smaller)
+- 1: translucent              (partially redundant now)
+- 1: opaque
+- 1: shape-sensitive blockage
+
+- 10: unused
+- 4: emission intensity
+- 6: color ID
 
 ### Light sample
 Attributes
 - vec3 color
 - vec3 lightTravel,   In zone space. the displacement from the light source voxel center to the sample's voxel center
-- uint type 
+- uint type
 - uint flags          see below
 - occlusion info      see below
 
