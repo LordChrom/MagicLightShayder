@@ -11,7 +11,7 @@ const float translucentPrecedenceCutoff = 0.99;
         #define NEEDS_MATERIAL_ID
         #define HARDCODED_MATERIAL
         #define MATERIALS_TYPE 0
-        #include "/lib/util/materialId.glsl"
+        #include "/lib/voxelStorage/blockPacking.glsl"
     #endif
 
     #if MATERIALS_TYPE < 0
@@ -79,7 +79,7 @@ in vec4 glcolor;
 
 #ifdef NEEDS_MATERIAL_ID
 flat in int materialID;
-#include "/lib/util/materialId.glsl"
+#include "/lib/voxelStorage/blockPacking.glsl"
 #endif
 
 #if !(defined FORWARD_TRANSLUCENTS && defined TRANSLUCENT && defined LIT)

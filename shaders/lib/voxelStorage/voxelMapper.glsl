@@ -3,39 +3,8 @@
 #endif
 
 #define WRITES_VOX
-#include "/lib/lighting/voxel/voxelHelper.glsl"
-#include "/lib/util/materialId.glsl"
-
-uint voxelInfo(int blockID, uint emission){
-    vec3 color = vec3(0.9,0.6,0.6);
-    uint metadata = 0;
-
-    blockID = blockID&0xffff;
-    if(blockID==0xffff && emission>0) //unknown lights -> glowstone
-        blockID = 10001; //update when packing changes
-
-    if(blockID!=0xffff){
-        color = getMaterialColor(blockID);
-
-        uint blockIDmeta = blockID/1000u;
-
-        uint obstructivenessType = (blockIDmeta)&3u;
-        metadata = (8u>>obstructivenessType)&7u;
-        //types: (0 is air, 1 is translucent, 2 is full opacity, 3 is shaped opacity)
-        //flags: translucent, opaque, shaped
-
-        if(emission>0){
-            color*=float(emission)*0.06666; //1/15
-            uint lightType = (blockIDmeta>>2u)&7u;
-            metadata |= lightType<<(WORLDVOX_TYPE_SHIFT-WORLDVOX_META_SHIFT);
-        }
-
-    }else{
-        color=vec3(1,0,0);
-        metadata=2;
-    }
-    return packWorldVox(color, metadata) | uint(WORLDVOX_INITIAL_TIME<<WORLDVOX_AGE_SHIFT);
-}
+#include "/lib/lighting/floodShadows/voxelHelper.glsl"
+#include "/lib/voxelStorage/blockPacking.glsl"
 
 const float midblockWeight = MIN_SCALE* 12.0/16.0;
 const float normalWeight = -MIN_SCALE*3.0/64.0;
@@ -44,7 +13,7 @@ void writeVoxelMap(vec3 worldPos, int rawBlockID, vec3 toMidblock, vec3 normal, 
 //    if(max(max(abs(toMidblock.x),abs(toMidblock.y)),abs(toMidblock.z))>0.5)
 //        return; //for blocks that dont fit in the box, altho not best solution
 
-    uint packedData = voxelInfo(rawBlockID,emission);
+    uint packedData = packVoxelForStorage(rawBlockID,emission);
 
 
 
@@ -65,7 +34,7 @@ void writeVoxelMap(vec3 worldPos, int rawBlockID, vec3 toMidblock, vec3 normal, 
 }
 
 void writeVoxelMap(vec3 minWorldPos, vec3 maxWorldPos, int rawBlockID, vec3 normal, uint emission){
-    uint packedData = voxelInfo(rawBlockID,emission);
+    uint packedData = packVoxelForStorage(rawBlockID,emission);
 
     const float inset = 1.0/16.0;
 

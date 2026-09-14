@@ -1,5 +1,5 @@
 #version 430
-#include "lib/settings.glsl"
+#include "/lib/settings.glsl"
 
 
 #define SIZE DOF_WG_SIZE

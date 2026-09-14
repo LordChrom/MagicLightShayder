@@ -3,7 +3,8 @@
 #define SAMPLES_VOX
 #define SAMPLES_OBSTRUCTION
 
-#include "/lib/lighting/voxel/voxelHelper.glsl"
+#include "/lib/lighting/floodShadows/voxelHelper.glsl"
+#include "/lib/voxelStorage/blockPacking.glsl"
 
 #ifdef WAVES_INORDER
     #define LIGHTER_WORK_GROUP_Z 1

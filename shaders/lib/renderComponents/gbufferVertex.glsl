@@ -1,7 +1,7 @@
 #version 430 compatibility
 #define GBUFFER_SHADER
 #include "/lib/settings.glsl"
-#include "/lib/util/materialId.glsl"
+#include "/lib/voxelStorage/blockPacking.glsl"
 
 #if MATERIALS_TYPE < 0
     #undef WRITE_MATERIALS
@@ -43,7 +43,7 @@ uniform mat4 gbufferModelViewInverse;
 
 
 #if ( VOXELIZATION_MODE >=1 ) && (defined IS_TERRAIN )
-    #include "/lib/lighting/voxel/voxelMapper.glsl"
+    #include "/lib/voxelStorage/voxelMapper.glsl"
     #define NEEDS_WORLD_POS 0
     #define UPDATE_VOXEL_MAP
     #define NEEDS_MC_ENTITY

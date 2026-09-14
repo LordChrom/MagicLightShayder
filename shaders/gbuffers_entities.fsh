@@ -15,4 +15,4 @@
     #endif
 #endif
 
-#include "lib/renderComponents/gbufferFragment.glsl"
+#include "/lib/renderComponents/gbufferFragment.glsl"

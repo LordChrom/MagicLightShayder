@@ -7,7 +7,8 @@
 #define SAMPLES_FLOOD
 #define WRITES_FLOOD
 #define SAMPLES_VOX
-#include "/lib/lighting/voxel/voxelHelper.glsl"
+#include "/lib/voxelStorage/blockPacking.glsl"
+#include "/lib/lighting/floodShadows/voxelHelper.glsl"
 #include "/lib/util/dither.glsl"
 
 

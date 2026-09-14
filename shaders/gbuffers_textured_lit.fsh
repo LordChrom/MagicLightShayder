@@ -3,4 +3,4 @@
 #define VERTEX_NORMALS
 #define WRITE_MATERIALS
 #define ALPHATEST
-#include "lib/renderComponents/gbufferFragment.glsl"
+#include "/lib/renderComponents/gbufferFragment.glsl"

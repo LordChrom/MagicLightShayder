@@ -1,5 +1,5 @@
 #define SAMPLES_FLOOD
-#include "/lib/lighting/voxel/voxelHelper.glsl"
+#include "/lib/lighting/floodShadows/voxelHelper.glsl"
 
 vec4 sampleFloodData(vec3 worldPos){
     vec3 distFromCenter = worldPos-globalOrigin;

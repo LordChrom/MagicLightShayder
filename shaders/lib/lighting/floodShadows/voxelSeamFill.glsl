@@ -2,7 +2,7 @@
 #define WRITES_LIGHT_FACE
 #define SAMPLES_VOX
 #define WRITES_VOX
-#include "/lib/lighting/voxel/voxelHelper.glsl"
+#include "/lib/lighting/floodShadows/voxelHelper.glsl"
 
 uniform int heightLimit;
 uniform int bedrockLevel;

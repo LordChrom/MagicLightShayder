@@ -6,4 +6,4 @@
 #define WRITE_MATERIALS
 #define POM_ELLIGIBLE
 
-#include "lib/renderComponents/gbufferFragment.glsl"
+#include "/lib/renderComponents/gbufferFragment.glsl"

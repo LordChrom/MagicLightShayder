@@ -370,21 +370,6 @@ uvec4 packLightData(vec2 occlusionRay,uint occlusionMap,vec3 color,vec3 lightTra
     return ret;
 }
 
-uvec4 unpackWorldVox(uint packedData){
-    uvec4 ret = uvec4((packedData>>14u)&0x7fu,(packedData>>7u)&0x7fu,packedData&0x7fu,packedData>>21u);
-    ret.rgb<<=1;
-    return ret;
-}
-
-uint packWorldVox(vec3 color, uint metadata){
-    uvec3 intColor = uvec3(color*9.0+0.5);
-    return (metadata<<WORLDVOX_META_SHIFT)|((intColor.r<<8u))|((intColor.g<<4u)|(intColor.b));
-}
-
-vec3 worldVoxColor(uint packedData){
-    return vec3(uvec3(packedData>>8u,packedData>>4u,packedData)&0xfu)/9.0;
-}
-
 
 //sampler/image access functions
 

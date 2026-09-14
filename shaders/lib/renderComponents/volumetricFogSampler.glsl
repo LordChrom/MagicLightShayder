@@ -21,7 +21,7 @@ uniform vec3 fogColor;
 
 #include "/lib/lighting/lightWrapper.glsl"
 #define TEMPORAL_DITHER
-#if !(defined ADVANCED_VOXEL_TRACE || defined BASIC_FLOODFILL)
+#if !(defined FLOOD_SHADOWS || defined BASIC_FLOODFILL)
 uniform int frameCounter;
 #endif
 #include "/lib/util/dither.glsl"

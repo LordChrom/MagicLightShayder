@@ -1,6 +1,6 @@
 #version 430
 
-#include "lib/settings.glsl"
+#include "/lib/settings.glsl"
 
 #define STAGES 4
 #define INDEX_COUNT 4
@@ -34,4 +34,4 @@ ivec2 sourceSize(){
     return textureSize(colortex7,0);
 }
 
-#include "lib/renderComponents/downsamplePass.glsl"
+#include "/lib/renderComponents/downsamplePass.glsl"

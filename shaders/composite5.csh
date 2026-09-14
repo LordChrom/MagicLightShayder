@@ -1,7 +1,7 @@
 #version 430
 
 #define PASS_DISABLED
-#include "lib/settings.glsl"
+#include "/lib/settings.glsl"
 
 #define STAGES 4
 #define INDEX_COUNT 1
@@ -33,4 +33,4 @@ ivec2 sourceSize(){
     return textureSize(depthtex2,0);
 }
 
-#include "lib/renderComponents/downsamplePass.glsl"
+#include "/lib/renderComponents/downsamplePass.glsl"

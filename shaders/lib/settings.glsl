@@ -163,7 +163,7 @@
 
 #define OBSTRUCTION_MAPPING
 //#define BASIC_FLOODFILL
-#define ADVANCED_VOXEL_TRACE
+#define FLOOD_SHADOWS
 
 /////
 #define DOF_WG_SIZE 32

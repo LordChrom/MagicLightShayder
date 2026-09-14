@@ -23,7 +23,7 @@ vec4 voxyLighting(vec2 lightcoord){
 
 #endif
 
-#include "lib/renderComponents/gbufferFragment.glsl"
+#include "/lib/renderComponents/gbufferFragment.glsl"
 
 
 //struct VoxyFragmentParameters {

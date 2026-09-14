@@ -1,5 +1,5 @@
 #define BONUS_STUFF
-#include "lib/renderComponents/gbufferFragment.glsl"
+#include "/lib/renderComponents/gbufferFragment.glsl"
 
 uniform int renderStage;
 uniform float viewHeight;

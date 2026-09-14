@@ -5,7 +5,7 @@
 layout(triangles) in;
 
 #ifdef CAN_VOXELIZE
-#include "/lib/lighting/voxel/voxelMapper.glsl"
+#include "/lib/voxelStorage/voxelMapper.glsl"
 uniform vec3 cameraPosition;
 
 in flat int[] blockID;

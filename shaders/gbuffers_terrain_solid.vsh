@@ -4,4 +4,4 @@
 #define WRITE_MATERIALS
 #define IS_TERRAIN
 #define POM_ELLIGIBLE
-#include "lib/renderComponents/gbufferVertex.glsl"
+#include "/lib/renderComponents/gbufferVertex.glsl"

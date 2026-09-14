@@ -136,7 +136,6 @@ Packing
 - Merge adjacent unoccluded lights of same type
 - underwater & underlava fog
 - biome colored fog
-- think of a name for approach to lighting
 - bloom
 - make voxel map a lower bit size
 - halftones

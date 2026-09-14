@@ -6,12 +6,12 @@
 #define SAMPLES_FLOOD
 #endif
 
-#ifdef ADVANCED_VOXEL_TRACE
-#include "/lib/lighting/voxel/voxelSampler.glsl"
+#ifdef FLOOD_SHADOWS
+#include "/lib/lighting/floodShadows/voxelSampler.glsl"
 #endif
 
 #ifdef BASIC_FLOODFILL
-#include "/lib/lighting/voxel/basicFloodfillSampler.glsl"
+#include "/lib/lighting/basicFloodfill/basicFloodfillSampler.glsl"
 #endif
 
 #ifdef SHADOWMAP_SHADOWS
@@ -40,7 +40,7 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
     ret = sampleFloodData(worldPos);
     #endif
 
-    #ifdef ADVANCED_VOXEL_TRACE
+    #ifdef FLOOD_SHADOWS
     ret.rgb+= voxelSample(worldPos, normal, subsurface, ditherValue);
     #endif
 
@@ -76,7 +76,7 @@ vec3 lightingSampleFog(vec3 worldPos, float ditherValue){
     ret = sampleFloodData(worldPos);
     #endif
 
-    #if defined ADVANCED_VOXEL_TRACE && (ADVANCED_BLOCKLIGHT_FOG>=0)
+    #if defined FLOOD_SHADOWS && (ADVANCED_BLOCKLIGHT_FOG>=0)
         #if ADVANCED_BLOCKLIGHT_FOG ==0
         if(hasCeiling)
         #endif

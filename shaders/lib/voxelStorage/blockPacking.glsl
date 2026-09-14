@@ -87,3 +87,44 @@ uvec4 getHardcodedMaterial(int materialID, int blockEmission){
 uvec4 getHardcodedMaterial(int materialID){
     return getHardcodedMaterial(materialID,15);
 }
+
+uint packVoxelForStorage(int blockID, uint emission){
+    vec3 color = vec3(0.9,0.6,0.6);
+    uint metadata = 0;
+
+    blockID = blockID&0xffff;
+    if(blockID==0xffff && emission>0) //unknown lights -> glowstone
+    blockID = 10001; //update when packing changes
+
+    if(blockID!=0xffff){
+        color = getMaterialColor(blockID);
+
+        uint blockIDmeta = blockID/1000u;
+
+        uint obstructivenessType = (blockIDmeta)&3u;
+        metadata = (8u>>obstructivenessType)&7u;
+        //types: (0 is air, 1 is translucent, 2 is full opacity, 3 is shaped opacity)
+        //flags: translucent, opaque, shaped
+
+        if(emission>0){
+            color*=float(emission)*0.06666; //1/15
+            uint lightType = (blockIDmeta>>2u)&7u;
+            metadata |= lightType<<(WORLDVOX_TYPE_SHIFT-WORLDVOX_META_SHIFT);
+        }
+
+    }else{
+        color=vec3(1,0,0);
+        metadata=2;
+    }
+
+
+    uvec3 intColor = uvec3(color*9.0+0.5);
+    return (metadata<<WORLDVOX_META_SHIFT)
+    | ((intColor.r<<8u))|((intColor.g<<4u)|(intColor.b))
+    | uint(WORLDVOX_INITIAL_TIME<<WORLDVOX_AGE_SHIFT);
+}
+
+
+vec3 worldVoxColor(uint packedData){
+    return vec3(uvec3(packedData>>8u,packedData>>4u,packedData)&0xfu)/9.0;
+}
