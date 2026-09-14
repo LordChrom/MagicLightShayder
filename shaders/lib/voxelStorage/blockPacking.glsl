@@ -32,22 +32,22 @@ vec3 getLightIdColor(uint lightId){
         case 27: packedColor=0x757u; break;//froglight pearlescent
 
         //translucent colors, stained glasses
-        case 32: packedColor=0x777u; break;//white
-        case 33: packedColor=0x864u; break;//orange
-        case 34: packedColor=0x747u; break;//magenta
-        case 35: packedColor=0x668u; break;//light_blue
-        case 36: packedColor=0x873u; break;//yellow
-        case 37: packedColor=0x584u; break;//lime
-        case 38: packedColor=0x867u; break;//pink
-        case 49: packedColor=0x333u; break;//gray
-        case 40: packedColor=0x555u; break;//light_gray
-        case 41: packedColor=0x467u; break;//cyan
-        case 42: packedColor=0x648u; break;//purple
-        case 43: packedColor=0x337u; break;//blue
-        case 44: packedColor=0x752u; break;//brown
-        case 45: packedColor=0x262u; break;//green
-        case 46: packedColor=0x722u; break;//red
-        case 47: packedColor=0x222u; break;//black
+        case 48: packedColor=0x777u; break;//white
+        case 49: packedColor=0x864u; break;//orange
+        case 50: packedColor=0x747u; break;//magenta
+        case 51: packedColor=0x668u; break;//light_blue
+        case 52: packedColor=0x873u; break;//yellow
+        case 53: packedColor=0x584u; break;//lime
+        case 54: packedColor=0x867u; break;//pink
+        case 55: packedColor=0x333u; break;//gray
+        case 56: packedColor=0x555u; break;//light_gray
+        case 57: packedColor=0x467u; break;//cyan
+        case 58: packedColor=0x648u; break;//purple
+        case 59: packedColor=0x337u; break;//blue
+        case 60: packedColor=0x752u; break;//brown
+        case 61: packedColor=0x262u; break;//green
+        case 62: packedColor=0x722u; break;//red
+        case 63: packedColor=0x222u; break;//black
     }
     return vec3(uvec3(
             packedColor>>8,
