@@ -241,7 +241,7 @@ struct areaMeta{//size 16
 };
 
 
-#define lightTravelScaleInv 8.0 //most voxels per block representable for lightTravel
+#define lightTravelScaleInv 2.0 //most voxels per block representable for lightTravel
 #define lightTravelScale (1.0/lightTravelScaleInv);
 
 //to consider: frexp, ldexp, bitfieldinsert, bitfieldextract
@@ -276,14 +276,14 @@ uint packOcclusionInfo(vec2 ray, uint map, float hitDist){
 
 uint packLightTravel(vec3 travel){
     ivec3 itravel = ivec3(round(travel*lightTravelScaleInv));
-    itravel = clamp(itravel,ivec3(-255,-255,0),ivec3(255));
-    itravel &= ivec3(0x1ff,0x1ff,0xff);
-    return (itravel.x<<23)|(itravel.y<<14)|(itravel.z<<6);
+    itravel = clamp(itravel,ivec3(-63,-63,0),ivec3(63));
+    itravel &= ivec3(0x7f,0x7f,0x3f);
+    return (itravel.x<<25)|(itravel.y<<18)|(itravel.z<<12);
 }
 
 ivec3 intLightTravel(uint packedTravel){
-    ivec3 itravel = ivec3(packedTravel&0xff800000u,(packedTravel<<9)&0xff800000u,(packedTravel<<17)&0x7f800000u);
-    return itravel>>23;
+    ivec3 itravel = ivec3(packedTravel&0xfe000000u,(packedTravel<<7)&0xfe000000u,(packedTravel<<13)&0x7e000000u);
+    return itravel>>25;
 }
 
 vec3 unpackLightTravel(uint packedTravel){
@@ -307,7 +307,7 @@ uint unpackOcclusionMap(uint occlusionInfo){
 }
 
 uint unpackLightFlags(uvec4 packedData){
-    return packedData.y&0xffu;
+    return (packedData.x>>4)&0xffu;
 }
 
 uint unpackLightType(uvec4 packedData){
@@ -355,7 +355,7 @@ void setPackedLightColor(inout uvec4 packedData, vec3 color){
 }
 
 void setPackedLightFlags(inout uvec4 packedData, uint flags){
-    packedData.y = (packedData.y&0xffffff00u) | (flags&0xffu);
+    packedData.x = (packedData.x&0xfffff00fu) | ((flags&0xffu)<<4);
 }
 
 //float sunDist = 4+((frameCounter>>6)%10)*0.4;
@@ -364,8 +364,8 @@ uvec4 packLightData(vec2 occlusionRay,uint occlusionMap,vec3 color,vec3 lightTra
     uvec4 ret;
     if(type==LIGHT_TYPE_SUN)
         lightTravel.z=SUN_DISTANCE;
-    ret.x = packLightTravel(lightTravel) | (type&0xfu);
-    ret.y = packUnorm4x8(vec4(0,color)) | (flags&0xffu);
+    ret.x = packLightTravel(lightTravel) | (type&0xfu) | ((flags&0xffu)<<4);
+    ret.y = packUnorm4x8(vec4(0,color));
     ret.z = packOcclusionInfo(occlusionRay, occlusionMap, occlusionHitDistance);
     return ret;
 }

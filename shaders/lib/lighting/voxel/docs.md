@@ -98,8 +98,8 @@ Flags
 - 1 bit for if its in a translucent
 
 Packing
-- x is 2x9 a,b of travel, 1x8 L of travel, 2 free, 1x4 light type
-- y is 3x8 color, 8 flags
+- x is 2x7 a,b of travel, 1x6 L of travel, 1x8 flags, 1x4 light type
+- y is 3x8 color, 8 free
 - z is occlusion data
 - w is currently free, probably more occlusion data in the future
 
