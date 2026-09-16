@@ -77,8 +77,8 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 ### Block.properties
 - 5 bits unused
 - 3 bits light animation type (to be removed soon)
-- 2 bits opacity type (0 is air, 1 is translucent, 2 is full opacity, 3 is shaped opacity)
-- 6 bits light ID (also subsurface info)
+- 2 bits opacity type (0 is air, 1 is unused, 2 is full opacity, 3 is shaped opacity)
+- 6 bits light ID (also hardcoded subsurface info)
 
 //fences, panes, walls, stairs/slabs, layers, trapdoors,
 //rods, chests
@@ -92,9 +92,8 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 - 1: opaque
 - 1: shape-sensitive blockage
 
-- 10: unused
 - 4: emission intensity
-- 6: color ID
+- 16: blockID
 
 ### Light sample
 Attributes

@@ -1,12 +1,20 @@
-uint blockLightID(int blockID){
+uint blockLightID(uint blockID){
     return uint(blockID)&0x3fu;
 }
 
-bool isBlockTranslucent(int blockID){
+bool blockIsTranslucent(uint blockID){
     return blockLightID(blockID)>=48u;
 }
 
-uint blockLightAnimationType(int blockID){
+bool blockIsTransparent(uint blockID){
+    return (uint(blockID>>6)&3u)==0u;
+}
+
+bool blockIsFullCube(uint blockID){
+    return (uint(blockID>>6)&3u)==2u;
+}
+
+uint blockLightAnimationType(uint blockID){
     return (uint(blockID)>>8)&7u;
 }
 
@@ -72,23 +80,23 @@ vec3 getLightIDColor(uint lightID){
     )&0xfu)/9.0;
 }
 
-vec3 getMaterialColor(int materialID){
+vec3 getMaterialColor(uint materialID){
     return getLightIDColor(blockLightID(materialID));
 }
 
-bool isMaterialHardcodedSubsurface(int materialID){
-    materialID&=0x3f;
+bool isMaterialHardcodedSubsurface(uint materialID){
+    materialID&=0x3fu;
     return (46<=materialID && materialID<=47);
 }
 
-uvec4 getHardcodedMaterial(int materialID, int blockEmission){
-    int meta = ((materialID>>6)%10);
+uvec4 getHardcodedMaterial(uint materialID, uint blockEmission){
+    uint meta = ((materialID>>6)%10u);
 
     float subsurface = float(isMaterialHardcodedSubsurface(materialID));
-    uint emissive = 0;
+    uint emissive = 0u;
     float porosity = 0;
     if(materialID>=0){
-        emissive = bool(meta&4)?int(floor(16.93*blockEmission)):0;
+        emissive = bool(meta&4u)?int(floor(16.93*blockEmission)):0;
     }
 
     return clamp(uvec4(
@@ -99,40 +107,41 @@ uvec4 getHardcodedMaterial(int materialID, int blockEmission){
     ),0u,255u);
 }
 
-uvec4 getHardcodedMaterial(int materialID){
+uvec4 getHardcodedMaterial(uint materialID){
     return getHardcodedMaterial(materialID,15);
 }
 
-uint packVoxelForStorage(int blockID, uint emission){
+uint packVoxelForStorage(uint blockID, uint emission){
 
-    blockID = blockID&0xffff;
+    blockID = blockID&0xffffu;
     if(blockID==0xffff){
         blockID = (emission>0)?
             513: //default emissive is like brewing stand
             128; //solid cube
     }
 
-    uint obstructivenessType = uint(blockID>>6)&3u;
-    uint metadata = (8u>>obstructivenessType)&7u;
-    //types: (0 is air, 1 is translucent, 2 is full opacity, 3 is shaped opacity)
-    //flags: translucent, opaque, shaped
-
-    if(emission>0){
-        uint lightType = blockLightAnimationType(blockID);
-        metadata |= lightType<<(WORLDVOX_TYPE_SHIFT-WORLDVOX_META_SHIFT);
+    uint ret = WORLDVOX_OPAQUE;
+    if(blockIsTranslucent(blockID)){
+        ret=WORLDVOX_TRANSLUCENT;
+    }else if(blockIsTransparent(blockID)){
+        ret=0u;
+    }else if((uint(blockID>>6)&3u)==3u){
+        ret=WORLDVOX_SHAPED_BLOCKAGE;
     }
 
-    return (metadata<<WORLDVOX_META_SHIFT)
-    | (emission<<6) | (blockLightID(blockID))
-    | uint(WORLDVOX_INITIAL_TIME<<WORLDVOX_AGE_SHIFT);
+    return ret
+    | (WORLDVOX_INITIAL_TIME<<WORLDVOX_AGE_SHIFT)
+    | (bool(emission)?blockLightAnimationType(blockID)<<WORLDVOX_TYPE_SHIFT:0u)
+    | (emission<<WORLDVOX_EMISSION_SHIFT)
+    | uint(blockID)
+    ;
 }
 
 
 vec3 worldVoxColor(uint packedData){
-    uint lightID = packedData&0x3fu;
-    vec3 color = getLightIDColor(lightID);
+    vec3 color = getLightIDColor(blockLightID(packedData));
     if(!bool(packedData&WORLDVOX_TRANSLUCENT)){
-        uint emissive = (packedData>>6)&0xfu;
+        uint emissive = (packedData>>WORLDVOX_EMISSION_SHIFT)&0xfu;
         color*=(emissive*0.06666); // 1/15
     }
     return color;

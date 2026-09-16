@@ -309,13 +309,13 @@ void main()
 #ifdef WRITE_MATERIALS
     #if MATERIALS_TYPE == 0 //hardcoded
         #ifdef VOXY_PATCH
-    materialInfo = getHardcodedMaterial(materialID);
+    materialInfo = getHardcodedMaterial(uint(materialID));
         #else
     materialInfo = hardcodedMaterialInfo;
         #endif
         #if !(HARDCODED_EMISSIVE_SELECTIVITY==-1)
     if(materialInfo.a!=255){
-        vec3 lightColor = getMaterialColor(materialID);
+        vec3 lightColor = getMaterialColor(uint(materialID));
         float brightness = dot(color.rgb/glcolor.rgb,normalize(lightColor));
         brightness*=brightness;
         brightness = brightness*HARDCODED_EMISSIVE_SELECTIVITY + (1-HARDCODED_EMISSIVE_SELECTIVITY);
