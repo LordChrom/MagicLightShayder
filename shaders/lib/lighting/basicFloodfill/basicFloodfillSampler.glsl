@@ -2,16 +2,14 @@
 #include "/lib/lighting/floodShadows/voxelHelper.glsl"
 
 vec4 sampleFloodData(vec3 worldPos){
-    vec3 distFromCenter = worldPos-globalOrigin;
-    distFromCenter=abs(distFromCenter);
+    vec3 distFromCenter = abs(worldPos-globalOrigin);
     if(max(max(distFromCenter.x,distFromCenter.y),distFromCenter.z)>0.5*(FLOODFILL_SIZE-1))
         return vec4(0);
 
     //buffer is oversized by one with last index on each axis being a duplicate of 0 for wrapping purposes.
-    vec3 texPosition = (
-        fract(((worldPos-0.5)/FLOODFILL_SIZE)+0.5)
-    )*float(FLOODFILL_SIZE)/FLOODFILL_MEM_SIZE
-    + 0.5/FLOODFILL_MEM_SIZE;
+    vec3 texPosition = ((
+        fract(((worldPos)/FLOODFILL_SIZE)+0.5)
+    )*float(FLOODFILL_SIZE))/FLOODFILL_MEM_SIZE;
 
-    return texture(floodfillSampler,texPosition);
+    return vec4(texture(floodfillSampler,texPosition));
 }

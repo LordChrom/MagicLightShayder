@@ -139,7 +139,11 @@ void saveSharedSample(int a, int b){
     uint areaMemOffset = areaOffset(cascadeLevel);
     vec3 zonePosRemnants;
 
+    uint frontVoxel = getScalingVoxData(frontVoxelPos,cascadeLevel);
+    uint rearVoxel = getScalingVoxData(rearVoxelPos,cascadeLevel);
 
+
+    bool skipSampling = false;
     if(sideOob || rearOob){
         //TODO sort out the varios OOB cases here
         sampleZonePos = uppperCascadeZonePos(ivec3(sampleZonePos+ivec3(-a,-b,1)),zoneShift,axis,scale,zonePosRemnants);
@@ -150,13 +154,11 @@ void saveSharedSample(int a, int b){
 
         if(sideOob)
             frontVoxelPos=upperCascadeAreaPos(frontVoxelPos,areaShift);
-        rearVoxelPos=upperCascadeAreaPos(rearVoxelPos,areaShift);
 
         areaShift=getAreaShift(scale*2);
         zoneShift=areaToZoneSpace(areaShift,axis);
 
         if(cascadeLevel>=(NUM_CASCADES-1)){
-            setSharedVoxels(a,b,0u,0u);
     #ifdef DISABLE_BLOCKLIGHT_SUN
             const uvec4 defaultLight = uvec4(0);
     #else
@@ -168,13 +170,10 @@ void saveSharedSample(int a, int b){
         #ifdef FALLBACK_RADIANCE
             setSharedSample(a,b,RADIANCE_LAYER,uvec4(0));
         #endif
-            return;
+            skipSampling=true;
         }
     }
 
-    uint frontVoxel = getVoxData(frontVoxelPos,sideOob?areaShift:getAreaShift(scale),sideOob?areaMemOffset:areaOffset(cascadeLevel));
-
-    uint rearVoxel = getVoxData(rearVoxelPos,areaShift,areaMemOffset);
 
     #ifdef OBSTRUCTION_MAPPING
     if(blockBlocksFace(rearVoxel,axis))
@@ -184,6 +183,10 @@ void saveSharedSample(int a, int b){
     #endif
 
     setSharedVoxels(a,b,frontVoxel,rearVoxel);
+
+    if(skipSampling)
+        return;
+
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         uvec4 light = sampleLightData(sampleZonePos, zoneShift, zoneOffset(axis,layer,sampleCascade));
         if(rearOob && (unpackLightType(light)!=LIGHT_TYPE_SUN)){

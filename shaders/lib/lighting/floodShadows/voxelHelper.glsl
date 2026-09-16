@@ -7,6 +7,7 @@ uniform int frameCounter;
 
 //caps out at 31 but its whatever
 uint countTrailingZeroes(uint x){
+//    return uint(findLSB(x))&0x1fu;
     uint ret = 0;
     for(uint bits = 16; bits>=2; bits>>=1){
         bool bitsInLowerHalf = bool(x&((1u<<bits)-1u));
@@ -418,13 +419,6 @@ void setLightData(uvec4 light, ivec3 zonePos, ivec3 zoneShift, uint zoneMemOffse
 #endif
 
 
-#if defined SAMPLES_VOX || defined WRITES_VOX
-layout (r32ui) uniform restrict
-#ifndef WRITES_VOX
-readonly
-#endif
-uimage3D worldVox;
-#endif
 
 #if defined SAMPLES_VOX || defined WRITES_VOX
 layout (r32ui) uniform restrict
@@ -437,49 +431,29 @@ uimage3D baseWorldVox;
 #ifdef SAMPLES_VOX
 //uniform usampler3D worldVoxSampler;
 uint getBaseVoxData(ivec3 areaPos, ivec3 areaShift){
+    areaPos=clamp(areaPos,0,VOXELIZATION_SIZE-1);
     areaPos = modVoxelizationSize(areaPos+areaShift);
     return imageLoad(baseWorldVox,areaPos).x;
 }
 
-uint getVoxData(ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
-    ivec3 memPos = toMemPos(areaPos,areaShift,areaMemOffset);
-//    return texelFetch(worldVoxSampler,memPos,0).x;
-    return imageLoad(worldVox,memPos).x;
+uint getScalingVoxData(ivec3 areaPos, uint cascade){
+    areaPos += (VOXELIZATION_SIZE-AREA_SIZE)>>1;
+    return getBaseVoxData(areaPos,getUnitShift());
 }
 #endif
 
 
 #ifdef WRITES_VOX
 void setBaseVoxData(uint packedData, ivec3 worldPos, ivec3 areaShift){
-//    pos += spaceShift;
-//    pos = modAreaSize(pos);
-//    pos.yz+=AREA_SIZE*(0xffff&ivec2(memOffset>>16u,memOffset));
-//    return pos;
-//    worldPos -= areaShift;
-
     ivec3 posFromCenter = worldPos-areaShift;
 
     int distFromCenter = max(max(abs(posFromCenter.x),abs(posFromCenter.y)),abs(posFromCenter.z));
     if(distFromCenter>=VOXELIZATION_SIZE/2)
         return;
 
-//    worldPos=-worldPos;
-//    worldPos += areaShift;
-
     worldPos+=VOXELIZATION_SIZE/2;
     worldPos = modVoxelizationSize(worldPos);
     imageStore(baseWorldVox,worldPos,uvec4(packedData,0,0,0));
-}
-
-//doesnt reset timer
-void updateVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
-    ivec3 memPos = toMemPos(areaPos,areaShift,areaMemOffset);
-    imageAtomicMax(worldVox,memPos,packedData);
-}
-
-void setVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
-    ivec3 memPos = toMemPos(areaPos,areaShift,areaMemOffset);
-    imageStore(worldVox,memPos,uvec4(packedData,0,0,0));
 }
 #endif
 

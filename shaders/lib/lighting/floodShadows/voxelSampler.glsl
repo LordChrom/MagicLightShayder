@@ -387,6 +387,8 @@ vec3 sampleDirectedRadiance(uint cascadeLevel, float subsurface, ivec3 zoneShift
 
 
 vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue){
+    if(!isVoxelInBounds(worldPos+0.1*normal))
+        return vec3(0);
 #if PIXEL_LOCK_BLOCK>0
     worldPos = pixelLock(worldPos+0.01*normal,1.0/PIXEL_LOCK_BLOCK);
 #endif
@@ -431,8 +433,8 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
     }
 #endif
 
-    if(!isVoxelInBounds(worldPos))
-        return color*0.15;
+//    if(!isVoxelInBounds(worldPos+0.1*normal))
+//        return color*0.15;
 
 #if DEBUG_AXIS>=0
     axis = DEBUG_AXIS;
@@ -444,7 +446,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
         if(subsurface>0){
             ivec3 lVec = lVec(axis);
             ivec3 newPos = clamp(hitBlockAreaPos-lVec,0,AREA_SIZE-1);
-            uint hitBlockPotentialBlocker = getVoxData(newPos, areaShift, areaOffset(cascadeLevel));
+            uint hitBlockPotentialBlocker = getScalingVoxData(newPos, cascadeLevel);
             float terrainBeforeBlock =(bool(hitBlockPotentialBlocker&WORLDVOX_OPAQUE))?scale:0;
             float depthIntoBlock = dot(subSurfaceOffset,lVec)+0.5*scale;
             subsurfaceLightDepth = depthIntoBlock+terrainBeforeBlock;

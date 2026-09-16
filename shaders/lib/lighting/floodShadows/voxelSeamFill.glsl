@@ -145,65 +145,65 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
     ivec3 validLo = max(-movement,0);
 
 #ifndef DEBUG_NOTHING_EXPIRES
-    if(cascadeVisitedThisFrame
-        && (posXY.x>=validLo.x && posXY.x<=validHi.x)
-        && (posXY.y>=validLo.y && posXY.y<=validHi.y)
-    ){
-        for (ivec3 areaPos = ivec3(posXY, 0); areaPos.z<AREA_SIZE; areaPos.z++){
-            if (isPosExpiryExempt(areaPos) || !(areaPos.z>=validLo.z && areaPos.z<=validHi.z))
-                continue;
-            uint voxel=getVoxData(areaPos, thisShift, thisMemOffset);
-            voxel-=(uint(bool(voxel))<<WORLDVOX_AGE_SHIFT);
-            voxel = bool(voxel&WORLDVOX_AGE_MASK)?voxel:0u;
-            setVoxData(voxel, areaPos, thisShift, thisMemOffset);
-        }
-    }
+//    if(cascadeVisitedThisFrame
+//        && (posXY.x>=validLo.x && posXY.x<=validHi.x)
+//        && (posXY.y>=validLo.y && posXY.y<=validHi.y)
+//    ){
+//        for (ivec3 areaPos = ivec3(posXY, 0); areaPos.z<AREA_SIZE; areaPos.z++){
+//            if (isPosExpiryExempt(areaPos) || !(areaPos.z>=validLo.z && areaPos.z<=validHi.z))
+//                continue;
+//            uint voxel=getScalingVoxData(areaPos, cascadeLevel);
+//            voxel-=(uint(bool(voxel))<<WORLDVOX_AGE_SHIFT);
+//            voxel = bool(voxel&WORLDVOX_AGE_MASK)?voxel:0u;
+//            setVoxData(voxel, areaPos, thisShift, thisMemOffset);
+//        }
+//    }
 #endif
 
 
-    for(int i=0; i<edgeToTrim.x;i++){
-        int x = movementSigns.x>0?(AREA_SIZE-1)-i:i;
-        setVoxData(0u,ivec3(x,posXY.xy),thisShift,thisMemOffset);
-    }
-    for(int i=0; i<edgeToTrim.y;i++){
-        int y = movementSigns.y>0?(AREA_SIZE-1)-i:i;
-        setVoxData(0u,ivec3(posXY.x,y,posXY.y),thisShift,thisMemOffset);
-    }
-    for(int i=0; i<edgeToTrim.z;i++){
-        int z = movementSigns.z>0?(AREA_SIZE-1)-i:i;
-        setVoxData(0u,ivec3(posXY.xy,z),thisShift,thisMemOffset);
-    }
+//    for(int i=0; i<edgeToTrim.x;i++){
+//        int x = movementSigns.x>0?(AREA_SIZE-1)-i:i;
+//        setVoxData(0u,ivec3(x,posXY.xy),thisShift,thisMemOffset);
+//    }
+//    for(int i=0; i<edgeToTrim.y;i++){
+//        int y = movementSigns.y>0?(AREA_SIZE-1)-i:i;
+//        setVoxData(0u,ivec3(posXY.x,y,posXY.y),thisShift,thisMemOffset);
+//    }
+//    for(int i=0; i<edgeToTrim.z;i++){
+//        int z = movementSigns.z>0?(AREA_SIZE-1)-i:i;
+//        setVoxData(0u,ivec3(posXY.xy,z),thisShift,thisMemOffset);
+//    }
 
 
     if(bool(upperMemOffset)&&bool((frameOffset^cascadeLevel)&1u)){
-        ivec3 areaPosBase;
-        areaPosBase.xz = posXY&~1;
-        areaPosBase.y= ((((posXY.x&1)<<1)+posXY.y&1)<<1);
-        for(int j=AREA_SIZE/8;j>=0;j--){
-            ivec3 areaPos = ivec3(areaPosBase.x,(areaPosBase.y&7)|(j<<3),areaPosBase.z);
-            if(areaPos.y<0 || areaPos.y>=AREA_SIZE) continue;
-
-            ivec3 upperAreaPos = upperCascadeAreaPosForSeamFiller(areaPos,thisShift);
-
-            if(areaPos.x<validLo.x || areaPos.y<validLo.y || areaPos.z<validLo.z)
-                continue;
-
-            if(voxelIsSplit(upperAreaPos,upperShift, cascadeLevel+1))
-                continue;
-
-            uint representative = 0;
-            for(int i=0; i<8; i++){
-                ivec3 subPos = (ivec3(i,i>>1,i>>2)&1)+areaPos;
-                if(subPos.x>validHi.x || subPos.y>validHi.y || subPos.z>validHi.z)
-                    continue;
-                uint sampledVox = getVoxData(subPos, thisShift, thisMemOffset);
-                if((sampledVox>>WORLDVOX_AGE_SHIFT)<=2) continue;
-                representative = max(representative,sampledVox&~WORLDVOX_AGE_MASK);
-            }
-
-            representative = representative | uint(WORLDVOX_INITIAL_TIME<<WORLDVOX_AGE_SHIFT);
-            updateVoxData(representative, upperAreaPos, upperShift, upperMemOffset);
-        }
+//        ivec3 areaPosBase;
+//        areaPosBase.xz = posXY&~1;
+//        areaPosBase.y= ((((posXY.x&1)<<1)+posXY.y&1)<<1);
+//        for(int j=AREA_SIZE/8;j>=0;j--){
+//            ivec3 areaPos = ivec3(areaPosBase.x,(areaPosBase.y&7)|(j<<3),areaPosBase.z);
+//            if(areaPos.y<0 || areaPos.y>=AREA_SIZE) continue;
+//
+//            ivec3 upperAreaPos = upperCascadeAreaPosForSeamFiller(areaPos,thisShift);
+//
+//            if(areaPos.x<validLo.x || areaPos.y<validLo.y || areaPos.z<validLo.z)
+//                continue;
+//
+//            if(voxelIsSplit(upperAreaPos,upperShift, cascadeLevel+1))
+//                continue;
+//
+//            uint representative = 0;
+//            for(int i=0; i<8; i++){
+//                ivec3 subPos = (ivec3(i,i>>1,i>>2)&1)+areaPos;
+//                if(subPos.x>validHi.x || subPos.y>validHi.y || subPos.z>validHi.z)
+//                    continue;
+//                uint sampledVox = getVoxData(subPos, thisShift, thisMemOffset);
+//                if((sampledVox>>WORLDVOX_AGE_SHIFT)<=2) continue;
+//                representative = max(representative,sampledVox&~WORLDVOX_AGE_MASK);
+//            }
+//
+//            representative = representative | uint(WORLDVOX_INITIAL_TIME<<WORLDVOX_AGE_SHIFT);
+//            updateVoxData(representative, upperAreaPos, upperShift, upperMemOffset);
+//        }
     }
 }
 

@@ -17,10 +17,6 @@ void writeVoxelMap(vec3 worldPos, int rawBlockID, vec3 toMidblock, vec3 normal, 
 
     ivec3 intWorldPos = ivec3(floor(worldPos));
 
-//    int distance = max(max(abs(areaPos.x),abs(areaPos.y)),abs(areaPos.z));
-//    if(distance>16)
-//        return;
-
-//    updateVoxData(packedData, areaPos, areaShift, areaMemOffset);
+    //TODO dont update whole thing each frame
     setBaseVoxData(packedData, intWorldPos,getUnitShift());
 }
