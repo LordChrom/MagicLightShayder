@@ -1,8 +1,20 @@
-vec3 getLightIdColor(uint lightId){
+uint blockLightID(int blockID){
+    return uint(blockID)&0x3fu;
+}
+
+bool isBlockTranslucent(int blockID){
+    return blockLightID(blockID)>=48u;
+}
+
+uint blockLightAnimationType(int blockID){
+    return (uint(blockID)>>8)&7u;
+}
+
+vec3 getLightIDColor(uint lightID){
     uint packedColor = 0u;
 
     //TODO: this could also be in an SSBO or custom image, and would cache very nicely test performance thereof
-    switch (lightId){
+    switch (lightID){
         case  1: packedColor=0x984u; break;//glowstone,redstone lamps, copper bulbs, brewing stands
         case  2: packedColor=0x985u; break;//Enclosed fire
         case  3: packedColor=0x838u; break;//crying obby and similar
@@ -60,19 +72,19 @@ vec3 getLightIdColor(uint lightId){
     )&0xfu)/9.0;
 }
 
-vec3 getMaterialColor(int materialId){
-    return getLightIdColor(uint(materialId) % 1000);
+vec3 getMaterialColor(int materialID){
+    return getLightIDColor(blockLightID(materialID));
 }
 
-bool isHardcodedSubsurface(int materialID){
-    materialID%=1000;
+bool isMaterialHardcodedSubsurface(int materialID){
+    materialID&=0x3f;
     return (46<=materialID && materialID<=47);
 }
 
 uvec4 getHardcodedMaterial(int materialID, int blockEmission){
-    int meta = ((materialID/1000)%10);
+    int meta = ((materialID>>6)%10);
 
-    float subsurface = float(isHardcodedSubsurface(materialID));
+    float subsurface = float(isMaterialHardcodedSubsurface(materialID));
     uint emissive = 0;
     float porosity = 0;
     if(materialID>=0){
@@ -96,31 +108,29 @@ uint packVoxelForStorage(int blockID, uint emission){
     blockID = blockID&0xffff;
     if(blockID==0xffff){
         blockID = (emission>0)?
-            10001: //default emissive is glowstone
-            2000; //solid cube
+            513: //default emissive is like brewing stand
+            128; //solid cube
     }
 
-    uint blockIDmeta = blockID/1000u;
-
-    uint obstructivenessType = (blockIDmeta)&3u;
+    uint obstructivenessType = uint(blockID>>6)&3u;
     uint metadata = (8u>>obstructivenessType)&7u;
     //types: (0 is air, 1 is translucent, 2 is full opacity, 3 is shaped opacity)
     //flags: translucent, opaque, shaped
 
     if(emission>0){
-        uint lightType = (blockIDmeta>>2u)&7u;
+        uint lightType = blockLightAnimationType(blockID);
         metadata |= lightType<<(WORLDVOX_TYPE_SHIFT-WORLDVOX_META_SHIFT);
     }
 
     return (metadata<<WORLDVOX_META_SHIFT)
-    | (emission<<6) | (uint(blockID)%1000u)
+    | (emission<<6) | (blockLightID(blockID))
     | uint(WORLDVOX_INITIAL_TIME<<WORLDVOX_AGE_SHIFT);
 }
 
 
 vec3 worldVoxColor(uint packedData){
     uint lightID = packedData&0x3fu;
-    vec3 color = getLightIdColor(lightID);
+    vec3 color = getLightIDColor(lightID);
     if(!bool(packedData&WORLDVOX_TRANSLUCENT)){
         uint emissive = (packedData>>6)&0xfu;
         color*=(emissive*0.06666); // 1/15

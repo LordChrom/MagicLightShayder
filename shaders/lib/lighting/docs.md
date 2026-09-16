@@ -75,13 +75,10 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 
 # Layouts
 ### Block.properties
-CHANGING SOON
-- number%1000 is color, number/1000 is metadata
-- leaves 6.03 bits for metadata, also allows 0xffff to not need to be an encoding state, also lets me not change how my colors are set up.
-- metadata bits are currently:
-- 1 bit unused
-- 3 bits light type
+- 5 bits unused
+- 3 bits light animation type (to be removed soon)
 - 2 bits opacity type (0 is air, 1 is translucent, 2 is full opacity, 3 is shaped opacity)
+- 6 bits light ID (also subsurface info)
 
 //fences, panes, walls, stairs/slabs, layers, trapdoors,
 //rods, chests
