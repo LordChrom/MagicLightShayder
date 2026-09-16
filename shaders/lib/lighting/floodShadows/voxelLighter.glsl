@@ -1,7 +1,6 @@
 #define SAMPLES_LIGHT_FACE
 #define WRITES_LIGHT_FACE
 #define SAMPLES_VOX
-#define SAMPLES_OBSTRUCTION
 
 #include "/lib/lighting/floodShadows/voxelHelper.glsl"
 #include "/lib/voxelStorage/blockPacking.glsl"
@@ -178,19 +177,12 @@ void saveSharedSample(int a, int b){
     uint rearVoxel = getVoxData(rearVoxelPos,areaShift,areaMemOffset);
 
     #ifdef OBSTRUCTION_MAPPING
-    uint obstruction = getObstructionData(rearVoxelPos, areaShift, areaMemOffset);
-
-    frontVoxel&=~WORLDVOX_AGE_MASK;
-    rearVoxel&=~WORLDVOX_AGE_MASK;
-    if(bool(obstruction&(1u<<(axis)))){
+    if(blockBlocksFace(rearVoxel,axis))
         rearVoxel|=WORLDVOX_OPAQUE;
-        rearVoxel|=WORLDVOX_AGE_MASK;
-        if(bool((frontVoxel|rearVoxel)&WORLDVOX_SHAPED_BLOCKAGE))
-            frontVoxel|=WORLDVOX_OPAQUE;
-    }
-
-
+    if(blockBlocksFace(frontVoxel,axis^1u))
+        frontVoxel|=WORLDVOX_OPAQUE;
     #endif
+
     setSharedVoxels(a,b,frontVoxel,rearVoxel);
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         uvec4 light = sampleLightData(sampleZonePos, zoneShift, zoneOffset(axis,layer,sampleCascade));
@@ -409,9 +401,6 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
 
 #ifdef UNOCCLUDED_INTO_BLOCKS
     bool frontBlockedCompletely = bool(front&WORLDVOX_OPAQUE);
-    #ifdef OBSTRUCTION_MAPPING
-    frontBlockedCompletely = frontBlockedCompletely && !bool(front&WORLDVOX_AGE_MASK);
-    #endif
 #endif
 
     //i=0 means a=offset, i=1 means a=0;

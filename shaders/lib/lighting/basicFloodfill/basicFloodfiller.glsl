@@ -1,9 +1,5 @@
 #include "/lib/settings.glsl"
 
-#ifdef OBSTRUCTION_MAPPING
-#define SAMPLES_OBSTRUCTION
-#endif
-
 #define SAMPLES_FLOOD
 #define WRITES_FLOOD
 #define SAMPLES_VOX
@@ -35,7 +31,7 @@ const float oneStep = 1.0/255.0;
 ivec3 floodShift;
 ivec3 localPos;
 vec4 lightOutput;
-uint currentBlock;
+uint centerBlock;
 
 #ifdef MC_SHAPED_LIGHT_FALLOFF
 vec3 decayBlocklight(vec3 source){
@@ -61,20 +57,50 @@ vec4 decay(vec4 source){
     return vec4(decayBlocklight(source.rgb),decaySunlight(source.a));
 }
 
-void considerSample(ivec3 offset){
-    ivec3 samplePos = localPos+offset;
+uint getBlock(ivec3 blockPos){
+    ivec3 areaPos;
+    ivec3 areaShift;
+    uint areaMemOffset;
+    #if (FLOODFILL_SIZE!=AREA_SIZE)
+    for(uint cascade = 0; cascade<NUM_CASCADES;cascade++){
+        int scale=int(getScale(cascade));
+        if(scale<1)
+            continue;
+        areaShift = getAreaShift(scale);
+        areaPos = ((blockPos-(FLOODFILL_SIZE>>1)+(floodShift&(scale-1)))/scale)+(AREA_SIZE>>1);
+        int minCoord = min(min(areaPos.x,areaPos.y),areaPos.z);
+        int maxCoord = max(max(areaPos.x,areaPos.y),areaPos.z);
+        areaMemOffset = areaOffset(cascade);
+        if((minCoord>=0) && (maxCoord<AREA_SIZE))
+            break;
+    }
+    #else
+    areaPos = blockPos;
+    areaShift = floodShift;
+    areaMemOffset = 0;
+    #endif
+
+    return getVoxData(areaPos, areaShift, areaMemOffset);
+}
+
+void considerSample(ivec3 samplePos, uint axis){
     if(samplePos.x<0 || samplePos.y<0 || samplePos.z<0
     ||samplePos.x>=FLOODFILL_SIZE || samplePos.z>=FLOODFILL_SIZE)
         return;
     if( samplePos.y>=FLOODFILL_SIZE)
         lightOutput.a=1;
     samplePos=modFloodfillSize(samplePos);
+    uint sampleBlock = getBlock(samplePos);
     vec4 sampleLight = getFloodData(samplePos, floodShift);
-    bool totallyBlocked = !bool(packUnorm4x8(sampleLight)&1u);
-    if(totallyBlocked)
+
+    bool blockCutOff = (!bool(packUnorm4x8(sampleLight)&1u))
+    || (blockBlocksFace(sampleBlock,axis^1u)&&!bool(sampleBlock&(WORLDVOX_TRANSLUCENT|WORLDVOX_EMISSION_MASK)));
+
+    if(blockCutOff)
         return;
-    if(offset.y==1){
-        if(currentBlock!=0)
+
+    if(axis==3){
+        if(centerBlock!=0)
             lightOutput.a-=0.01;
     }else{
         sampleLight.a-=0.01;
@@ -93,43 +119,10 @@ uint bayer4u3d(uvec3 pos){
     return (bayer2u3d(pos)<<3)|(bayer2u3d(pos>>1));
 }
 
-uvec2 getBlockAndObstruction(ivec3 blockPos){
-    #if (FLOODFILL_SIZE!=AREA_SIZE)
-    ivec3 areaPos;
-    ivec3 areaShift;
-    uint areaMemOffset;
-    for(uint cascade = 0; cascade<NUM_CASCADES;cascade++){
-        int scale=int(getScale(cascade));
-        if(scale<1)
-        continue;
-        areaShift = getAreaShift(scale);
-        areaPos = ((blockPos-(FLOODFILL_SIZE>>1)+(floodShift&(scale-1)))/scale)+(AREA_SIZE>>1);
-        int minCoord = min(min(areaPos.x,areaPos.y),areaPos.z);
-        int maxCoord = max(max(areaPos.x,areaPos.y),areaPos.z);
-        areaMemOffset = areaOffset(cascade);
-        if((minCoord>=0) && (maxCoord<AREA_SIZE))
-        break;
-    }
-    #else
-    #define areaPos localPos
-    #define areaShift floodShift
-    #define areaMemOffset 0
-    #endif
-
-
-    currentBlock = getVoxData(areaPos, areaShift, areaMemOffset);
-    #ifdef OBSTRUCTION_MAPPING
-    uint obstruction = getObstructionData(areaPos, areaShift, areaMemOffset);
-    #else
-    uint obstruction = 0u;
-    #endif
-
-    return uvec2(currentBlock,obstruction);
-}
-
 void main(){
     floodShift=getFloodShift();
 
+    //TODO make this handled by more appropriate work groups
     if(gl_WorkGroupID.y==0){
         ivec3 movement = clamp(floodShift-getPreviousFloodShift(),-FLOODFILL_SIZE,FLOODFILL_SIZE);
         ivec3 movementSigns = sign(movement);
@@ -171,39 +164,40 @@ void main(){
 
         //TODO make unit scale voxelization a real thing
 
-        uvec2 worldData = getBlockAndObstruction(localPos);
-        currentBlock=worldData.x;
-        #ifdef OBSTRUCTION_MAPPING
-        uint obstruction = worldData.y;
-        #endif
+        centerBlock = getBlock(localPos);
 
-        bool lightTotallyBlocked = bool(currentBlock&WORLDVOX_OPAQUE);
+        bool lightTotallyBlocked = bool(centerBlock&WORLDVOX_OPAQUE);
 
-//        if(!lightTotallyBlocked)
         {
-            for(uint i=0;i<6;i++){
-                uint axis = i>>1;
-                ivec3 offset = ivec3(axis==0,axis==1,axis==2)*(bool(i&1u)?1:-1);
+            for(uint axis=0;axis<6;axis++){
+                uint absAxis = axis>>1;
+                ivec3 offset = ivec3(absAxis==0,absAxis==1,absAxis==2)*(bool(axis&1u)?1:-1);
 
-                //leak away from the player to fill into blocks, dont leak towards the player
+                bool sampleVisible = true;
                 if(lightTotallyBlocked){
-                    if(dot(offset,normalize(localPos-(FLOODFILL_SIZE/2)))>0)
+                    float cameraFacingness = dot(offset,normalize(localPos-(FLOODFILL_SIZE/2)));
+                    //TODO fix this nonsense
+                    if(cameraFacingness>0)
                         continue;
+                    else
+                        sampleVisible=true;
+                }else{
+                    sampleVisible = bool(centerBlock&WORLDVOX_TRANSLUCENT)||!blockBlocksFace(centerBlock,axis);
                 }
 
-                #ifdef OBSTRUCTION_MAPPING
-                if(lightTotallyBlocked || !bool(obstruction&(1u<<i)))
-                #endif
-                    considerSample(offset);
+                ivec3 samplePos = localPos+offset;
+
+                if(sampleVisible)
+                    considerSample(samplePos,axis);
             }
             lightOutput= decay(lightOutput);
         }
 
-        vec3 blockColor = worldVoxColor(currentBlock);
-        if (bool(currentBlock&(0xfu<<WORLDVOX_TYPE_SHIFT))){
+        vec3 blockColor = worldVoxColor(centerBlock);
+        if (bool(centerBlock&(0xfu<<WORLDVOX_TYPE_SHIFT))){
             lightOutput.rgb=max(lightOutput.rgb,blockColor);
             lightTotallyBlocked=false;
-        }else if(bool(currentBlock&WORLDVOX_TRANSLUCENT)){
+        }else if(bool(centerBlock&WORLDVOX_TRANSLUCENT)){
             lightOutput.rgb*=normalize(blockColor);
         }
 

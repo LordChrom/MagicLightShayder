@@ -1,24 +1,68 @@
+#ifndef BLOCK_PACKING_GLSL
+#define BLOCK_PACKING_GLSL
+
 uint blockLightID(uint blockID){
     return uint(blockID)&0x3fu;
 }
+
+uint blockShape(uint blockID){
+    return (blockID>>6)&0xffu;
+}
+
+//block shape is 4 bits category, 4 bits subcategory
+//Cat 0: hardcoded
+//      0: air
+//      1: Full
+//Cat 1-2: stairs and slabs
+//      1 is top, 2 is bottom
+//      subcat is, in order, occupancy of the -- +- -+ ++ xz corners of the free half of the slab/stair
+//Cat 3 is trapdoors:
+//      subcat is covered face axis num
+bool blockBlocksFace(uint block, uint axis){
+    uint shape = blockShape(block);
+    if(shape<16u)
+        return bool(shape);
+
+    uint subcategory = shape&0xfu;
+
+
+
+    switch(shape>>4){
+        case 0:
+            return(subcategory==1);
+        case 1:
+        case 2://stair/slab
+            if((axis>>1)==1u)
+                return !bool((axis^(shape>>4))&1u);
+
+            uint mask = bool(axis>>2)?12u:10u;
+            if(bool(axis&1u))
+                mask=0xfu^mask;
+
+            return (mask&subcategory)==mask;
+        case 3://trapdoor
+            return axis==subcategory;
+    }
+    return false;
+}
+
 
 bool blockIsTranslucent(uint blockID){
     return blockLightID(blockID)>=48u;
 }
 
 bool blockIsTransparent(uint blockID){
-    return (uint(blockID>>6)&3u)==0u;
+    return blockShape(blockID)==0u;
 }
 
 bool blockIsFullCube(uint blockID){
-    return (uint(blockID>>6)&3u)==2u;
+    return blockShape(blockID)==1u;
 }
 
 uint blockLightAnimationType(uint blockID){
-//    return (uint(blockID)>>8)&7u;
-    
     blockID = blockLightID(blockID);
-//    return 0u;
+    if(blockID>=48) return 0;
+
     return blockID>=32u
         ?(((blockID&0x38u)==0x28u)?3u:4u)
         :2u;
@@ -126,24 +170,29 @@ uint packVoxelForStorage(uint blockID, uint emission){
     blockID = blockID&0xffffu;
     if(blockID==0xffff){
         blockID = bool(emission)?
-            513: //default emissive is like brewing stand
-            128; //solid cube
+            65: //default emissive is like brewing stand
+            64; //solid cube
     }
 
-    uint ret = WORLDVOX_OPAQUE;
+    uint ret = 0u;
     if(blockIsTranslucent(blockID)){
         ret=WORLDVOX_TRANSLUCENT;
     }else if(blockIsTransparent(blockID)){
         ret=0u;
-    }else if((uint(blockID>>6)&3u)==3u){
+    }else if(blockIsFullCube(blockID)){
+        ret=WORLDVOX_OPAQUE;
+    }else{
         ret=WORLDVOX_SHAPED_BLOCKAGE;
     }
+
+//    emission=bool(blockID&0x3fu)?15:0;
 
     return ret
     | (WORLDVOX_INITIAL_TIME<<WORLDVOX_AGE_SHIFT)
     | (bool(emission)?blockLightAnimationType(blockID)<<WORLDVOX_TYPE_SHIFT:0u)
     | (emission<<WORLDVOX_EMISSION_SHIFT)
     | uint(blockID)
+//    | 0xf0000u
     ;
 }
 
@@ -156,3 +205,4 @@ vec3 worldVoxColor(uint packedData){
     }
     return color;
 }
+#endif
