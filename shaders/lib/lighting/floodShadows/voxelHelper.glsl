@@ -38,10 +38,10 @@ ivec3 getAreaShift(float scale, vec3 origin){
 ivec3 getAreaShift(float scale){return getAreaShift(scale,getGlobalOrigin(scale));}
 ivec3 getPreviousAreaShift(float scale){return getAreaShift(scale,getPreviousGlobalOrigin(scale));}
 
-ivec3 getFloodShift(){
+ivec3 getUnitShift(){
     return ivec3(floor(globalOrigin));
 }
-ivec3 getPreviousFloodShift(){
+ivec3 getPreviousUnitShift(){
     return ivec3(floor(previousGlobalOrigin));
 }
 
@@ -79,6 +79,23 @@ uvec3 modFloodfillSize(uvec3 x){
 }
 int modFloodfillSize(int x){ return int(modFloodfillSize(uint(x)));}
 ivec3 modFloodfillSize(ivec3 x){ return ivec3(modFloodfillSize(uvec3(x)));}
+
+uint modVoxelizationSize(uint x){
+    #if (VOXELIZATION_SIZE&(VOXELIZATION_SIZE-1))
+    return (x+0x10000u*VOXELIZATION_SIZE)%VOXELIZATION_SIZE;
+    #else
+    return x&uint(VOXELIZATION_SIZE-1);
+    #endif
+}
+uvec3 modVoxelizationSize(uvec3 x){
+    #if (VOXELIZATION_SIZE&(VOXELIZATION_SIZE-1))
+    return (x+0x10000u*VOXELIZATION_SIZE)%VOXELIZATION_SIZE;
+    #else
+    return x&uint(VOXELIZATION_SIZE-1);
+    #endif
+}
+int modVoxelizationSize(int x){ return int(modVoxelizationSize(uint(x)));}
+ivec3 modVoxelizationSize(ivec3 x){ return ivec3(modVoxelizationSize(uvec3(x)));}
 
 
 //in order from 0 to 5, -x,+x,-y,+y,-z,+z
@@ -409,8 +426,20 @@ readonly
 uimage3D worldVox;
 #endif
 
+#if defined SAMPLES_VOX || defined WRITES_VOX
+layout (r32ui) uniform restrict
+#ifndef WRITES_VOX
+readonly
+#endif
+uimage3D baseWorldVox;
+#endif
+
 #ifdef SAMPLES_VOX
 //uniform usampler3D worldVoxSampler;
+uint getBaseVoxData(ivec3 areaPos, ivec3 areaShift){
+    areaPos = modVoxelizationSize(areaPos+areaShift);
+    return imageLoad(baseWorldVox,areaPos).x;
+}
 
 uint getVoxData(ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
     ivec3 memPos = toMemPos(areaPos,areaShift,areaMemOffset);
@@ -421,6 +450,27 @@ uint getVoxData(ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
 
 
 #ifdef WRITES_VOX
+void setBaseVoxData(uint packedData, ivec3 worldPos, ivec3 areaShift){
+//    pos += spaceShift;
+//    pos = modAreaSize(pos);
+//    pos.yz+=AREA_SIZE*(0xffff&ivec2(memOffset>>16u,memOffset));
+//    return pos;
+//    worldPos -= areaShift;
+
+    ivec3 posFromCenter = worldPos-areaShift;
+
+    int distFromCenter = max(max(abs(posFromCenter.x),abs(posFromCenter.y)),abs(posFromCenter.z));
+    if(distFromCenter>=VOXELIZATION_SIZE/2)
+        return;
+
+//    worldPos=-worldPos;
+//    worldPos += areaShift;
+
+    worldPos+=VOXELIZATION_SIZE/2;
+    worldPos = modVoxelizationSize(worldPos);
+    imageStore(baseWorldVox,worldPos,uvec4(packedData,0,0,0));
+}
+
 //doesnt reset timer
 void updateVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift, uint areaMemOffset){
     ivec3 memPos = toMemPos(areaPos,areaShift,areaMemOffset);

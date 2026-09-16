@@ -58,29 +58,29 @@ vec4 decay(vec4 source){
 }
 
 uint getBlock(ivec3 blockPos){
-    ivec3 areaPos;
-    ivec3 areaShift;
-    uint areaMemOffset;
-    #if (FLOODFILL_SIZE!=AREA_SIZE)
-    for(uint cascade = 0; cascade<NUM_CASCADES;cascade++){
-        int scale=int(getScale(cascade));
-        if(scale<1)
-            continue;
-        areaShift = getAreaShift(scale);
-        areaPos = ((blockPos-(FLOODFILL_SIZE>>1)+(floodShift&(scale-1)))/scale)+(AREA_SIZE>>1);
-        int minCoord = min(min(areaPos.x,areaPos.y),areaPos.z);
-        int maxCoord = max(max(areaPos.x,areaPos.y),areaPos.z);
-        areaMemOffset = areaOffset(cascade);
-        if((minCoord>=0) && (maxCoord<AREA_SIZE))
-            break;
-    }
-    #else
-    areaPos = blockPos;
-    areaShift = floodShift;
-    areaMemOffset = 0;
-    #endif
+//    ivec3 areaPos;
+//    ivec3 areaShift;
+//    uint areaMemOffset;
+//    #if (FLOODFILL_SIZE!=AREA_SIZE)
+//    for(uint cascade = 0; cascade<NUM_CASCADES;cascade++){
+//        int scale=int(getScale(cascade));
+//        if(scale<1)
+//            continue;
+//        areaShift = getAreaShift(scale);
+//        areaPos = ((blockPos-(FLOODFILL_SIZE>>1)+(floodShift&(scale-1)))/scale)+(AREA_SIZE>>1);
+//        int minCoord = min(min(areaPos.x,areaPos.y),areaPos.z);
+//        int maxCoord = max(max(areaPos.x,areaPos.y),areaPos.z);
+//        areaMemOffset = areaOffset(cascade);
+//        if((minCoord>=0) && (maxCoord<AREA_SIZE))
+//            break;
+//    }
+//    #else
+//    areaPos = blockPos;
+//    areaShift = floodShift;
+//    areaMemOffset = 0;
+//    #endif
 
-    return getVoxData(areaPos, areaShift, areaMemOffset);
+    return getBaseVoxData(blockPos, getUnitShift());
 }
 
 void considerSample(ivec3 samplePos, uint axis){
@@ -120,11 +120,11 @@ uint bayer4u3d(uvec3 pos){
 }
 
 void main(){
-    floodShift=getFloodShift();
+    floodShift=getUnitShift();
 
     //TODO make this handled by more appropriate work groups
     if(gl_WorkGroupID.y==0){
-        ivec3 movement = clamp(floodShift-getPreviousFloodShift(),-FLOODFILL_SIZE,FLOODFILL_SIZE);
+        ivec3 movement = clamp(floodShift-getPreviousUnitShift(),-FLOODFILL_SIZE,FLOODFILL_SIZE);
         ivec3 movementSigns = sign(movement);
         ivec3 edgeToTrim = abs(movement);
 
@@ -152,6 +152,9 @@ void main(){
 
     uint updatePeriod = max(distFromCenter*distFromCenter,1);
     bool shouldCompute = (((bayer4u3d(gl_WorkGroupID)+frameCounter)%updatePeriod)==0);
+    #ifdef JUMPSTART_LIGHTING
+    shouldCompute=shouldCompute||frameCounter<20;
+    #endif
     if(!shouldCompute)
         return;
     #endif

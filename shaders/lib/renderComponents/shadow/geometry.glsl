@@ -4,29 +4,10 @@
 
 layout(triangles) in;
 
-#ifdef CAN_VOXELIZE
-#include "/lib/voxelStorage/voxelMapper.glsl"
-uniform vec3 cameraPosition;
-
-in flat int[] blockID;
-in flat int[] blockEmission;
-in vec3[] worldPosRel;
-in vec3[] normal;
-void voxelize(){
-    vec3 minWorldPos = cameraPosition+min(min(worldPosRel[0],worldPosRel[1]),worldPosRel[2]);
-    vec3 maxWorldPos = cameraPosition+max(max(worldPosRel[0],worldPosRel[1]),worldPosRel[2]);
-    writeVoxelMap(minWorldPos, maxWorldPos, blockID[0], normal[0], blockEmission[0]);
-}
-#endif
-
 
 #ifndef SHADOWMAP_SHADOWS
 layout(triangle_strip, max_vertices = 0) out;
-void main(){
-    #ifdef CAN_VOXELIZE
-    voxelize();
-    #endif
-}
+void main(){}
 #else
 
 
@@ -50,14 +31,9 @@ uniform bool hasCeiling;
     #include "/lib/lighting/shadowmap/distortion.glsl"
 #endif
 
-//no cascades, just passthru
 layout(triangle_strip, max_vertices = 3) out;
 
 void main(){
-    #ifdef CAN_VOXELIZE
-    voxelize();
-    #endif
-
     if(hasCeiling) return;
 
     #ifdef CASCADED_SHADOWS
