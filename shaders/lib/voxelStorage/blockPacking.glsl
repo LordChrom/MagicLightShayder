@@ -12,12 +12,12 @@ vec3 getLightIdColor(uint lightId){
         case  7: packedColor=0x399u; break;//Soul fire
         case  8: packedColor=0x495u; break;//opper fire
         case  9: packedColor=0x922u; break;//On redstone
-        case 10: packedColor=0x552u; break;//Cave berries
+
         case 11: packedColor=0x941u; break;//Lava
         case 12: packedColor=0x035u; break;//Inactive sculk
         case 13: packedColor=0x069u; break;//Active sculk
         case 14: packedColor=0x589u; break;//Sea lights
-        case 15: packedColor=0x565u; break;//Cave plants
+
         case 16: packedColor=0x498u; break;//end portal
         case 17: packedColor=0x221u; break;//light block
         case 18: packedColor=0x741u; break;//shroomlight
@@ -30,6 +30,10 @@ vec3 getLightIdColor(uint lightId){
         case 25: packedColor=0x886u; break;//froglight ochre
         case 26: packedColor=0x686u; break;//froglight verdant
         case 27: packedColor=0x757u; break;//froglight pearlescent
+
+        //subsurface
+        case 46: packedColor=0x552u; break;//Cave berries
+        case 47: packedColor=0x332u; break;//Cave plants
 
         //translucent colors, stained glasses
         case 48: packedColor=0x777u; break;//white
@@ -61,18 +65,17 @@ vec3 getMaterialColor(int materialId){
 }
 
 bool isHardcodedSubsurface(int materialID){
-    return ((materialID%10000)==15);
+    materialID%=1000;
+    return (46<=materialID && materialID<=47);
 }
 
 uvec4 getHardcodedMaterial(int materialID, int blockEmission){
     int meta = ((materialID/1000)%10);
 
-    float subsurface = 0;
+    float subsurface = float(isHardcodedSubsurface(materialID));
     uint emissive = 0;
     float porosity = 0;
-
     if(materialID>=0){
-        subsurface = isHardcodedSubsurface(materialID) || (materialID==24565 ) || (materialID==24431)?1.0:0;
         emissive = bool(meta&4)?int(floor(16.93*blockEmission)):0;
     }
 
