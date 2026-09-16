@@ -179,14 +179,17 @@ void saveSharedSample(int a, int b){
 
     #ifdef OBSTRUCTION_MAPPING
     uint obstruction = getObstructionData(rearVoxelPos, areaShift, areaMemOffset);
-    bool obstructionMappingBlocked = bool(obstruction&(1u<<(axis))) && !bool(rearVoxel&(0xfu<<WORLDVOX_TYPE_SHIFT));
 
     frontVoxel&=~WORLDVOX_AGE_MASK;
     rearVoxel&=~WORLDVOX_AGE_MASK;
-    if(obstructionMappingBlocked){
-        frontVoxel|=WORLDVOX_OPAQUE;
-        frontVoxel|=WORLDVOX_AGE_MASK;
+    if(bool(obstruction&(1u<<(axis)))){
+        rearVoxel|=WORLDVOX_OPAQUE;
+        rearVoxel|=WORLDVOX_AGE_MASK;
+        if(bool((frontVoxel|rearVoxel)&WORLDVOX_SHAPED_BLOCKAGE))
+            frontVoxel|=WORLDVOX_OPAQUE;
     }
+
+
     #endif
     setSharedVoxels(a,b,frontVoxel,rearVoxel);
     for(int layer = 0; layer<VOX_LAYERS; layer++){
