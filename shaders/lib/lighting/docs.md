@@ -75,8 +75,7 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 
 # Layouts
 ### Block.properties
-- 5 bits unused
-- 3 bits light animation type (to be removed soon)
+- 8 bits unused
 - 2 bits opacity type (0 is air, 1 is unused, 2 is full opacity, 3 is shaped opacity)
 - 6 bits light ID (also hardcoded subsurface info)
 

@@ -224,7 +224,7 @@
 
 
 // | 5: Age | 4: light type | 1: translucent | 1: opaque | 1: shape-sensitive blockage | 8: unused | 3x4: color |
-#define WORLDVOX_META_SHIFT 12u
+#define WORLDVOX_META_SHIFT 20u
 #define WORLDVOX_TYPE_SHIFT (3+WORLDVOX_META_SHIFT)
 #define WORLDVOX_SHAPED_BLOCKAGE (1u<<WORLDVOX_META_SHIFT)
 #define WORLDVOX_OPAQUE (2u<<WORLDVOX_META_SHIFT)
