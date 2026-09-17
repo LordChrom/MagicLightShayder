@@ -1,6 +1,6 @@
 #define SAMPLES_LIGHT_FACE
 #define WRITES_LIGHT_FACE
-#define SAMPLES_VOX
+#define READS_SCALING_VOX
 
 #include "/lib/lighting/floodShadows/voxelHelper.glsl"
 #include "/lib/voxelStorage/blockPacking.glsl"
@@ -189,13 +189,8 @@ void saveSharedSample(int a, int b){
         zoneShift=areaToZoneSpace(areaShift,axis);
 
         if(cascadeLevel>=(NUM_CASCADES-1)){
-    #ifdef DISABLE_BLOCKLIGHT_SUN
-            const uvec4 defaultLight = uvec4(0);
-    #else
-            uvec4 defaultLight = ((!hasCeiling) && zonePosZ<=0) ? getSunlight(axis) : uvec4(0);
-    #endif
             for(int layer = 0; layer<VOX_LAYERS; layer++){
-                setSharedSample(a,b,layer,defaultLight);
+                setSharedSample(a,b,layer,uvec4(0));
             }
         #ifdef FALLBACK_RADIANCE
             setSharedSample(a,b,RADIANCE_LAYER,uvec4(0));
@@ -221,7 +216,7 @@ void saveSharedSample(int a, int b){
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         uvec4 light = sampleLightData(sampleZonePos, zoneShift, zoneOffset(axis,layer,sampleCascade));
-        if(rearOob && (unpackLightType(light)!=LIGHT_TYPE_SUN)){
+        if(rearOob){
             setPackedLightTravel(light,unpackLightTravel(light)+zonePosRemnants);
         }
 
@@ -345,10 +340,8 @@ void determineBestLightSources(){
                 uvec4 lightSrc = getInputSample(a,b,layer);
                 uint type = unpackLightType(lightSrc);
                 vec3 travel = unpackLightTravel(lightSrc);
-                if(type!=LIGHT_TYPE_SUN){
-                    travel+=vec3(-a, -b, 1)*scale;
-                    setPackedLightTravel(lightSrc,travel);
-                }
+                travel+=vec3(-a, -b, 1)*scale;
+                setPackedLightTravel(lightSrc,travel);
 
                 if((type==0) || (travel.x*a>0) || (travel.y*b>0))
                     continue;
@@ -482,8 +475,7 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
                     continue;
 
                 vec3 newLightTravel = unpackLightTravel(relevantSample);
-                if(unpackLightType(relevantSample)!=LIGHT_TYPE_SUN)
-                    newLightTravel+= vec3(-a, -b, 1)*scale;
+                newLightTravel+= vec3(-a, -b, 1)*scale;
 
                 setPackedLightTravel(relevantSample,newLightTravel);
 
@@ -627,15 +619,12 @@ uint combineOcclusions(uint occlusionA, uint occlusionB){
 void doOcclusion(uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, uint relevance, bvec2 alignment, uint relevantObstructions,
     inout uvec4 lightSrc
 ){
-    bool isSun = unpackLightType(lightSrc)==LIGHT_TYPE_SUN;
     if(!bool(relevance)){
         setPackedOcclusion(lightSrc,FULL_OCCLUSION);
         return;
     }
 
     vec3 travel = unpackLightTravel(lightSrc);
-    vec2 sunOffset = isSun?abs(travel.xy*scale/travel.z):vec2(0);
-
     vec2 travel2d= abs(travel.xy);
 
     //outer xy, inner xy
@@ -650,14 +639,6 @@ void doOcclusion(uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, uint 
 
 
     setPackedOcclusion(lightSrc,getTerrainOcclusion(travel,relevantObstructions,alignment));
-    if(isSun){
-        slopeBounds=vec4(1,1,0,0);
-        uint occlusion = getPackedOcclusion(lightSrc);
-        vec2 r = unpackOcclusionRay(occlusion);
-        r=vec2(0);
-        r-=sunOffset;
-        setPackedOcclusion(lightSrc,packOcclusionInfo(r,unpackOcclusionMap(occlusion),unpackOcclusionHitDist(occlusion)));
-    }
 
 
     vec2 travelSignScale = sign(travel.xy)*scale;
@@ -669,10 +650,8 @@ void doOcclusion(uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, uint 
 
             uint occl = relevantOcclusionSamples[i][j][0];
             uint map = unpackOcclusionMap(occl);
-            vec2 ray = unpackOcclusionRay(occl)+sunOffset;
-            if(isSun){
-//                ray+=10*sign(travel.xy)*scale*(1-vec2(i,j));
-            }
+            vec2 ray = unpackOcclusionRay(occl);
+
             uint lightEdges = getLightEdges(map); //left, top, right, bottom
             lightEdges = lightEdges & ~((lightEdges<<2u)|(lightEdges>>2u));
 
@@ -696,19 +675,6 @@ void doOcclusion(uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, uint 
             uint occl = relevantOcclusionSamples[i][j][0];
             uint map = unpackOcclusionMap(occl);
             vec2 ray = unpackOcclusionRay(occl);
-            if(isSun){
-                ray+=sunOffset;
-                ray-=scale*(1-vec2(i,j));
-                if(ray.y<0){
-                    map=(map&12u);
-                    map+=map>>2u;
-                }
-                if(ray.x<0){
-                    map=(map&10u);
-                    map+=map>>1u;
-                }
-//                    map=15u;
-            }
 
             //corners to edges
             if(ray.y>slopeBounds.y)
@@ -778,7 +744,7 @@ void doOcclusion(uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, uint 
             if(!anythingInBounds) continue;
 
             //TODO more efficient repacking
-            occl=packOcclusionInfo(ray,map,unpackOcclusionHitDist(occl)+(isSun?scale:0));
+            occl=packOcclusionInfo(ray,map,unpackOcclusionHitDist(occl));
             uint oldOcclusion = getPackedOcclusion(lightSrc);
             setPackedOcclusion(lightSrc,combineOcclusions(oldOcclusion,occl));
         }

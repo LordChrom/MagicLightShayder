@@ -2,7 +2,7 @@
 
 #define SAMPLES_FLOOD
 #define WRITES_FLOOD
-#define SAMPLES_VOX
+#define READS_BASE_VOX
 #include "/lib/voxelStorage/blockPacking.glsl"
 #include "/lib/lighting/floodShadows/voxelHelper.glsl"
 

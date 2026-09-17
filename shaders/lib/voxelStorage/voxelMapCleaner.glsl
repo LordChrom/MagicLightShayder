@@ -1,5 +1,5 @@
-#define SAMPLES_VOX
-#define WRITES_VOX
+#define READS_BASE_VOX
+#define WRITES_BASE_VOX
 #include "/lib/lighting/floodShadows/voxelHelper.glsl"
 
 

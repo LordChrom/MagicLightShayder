@@ -338,8 +338,6 @@ vec2 unpackOcclusionRay(uint occlusionInfo){
 
 uint getLightStrength(uvec4 lightSrc){
     uint type = unpackLightType(lightSrc);
-    if(type==LIGHT_TYPE_SUN)
-        return 0xffffff00;
     if(type==0)
         return 0;
     ivec3 travel = intLightTravel(lightSrc.x);
@@ -380,8 +378,6 @@ void setPackedLightFlags(inout uvec4 packedData, uint flags){
 #define SUN_DISTANCE 5
 uvec4 packLightData(vec2 occlusionRay,uint occlusionMap,vec3 color,vec3 lightTravel,float occlusionHitDistance,uint type,uint flags){
     uvec4 ret;
-    if(type==LIGHT_TYPE_SUN)
-        lightTravel.z=SUN_DISTANCE;
     ret.x = packLightTravel(lightTravel) | (type&0xfu) | ((flags&0xffu)<<4);
     ret.y = packUnorm4x8(vec4(0,color));
     ret.z = packOcclusionInfo(occlusionRay, occlusionMap, occlusionHitDistance);
@@ -420,39 +416,37 @@ void setLightData(uvec4 light, ivec3 zonePos, ivec3 zoneShift, uint zoneMemOffse
 
 
 
-#if defined SAMPLES_VOX || defined WRITES_VOX
+#ifdef READS_SCALING_VOX
+#define READS_BASE_VOX
+#endif
+
+#if defined READS_BASE_VOX || defined WRITES_BASE_VOX
 layout (r32ui) uniform restrict
-#ifndef WRITES_VOX
+#ifndef WRITES_BASE_VOX
 readonly
+#endif
+#ifndef READS_BASE_VOX
+writeonly
 #endif
 uimage3D baseWorldVox;
 #endif
 
-#ifdef SAMPLES_VOX
-//uniform usampler3D worldVoxSampler;
+#ifdef READS_BASE_VOX
 uint getBaseVoxData(ivec3 areaPos, ivec3 areaShift){
     areaPos=clamp(areaPos,0,VOXELIZATION_SIZE-2);
     areaPos = modVoxelizationSize(areaPos+areaShift);
     return imageLoad(baseWorldVox,areaPos).x;
 }
-
-uint getScalingVoxData(ivec3 areaPos, uint cascade){
-    areaPos += (VOXELIZATION_SIZE-AREA_SIZE)>>1;
-    return getBaseVoxData(areaPos,getUnitShift());
-}
 #endif
 
 
-#ifdef WRITES_VOX
+#ifdef WRITES_BASE_VOX
 void setBaseVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift){
-//    areaPos-=areaShift;
-
     if(areaPos.x<0 || areaPos.y<0 || areaPos.z<0
         || areaPos.x>=VOXELIZATION_SIZE || areaPos.y>=VOXELIZATION_SIZE || areaPos.z>=VOXELIZATION_SIZE
     ){
         return;
     }
-
     imageStore(baseWorldVox,modVoxelizationSize(areaPos+areaShift),uvec4(packedData,0,0,0));
 }
 #endif
@@ -466,6 +460,34 @@ vec4 getFloodData(ivec3 areaPos, ivec3 areaShift){
     return texelFetch(floodfillSampler,modFloodfillSize(areaPos+areaShift),0);
 }
 #endif
+
+#if defined READS_SCALING_VOX || defined WRITES_SCALING_VOX
+layout (r32ui) uniform restrict
+#ifndef WRITES_SCALING_VOX
+readonly
+#endif
+#ifndef READS_SCALING_VOX
+writeonly
+#endif
+uimage3D baseSCALINGdVox;
+#endif
+
+#ifdef READS_SCALING_VOX
+uint getScalingVoxData(ivec3 areaPos, uint cascade){
+    areaPos += (VOXELIZATION_SIZE-AREA_SIZE)>>1;
+    return getBaseVoxData(areaPos,getUnitShift());
+}
+#endif
+
+
+#ifdef WRITES_SCALING_VOX
+void setScalingVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift){
+}
+#endif
+
+
+
+
 
 
 #ifdef WRITES_FLOOD
@@ -511,15 +533,11 @@ bool canIlluminateInBounds(vec4 edges, vec2 ray, uint occlusionMap){
     );
 }
 
-// x is 2x9 a,b of travel, 1x8 L of travel, 2 free, 1x4 light type
-// y is 3x8 color, 8 flags
-bool sameLight(uvec4 a, uvec4 b){
-    bool sameColor = !bool((a.y^b.y)&0xffffff00u);
 
-    return sameColor && (
-        (a.x==b.x)
-        || (unpackLightType(a)==LIGHT_TYPE_SUN && unpackLightType(b) == LIGHT_TYPE_SUN)
-    );
+// x is 2x7 a,b of travel, 1x6 L of travel, 1x8 flags, 1x4 light type
+// y is 3x8 color, 8 free
+bool sameLight(uvec4 a, uvec4 b){
+    return !(bool((a.y^b.y)&0xffffff00u)||(bool((a.x^b.x)&0xfffff00fu)));
 }
 
 //left, top, right, bottom
@@ -546,25 +564,4 @@ uint getVariableCascadeLevel(uint frame, bool isAuxGroup){
 uint getVariableCascadeLevel(bool isAuxGroup){
     return getVariableCascadeLevel(frameCounter,isAuxGroup);
 }
-
-
-//TODO ssbo?
-#ifndef DISABLE_BLOCKLIGHT_SUN
-#include "/lib/util/shadowLightInfo.glsl"
-uvec4 getSunlight(uint axis){
-    if(sunAngle>=0.5 || ((axis&6u)==4u))
-        return uvec4(0);
-    float angleOfTheSun = sunAngle*2*PI;
-    vec3 sunLightTravel = normalize(vec3(-cos(angleOfTheSun),sin(angleOfTheSun),0));
-    sunLightTravel = areaToZoneSpaceRelative(sunLightTravel,axis);
-//    if(sunLightTravel.z<=1e-4)
-//        return uvec4(0);
-
-    sunLightTravel*=-sign(sunLightTravel.z)*(SUN_DISTANCE/max(abs(sunLightTravel.z),0.001));
-    if(-sunLightTravel.z<max(abs(sunLightTravel.x),abs(sunLightTravel.y)))
-        return uvec4(0);
-    return packLightData(vec2(0),0xfu,vec3(242,242,242)/255,sunLightTravel,0f,1,0xfeu);
-}
-#endif
-
 #endif

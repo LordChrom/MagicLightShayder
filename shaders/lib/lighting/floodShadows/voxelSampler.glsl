@@ -1,6 +1,6 @@
 #define SAMPLES_LIGHT_FACE
 #if SUBSURFACE_MODE==2
-    #define SAMPLES_VOX
+    #define READS_SCALING_VOX //TODO sort this mess out
     float subsurfaceLightDepth = 0; //x is thickness
 #endif
 bool isCrossBlockModel = false;
@@ -33,8 +33,6 @@ float baseLightStrength(uvec4 packedLightSrc, vec3 displacement){
 
     #ifdef EVERYTHING_IS_THE_SUN
         if(true) return 1;
-    #elif !defined DISABLE_BLOCKLIGHT_SUN
-        if(type==LIGHT_TYPE_SUN) return 1;
     #endif
 
     #ifdef MC_SHAPED_LIGHT_FALLOFF
@@ -112,7 +110,6 @@ float doSunOcclusion(vec3 displacement, vec3 travel, uint packedOcclusionData){
 
 void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, vec3 normal, float scale){
     uint type = unpackLightType(packedLightSrc);
-    bool isSun = type==LIGHT_TYPE_SUN;
     vec3 travel = unpackLightTravel(packedLightSrc);
     uint map = unpackOcclusionMap(packedLightSrc.z);
 
@@ -163,10 +160,7 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
 #ifdef DEBUG_OCCLUSION_MAP
     #define BONUS_EFFECTS_NEEDED
     vec3 subVoxelOffset = displacement;
-    if(isSun)
-        subVoxelOffset-=0.5*scale;
-    else
-        subVoxelOffset-=travel;
+    subVoxelOffset-=travel;
 
     //Debug Coloring
     //green = fully lit,
@@ -210,13 +204,6 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
     if(bool(type)){
         vec2 slopeDif = abs(ray-abs(displacement.xy/displacement.z));
         float outlineWidth = DEBUG_OUTLINE_WIDTH/displacement.z;
-
-        if(type==LIGHT_TYPE_SUN){
-            slopeDif=abs(ray-displacement.xy)/travel.z;
-            if(map==15u)
-                outlineWidth*=0;
-        }
-
 
         #ifdef DEBUG_LIGHT_TRAVEL
         vec2 slopeDifSigns = sign(ray*sign(displacement.xy)-(displacement.xy/displacement.z));
@@ -286,41 +273,18 @@ vec3 getDirectedLight(uint cascadeLevel, uint layer, float subsurface, ivec3 zon
 
     vec3 displacement = travel + subVoxelOffset;
 
-    #ifndef DISABLE_BLOCKLIGHT_SUN
-
-    if(type==LIGHT_TYPE_SUN){
-        subVoxelOffset.xy*=sign(travel.xy);
-        subVoxelOffset+=0.5*scale;
-        displacement.xy=subVoxelOffset.xy-abs(travel.xy)*(subVoxelOffset.z/travel.z);
-        displacement.z=7;
-    }
-    #endif
-
     float lightStrength = baseLightStrength(packedLightSrc,displacement);
     float baseStrength = lightStrength;
-    if(isForFog){
-        #ifndef DISABLE_BLOCKLIGHT_SUN
-        if(type==LIGHT_TYPE_SUN)
-            lightStrength *= FOG_BRIGHTNESS_SUN/FOG_BRIGHTNESS_BLOCK;
-        #endif
-    }else{
+
+    if(isForFog)
+        lightStrength*=doFogOcclusion(displacement,travel,getPackedOcclusion(packedLightSrc));
+    else if(!isForFog){
         float normalMult = normalFactor(normal, displacement, subsurface);
         #ifdef MC_SHAPED_LIGHT_FALLOFF
         normalMult=clamp(normalMult,0.1,0.5);
         #endif
         lightStrength*=normalMult;
-    }
-
-    #ifndef DISABLE_BLOCKLIGHT_SUN
-    if(type==LIGHT_TYPE_SUN)
-        lightStrength *= doSunOcclusion(displacement,travel,getPackedOcclusion(packedLightSrc));
-    else
-    #endif
-    {
-        if(isForFog)
-            lightStrength*=doFogOcclusion(displacement,travel,getPackedOcclusion(packedLightSrc));
-        else
-            lightStrength*=doTerrainOcclusion(displacement,travel,getPackedOcclusion(packedLightSrc));
+        lightStrength*=doTerrainOcclusion(displacement,travel,getPackedOcclusion(packedLightSrc));
     }
 
    #if SUBSURFACE_MODE == 2

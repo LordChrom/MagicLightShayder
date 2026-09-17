@@ -1,7 +1,5 @@
 #define SAMPLES_LIGHT_FACE
 #define WRITES_LIGHT_FACE
-#define SAMPLES_VOX
-#define WRITES_VOX
 #include "/lib/lighting/floodShadows/voxelHelper.glsl"
 
 uniform int heightLimit;
@@ -14,6 +12,7 @@ uniform mat4 gbufferModelView, gbufferProjection;
 
 
 //one for each axis * layer combo, and also one for the world
+//TODO remove the world one
 #if VOX_LAYERS==1
     #define AXIS_LAYER_WORLD_COUNT 7
 #elif VOX_LAYERS==2
@@ -36,7 +35,6 @@ const ivec3 workGroups = ivec3(NUM_CASCADES,AREA_SIZE,AXIS_LAYER_WORLD_COUNT);
 layout (local_size_x = AREA_SIZE, local_size_y = 1, local_size_z = 1) in;
 
 
-
 float scale = 0.0;
 
 uint thisMemOffset  = 0;
@@ -50,10 +48,6 @@ ivec3 upperShift = ivec3(0);
 ivec3 movement   = ivec3(0);
 bool cascadeVisitedThisFrame = false;
 
-#ifndef DISABLE_BLOCKLIGHT_SUN
-//uniform bool hasCeiling;
-#endif
-
 void trimLight(ivec3 zonePos){
     uvec4 light = uvec4(0);
 
@@ -64,16 +58,7 @@ void trimLight(ivec3 zonePos){
     bool upsampleValid = bool(~upperMemOffset);
     if(upsampleValid){
         light = sampleLightData(upZonePos,upperShift,upperMemOffset);
-        if(unpackLightType(light)!=LIGHT_TYPE_SUN)
-            setPackedLightTravel(light,unpackLightTravel(light)+zonePosRemnants);
     }
-#ifndef DISABLE_BLOCKLIGHT_SUN
-    if((!hasCeiling) && axis==2 && zonePos.z<=0){
-        float height = getGlobalOrigin(scale).y+scale*(0.5*AREA_SIZE-zonePos.z);
-        if((height>=(heightLimit+bedrockLevel)) || (cascadeLevel==(NUM_CASCADES-1)))
-            light = getSunlight(axis);
-    }
-#endif
     setLightData(light, ivec3(zonePos), thisShift, thisMemOffset);
 }
 

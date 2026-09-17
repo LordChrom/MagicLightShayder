@@ -127,6 +127,7 @@ Packing
 - 1: covers the gaps in cascaded shadows caused by geometry that straddles the border
 ### prepare
 - 0: voxel map cleaner & expirer
+- 2: voxel map downsampler
 - 3: flood shadow seam filler
 - 10-17: flood shadow lighting
 - 20: basic floodfill lighter & filler

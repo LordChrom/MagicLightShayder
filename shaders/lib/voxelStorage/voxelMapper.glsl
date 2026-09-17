@@ -1,4 +1,4 @@
-#define WRITES_VOX
+#define WRITES_BASE_VOX
 #include "/lib/lighting/floodShadows/voxelHelper.glsl"
 #include "/lib/voxelStorage/blockPacking.glsl"
 
