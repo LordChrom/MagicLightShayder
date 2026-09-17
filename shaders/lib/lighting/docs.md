@@ -53,14 +53,14 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 | format  | num | purpose                      | scale | clear |
 |---------|-----|------------------------------|-------|-------|
 |         | 0   | main output                  |       |       |
-| RGBA8   | 1   | albedo                       |       | y     |
-| RGBA8   | 2   | normals                      |       | y     |
+| RGBA8   | 1   | albedo                       |       |       |
+| RGBA8   | 2   | normals                      |       |       |
 | RGBA8   | 3   | transparent abledo           |       | y     |
 |         | 4   |                              |       |       |
 |         | 5   |                              |       |       |
-| RGB16F  | 6   | multiplicative lighting      | y     | y     |
-| RGBA16F | 7   | additive light               | y     | y     |
-| RGBA8UI | 8   | Materials                    | y     |       |
+| RGB16F  | 6   | multiplicative lighting      | y     |       |
+| RGBA16F | 7   | additive light               | y     |       |
+| RGBA8UI | 8   | Materials                    | y     | y     |
 | R32F    | 9   | prev frame depth             |       | n     |
 | RGB16F  | 10  | multiplicative accumulation. |       | n     |
 | RGBA16F | 11  | additive accumulation.       |       | n     |

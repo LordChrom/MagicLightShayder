@@ -51,7 +51,7 @@ void main() {
 #elif DEBUG_SPECIAL_VIEW == 6
     outColor=texture(colortex6,texcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 7
-    outColor=texture(colortex6,texcoord).rgb;
+    outColor=texture(colortex7,texcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 8
     uvec4 mat = texture(colortex8,texcoord);
     float funnyEmissive = (mat.a==255)?0.0:(mat.a/254.0);
