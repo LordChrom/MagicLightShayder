@@ -195,9 +195,8 @@ void main() {
 #ifdef UPDATE_VOXEL_MAP
     int emission = int(at_midBlock.w);
 
-    vec3 toMidblock = at_midBlock.xyz*0.015625;
     int blockId = int(mc_Entity.x);
-    writeVoxelMap(worldPos,blockId,toMidblock,emission);
+    writeVoxelMap(worldPos+at_midBlock.xyz*0.015625,blockId,emission);
 #endif
 
     glcolor = gl_Color;

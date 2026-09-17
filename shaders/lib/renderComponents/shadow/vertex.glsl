@@ -29,7 +29,7 @@ out vec4 glcolorVert;
 
 void main() {
     #ifdef CAN_VOXELIZE
-    writeVoxelMap(cameraPosition+gl_Vertex.xyz, int(mc_Entity.x), at_midBlock.xyz*0.015625, int(at_midBlock.w));
+    writeVoxelMap(cameraPosition+gl_Vertex.xyz +at_midBlock.xyz*0.015625, int(mc_Entity.x), int(at_midBlock.w));
     #endif
 
     #ifdef SHADOWMAP_SHADOWS

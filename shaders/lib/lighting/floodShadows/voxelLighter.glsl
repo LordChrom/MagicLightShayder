@@ -87,6 +87,8 @@ uvec4 getBestLight(uint layer){
     return bestLights[layer];
 }
 
+#define SHARED_VOXEL_STASH
+#ifdef SHARED_VOXEL_STASH
 shared uint[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedFrontVoxels;
 shared uint[SECTION_SIZE+2][SECTION_SIZE+2] sharedPackedRearVoxels;
 
@@ -97,6 +99,32 @@ void setSharedVoxels(int a, int b,uint front, uint rear){
 
 uint getFrontVoxel(int a, int b){return sharedPackedFrontVoxels[A+a][B+b];}
 uint getRearVoxel(int a, int b){return sharedPackedRearVoxels[A+a][B+b];}
+#else
+uint getFrontVoxel(int a, int b){
+    ivec3 samplePos = ivec3(
+        gl_LocalInvocationID.x+a+(gl_WorkGroupID.x%AREA_WIDTH_SECTIONS)*SECTION_SIZE,
+        gl_LocalInvocationID.y+b+(gl_WorkGroupID.x/AREA_WIDTH_SECTIONS)*SECTION_SIZE,
+        zonePosZ
+    );
+    samplePos = zoneToAreaSpace(samplePos, axis);
+    uint ret = getScalingVoxData(samplePos,scaleToCascadeLevel(scale));
+    if(worldVoxBlocksFace(ret,axis))
+        ret|=WORLDVOX_OPAQUE;
+    return ret;
+}
+uint getRearVoxel(int a, int b){
+    ivec3 samplePos = ivec3(
+        gl_LocalInvocationID.x+a+(gl_WorkGroupID.x%AREA_WIDTH_SECTIONS)*SECTION_SIZE,
+        gl_LocalInvocationID.y+b+(gl_WorkGroupID.x/AREA_WIDTH_SECTIONS)*SECTION_SIZE,
+        zonePosZ-1
+    );
+    samplePos = zoneToAreaSpace(samplePos, axis);
+    uint ret = getScalingVoxData(samplePos,scaleToCascadeLevel(scale));
+    if(worldVoxBlocksFace(ret,axis^1))
+        ret|=WORLDVOX_OPAQUE;
+    return ret;
+}
+#endif
 
 
 
@@ -139,7 +167,9 @@ void saveSharedSample(int a, int b){
     uint areaMemOffset = areaOffset(cascadeLevel);
     vec3 zonePosRemnants;
 
+    #ifdef SHARED_VOXEL_STASH
     uint frontVoxel = getScalingVoxData(frontVoxelPos,cascadeLevel);
+    #endif
     uint rearVoxel = getScalingVoxData(rearVoxelPos,cascadeLevel);
 
 
@@ -175,6 +205,7 @@ void saveSharedSample(int a, int b){
     }
 
 
+    #ifdef SHARED_VOXEL_STASH
     #ifdef OBSTRUCTION_MAPPING
     if(worldVoxBlocksFace(rearVoxel,axis))
         rearVoxel|=WORLDVOX_OPAQUE;
@@ -183,6 +214,7 @@ void saveSharedSample(int a, int b){
     #endif
 
     setSharedVoxels(a,b,frontVoxel,rearVoxel);
+    #endif
 
     if(skipSampling)
         return;
