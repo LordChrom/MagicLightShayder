@@ -135,7 +135,7 @@ void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
 //        for (ivec3 areaPos = ivec3(posXY, 0); areaPos.z<AREA_SIZE; areaPos.z++){
 //            if (isPosExpiryExempt(areaPos) || !(areaPos.z>=validLo.z && areaPos.z<=validHi.z))
 //                continue;
-//            uint voxel=getScalingVoxData(areaPos, cascadeLevel);
+//            uint voxel=getScalingAreaVoxData(areaPos, cascadeLevel);
 //            voxel-=(uint(bool(voxel))<<WORLDVOX_AGE_SHIFT);
 //            voxel = bool(voxel&WORLDVOX_AGE_MASK)?voxel:0u;
 //            setVoxData(voxel, areaPos, thisShift, thisMemOffset);

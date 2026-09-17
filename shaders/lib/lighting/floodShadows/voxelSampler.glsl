@@ -410,7 +410,7 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
         if(subsurface>0){
             ivec3 lVec = lVec(axis);
             ivec3 newPos = clamp(hitBlockAreaPos-lVec,0,AREA_SIZE-1);
-            uint hitBlockPotentialBlocker = getScalingVoxData(newPos, cascadeLevel);
+            uint hitBlockPotentialBlocker = getScalingAreaVoxData(newPos, cascadeLevel);
             float terrainBeforeBlock =(bool(hitBlockPotentialBlocker&WORLDVOX_OPAQUE))?scale:0;
             float depthIntoBlock = dot(subSurfaceOffset,lVec)+0.5*scale;
             subsurfaceLightDepth = depthIntoBlock+terrainBeforeBlock;

@@ -36,8 +36,10 @@ vec3 getPreviousGlobalOrigin(float scale){
 ivec3 getAreaShift(float scale, vec3 origin){
     return ivec3(floor(origin/scale));
 }
-ivec3 getAreaShift(float scale){return getAreaShift(scale,getGlobalOrigin(scale));}
-ivec3 getPreviousAreaShift(float scale){return getAreaShift(scale,getPreviousGlobalOrigin(scale));}
+ivec3 getAreaShift(float scale){return ivec3(floor(globalOrigin/scale));}
+ivec3 getCascadedAreaShift(uint cascadeLevel){return getAreaShift(MIN_SCALE*float(1<<cascadeLevel));}
+ivec3 getPreviousAreaShift(float scale){return ivec3(floor(previousGlobalOrigin/scale));}
+ivec3 getPreviousCascadedAreaShift(uint cascadeLevel){return getPreviousAreaShift(MIN_SCALE*float(1<<cascadeLevel));}
 
 ivec3 getUnitShift(){
     return ivec3(floor(globalOrigin));
@@ -416,6 +418,7 @@ void setLightData(uvec4 light, ivec3 zonePos, ivec3 zoneShift, uint zoneMemOffse
 
 
 
+//TODO split these into a separate file
 #ifdef READS_SCALING_VOX
 #define READS_BASE_VOX
 #endif
@@ -433,7 +436,7 @@ uimage3D baseWorldVox;
 
 #ifdef READS_BASE_VOX
 uint getBaseVoxData(ivec3 areaPos, ivec3 areaShift){
-    areaPos=clamp(areaPos,0,VOXELIZATION_SIZE-2);
+    areaPos=clamp(areaPos,0,VOXELIZATION_SIZE-1);
     areaPos = modVoxelizationSize(areaPos+areaShift);
     return imageLoad(baseWorldVox,areaPos).x;
 }
@@ -453,13 +456,11 @@ void setBaseVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift){
 
 
 
-#ifdef SAMPLES_FLOOD
-uniform sampler3D floodfillSampler;
-
-vec4 getFloodData(ivec3 areaPos, ivec3 areaShift){
-    return texelFetch(floodfillSampler,modFloodfillSize(areaPos+areaShift),0);
+ivec3 getScalingVoxOriginPos(uint cascade){
+    if(cascade<=1)
+        return ivec3(0);
+    return ivec3(VOXELSIZE_HALF-(VOXELSIZE_HALF>>(cascade-2)),VOXELSIZE_HALF,0);
 }
-#endif
 
 #if defined READS_SCALING_VOX || defined WRITES_SCALING_VOX
 layout (r32ui) uniform restrict
@@ -469,19 +470,49 @@ readonly
 #ifndef READS_SCALING_VOX
 writeonly
 #endif
-uimage3D baseSCALINGdVox;
+uimage3D scalingWorldVox;
 #endif
 
 #ifdef READS_SCALING_VOX
-uint getScalingVoxData(ivec3 areaPos, uint cascade){
-    areaPos += (VOXELIZATION_SIZE-AREA_SIZE)>>1;
-    return getBaseVoxData(areaPos,getUnitShift());
+uint getScalingVoxData(ivec3 pos, uint cascade){
+    ivec3 shift = getCascadedAreaShift(cascade);
+
+    if(cascade==0)
+        return getBaseVoxData(pos,shift);
+
+    uint size = VOXELIZATION_SIZE>>cascade;
+    pos=clamp(pos,0,int(size)-1);
+
+    pos +=shift;
+    pos = modVoxelizationSize(pos<<cascade)>>cascade;
+    pos +=getScalingVoxOriginPos(cascade);
+
+    return imageLoad(scalingWorldVox,pos).x;
+}
+
+uint getScalingAreaVoxData(ivec3 areaPos, uint cascade){
+    areaPos += ((VOXELIZATION_SIZE>>cascade)-AREA_SIZE)>>1;
+    return getScalingVoxData(areaPos,cascade);
 }
 #endif
 
 
 #ifdef WRITES_SCALING_VOX
-void setScalingVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift){
+void setScalingVoxData(uint packedData, ivec3 pos, uint cascade){
+    if(cascade==0) return;
+
+    uint size = VOXELIZATION_SIZE>>cascade;
+
+    if(pos.x<0 || pos.y<0 || pos.z<0
+        || pos.x>=size || pos.y>=size || pos.z>= size)
+        return;
+
+
+    pos +=getCascadedAreaShift(cascade);
+    pos = modVoxelizationSize(pos<<cascade)>>cascade;
+    pos +=getScalingVoxOriginPos(cascade);
+
+    imageStore(scalingWorldVox,pos,uvec4(packedData,0,0,0));
 }
 #endif
 
@@ -500,6 +531,14 @@ void setFloodData(vec4 data, ivec3 areaPos, ivec3 areaShift){
         for(p.y=areaPos.y;p.y<=FLOODFILL_SIZE;p.y+=FLOODFILL_SIZE)
             for(p.z=areaPos.z;p.z<=FLOODFILL_SIZE;p.z+=FLOODFILL_SIZE)
                 imageStore(floodfillVox,p,data);
+}
+#endif
+
+#ifdef SAMPLES_FLOOD
+uniform sampler3D floodfillSampler;
+
+vec4 getFloodData(ivec3 areaPos, ivec3 areaShift){
+    return texelFetch(floodfillSampler,modFloodfillSize(areaPos+areaShift),0);
 }
 #endif
 

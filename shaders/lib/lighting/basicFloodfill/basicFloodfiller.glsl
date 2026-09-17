@@ -22,7 +22,6 @@
 #endif
 
 #define SIZE 16
-#include "/lib/util/dither3d.glsl"
 
 const ivec3 workGroups = ivec3(WORK_SIZE,WORK_SIZE,WORK_SIZE);
 layout (local_size_x = SIZE, local_size_y = 1, local_size_z = SIZE) in;
@@ -32,7 +31,15 @@ const float oneStep = 1.0/255.0;
 
 ivec3 unitShift;
 vec4 lightOutput;
+uint ceilingHeight;
 uint centerBlock;
+
+void zeroPosition(ivec3 pos, bool isTop){
+    setFloodData(vec4(0,0,0,isTop),pos,unitShift);
+}
+#define MOVEMENT_TRIM
+#include "/lib/util/3dComputeShaderUtils.glsl"
+
 
 #ifdef MC_SHAPED_LIGHT_FALLOFF
 vec3 decayBlocklight(vec3 source){
@@ -63,7 +70,7 @@ void considerSample(ivec3 samplePos, uint axis){
     ||samplePos.x>=FLOODFILL_SIZE || samplePos.z>=FLOODFILL_SIZE)
         return;
 
-    if( samplePos.y>=FLOODFILL_SIZE){
+    if( samplePos.y>=ceilingHeight){
         lightOutput.a=1;
         return;
     }
@@ -90,39 +97,14 @@ void considerSample(ivec3 samplePos, uint axis){
     lightOutput=max(lightOutput,sampleLight);
 }
 
-bool outOfFloodRange(int pos,int margin){
-    return pos<max(0,margin) || pos>=(FLOODFILL_SIZE+min(0,margin));
-}
-
-void movementTrim(){
-    ivec3 movement = clamp(getPreviousUnitShift()-unitShift,-FLOODFILL_SIZE,FLOODFILL_SIZE);
-
-    ivec3 pos;
-    pos.xz=ivec2(SIZE*gl_WorkGroupID.xz)+ivec2(gl_LocalInvocationID.xz);
-    if(outOfFloodRange(pos.x,movement.x) || outOfFloodRange(pos.z,movement.z)){
-        for(uint i=0;i<SIZE;i++){
-            pos.y=int(SIZE*gl_WorkGroupID.y+i);
-            setFloodData(vec4(0),pos,unitShift);
-        }
-    }
-
-    int wgYOffset = int(SIZE*gl_WorkGroupID.y);
-    ivec2 yRange = movement.y>0?
-    ivec2(0,max(0,movement.y)-wgYOffset):
-    ivec2((FLOODFILL_SIZE+min(0,movement.y))-wgYOffset,SIZE)
-    ;
-    yRange.x=max(yRange.x,0);
-    yRange.y=min(yRange.y,SIZE);
-
-    for(int i=yRange.x;i<yRange.y;i++){
-        pos.y=int(wgYOffset+i);
-        setFloodData(vec4(0),pos,unitShift);
-    }
-}
 
 void main(){
     unitShift=getUnitShift();
-    movementTrim();
+    ivec3 previousUnitShift = getPreviousUnitShift();
+    ceilingHeight = FLOODFILL_SIZE+min(0,previousUnitShift.y-unitShift.y);
+
+    //TODO probably copy sunlight state from closest inbounds neighbor
+    movementTrim(FLOODFILL_SIZE, unitShift, previousUnitShift);
 
     //TODO make this handled by more appropriate work groups
 

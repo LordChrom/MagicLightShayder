@@ -107,7 +107,7 @@ uint getFrontVoxel(int a, int b){
         zonePosZ
     );
     samplePos = zoneToAreaSpace(samplePos, axis);
-    uint ret = getScalingVoxData(samplePos,scaleToCascadeLevel(scale));
+    uint ret = getScalingAreaVoxData(samplePos,scaleToCascadeLevel(scale));
     if(worldVoxBlocksFace(ret,axis))
         ret|=WORLDVOX_OPAQUE;
     return ret;
@@ -119,7 +119,7 @@ uint getRearVoxel(int a, int b){
         zonePosZ-1
     );
     samplePos = zoneToAreaSpace(samplePos, axis);
-    uint ret = getScalingVoxData(samplePos,scaleToCascadeLevel(scale));
+    uint ret = getScalingAreaVoxData(samplePos,scaleToCascadeLevel(scale));
     if(worldVoxBlocksFace(ret,axis^1))
         ret|=WORLDVOX_OPAQUE;
     return ret;
@@ -168,9 +168,9 @@ void saveSharedSample(int a, int b){
     vec3 zonePosRemnants;
 
     #ifdef SHARED_VOXEL_STASH
-    uint frontVoxel = getScalingVoxData(frontVoxelPos,cascadeLevel);
+    uint frontVoxel = getScalingAreaVoxData(frontVoxelPos,cascadeLevel);
     #endif
-    uint rearVoxel = getScalingVoxData(rearVoxelPos,cascadeLevel);
+    uint rearVoxel = getScalingAreaVoxData(rearVoxelPos,cascadeLevel);
 
 
     bool skipSampling = false;
