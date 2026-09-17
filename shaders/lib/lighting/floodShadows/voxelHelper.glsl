@@ -444,16 +444,16 @@ uint getScalingVoxData(ivec3 areaPos, uint cascade){
 
 
 #ifdef WRITES_VOX
-void setBaseVoxData(uint packedData, ivec3 worldPos, ivec3 areaShift){
-    ivec3 posFromCenter = worldPos-areaShift;
+void setBaseVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift){
+//    areaPos-=areaShift;
 
-    int distFromCenter = max(max(abs(posFromCenter.x),abs(posFromCenter.y)),abs(posFromCenter.z));
-    if(distFromCenter>=VOXELIZATION_SIZE/2)
+    if(areaPos.x<0 || areaPos.y<0 || areaPos.z<0
+        || areaPos.x>=VOXELIZATION_SIZE || areaPos.y>=VOXELIZATION_SIZE || areaPos.z>=VOXELIZATION_SIZE
+    ){
         return;
+    }
 
-    worldPos+=VOXELIZATION_SIZE/2;
-    worldPos = modVoxelizationSize(worldPos);
-    imageStore(baseWorldVox,worldPos,uvec4(packedData,0,0,0));
+    imageStore(baseWorldVox,modVoxelizationSize(areaPos+areaShift),uvec4(packedData,0,0,0));
 }
 #endif
 

@@ -122,6 +122,34 @@ Attributes
 Packing
 - 2x8 occlusion ray (b then a), 1x12 occlusion hit distance, 4x1 occlusion map
 
+# Programs
+### setup & begin
+- currently unused
+### shadowcomp
+- 1: covers the gaps in cascaded shadows caused by geometry that straddles the border
+### prepare
+- 0: voxel map cleaner & expirer
+- 3: flood shadow seam filler
+- 10-17: flood shadow lighting
+- 20: basic floodfill lighter & filler
+### deferred
+- 1: main lighting for solid terrain
+- 2: SSAO filter to reeduce noise
+### composite
+- 2: volumetric fog
+- 5: depth Hi-z, disabled & unused
+- 6-8: hq fog blur & (bad) bloom
+- 9: reflections if subject to blur, probably can move or remove
+- 10: cheap fog blur
+- 11: reflections if not subject to blur
+- 30: taa accumulation
+- 50: combination of lighting with terrain
+- 84: DoF setup
+- 85: (csh) Dof main work,
+- 85: (fsh) DoF combination
+- 90-95: Old DoF, probably can remove once new DoF is polished
+- 99: Debug views
+
 # General TODO List
 ### Needs fixing
 - reflections when view bobbing

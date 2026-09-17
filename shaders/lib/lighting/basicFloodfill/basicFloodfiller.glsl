@@ -5,7 +5,6 @@
 #define SAMPLES_VOX
 #include "/lib/voxelStorage/blockPacking.glsl"
 #include "/lib/lighting/floodShadows/voxelHelper.glsl"
-#include "/lib/util/dither.glsl"
 
 
 #if FLOODFILL_SIZE<=32
@@ -21,6 +20,8 @@
 #else
     #define WORK_SIZE 24
 #endif
+
+#include "/lib/util/dither3d.glsl"
 
 const ivec3 workGroups = ivec3(WORK_SIZE,WORK_SIZE,WORK_SIZE);
 layout (local_size_x = 16, local_size_y = 1, local_size_z = 16) in;
@@ -111,14 +112,6 @@ void considerSample(ivec3 samplePos, uint axis){
     lightOutput=max(lightOutput,sampleLight);
 }
 
-uint bayer2u3d(uvec3 pos){
-    return ((pos.x&1u)<<2)+((pos.y&1u)<<1)+(pos.z&1u);
-}
-
-uint bayer4u3d(uvec3 pos){
-    return (bayer2u3d(pos)<<3)|(bayer2u3d(pos>>1));
-}
-
 void main(){
     floodShift=getUnitShift();
 
@@ -143,15 +136,10 @@ void main(){
         }
     }
 
-    //TODO seam filling, probably shared mem also
+    //TODO probably would benefit from shared mem
     #define DISTANCE_BASED_FLOODFILL_SPEED
     #ifdef DISTANCE_BASED_FLOODFILL_SPEED
-    ivec3 centerness = ivec3(gl_WorkGroupID)-(WORK_SIZE>>1)+1;
-    centerness=abs(centerness-clamp(centerness,0,1));
-    uint distFromCenter = max(max(centerness.x,centerness.y),centerness.z);
-
-    uint updatePeriod = max(distFromCenter*distFromCenter,1);
-    bool shouldCompute = (((bayer4u3d(gl_WorkGroupID)+frameCounter)%updatePeriod)==0);
+    bool shouldCompute = shouldCompute(getUpdatePeriod());
     #ifdef JUMPSTART_LIGHTING
     shouldCompute=shouldCompute||frameCounter<20;
     #endif
