@@ -23,11 +23,7 @@ const ivec3 workGroups = ivec3(WORK_SIZE,WORK_SIZE,WORK_SIZE);
 layout (local_size_x = SIZE, local_size_y = 1, local_size_z = SIZE) in;
 
 
-//uint frameOffset    = 0;
-ivec3 pos  = ivec3(0);
-
 ivec3 shift  = ivec3(0);
-//
 //bool isPosExpiryExempt(ivec3 areaPos){
 //    #if VOXELIZATION_MODE == 1
 //    vec3 pos = vec3(areaPos-(AREA_SIZE>>1))*scale+0.5;
@@ -104,18 +100,34 @@ bool outOfVoxelRange(int pos,int margin){
     return pos<max(0,margin) || pos>=(VOXELIZATION_SIZE+min(0,margin));
 }
 
-
-void main(){
-    shift = getUnitShift();
+void movementTrim(){
     ivec3 movement = clamp(getPreviousUnitShift()-shift,-VOXELIZATION_SIZE,VOXELIZATION_SIZE);
 
 
+    ivec3 pos;
     pos.xz=ivec2(SIZE*gl_WorkGroupID.xz)+ivec2(gl_LocalInvocationID.xz);
-    bool oobXZ = outOfVoxelRange(pos.x,movement.x) || outOfVoxelRange(pos.z,movement.z);
-    for(uint i=0;i<SIZE;i++){
-        pos.y=int(SIZE*gl_WorkGroupID.y+i);
-
-        if(oobXZ || outOfVoxelRange(pos.y,movement.y))
+    if(outOfVoxelRange(pos.x,movement.x) || outOfVoxelRange(pos.z,movement.z)){
+        for(uint i=0;i<SIZE;i++){
+            pos.y=int(SIZE*gl_WorkGroupID.y+i);
             setBaseVoxData(0,pos,shift);
+        }
     }
+
+    int wgYOffset = int(SIZE*gl_WorkGroupID.y);
+    ivec2 yRange = movement.y>0?
+    ivec2(0,max(0,movement.y)-wgYOffset):
+    ivec2((VOXELIZATION_SIZE+min(0,movement.y))-wgYOffset,SIZE)
+    ;
+    yRange.x=max(yRange.x,0);
+    yRange.y=min(yRange.y,SIZE);
+
+    for(int i=yRange.x;i<yRange.y;i++){
+        pos.y=int(wgYOffset+i);
+        setBaseVoxData(0,pos,shift);
+    }
+}
+
+void main(){
+    shift = getUnitShift();
+    movementTrim();
 }

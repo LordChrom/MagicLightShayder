@@ -85,12 +85,10 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 
 ### Voxel map image storage layout
 //
-- 5: Age                      (could be separated
-- 4: light animation type     (could be smaller)
+- 4: Age                      (could be separated
+- 6: blockage directions
 - 1: translucent              (partially redundant now)
 - 1: opaque
-- 1: shape-sensitive blockage
-
 - 4: emission intensity
 - 16: blockID
 

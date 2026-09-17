@@ -431,7 +431,7 @@ uimage3D baseWorldVox;
 #ifdef SAMPLES_VOX
 //uniform usampler3D worldVoxSampler;
 uint getBaseVoxData(ivec3 areaPos, ivec3 areaShift){
-    areaPos=clamp(areaPos,0,VOXELIZATION_SIZE-1);
+    areaPos=clamp(areaPos,0,VOXELIZATION_SIZE-2);
     areaPos = modVoxelizationSize(areaPos+areaShift);
     return imageLoad(baseWorldVox,areaPos).x;
 }

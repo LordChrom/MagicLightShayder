@@ -18,34 +18,32 @@ uint blockShape(uint blockID){
 //      subcat is, in order, occupancy of the -- +- -+ ++ xz corners of the free half of the slab/stair
 //Cat 3 is trapdoors:
 //      subcat is covered face axis num
-bool blockBlocksFace(uint block, uint axis){
+uint directedBlockages(uint block){
     uint shape = blockShape(block);
+    uint ret = 0u;
     if(shape<16u)
-        return bool(shape);
+        return bool(shape)?0x3fu:0u;
+    if(shape<48u){
+        //the sides. There is likely a more efficient way to do this
+        ret= (uint((shape&3u)==3u)<<5)|(uint((shape&5u)==5u)<<1)
+           | (uint((shape&12u)==12u)<<4)|uint((shape&10u)==10u);
 
-    uint subcategory = shape&0xfu;
-
-
-
-    switch(shape>>4){
-        case 0:
-            return(subcategory==1);
-        case 1:
-        case 2://stair/slab
-            if((axis>>1)==1u)
-                return !bool((axis^(shape>>4))&1u);
-
-            uint mask = bool(axis>>2)?12u:10u;
-            if(bool(axis&1u))
-                mask=0xfu^mask;
-
-            return (mask&subcategory)==mask;
-        case 3://trapdoor
-            return axis==subcategory;
+        ret|=bool(shape&0x10u)?8u:4u; //top vs bottom
+        return ret;
     }
-    return false;
+    if(shape<64u){
+        return (1u<<(shape&0xfu))&0x3fu;
+    }
+    return 0u;
 }
 
+bool blockBlocksFace(uint block, uint axis){
+    return bool(directedBlockages(block)&(1u<<axis));
+}
+
+bool worldVoxBlocksFace(uint worldvox, uint axis){
+    return bool(worldvox&(1u<<(axis+WORLDVOX_BLOCKAGES_SHIFT)));
+}
 
 bool blockIsTranslucent(uint blockID){
     return blockLightID(blockID)>=48u;
@@ -177,22 +175,15 @@ uint packVoxelForStorage(uint blockID, uint emission){
     uint ret = 0u;
     if(blockIsTranslucent(blockID)){
         ret=WORLDVOX_TRANSLUCENT;
-    }else if(blockIsTransparent(blockID)){
-        ret=0u;
     }else if(blockIsFullCube(blockID)){
         ret=WORLDVOX_OPAQUE;
-    }else{
-        ret=WORLDVOX_SHAPED_BLOCKAGE;
     }
-
-//    emission=bool(blockID&0x3fu)?15:0;
 
     return ret
     | (WORLDVOX_INITIAL_TIME<<WORLDVOX_AGE_SHIFT)
-    | (bool(emission)?blockLightAnimationType(blockID)<<WORLDVOX_TYPE_SHIFT:0u)
+    | (directedBlockages(blockID)<<WORLDVOX_BLOCKAGES_SHIFT)
     | (emission<<WORLDVOX_EMISSION_SHIFT)
     | uint(blockID)
-//    | 0xf0000u
     ;
 }
 

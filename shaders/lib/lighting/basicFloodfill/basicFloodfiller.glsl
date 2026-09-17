@@ -21,16 +21,16 @@
     #define WORK_SIZE 24
 #endif
 
+#define SIZE 16
 #include "/lib/util/dither3d.glsl"
 
 const ivec3 workGroups = ivec3(WORK_SIZE,WORK_SIZE,WORK_SIZE);
-layout (local_size_x = 16, local_size_y = 1, local_size_z = 16) in;
+layout (local_size_x = SIZE, local_size_y = 1, local_size_z = SIZE) in;
 
 const float oneLightLevel = 1.0/15.0;
 const float oneStep = 1.0/255.0;
 
-ivec3 floodShift;
-ivec3 localPos;
+ivec3 unitShift;
 vec4 lightOutput;
 uint centerBlock;
 
@@ -58,47 +58,25 @@ vec4 decay(vec4 source){
     return vec4(decayBlocklight(source.rgb),decaySunlight(source.a));
 }
 
-uint getBlock(ivec3 blockPos){
-//    ivec3 areaPos;
-//    ivec3 areaShift;
-//    uint areaMemOffset;
-//    #if (FLOODFILL_SIZE!=AREA_SIZE)
-//    for(uint cascade = 0; cascade<NUM_CASCADES;cascade++){
-//        int scale=int(getScale(cascade));
-//        if(scale<1)
-//            continue;
-//        areaShift = getAreaShift(scale);
-//        areaPos = ((blockPos-(FLOODFILL_SIZE>>1)+(floodShift&(scale-1)))/scale)+(AREA_SIZE>>1);
-//        int minCoord = min(min(areaPos.x,areaPos.y),areaPos.z);
-//        int maxCoord = max(max(areaPos.x,areaPos.y),areaPos.z);
-//        areaMemOffset = areaOffset(cascade);
-//        if((minCoord>=0) && (maxCoord<AREA_SIZE))
-//            break;
-//    }
-//    #else
-//    areaPos = blockPos;
-//    areaShift = floodShift;
-//    areaMemOffset = 0;
-//    #endif
-
-    return getBaseVoxData(blockPos, getUnitShift());
-}
-
 void considerSample(ivec3 samplePos, uint axis){
     if(samplePos.x<0 || samplePos.y<0 || samplePos.z<0
     ||samplePos.x>=FLOODFILL_SIZE || samplePos.z>=FLOODFILL_SIZE)
         return;
-    if( samplePos.y>=FLOODFILL_SIZE)
+
+    if( samplePos.y>=FLOODFILL_SIZE){
         lightOutput.a=1;
-    samplePos=modFloodfillSize(samplePos);
-    uint sampleBlock = getBlock(samplePos);
-    vec4 sampleLight = getFloodData(samplePos, floodShift);
-
-    bool blockCutOff = (!bool(packUnorm4x8(sampleLight)&1u))
-    || (blockBlocksFace(sampleBlock,axis^1u)&&!bool(sampleBlock&(WORLDVOX_TRANSLUCENT|WORLDVOX_EMISSION_MASK)));
-
-    if(blockCutOff)
         return;
+    }
+
+    samplePos=modFloodfillSize(samplePos);
+    uint sampleBlock = getBaseVoxData(samplePos,unitShift);
+    vec4 sampleLight = getFloodData(samplePos, unitShift);
+
+    if((!bool(packUnorm4x8(sampleLight)&1u))
+        || (worldVoxBlocksFace(sampleBlock,axis^1u)&&!bool(sampleBlock&(WORLDVOX_TRANSLUCENT|WORLDVOX_EMISSION_MASK)))
+    ){
+        return;
+    }
 
     if(axis==3){
         if(centerBlock!=0)
@@ -112,29 +90,41 @@ void considerSample(ivec3 samplePos, uint axis){
     lightOutput=max(lightOutput,sampleLight);
 }
 
-void main(){
-    floodShift=getUnitShift();
+bool outOfFloodRange(int pos,int margin){
+    return pos<max(0,margin) || pos>=(FLOODFILL_SIZE+min(0,margin));
+}
 
-    //TODO make this handled by more appropriate work groups
-    if(gl_WorkGroupID.y==0){
-        ivec3 movement = clamp(floodShift-getPreviousUnitShift(),-FLOODFILL_SIZE,FLOODFILL_SIZE);
-        ivec3 movementSigns = sign(movement);
-        ivec3 edgeToTrim = abs(movement);
+void movementTrim(){
+    ivec3 movement = clamp(getPreviousUnitShift()-unitShift,-FLOODFILL_SIZE,FLOODFILL_SIZE);
 
-        ivec2 posXY = ivec2(gl_LocalInvocationID.xz)+ivec2(gl_WorkGroupID.xz<<4);
-        for(int i=0; i<edgeToTrim.x;i++){
-            int x = movementSigns.x>0?(FLOODFILL_SIZE-1)-i:i;
-            setFloodData(vec4(0),ivec3(x,posXY.xy),floodShift);
-        }
-        for(int i=0; i<edgeToTrim.y;i++){
-            int y = movementSigns.y>0?(FLOODFILL_SIZE-1)-i:i;
-            setFloodData(vec4(0),ivec3(posXY.x,y,posXY.y),floodShift);
-        }
-        for(int i=0; i<edgeToTrim.z;i++){
-            int z = movementSigns.z>0?(FLOODFILL_SIZE-1)-i:i;
-            setFloodData(vec4(0),ivec3(posXY.xy,z),floodShift);
+    ivec3 pos;
+    pos.xz=ivec2(SIZE*gl_WorkGroupID.xz)+ivec2(gl_LocalInvocationID.xz);
+    if(outOfFloodRange(pos.x,movement.x) || outOfFloodRange(pos.z,movement.z)){
+        for(uint i=0;i<SIZE;i++){
+            pos.y=int(SIZE*gl_WorkGroupID.y+i);
+            setFloodData(vec4(0),pos,unitShift);
         }
     }
+
+    int wgYOffset = int(SIZE*gl_WorkGroupID.y);
+    ivec2 yRange = movement.y>0?
+    ivec2(0,max(0,movement.y)-wgYOffset):
+    ivec2((FLOODFILL_SIZE+min(0,movement.y))-wgYOffset,SIZE)
+    ;
+    yRange.x=max(yRange.x,0);
+    yRange.y=min(yRange.y,SIZE);
+
+    for(int i=yRange.x;i<yRange.y;i++){
+        pos.y=int(wgYOffset+i);
+        setFloodData(vec4(0),pos,unitShift);
+    }
+}
+
+void main(){
+    unitShift=getUnitShift();
+    movementTrim();
+
+    //TODO make this handled by more appropriate work groups
 
     //TODO probably would benefit from shared mem
     #define DISTANCE_BASED_FLOODFILL_SPEED
@@ -147,45 +137,39 @@ void main(){
         return;
     #endif
 
+    ivec3 localPos;
+    localPos.xz = ivec2(gl_LocalInvocationID.xz+(gl_WorkGroupID.xz<<4));
 
     for(int i=0;i<16;i++){
-        localPos = ivec3(gl_LocalInvocationID+(gl_WorkGroupID<<4));
-        localPos.y+=15-i;
+        localPos.y=int(gl_LocalInvocationID.y+(gl_WorkGroupID.y<<4))+15-i;
         lightOutput=vec4(0);
 
         //TODO make unit scale voxelization a real thing
 
-        centerBlock = getBlock(localPos);
+        centerBlock = getBaseVoxData(localPos,unitShift);
 
         bool lightTotallyBlocked = bool(centerBlock&WORLDVOX_OPAQUE);
 
-        {
-            for(uint axis=0;axis<6;axis++){
-                uint absAxis = axis>>1;
-                ivec3 offset = ivec3(absAxis==0,absAxis==1,absAxis==2)*(bool(axis&1u)?1:-1);
 
-                bool sampleVisible = true;
-                if(lightTotallyBlocked){
-                    float cameraFacingness = dot(offset,normalize(localPos-(FLOODFILL_SIZE/2)));
-                    //TODO fix this nonsense
-                    if(cameraFacingness>0)
-                        continue;
-                    else
-                        sampleVisible=true;
-                }else{
-                    sampleVisible = bool(centerBlock&WORLDVOX_TRANSLUCENT)||!blockBlocksFace(centerBlock,axis);
-                }
+        for(uint axis=0;axis<6;axis++){
+            ivec3 offset = ivec3(axis>>1==0,axis>>1==1,axis>>1==2)*(bool(axis&1u)?1:-1);
 
-                ivec3 samplePos = localPos+offset;
-
-                if(sampleVisible)
-                    considerSample(samplePos,axis);
+            if(lightTotallyBlocked){
+                float cameraFacingness = dot(offset,normalize(localPos-(FLOODFILL_SIZE/2)));
+                //TODO fix this nonsense
+                if(cameraFacingness>0)
+                    continue;
+            }else if(worldVoxBlocksFace(centerBlock,axis)&&!bool(centerBlock&WORLDVOX_TRANSLUCENT)){
+                    continue;
             }
-            lightOutput= decay(lightOutput);
+
+            considerSample(localPos+offset,axis);
         }
+        lightOutput= decay(lightOutput);
+
 
         vec3 blockColor = worldVoxColor(centerBlock);
-        if (bool(centerBlock&(0xfu<<WORLDVOX_TYPE_SHIFT))){
+        if (bool(centerBlock&WORLDVOX_EMISSION_MASK)){
             lightOutput.rgb=max(lightOutput.rgb,blockColor);
             lightTotallyBlocked=false;
         }else if(bool(centerBlock&WORLDVOX_TRANSLUCENT)){
@@ -196,7 +180,7 @@ void main(){
         packedLight = (packedLight&~1u)|uint(!lightTotallyBlocked);
         lightOutput=unpackUnorm4x8(packedLight);
 
-        setFloodData(lightOutput, localPos, floodShift);
+        setFloodData(lightOutput, localPos, unitShift);
     }
 }
 

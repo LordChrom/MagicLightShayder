@@ -111,8 +111,6 @@ void fillLightSeams(uvec3 workGroupID, uvec3 localID){
         int B = movementSigns.y>0?(AREA_SIZE-1)-i:i;
         trimLight(ivec3(zonePos.x,B,zonePos.y));
     }
-
-
 }
 
 
