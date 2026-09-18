@@ -208,28 +208,32 @@ ivec3 uppperCascadeZonePos(ivec3 zonePos, ivec3 zoneShift, uint axis, float scal
 //according to graphing on desmos, these values work from just below 1e-4 to about 6.7e9
 const float packScale = 128.0;
 const int packBias = 1200;
-#define NO_OCCLUSION 0x80fu
+#define NO_OCCLUSION 0xfu
 #define FULL_OCCLUSION 0x800u
-uint packFloat12(float x){
-    if(x<=0)
-        return 0x80u;
-    int exponent = 0;
-    float sig = frexp(x,exponent);
-    sig = (sig-0.5)*30;
-    return uint((clamp(int(floor(sig)),0,15)<<8)|(clamp(exponent,-128,127)&0xff));
-}
+//uint packFloat12(float x){
+//    if(x<=0)
+//        return 0x80u;
+//    int exponent = 0;
+//    float sig = frexp(x,exponent);
+//    sig = (sig-0.5)*30;
+//    return uint((clamp(int(floor(sig)),0,15)<<8)|(clamp(exponent,-128,127)&0xff));
+//}
 
-//TODO investigate if ldexp/frexp is actually fast
-float unpackFloat12(uint x){
-    if(x==0x80u)
-        return 0;
-    int sig = (int(x)>>8)&0xf;
-    int exponent = int(x)&0xff;
-    return exponent==-128?0:ldexp(float(sig)/30.0+0.5,exponent);
-}
+//float unpackFloat12(uint x){
+//    if(x==0x80u)
+//        return 0;
+//    int sig = (int(x)>>8)&0xf;
+//    int exponent = int(x)&0xff;
+//    return exponent==-128?0:ldexp(float(sig)/30.0+0.5,exponent);
+//}
 
 uint packOcclusionInfo(vec2 ray, uint map, float hitDist){
-    return (packUnorm4x8(vec4(0,0,ray))) | (packFloat12(hitDist)<<4u) | (map);
+    uint packedHitDist = clamp(uint(round(hitDist*lightTravelScaleInv)),0u,0x3fu);
+    return packUnorm4x8(vec4(0,0,ray)) | (packedHitDist<<4u) | (map);
+}
+
+uint setPackedOcclusionRayMap(uint occlusion, vec2 ray, uint map){
+    return (occlusion&0xfff0u) | map | packUnorm4x8(vec4(0,0,ray));
 }
 
 uint packLightTravel(vec3 travel){
@@ -261,7 +265,7 @@ vec3 unpackLightColor(PackedLight packedData){
 }
 
 float unpackOcclusionHitDist(uint occlusionInfo){
-    return unpackFloat12((occlusionInfo>>4u)&0xfffu);
+    return ((occlusionInfo>>4u)&0x3fu)*lightTravelScale;
 }
 
 uint unpackOcclusionMap(uint occlusionInfo){
@@ -395,8 +399,8 @@ bool canIlluminateInBounds(vec4 edges, vec2 ray, uint occlusionMap){
 
 
 bool sameLight(PackedLight a, PackedLight b){
-    return a==b;
-//    return !(bool((a.y^b.y)&0xffffff00u)||(bool((a.x^b.x)&0xfffff00fu)));
+    return a.xy==b.xy;
+//    return !(bool((a.y^b.y)&0xffffffffu)||(bool((a.x^b.x)&0xffffffffu)));
 }
 
 //left, top, right, bottom

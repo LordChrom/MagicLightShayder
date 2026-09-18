@@ -117,7 +117,7 @@ Attributes
 - float occlusionHitDistance  distance from the light source to the source of occlusion, for penumbra sharpness
 
 Packing
-- 2x8 occlusion ray (b then a), 1x12 occlusion hit distance, 4x1 occlusion map
+- 2x8 occlusion ray (b then a), 1x6 unused, 1x6 occlusion hit distance, 4x1 occlusion map
 
 # Programs
 ### setup & begin

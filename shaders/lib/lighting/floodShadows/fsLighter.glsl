@@ -432,7 +432,7 @@ uint getTerrainOcclusion(vec3 travel, uint relevantObstructions, bvec2 alignment
     float halfScale = 0.5*scale;
     vec2 ray = (abs(travel.xy)-halfScale)/abs(travel.z-halfScale);
     uint map = 15u^relevantObstructions;
-    float hitDist = travel.z-0.6*scale;
+    float hitDist = travel.z-0.5*scale;
 
     if(alignment.x){
         map = map&((map<<2u) | (map>>2u));
@@ -667,7 +667,7 @@ void doOcclusion(uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, uint 
             if(!anythingInBounds) continue;
 
             //TODO more efficient repacking
-            occl=packOcclusionInfo(ray,map,unpackOcclusionHitDist(occl));
+            occl=setPackedOcclusionRayMap(occl,ray,map);
             uint oldOcclusion = getPackedOcclusion(lightSrc);
             setPackedOcclusion(lightSrc,combineOcclusions(oldOcclusion,occl));
         }
