@@ -15,8 +15,6 @@ uniform mat4 gbufferModelView, gbufferProjection;
 const ivec3 workGroups = ivec3(WORK_SIZE,WORK_SIZE_BIGGER,WORK_SIZE);
 layout (local_size_x = SIZE, local_size_y = 1, local_size_z = SIZE) in;
 
-shared uint [SIZE/2][SIZE/2][SIZE/2] higherLevelsBuffer;
-
 ivec3 shift;
 uint cascadeLevel;
 
@@ -97,25 +95,51 @@ void main(){
     if(basePos.x>=size || basePos.y>=size)
         return;
 
-    shift = getCascadedAreaShift(cascadeLevel-1);
+    uint sampleCascade = cascadeLevel-1;
+    shift = getCascadedAreaShift(sampleCascade);
+    ivec3 truePosLo, truePosHi;
+
+    truePosLo.xz = (basePos.xz<<1)+(shift.xz&~1);
+    truePosHi.xz = truePosLo.xz+1;
+
+    ivec3 sampleMipOrigin = getScalingVoxOriginPos(sampleCascade);
+    truePosLo.xz = (modVoxelizationSize(truePosLo.xz<<sampleCascade)>>sampleCascade)+sampleMipOrigin.xz;
+    truePosHi.xz = (modVoxelizationSize(truePosHi.xz<<sampleCascade)>>sampleCascade)+sampleMipOrigin.xz;
+
 
     for(int y=0;y<min(SIZE,size-workGroupBase.y);y++){
         basePos.y = int(y+workGroupBase.y);
-        basePos = (basePos<<1)-(shift&1);
-        uint representative = 0u;
-        for(int subPos = 0; subPos<8; subPos++){
-            ivec3 localOffset = ivec3(subPos>>2,subPos>>1,subPos)&1;
-            uint voxel = getScalingVoxData(basePos+localOffset,cascadeLevel-1);
+        truePosLo.y = (basePos.y<<1)+(shift.y&~1);
+        truePosHi.y = truePosLo.y+1;
+        truePosLo.y = (modVoxelizationSize(truePosLo.y<<sampleCascade)>>sampleCascade)+sampleMipOrigin.y;
+        truePosHi.y = (modVoxelizationSize(truePosHi.y<<sampleCascade)>>sampleCascade)+sampleMipOrigin.y;
 
-            uint mask = uint((localOffset.z<<4) | (localOffset.y<<2) | (localOffset.x));
-            mask = (mask*3)^0x2au;
+        uint[8] samples;
 
-            if(bool(subPos))
-                representative=combineVoxels(representative,voxel);
-            else
-                representative=voxel;
+        if(sampleCascade==0){
+            samples[0] = imageLoad(baseWorldVox,ivec3(truePosLo.x,truePosLo.y,truePosLo.z)).x;
+            samples[1] = imageLoad(baseWorldVox,ivec3(truePosLo.x,truePosLo.y,truePosHi.z)).x;
+            samples[2] = imageLoad(baseWorldVox,ivec3(truePosLo.x,truePosHi.y,truePosLo.z)).x;
+            samples[3] = imageLoad(baseWorldVox,ivec3(truePosLo.x,truePosHi.y,truePosHi.z)).x;
+            samples[4] = imageLoad(baseWorldVox,ivec3(truePosHi.x,truePosLo.y,truePosLo.z)).x;
+            samples[5] = imageLoad(baseWorldVox,ivec3(truePosHi.x,truePosLo.y,truePosHi.z)).x;
+            samples[6] = imageLoad(baseWorldVox,ivec3(truePosHi.x,truePosHi.y,truePosLo.z)).x;
+            samples[7] = imageLoad(baseWorldVox,ivec3(truePosHi.x,truePosHi.y,truePosHi.z)).x;
+        }else{
+            samples[0] = imageLoad(scalingWorldVox,ivec3(truePosLo.x,truePosLo.y,truePosLo.z)).x;
+            samples[1] = imageLoad(scalingWorldVox,ivec3(truePosLo.x,truePosLo.y,truePosHi.z)).x;
+            samples[2] = imageLoad(scalingWorldVox,ivec3(truePosLo.x,truePosHi.y,truePosLo.z)).x;
+            samples[3] = imageLoad(scalingWorldVox,ivec3(truePosLo.x,truePosHi.y,truePosHi.z)).x;
+            samples[4] = imageLoad(scalingWorldVox,ivec3(truePosHi.x,truePosLo.y,truePosLo.z)).x;
+            samples[5] = imageLoad(scalingWorldVox,ivec3(truePosHi.x,truePosLo.y,truePosHi.z)).x;
+            samples[6] = imageLoad(scalingWorldVox,ivec3(truePosHi.x,truePosHi.y,truePosLo.z)).x;
+            samples[7] = imageLoad(scalingWorldVox,ivec3(truePosHi.x,truePosHi.y,truePosHi.z)).x;
         }
-        basePos=(basePos+1)>>1;
+
+        uint representative = samples[0];
+        for(int i=1;i<8;i++){
+            representative = combineVoxels(representative,samples[i]);
+        }
         setScalingVoxData(representative,basePos,cascadeLevel);
     }
 }

@@ -9,6 +9,13 @@ uint modVoxelizationSize(uint x){
     return x&uint(VOXELIZATION_SIZE-1);
     #endif
 }
+uvec2 modVoxelizationSize(uvec2 x){
+    #if (VOXELIZATION_SIZE&(VOXELIZATION_SIZE-1))
+    return (x+0x10000u*VOXELIZATION_SIZE)%VOXELIZATION_SIZE;
+    #else
+    return x&uint(VOXELIZATION_SIZE-1);
+    #endif
+}
 uvec3 modVoxelizationSize(uvec3 x){
     #if (VOXELIZATION_SIZE&(VOXELIZATION_SIZE-1))
     return (x+0x10000u*VOXELIZATION_SIZE)%VOXELIZATION_SIZE;
@@ -17,6 +24,7 @@ uvec3 modVoxelizationSize(uvec3 x){
     #endif
 }
 int modVoxelizationSize(int x){ return int(modVoxelizationSize(uint(x)));}
+ivec2 modVoxelizationSize(ivec2 x){ return ivec2(modVoxelizationSize(uvec2(x)));}
 ivec3 modVoxelizationSize(ivec3 x){ return ivec3(modVoxelizationSize(uvec3(x)));}
 
 #ifdef READS_SCALING_VOX

@@ -196,13 +196,6 @@ ivec3 uppperCascadeZonePos(ivec3 zonePos, ivec3 zoneShift, uint axis, float scal
 }
 
 
-
-//Data packing/unpacking
-struct areaMeta{//size 16
-    ivec3 areaShift;
-};
-
-
 #define lightTravelScaleInv 2.0 //most voxels per block representable for lightTravel
 #define lightTravelScale (1.0/lightTravelScaleInv);
 
