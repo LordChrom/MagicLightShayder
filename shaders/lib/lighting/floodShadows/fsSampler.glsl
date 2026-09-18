@@ -89,15 +89,6 @@ float doSharpOcclusionPixelLocked(vec3 displacement, vec3 travel, uint packedOcc
     return isLit(displacement,unpackOcclusionRay(packedOcclusionData),unpackOcclusionMap(packedOcclusionData)) ? stren:0;
 }
 
-float doSunOcclusion(vec3 displacement, vec3 travel, uint packedOcclusionData){
-    vec2 ray = unpackOcclusionRay(packedOcclusionData);
-
-    return float(bool(unpackOcclusionMap(packedOcclusionData) &
-            (displacement.x>ray.x?10u:5u) &
-            (displacement.y>ray.y?12u:3u)
-    ));
-}
-
 #if (defined PENUMBRAS_ENABLED) && (defined FOG_PENUMBRAS)
     #define doFogOcclusion doPenumbralOcclusion
 #else
@@ -269,13 +260,9 @@ void doBonusEffects(inout vec3 color, PackedLight packedLightSrc, vec3 displacem
 
 
 
-vec3 getDirectedLight(uint cascadeLevel, uint layer, float subsurface, ivec3 zoneShift, ivec3 zonePos,
+vec3 getDirectedLight(PackedLight packedLightSrc, float subsurface,
     vec3 normal, vec3 subVoxelOffset, bool isForFog, float scale
 ){
-    #if DEBUG_SHOW_UPDATES >= 0
-    debugindicator = imageLoad(fsDebugMap,toMemPos(zonePos, zoneShift, zoneOffset(axis, layer,cascadeLevel))).x;
-    #endif
-    PackedLight packedLightSrc = sampleLightData(zonePos, zoneShift, zoneOffset(axis, layer,cascadeLevel));
     if(!lightIsValid(packedLightSrc))return vec3(0);
 
     vec3 travel = unpackLightTravel(packedLightSrc);
@@ -287,7 +274,7 @@ vec3 getDirectedLight(uint cascadeLevel, uint layer, float subsurface, ivec3 zon
 
     if(isForFog)
         lightStrength*=doFogOcclusion(displacement,travel,getPackedOcclusion(packedLightSrc));
-    else if(!isForFog){
+    else{
         float normalMult = normalFactor(normal, displacement, subsurface);
         #ifdef MC_SHAPED_LIGHT_FALLOFF
         normalMult=clamp(normalMult,0.1,0.5);
@@ -408,8 +395,13 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
         vec3 zoneSubVoxelOffset = areaToZoneSpaceRelative(worldPos-voxelCenter,axis);
 
 
-        for(uint layer = 0; layer<VOX_LAYERS; layer++)
-            color+=getDirectedLight(cascadeLevel,layer,subsurface,zoneShift,zonePos,zoneNorm,zoneSubVoxelOffset,false,scale);
+        for(uint layer = 0; layer<VOX_LAYERS; layer++){
+            #if DEBUG_SHOW_UPDATES >= 0
+            debugindicator = imageLoad(fsDebugMap,toMemPos(zonePos, zoneShift, zoneOffset(axis, layer,cascadeLevel))).x;
+            #endif
+            PackedLight packedLightSrc = sampleLightData(zonePos, zoneShift, zoneOffset(axis, layer,cascadeLevel));
+            color+=getDirectedLight(packedLightSrc,subsurface,zoneNorm,zoneSubVoxelOffset,false,scale);
+        }
     }
 
     return color;
@@ -421,47 +413,51 @@ vec3 voxelSampleFog(vec3 worldPos, float ditherValue){
     uint cascadeLevel = getCascadeLevel(worldPos);
     float scale = getScale(cascadeLevel);
 
-#if !(AREA_TRANSITION_DIST==-1)
-    vec3 tmp = abs(worldPos-cameraPosition);
-    float areaBorderNearness = max(max(tmp.x,tmp.y),tmp.z)/((AREA_SIZE-1)*0.5*scale);
-    areaBorderNearness = clamp((areaBorderNearness-AREA_TRANSITION_DIST)/(1-AREA_TRANSITION_DIST),0,1);
-
-    if(cascadeLevel<NUM_CASCADES-1 && areaBorderNearness+ditherValue>1)
-        cascadeLevel++;
-    scale = getScale(cascadeLevel);
-#endif
-
     voxelCenter = (floor(worldPos/scale)+0.5) * scale;
 
     ivec3 areaPos = worldPosToArea(voxelCenter,scale).xyz;
     ivec3 areaShift = getAreaShift(scale);
 
+    struct listEntry{
+        PackedLight light;
+        uint axis;
+        float desirability;
+    };
+    listEntry[LIGHTS_PER_FOG_SAMPLE] lightList;
+    int numLights = 0;
 
-    vec3 color = vec3(0);
-
-#ifdef FOG_RANDOM_LESSER_SOURCE
-    const int lightsInLoop = min(LIGHTS_PER_FOG_SAMPLE-1,VOX_LAYERS);
-    uint randLayer = int(floor(float(VOX_LAYERS-lightsInLoop)*fract(37*fogNoise)))+lightsInLoop;
-#else
-    const int lightsInLoop = min(LIGHTS_PER_FOG_SAMPLE,VOX_LAYERS);
-#endif
-
-#if DEBUG_AXIS>=0
-    axis = DEBUG_AXIS;
-#else
-    for (axis=0;axis<6;axis++)
-#endif
-    {
+    for (axis=0;axis<6;axis++){
         ivec3 zoneShift = areaToZoneSpace(areaShift, axis);
         ivec3 zonePos = areaToZoneSpace(areaPos, axis);
-        vec3 zoneSubVoxelOffset = areaToZoneSpaceRelative(worldPos-voxelCenter,axis);
+        for(int layer = 0; layer<min(VOX_LAYERS,LIGHTS_PER_FOG_SAMPLE+1); layer++){
+            listEntry e;
+            e.light = sampleLightData(zonePos, zoneShift, zoneOffset(axis, layer,cascadeLevel));
+            e.axis=axis;
+            if(!lightIsValid(e.light))
+                break;
+            //TODO estimate approximate strength of unconsidered lights
+            ditherValue = fract(0.61454678*ditherValue+0.35465);
+            e.desirability = (-length(unpackLightTravel(e.light)))*(1+ditherValue);
+            int indexToUse = numLights;
 
-        for(int layer = 0; layer<lightsInLoop; layer++){
-            color+=getDirectedLight(cascadeLevel,layer,1.0,zoneShift,zonePos,vec3(0),zoneSubVoxelOffset,true,scale);
+
+            for(int i=0;i<LIGHTS_PER_FOG_SAMPLE && i<=numLights;i++){
+                listEntry tmpEntry = lightList[i];
+                if(e.desirability>tmpEntry.desirability || i==numLights){
+                    lightList[i]=e;
+                    e=tmpEntry;
+                }
+            }
+            numLights = min(numLights+1,LIGHTS_PER_FOG_SAMPLE);
         }
-#ifdef FOG_RANDOM_LESSER_SOURCE
-        color+=getDirectedLight(cascadeLevel,randLayer,1.0,zoneShift,zonePos,vec3(0),zoneSubVoxelOffset,true,scale);
-#endif
+    }
+
+    vec3 subVoxelOffset = worldPos-voxelCenter;
+    vec3 color = vec3(0);
+    for (int i=0;i<numLights;i++){
+        listEntry entry = lightList[i];
+        vec3 zoneSubVoxelOffset = areaToZoneSpaceRelative(subVoxelOffset,entry.axis);
+        color+=getDirectedLight(entry.light,1.0,vec3(0),zoneSubVoxelOffset,true,scale);
     }
     return color;
 }
