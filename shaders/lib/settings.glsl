@@ -239,6 +239,10 @@
 #endif
 
 ///// The following to be copy pasted into shaders.properties
+#if !(defined FLOOD_SHADOWS || defined BASIC_FLOODFILL)
+    #define VOXELIZATION_MODE -1
+#endif
+
 #if VOLUMETRIC_FOG_SAMPLES == 0
     #define FOG_BLUR 0
     #undef CHEAP_FOG_BLUR
