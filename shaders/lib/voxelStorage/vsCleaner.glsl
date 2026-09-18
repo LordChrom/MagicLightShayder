@@ -30,6 +30,8 @@ void zeroPosition(ivec3 pos, bool isTop){
 
 #define MOVEMENT_TRIM
 #include "/lib/util/3dComputeShaderUtils.glsl"
+
+//TODO expiry
 //bool isPosExpiryExempt(ivec3 areaPos){
 //    #if VOXELIZATION_MODE == 1
 //    vec3 pos = vec3(areaPos-(AREA_SIZE>>1))*scale+0.5;

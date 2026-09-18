@@ -12,6 +12,10 @@ vec3 voxelCenter;
 #include "/lib/util/flicker.glsl"
 #include "/lib/util/pixelLock.glsl"
 
+#if 0
+#define PackedLight uvec4
+#endif
+
 float normalFactor(vec3 normal, vec3 displacement, float subsurface){
     float lightDotN =-dot(normalize(displacement),normal);
    #if SUBSURFACE_MODE == 0
@@ -29,8 +33,8 @@ float normalFactor(vec3 normal, vec3 displacement, float subsurface){
 
 
 
-float baseLightStrength(uvec4 packedLightSrc, vec3 displacement){
-    uint type = unpackLightType(packedLightSrc);
+float baseLightStrength(PackedLight packedLightSrc, vec3 displacement){
+    uint type = unpackLightAnimationType(packedLightSrc);
 
     #ifdef EVERYTHING_IS_THE_SUN
         if(true) return 1;
@@ -112,8 +116,7 @@ float doSunOcclusion(vec3 displacement, vec3 travel, uint packedOcclusionData){
 uint debugindicator;
 #endif
 
-void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, vec3 normal, float scale){
-    uint type = unpackLightType(packedLightSrc);
+void doBonusEffects(inout vec3 color, PackedLight packedLightSrc, vec3 displacement, vec3 normal, float scale){
     vec3 travel = unpackLightTravel(packedLightSrc);
     uint map = unpackOcclusionMap(packedLightSrc.z);
 
@@ -170,7 +173,7 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
     //green = fully lit,
     //bright red = fully unlit (should never happen)
     //blue = partially lit
-    if(bool(type)){
+    if(lightIsValid(packedLightSrc)){
         vec2 debugQuadrant = subVoxelOffset.xy;
 
         #ifdef UNFLIP_DEBUG_MAPS
@@ -205,7 +208,7 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
     #define BONUS_EFFECTS_NEEDED
     vec2 ray = unpackOcclusionRay(getPackedOcclusion(packedLightSrc));
 
-    if(bool(type)){
+    if(lightIsValid(packedLightSrc)){
         vec2 slopeDif = abs(ray-abs(displacement.xy/displacement.z));
         float outlineWidth = DEBUG_OUTLINE_WIDTH/displacement.z;
 
@@ -272,9 +275,8 @@ vec3 getDirectedLight(uint cascadeLevel, uint layer, float subsurface, ivec3 zon
     #if DEBUG_SHOW_UPDATES >= 0
     debugindicator = imageLoad(fsDebugMap,toMemPos(zonePos, zoneShift, zoneOffset(axis, layer,cascadeLevel))).x;
     #endif
-    uvec4 packedLightSrc = sampleLightData(zonePos, zoneShift, zoneOffset(axis, layer,cascadeLevel));
-    uint type = unpackLightType(packedLightSrc);
-    if(type==0)return vec3(0);
+    PackedLight packedLightSrc = sampleLightData(zonePos, zoneShift, zoneOffset(axis, layer,cascadeLevel));
+    if(!lightIsValid(packedLightSrc))return vec3(0);
 
     vec3 travel = unpackLightTravel(packedLightSrc);
 

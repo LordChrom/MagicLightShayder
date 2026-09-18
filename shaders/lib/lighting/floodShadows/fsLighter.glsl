@@ -6,6 +6,10 @@
 #include "/lib/voxelStorage/vsAccess.glsl"
 #include "/lib/voxelStorage/blockPacking.glsl"
 
+#if 0
+#define PackedLight uvec4
+#endif
+
 #define LIGHTER_Z_EXACT AREA_SIZE/UPDATE_STRIDE
 
 //TODO make this more complete from the script
@@ -56,31 +60,31 @@ float scale = 0;
     uint workGroupOffset;
 
     layout(std430, binding = 0) buffer ssbo0 {
-        uvec4[][LIGHT_LAYERS][SECTION_SIZE+2][SECTION_SIZE+2] bufferedWorkData;
+        PackedLight[][LIGHT_LAYERS][SECTION_SIZE+2][SECTION_SIZE+2] bufferedWorkData;
     };
 
-    void setSharedSample(int a, int b, uint layer, uvec4 data){
+    void setSharedSample(int a, int b, uint layer, PackedLight data){
         bufferedWorkData[workGroupOffset][layer][A+a][B+b]= data;
     }
-    uvec4 getInputSample(int a, int b, uint layer){
+    PackedLight getInputSample(int a, int b, uint layer){
         return bufferedWorkData[workGroupOffset][layer][A+a][B+b];
     }
 #else
-    shared uvec4[SECTION_SIZE+2][SECTION_SIZE+2][LIGHT_LAYERS] sharedPackedPool;
-    uvec4 getInputSample(int a, int b, uint layer){return sharedPackedPool[A+a][B+b][layer];}
-    void setSharedSample(int a, int b, uint layer, uvec4 data){
+    shared PackedLight[SECTION_SIZE+2][SECTION_SIZE+2][LIGHT_LAYERS] sharedPackedPool;
+    PackedLight getInputSample(int a, int b, uint layer){return sharedPackedPool[A+a][B+b][layer];}
+    void setSharedSample(int a, int b, uint layer, PackedLight data){
         sharedPackedPool[A+a][B+b][layer]=data;
     }
 
 
 #endif
 
-uvec4[VOX_LAYERS] bestLights;
-void setBestLight(uint layer, uvec4 data){
+PackedLight[VOX_LAYERS] bestLights;
+void setBestLight(uint layer, PackedLight data){
     bestLights[layer]=data;
 }
 
-uvec4 getBestLight(uint layer){
+PackedLight getBestLight(uint layer){
     return bestLights[layer];
 }
 
@@ -126,7 +130,7 @@ uint getRearVoxel(int a, int b){
 
 
 
-uvec4 maybeBlockLight(uvec4 light, uint voxel){
+PackedLight maybeBlockLight(PackedLight light, uint voxel){
     float lightTravelZ = unpackLightTravel(light).z;
     return (lightTravelZ>0.01)&&(
         #if MAX_LIGHT_TRAVEL > 0
@@ -134,7 +138,7 @@ uvec4 maybeBlockLight(uvec4 light, uint voxel){
         #endif
         bool(voxel&WORLDVOX_OPAQUE) ||
         ((bool(voxel&WORLDVOX_TRANSLUCENT)) &&!bool(unpackLightFlags(light)&1u))
-    )? uvec4(0):light;
+    )? PackedLight(0):light;
 }
 
 void saveSharedSample(int a, int b){
@@ -183,7 +187,7 @@ void saveSharedSample(int a, int b){
 
         if(cascadeLevel>=(NUM_CASCADES-1)){
             for(int layer = 0; layer<VOX_LAYERS; layer++){
-                setSharedSample(a,b,layer,uvec4(0));
+                setSharedSample(a,b,layer,PackedLight(0));
             }
             skipSampling=true;
         }
@@ -205,7 +209,7 @@ void saveSharedSample(int a, int b){
         return;
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-        uvec4 light = sampleLightData(sampleZonePos, zoneShift, zoneOffset(axis,layer,sampleCascade));
+        PackedLight light = sampleLightData(sampleZonePos, zoneShift, zoneOffset(axis,layer,sampleCascade));
         if(rearOob){
             setPackedLightTravel(light,unpackLightTravel(light)+zonePosRemnants);
         }
@@ -255,7 +259,7 @@ void takeSamples(){
 void determineBestLightSources(){
     uint[VOX_LAYERS] bestStrengths;
     for(int layer = 0; layer<VOX_LAYERS; layer++){
-        setBestLight(layer,uvec4(0));
+        setBestLight(layer,PackedLight(0));
         bestStrengths[layer] = 0;
     }
 
@@ -275,13 +279,12 @@ void determineBestLightSources(){
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         for (int a=-1; a<=1;a++){
             for (int b=-1; b<=1;b++){
-                uvec4 lightSrc = getInputSample(a,b,layer);
-                uint type = unpackLightType(lightSrc);
+                PackedLight lightSrc = getInputSample(a,b,layer);
                 vec3 travel = unpackLightTravel(lightSrc);
                 travel+=vec3(-a, -b, 1)*scale;
                 setPackedLightTravel(lightSrc,travel);
 
-                if((type==0) || (travel.x*a>0) || (travel.y*b>0))
+                if((!lightIsValid(lightSrc))|| (travel.x*a>0) || (travel.y*b>0))
                     continue;
                 uint strength = getLightStrength(lightSrc);
 
@@ -300,7 +303,7 @@ void determineBestLightSources(){
 
                     if (strength>bestStrengths[rank]){
                         uint tmpStr = bestStrengths[rank];
-                        uvec4 tmpSrc = getBestLight(rank);
+                        PackedLight tmpSrc = getBestLight(rank);
 
                         setBestLight(rank,lightSrc);
                         bestStrengths[rank]=strength;
@@ -320,7 +323,7 @@ void determineBestLightSources(){
 //for all 2x2 selected sample arrays, corner closest to source at [0][0], output sample at [1][1]
 //newObstructions is flipped to match this, with [2][2] being the firthest corner from source
 //alignment.x means it is on the a axis,
-void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
+void pickRelevantInputSamples(PackedLight bestSource, bool translucentTerrain,
     out uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, out uint relevance, out bvec2 alignment, out uint newObstructions
 ){
 
@@ -390,7 +393,7 @@ void pickRelevantInputSamples(uvec4 bestSource, bool translucentTerrain,
 
 
             for(int layer = 0; layer<VOX_LAYERS; layer++){
-                uvec4 relevantSample = getInputSample(a,b,layer);
+                PackedLight relevantSample = getInputSample(a,b,layer);
                 if(aSignSrc*a>0 || bSignSrc*b>0)
                     continue;
 
@@ -537,7 +540,7 @@ uint combineOcclusions(uint occlusionA, uint occlusionB){
 //i'll be calling the +b direction "top" and the +a direction "left", both of these directions are away from src
 //as though you're looking along the +z direction, with light traveling along L=+z and also somewhat +x+y
 void doOcclusion(uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, uint relevance, bvec2 alignment, uint relevantObstructions,
-    inout uvec4 lightSrc
+    inout PackedLight lightSrc
 ){
     if(!bool(relevance)){
         setPackedOcclusion(lightSrc,FULL_OCCLUSION);
@@ -675,7 +678,7 @@ void doOcclusion(uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples, uint 
 
 
 
-void doLightPassage(inout uvec4 bestLight, bool translucentTerrain){
+void doLightPassage(inout PackedLight bestLight, bool translucentTerrain){
     uint[2][2][OCCLUDERS_PER_LIGHT] relevantOcclusionSamples;
     uint relevance,newObstructions;
     bvec2 alignment;
@@ -686,7 +689,7 @@ void doLightPassage(inout uvec4 bestLight, bool translucentTerrain){
 
 #if !(defined KEEP_FULLY_OCCLUDED_SAMPLES && defined DEBUG_OCCLUSION_MAP)
     if ( !bool(unpackOcclusionMap(getPackedOcclusion(bestLight)))){
-        bestLight=uvec4(0);
+        bestLight=PackedLight(0);
     }
 #endif
 }
@@ -694,7 +697,7 @@ void doLightPassage(inout uvec4 bestLight, bool translucentTerrain){
 int doColoredTranslucent(){
     int translucentBlocksInSample = 0;
 
-    uvec4 translucentPassage = getBestLight(0);
+    PackedLight translucentPassage = getBestLight(0);
 
     ivec2 travelDirSign = ivec2(sign(unpackLightTravel(translucentPassage).xy));
 
@@ -724,7 +727,7 @@ int doColoredTranslucent(){
     if (translucentBlocksInSample>0){
         doLightPassage(translucentPassage, true);
         if (bool(unpackOcclusionMap(getPackedOcclusion(translucentPassage)))){
-            setPackedLightColor(translucentPassage, unpackLightColor(translucentPassage)*color);
+            setPackedLightColor(translucentPassage, unpackLightFilterColor(translucentPassage)*color);
             setPackedLightFlags(translucentPassage, unpackLightFlags(translucentPassage)|1u);//TODO make this not dumb
 
             setBestLight(VOX_LAYERS-1, translucentPassage);
@@ -751,7 +754,7 @@ void lightVoxelFace(){
             break;
         #endif
 
-        uvec4 light = getBestLight(layer);
+        PackedLight light = getBestLight(layer);
         uint flagsToSet = unpackLightFlags(light)&0xfeu;
         doLightPassage(light,false);
         setPackedLightFlags(light,flagsToSet);
@@ -776,7 +779,15 @@ void lightVoxelFace(){
         if(lightTravel.z>=-0.001)
 #endif
         {
-            setBestLight(VOX_LAYERS-1,packLightData(vec2(0),15u,worldVoxColor(front),lightTravel,0,blockLightAnimationType(front),0));
+            setBestLight(VOX_LAYERS-1,packLightData(
+                vec2(0),
+                15u,
+                vec3(((front>>WORLDVOX_EMISSION_SHIFT)&0xfu)/15.0),
+                lightTravel,
+                0,
+                blockLightID(front),
+                0
+            ));
         }
     }
 

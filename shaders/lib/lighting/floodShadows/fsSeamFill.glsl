@@ -1,6 +1,9 @@
 #define SAMPLES_LIGHT_FACE
 #define WRITES_LIGHT_FACE
 #include "/lib/lighting/floodShadows/fsHelper.glsl"
+#if 0
+#define PackedLight uvec4
+#endif
 
 uniform int heightLimit;
 uniform int bedrockLevel;
@@ -49,7 +52,7 @@ ivec3 movement   = ivec3(0);
 bool cascadeVisitedThisFrame = false;
 
 void trimLight(ivec3 zonePos){
-    uvec4 light = uvec4(0);
+    PackedLight light = PackedLight(0);
 
     vec3 zonePosRemnants;
     ivec3 upZonePos = uppperCascadeZonePos(zonePos,thisShift,axis,scale,zonePosRemnants);

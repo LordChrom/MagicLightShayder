@@ -2,6 +2,9 @@
 #define VOXEL_HELPER
 #include "/lib/settings.glsl"
 #include "/lib/voxelStorage/volumeShifting.glsl"
+#include "/lib/voxelStorage/blockPacking.glsl"
+
+#define PackedLight uvec4
 
 //caps out at 31 but its whatever
 uint countTrailingZeroes(uint x){
@@ -245,12 +248,16 @@ vec3 unpackLightTravel(uint packedTravel){
     return intLightTravel(packedTravel)*lightTravelScale;
 }
 
-vec3 unpackLightTravel(uvec4 packedData){
+vec3 unpackLightTravel(PackedLight packedData){
     return unpackLightTravel(packedData.x);
 }
 
-vec3 unpackLightColor(uvec4 packedData){
+vec3 unpackLightFilterColor(PackedLight packedData){
     return unpackUnorm4x8(packedData.y).yzw;
+}
+
+vec3 unpackLightColor(PackedLight packedData){
+    return unpackUnorm4x8(packedData.y).yzw*getLightIDColor(packedData.x&0x3fu);
 }
 
 float unpackOcclusionHitDist(uint occlusionInfo){
@@ -261,62 +268,65 @@ uint unpackOcclusionMap(uint occlusionInfo){
     return occlusionInfo&0xfu;
 }
 
-uint unpackLightFlags(uvec4 packedData){
-    return (packedData.x>>4)&0xffu;
+uint unpackLightFlags(PackedLight packedData){
+    return packedData.y&0xffu;
 }
 
-uint unpackLightType(uvec4 packedData){
-    return (packedData.x)&0xfu;
+uint unpackLightAnimationType(PackedLight packedData){
+    return blockLightAnimationType(packedData.x&0x3fu);
 }
 
+bool lightIsValid(PackedLight packedData){
+    return bool(packedData.x&0x3fu);
+}
 vec2 unpackOcclusionRay(uint occlusionInfo){
     return unpackUnorm4x8(occlusionInfo).zw;
 }
 
-uint getLightStrength(uvec4 lightSrc){
-    uint type = unpackLightType(lightSrc);
-    if(type==0)
+uint getLightStrength(PackedLight lightSrc){
+    if(!lightIsValid(lightSrc))
         return 0;
     ivec3 travel = intLightTravel(lightSrc.x);
+    vec3 color = unpackLightColor(lightSrc);
+    float baseStrength = (color.x+color.y+color.b)/3.0;
+//    float baseStrength = 1.0;
+
     #ifdef MC_SHAPED_LIGHT_FALLOFF
     vec3 displacement =max(abs(unpackLightTravel(lightSrc))-0.5,0);
-
-    vec3 a = unpackLightColor(lightSrc);
-    float base = (a.x+a.y+a.b)/3.0;
-    float strength = 2*max(0,base-(displacement.x+displacement.y+displacement.z)/15.0)/base;
+    float strength = 2*max(0,baseStrength-(displacement.x+displacement.y+displacement.z)/15.0)/baseStrength;
     #else
     float lenSquared = float(dot(travel, travel)+1);
-    float strength = (1+length(unpackLightColor(lightSrc)))/lenSquared;
+    float strength = (1+baseStrength)/lenSquared;
     #endif
     return uint(clamp(strength*1e7,0,1e9));
 }
 
-uint getPackedOcclusion(uvec4 packedData){
+uint getPackedOcclusion(PackedLight packedData){
     return packedData.z;
 }
 
-void setPackedOcclusion(inout uvec4 packedData, uint occlusion){
+void setPackedOcclusion(inout PackedLight packedData, uint occlusion){
     packedData.z=occlusion;
 }
 
-void setPackedLightTravel(inout uvec4 packedData, vec3 lightTravel){
+void setPackedLightTravel(inout PackedLight packedData, vec3 lightTravel){
     packedData.x=packLightTravel(lightTravel)|(packedData.x&0x3fu);
 }
 
-void setPackedLightColor(inout uvec4 packedData, vec3 color){
+void setPackedLightColor(inout PackedLight packedData, vec3 color){
     packedData.y = packUnorm4x8(vec4(0,color)) | (packedData.y&0xffu);
 }
 
-void setPackedLightFlags(inout uvec4 packedData, uint flags){
-    packedData.x = (packedData.x&0xfffff00fu) | ((flags&0xffu)<<4);
+void setPackedLightFlags(inout PackedLight packedData, uint flags){
+    packedData.y = (packedData.y&0xffffff00u) | (flags&0xffu);
 }
 
 //float sunDist = 4+((frameCounter>>6)%10)*0.4;
 #define SUN_DISTANCE 5
-uvec4 packLightData(vec2 occlusionRay,uint occlusionMap,vec3 color,vec3 lightTravel,float occlusionHitDistance,uint type,uint flags){
-    uvec4 ret;
-    ret.x = packLightTravel(lightTravel) | (type&0xfu) | ((flags&0xffu)<<4);
-    ret.y = packUnorm4x8(vec4(0,color));
+PackedLight packLightData(vec2 occlusionRay,uint occlusionMap,vec3 color,vec3 lightTravel,float occlusionHitDistance,uint type,uint flags){
+    PackedLight ret;
+    ret.x = packLightTravel(lightTravel) | (type&0x3fu);
+    ret.y = packUnorm4x8(vec4(0,color)) | (flags&0xffu);
     ret.z = packOcclusionInfo(occlusionRay, occlusionMap, occlusionHitDistance);
     return ret;
 }
@@ -337,14 +347,14 @@ uimage3D fsVox;
 #endif
 
 #ifdef SAMPLES_LIGHT_FACE
-uvec4 sampleLightData(ivec3 zonePos, ivec3 zoneShift, uint zoneMemOffset){
+PackedLight sampleLightData(ivec3 zonePos, ivec3 zoneShift, uint zoneMemOffset){
     return imageLoad(fsVox, toMemPos(zonePos,zoneShift,zoneMemOffset));
 }
 #endif
 
 
 #ifdef WRITES_LIGHT_FACE
-void setLightData(uvec4 light, ivec3 zonePos, ivec3 zoneShift, uint zoneMemOffset){
+void setLightData(PackedLight light, ivec3 zonePos, ivec3 zoneShift, uint zoneMemOffset){
     ivec3 pos = toMemPos(zonePos,zoneShift,zoneMemOffset);
 #if DEBUG_SHOW_UPDATES>=0
     imageStore(fsDebugMap,pos,uvec4(uint(frameCounter&0xff),0,0,0));
@@ -384,10 +394,9 @@ bool canIlluminateInBounds(vec4 edges, vec2 ray, uint occlusionMap){
 }
 
 
-// x is 2x7 a,b of travel, 1x6 L of travel, 1x8 flags, 1x4 light type
-// y is 3x8 color, 8 free
-bool sameLight(uvec4 a, uvec4 b){
-    return !(bool((a.y^b.y)&0xffffff00u)||(bool((a.x^b.x)&0xfffff00fu)));
+bool sameLight(PackedLight a, PackedLight b){
+    return a==b;
+//    return !(bool((a.y^b.y)&0xffffff00u)||(bool((a.x^b.x)&0xfffff00fu)));
 }
 
 //left, top, right, bottom
