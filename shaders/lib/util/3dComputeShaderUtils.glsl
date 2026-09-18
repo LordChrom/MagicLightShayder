@@ -6,11 +6,14 @@ uint bayer4u3d(uvec3 pos){
     return (bayer2u3d(pos)<<3)|(bayer2u3d(pos>>1));
 }
 
-uint getUpdatePeriod(){
+uint getDistFromCenter(){
     ivec3 centerness = ivec3(gl_WorkGroupID)-(WORK_SIZE>>1)+1;
     centerness=abs(centerness-clamp(centerness,0,1));
-    uint distFromCenter = max(max(centerness.x,centerness.y),centerness.z);
+    return max(max(centerness.x,centerness.y),centerness.z);
+}
 
+uint getUpdatePeriod(){
+    uint distFromCenter = getDistFromCenter();
     return max(distFromCenter*distFromCenter,1);
 }
 
