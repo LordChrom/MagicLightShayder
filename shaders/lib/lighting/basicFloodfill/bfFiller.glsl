@@ -1,10 +1,10 @@
 #include "/lib/settings.glsl"
-
 #define SAMPLES_FLOOD
 #define WRITES_FLOOD
 #define READS_BASE_VOX
 #include "/lib/voxelStorage/blockPacking.glsl"
-#include "/lib/lighting/floodShadows/voxelHelper.glsl"
+#include "/lib/voxelStorage/vsAccess.glsl"
+#include "/lib/lighting/basicFloodfill/bfAccess.glsl"
 
 
 #if FLOODFILL_SIZE<=32

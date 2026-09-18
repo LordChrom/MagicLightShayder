@@ -1,5 +1,6 @@
 #define SAMPLES_FLOOD
-#include "/lib/lighting/floodShadows/voxelHelper.glsl"
+#include "/lib/voxelStorage/volumeShifting.glsl"
+#include "/lib/lighting/basicFloodfill/bfAccess.glsl"
 
 vec4 sampleFloodData(vec3 worldPos){
     vec3 distFromCenter = abs(worldPos-globalOrigin);

@@ -1,6 +1,7 @@
 #define READS_SCALING_VOX
 #define WRITES_SCALING_VOX
-#include "/lib/lighting/floodShadows/voxelHelper.glsl"
+#include "/lib/settings.glsl"
+#include "/lib/voxelStorage/vsAccess.glsl"
 
 
 #if VOXELIZATION_MODE==1

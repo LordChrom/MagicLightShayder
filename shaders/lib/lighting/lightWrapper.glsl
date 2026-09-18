@@ -7,11 +7,11 @@
 #endif
 
 #ifdef FLOOD_SHADOWS
-#include "/lib/lighting/floodShadows/voxelSampler.glsl"
+#include "/lib/lighting/floodShadows/fsSampler.glsl"
 #endif
 
 #ifdef BASIC_FLOODFILL
-#include "/lib/lighting/basicFloodfill/basicFloodfillSampler.glsl"
+#include "/lib/lighting/basicFloodfill/bfSampler.glsl"
 #endif
 
 #ifdef SHADOWMAP_SHADOWS

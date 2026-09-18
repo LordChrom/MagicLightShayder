@@ -7,7 +7,8 @@ bool isCrossBlockModel = false;
 uint axis;
 vec3 voxelCenter;
 
-#include "/lib/lighting/floodShadows/voxelHelper.glsl"
+#include "/lib/lighting/floodShadows/fsHelper.glsl"
+#include "/lib/voxelStorage/vsAccess.glsl"
 #include "/lib/util/flicker.glsl"
 #include "/lib/util/pixelLock.glsl"
 

@@ -2,7 +2,8 @@
 #define WRITES_LIGHT_FACE
 #define READS_SCALING_VOX
 
-#include "/lib/lighting/floodShadows/voxelHelper.glsl"
+#include "/lib/lighting/floodShadows/fsHelper.glsl"
+#include "/lib/voxelStorage/vsAccess.glsl"
 #include "/lib/voxelStorage/blockPacking.glsl"
 
 #ifdef WAVES_INORDER

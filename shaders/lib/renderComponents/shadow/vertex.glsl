@@ -3,7 +3,7 @@
 #include "/lib/renderComponents/shadow/shadowProgramFeatures.glsl"
 
 #ifdef CAN_VOXELIZE
-#include "/lib/voxelStorage/voxelMapper.glsl"
+#include "/lib/voxelStorage/vsMapper.glsl"
 uniform vec3 cameraPosition;
 
 in vec4 at_midBlock;

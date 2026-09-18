@@ -1,3 +1,3 @@
 #version 430
 #define LIGHTER_PASS 1
-#include "/lib/lighting/floodShadows/voxelLighter.glsl"
+#include "/lib/lighting/floodShadows/fsLighter.glsl"

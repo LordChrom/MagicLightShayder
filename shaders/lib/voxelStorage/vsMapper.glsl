@@ -1,5 +1,5 @@
 #define WRITES_BASE_VOX
-#include "/lib/lighting/floodShadows/voxelHelper.glsl"
+#include "/lib/voxelStorage/vsAccess.glsl"
 #include "/lib/voxelStorage/blockPacking.glsl"
 
 void writeVoxelMap(vec3 worldPos, int rawBlockID, uint emission){

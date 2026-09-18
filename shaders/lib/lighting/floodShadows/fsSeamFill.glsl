@@ -1,6 +1,6 @@
 #define SAMPLES_LIGHT_FACE
 #define WRITES_LIGHT_FACE
-#include "/lib/lighting/floodShadows/voxelHelper.glsl"
+#include "/lib/lighting/floodShadows/fsHelper.glsl"
 
 uniform int heightLimit;
 uniform int bedrockLevel;
