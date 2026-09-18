@@ -327,29 +327,6 @@ vec3 getDirectedLight(uint cascadeLevel, uint layer, float subsurface, ivec3 zon
     return color;
 }
 
-const float radSlope = tan(22.5*PI/180);
-vec3 sampleDirectedRadiance(uint cascadeLevel, float subsurface, ivec3 zoneShift, ivec3 zonePos, vec3 normal, vec3 subVoxelOffset){
-    uint zoneMemOffset = zoneOffset(axis, VOX_LAYERS,cascadeLevel);
-    uvec4 packedRadiance = sampleLightData(zonePos, zoneShift, zoneMemOffset);
-    vec3 ret = vec3(0);
-
-    subVoxelOffset/=getScale(cascadeLevel);
-    vec3 testNorm = normalize(vec3(radSlope,radSlope,1));
-    for(int i=0; i<4; i++){
-        int a = 2*(i&1)-1;
-        int b = (i&2)-1;
-        vec3 dir = normalize(vec3(a,b,2))+subVoxelOffset*0.1;
-        float normalFactor =-dot(dir,normal);
-        vec3 col = unpackUnorm4x8(packedRadiance[i]).rgb;
-
-
-        normalFactor=max(0,normalFactor);
-        col*=normalFactor;
-        ret+=col;
-    }
-    return ret;
-}
-
 
 vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue){
     if(!isVoxelInBounds(worldPos+0.1*normal))
@@ -423,14 +400,8 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
         vec3 zoneSubVoxelOffset = areaToZoneSpaceRelative(worldPos-voxelCenter,axis);
 
 
-    #ifndef DEBUG_RADIANCE_ONLY
         for(uint layer = 0; layer<VOX_LAYERS; layer++)
             color+=getDirectedLight(cascadeLevel,layer,subsurface,zoneShift,zonePos,zoneNorm,zoneSubVoxelOffset,false,scale);
-    #endif
-
-        #ifdef FALLBACK_RADIANCE
-        color+=sampleDirectedRadiance(cascadeLevel,subsurface,zoneShift,zonePos,zoneNorm,zoneSubVoxelOffset);
-        #endif
     }
 
     return color;

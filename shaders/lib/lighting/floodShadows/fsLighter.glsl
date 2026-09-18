@@ -6,25 +6,21 @@
 #include "/lib/voxelStorage/vsAccess.glsl"
 #include "/lib/voxelStorage/blockPacking.glsl"
 
-#ifdef WAVES_INORDER
+#define LIGHTER_Z_EXACT AREA_SIZE/UPDATE_STRIDE
+
+//TODO make this more complete from the script
+#if LIGHTER_Z_EXACT<=1
     #define LIGHTER_WORK_GROUP_Z 1
+#elif LIGHTER_Z_EXACT<=2
+    #define LIGHTER_WORK_GROUP_Z 2
+#elif LIGHTER_Z_EXACT<=4
+    #define LIGHTER_WORK_GROUP_Z 4
+#elif LIGHTER_Z_EXACT<=8
+    #define LIGHTER_WORK_GROUP_Z 8
 #else
-    #define LIGHTER_Z_EXACT AREA_SIZE/UPDATE_STRIDE
-
-    //TODO make this more complete from the script
-    #if LIGHTER_Z_EXACT<=1
-        #define LIGHTER_WORK_GROUP_Z 1
-    #elif LIGHTER_Z_EXACT<=2
-        #define LIGHTER_WORK_GROUP_Z 2
-    #elif LIGHTER_Z_EXACT<=4
-        #define LIGHTER_WORK_GROUP_Z 4
-    #elif LIGHTER_Z_EXACT<=8
-        #define LIGHTER_WORK_GROUP_Z 8
-    #else
-        #define LIGHTER_WORK_GROUP_Z 16
-    #endif
-
+    #define LIGHTER_WORK_GROUP_Z 16
 #endif
+
 
 #if AREA_WIDTH_SECTIONS<=1
     #define LIGHTER_WORK_GROUP_X 1
@@ -129,10 +125,6 @@ uint getRearVoxel(int a, int b){
 
 
 
-#ifdef FALLBACK_RADIANCE
-uvec4 radiance = uvec4(0);
-#endif
-
 
 uvec4 maybeBlockLight(uvec4 light, uint voxel){
     float lightTravelZ = unpackLightTravel(light).z;
@@ -193,9 +185,6 @@ void saveSharedSample(int a, int b){
             for(int layer = 0; layer<VOX_LAYERS; layer++){
                 setSharedSample(a,b,layer,uvec4(0));
             }
-        #ifdef FALLBACK_RADIANCE
-            setSharedSample(a,b,RADIANCE_LAYER,uvec4(0));
-        #endif
             skipSampling=true;
         }
     }
@@ -223,17 +212,6 @@ void saveSharedSample(int a, int b){
 
         setSharedSample(a,b,layer,maybeBlockLight(light,rearVoxel));
     }
-
-
-#ifdef FALLBACK_RADIANCE
-    uvec4 r = uvec4(0);
-    //TOOD recoloring radiance
-    if(!bool(rearVoxel&WORLDVOX_OPAQUE)){
-       r = sampleLightData(sampleZonePos, zoneShift, zoneOffset(axis,RADIANCE_LAYER,sampleCascade));
-    }
-    setSharedSample(a,b,RADIANCE_LAYER,r);
-#endif
-
 }
 
 
@@ -274,31 +252,6 @@ void takeSamples(){
 
 
 
-uvec4 convertToRadiance(uvec4 lightSrc){
-    vec3 color = unpackLightColor(lightSrc).rgb*BLOCK_LIGHT_STRENGTH;
-
-    vec3 displacement = unpackLightTravel(lightSrc);
-    float lengthSquared = dot(displacement,displacement);
-    float columnation = MIN_COLUMNATION;
-    lengthSquared = lengthSquared*(1-columnation)+columnation;
-    const float b = 1/float(MAX_LIGHT_STRENGTH*MAX_LIGHT_STRENGTH);
-
-    color*=pow(lengthSquared*lengthSquared*(1-columnation)+b,-0.8); //the -0.8 is a fudge
-    return uvec4(packUnorm4x8(0.25*vec4(color,0)));
-}
-
-uvec4 combineRadiance(uvec4 a, uvec4 b, float weight){
-    uvec4 ret;
-    for(int i=0; i<4; i++){
-        vec4 color = 4*(unpackUnorm4x8(a[i])+weight*unpackUnorm4x8(b[i]));
-        float len = length(color);
-        if(len>2)
-            color*=(0.3*(len-2)+2)/len;
-        ret[i]=packUnorm4x8(0.25*color);
-    }
-    return ret;
-}
-
 void determineBestLightSources(){
     uint[VOX_LAYERS] bestStrengths;
     for(int layer = 0; layer<VOX_LAYERS; layer++){
@@ -309,31 +262,15 @@ void determineBestLightSources(){
 
     uint blocksInFront = 0;
 
+    #ifndef UNOCCLUDED_INTO_BLOCKS
     for (int a=-1; a<=1;a++){
         for (int b=-1; b<=1;b++){
-            #ifdef FALLBACK_RADIANCE
-            uvec4 sampleRad = getInputSample(a, b, VOX_LAYERS);
-            if(a<0)
-                sampleRad.xz=uvec2(0);
-            else if(a>0)
-                sampleRad.yw=uvec2(0);
-
-            if(b<0)
-                sampleRad.xy=uvec2(0);
-            else if(b>0)
-                sampleRad.zw=uvec2(0);
-
-            const vec3 weights = vec3(0.4,0.2,0.15);
-            radiance = combineRadiance(radiance, sampleRad, weights[abs(a)+abs(b)]);
-            #endif
-
-            #ifndef UNOCCLUDED_INTO_BLOCKS
             bool blockInFront = bool((getRearVoxel(a,b)|getFrontVoxel(a,b))&WORLDVOX_OPAQUE)
             || ( bool(getFrontVoxel(a,0)&WORLDVOX_OPAQUE) && bool(getFrontVoxel(0,b)&WORLDVOX_OPAQUE) && ((a|b)!=0));  //neighboring blocks between src and center
             blocksInFront |= (uint(blockInFront)<<uint(16+a+(b<<2)));
-            #endif
         }
     }
+    #endif
 
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         for (int a=-1; a<=1;a++){
@@ -347,10 +284,6 @@ void determineBestLightSources(){
                 if((type==0) || (travel.x*a>0) || (travel.y*b>0))
                     continue;
                 uint strength = getLightStrength(lightSrc);
-#ifdef FALLBACK_RADIANCE
-                strength = (strength&~1u)|uint(a==0&&b==0);
-#endif
-
 
                 vec2 xy = abs(travel.xy);
                 float halfScale = 0.5*scale;
@@ -361,21 +294,7 @@ void determineBestLightSources(){
                 if(!canIlluminateInBounds(vec4(outerSlope,innerSlope),unpackOcclusionRay(occlusion),unpackOcclusionMap(occlusion)))
                     continue;
 
-#ifdef FALLBACK_RADIANCE
-                const int lastRank = VOX_LAYERS+1;
-#else
-                const int lastRank = VOX_LAYERS;
-#endif
-
-                for(int rank = 0; rank<lastRank; rank++){
-#ifdef FALLBACK_RADIANCE
-                    if(rank==VOX_LAYERS){
-                        if(bool(strength))
-                            radiance=combineRadiance(radiance,convertToRadiance(lightSrc),1);
-                        break;
-                    }
-#endif
-
+                for(int rank = 0; rank<VOX_LAYERS; rank++){
                     if(sameLight(lightSrc,getBestLight(rank)))
                         break;
 
@@ -867,11 +786,6 @@ void lightVoxelFace(){
     for(int layer = 0; layer<VOX_LAYERS; layer++){
         setLightData(getBestLight(layer), zonePos, zoneShift, zoneOffset(axis,layer,cascadeLevel));
     }
-
-#ifdef FALLBACK_RADIANCE
-    setLightData(radiance, zonePos, zoneShift, zoneOffset(axis,RADIANCE_LAYER,cascadeLevel));
-#endif
-
 }
 
 void main(){
@@ -897,14 +811,9 @@ void main(){
     frameBasedOffset = (frameBasedOffset*LIGHTING_SYSTEM_PASSES-areaToZoneSpace(getAreaShift(scale),axis).z + LIGHTER_PASS)%UPDATE_STRIDE;
 
 
-#ifdef WAVES_INORDER
-    for(;frameBasedOffset<AREA_SIZE;frameBasedOffset+=UPDATE_STRIDE)
-#endif
-    {
-        zonePosZ = int((gl_WorkGroupID.z)*UPDATE_STRIDE)+frameBasedOffset;
-        if(zonePosZ>=AREA_SIZE)
-            return;
+    zonePosZ = int((gl_WorkGroupID.z)*UPDATE_STRIDE)+frameBasedOffset;
+    if(zonePosZ>=AREA_SIZE)
+        return;
 
-        lightVoxelFace();
-    }
+    lightVoxelFace();
 }
