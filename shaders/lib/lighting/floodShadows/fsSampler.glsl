@@ -118,7 +118,7 @@ uint debugindicator;
 
 void doBonusEffects(inout vec3 color, PackedLight packedLightSrc, vec3 displacement, vec3 normal, float scale){
     vec3 travel = unpackLightTravel(packedLightSrc);
-    uint map = unpackOcclusionMap(packedLightSrc.z);
+    uint map = unpackOcclusionMap(getPackedOcclusion(packedLightSrc));
 
 #ifdef PRIDE_LIGHTING
     #define BONUS_EFFECTS_NEEDED

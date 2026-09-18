@@ -4,7 +4,7 @@
 #include "/lib/voxelStorage/volumeShifting.glsl"
 #include "/lib/voxelStorage/blockPacking.glsl"
 
-#define PackedLight uvec4
+#define PackedLight uvec2
 
 //caps out at 31 but its whatever
 uint countTrailingZeroes(uint x){
@@ -324,11 +324,11 @@ void setPackedLightTravel(inout PackedLight packedData, vec3 lightTravel){
 }
 
 void setPackedLightColor(inout PackedLight packedData, vec3 color){
-    packedData.z = packUnorm4x8(vec4(0,color)) | (packedData.z&0xffu);
+//    packedData.z = packUnorm4x8(vec4(0,color)) | (packedData.z&0xffu);
 }
 
 void setPackedLightFlags(inout PackedLight packedData, uint flags){
-    packedData.z = (packedData.z&0xffffff00u) | (flags&0xffu);
+//    packedData.z = (packedData.z&0xffffff00u) | (flags&0xffu);
 }
 
 //float sunDist = 4+((frameCounter>>6)%10)*0.4;
@@ -337,7 +337,7 @@ PackedLight packLightData(vec2 occlusionRay,uint occlusionMap,vec3 color,vec3 li
     PackedLight ret;
     ret.x = packLightTravel(lightTravel) | ((emission&0xfu)<<6) | (type&0x3fu);
     ret.y = packOcclusionInfo(occlusionRay, occlusionMap, occlusionHitDistance);
-    ret.z = packUnorm4x8(vec4(0,color)) | (flags&0xffu);
+//    ret.z = packUnorm4x8(vec4(0,color)) | (flags&0xffu);
     return ret;
 }
 
@@ -349,7 +349,7 @@ PackedLight packLightData(vec2 occlusionRay,uint occlusionMap,vec3 color,vec3 li
 layout(r8ui) uniform restrict uimage3D fsDebugMap;
 #endif
 
-layout (rgba32ui) uniform restrict
+layout (rg32ui) uniform restrict
 #ifndef WRITES_LIGHT_FACE
 readonly
 #endif
@@ -358,7 +358,7 @@ uimage3D fsVox;
 
 #ifdef SAMPLES_LIGHT_FACE
 PackedLight sampleLightData(ivec3 zonePos, ivec3 zoneShift, uint zoneMemOffset){
-    return imageLoad(fsVox, toMemPos(zonePos,zoneShift,zoneMemOffset));
+    return imageLoad(fsVox, toMemPos(zonePos,zoneShift,zoneMemOffset)).xy;
 }
 #endif
 
@@ -369,7 +369,7 @@ void setLightData(PackedLight light, ivec3 zonePos, ivec3 zoneShift, uint zoneMe
 #if DEBUG_SHOW_UPDATES>=0
     imageStore(fsDebugMap,pos,uvec4(uint(frameCounter&0xff),0,0,0));
 #endif
-    imageStore(fsVox,pos,light);
+    imageStore(fsVox,pos,uvec4(light,0,0));
 }
 #endif
 
