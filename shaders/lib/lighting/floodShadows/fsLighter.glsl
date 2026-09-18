@@ -782,9 +782,10 @@ void lightVoxelFace(){
             setBestLight(VOX_LAYERS-1,packLightData(
                 vec2(0),
                 15u,
-                vec3(((front>>WORLDVOX_EMISSION_SHIFT)&0xfu)/15.0),
+                vec3(1),
                 lightTravel,
                 0,
+                (front>>WORLDVOX_EMISSION_SHIFT)&0xfu,
                 blockLightID(front),
                 0
             ));
