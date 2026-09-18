@@ -108,6 +108,9 @@ float doSunOcclusion(vec3 displacement, vec3 travel, uint packedOcclusionData){
     #define doTerrainOcclusion doSharpOcclusionPixelLocked
 #endif
 
+#if DEBUG_SHOW_UPDATES >= 0
+uint debugindicator;
+#endif
 
 void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, vec3 normal, float scale){
     uint type = unpackLightType(packedLightSrc);
@@ -250,8 +253,8 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
     if(abs(normal.z)>0.9)
         intensity*=0.1;
     #endif
-    uint frameIndicator = (frameCounter&0x3fu);
-    uint frameIndicatorLight = (unpackLightFlags(packedLightSrc)>>2)&0x3fu;
+    uint frameIndicator = (frameCounter&0xffu);
+    uint frameIndicatorLight = debugindicator&0xffu;
     vec3 axisColor = lVec(axis);
     if ((axis&1u)==0)
         axisColor=abs(axisColor)*0.3+0.1;
@@ -266,6 +269,9 @@ void doBonusEffects(inout vec3 color, uvec4 packedLightSrc, vec3 displacement, v
 vec3 getDirectedLight(uint cascadeLevel, uint layer, float subsurface, ivec3 zoneShift, ivec3 zonePos,
     vec3 normal, vec3 subVoxelOffset, bool isForFog, float scale
 ){
+    #if DEBUG_SHOW_UPDATES >= 0
+    debugindicator = imageLoad(fsDebugMap,toMemPos(zonePos, zoneShift, zoneOffset(axis, layer,cascadeLevel))).x;
+    #endif
     uvec4 packedLightSrc = sampleLightData(zonePos, zoneShift, zoneOffset(axis, layer,cascadeLevel));
     uint type = unpackLightType(packedLightSrc);
     if(type==0)return vec3(0);

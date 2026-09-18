@@ -101,8 +101,7 @@ Attributes
 - occlusion info      see below
 
 Flags
-- 6 bits currently used only for DEBUG_SHOW_UPDATES
-- 1 bit unused
+- 7 bit unused
 - 1 bit for if its in a translucent
 
 Packing

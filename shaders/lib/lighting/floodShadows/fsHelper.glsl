@@ -325,29 +325,31 @@ uvec4 packLightData(vec2 occlusionRay,uint occlusionMap,vec3 color,vec3 lightTra
 //sampler/image access functions
 
 #if defined SAMPLES_LIGHT_FACE || defined WRITES_LIGHT_FACE
+#if DEBUG_SHOW_UPDATES>=0
+layout(r8ui) uniform restrict uimage3D fsDebugMap;
+#endif
+
 layout (rgba32ui) uniform restrict
 #ifndef WRITES_LIGHT_FACE
 readonly
 #endif
-uimage3D lightVox;
+uimage3D fsVox;
 #endif
 
 #ifdef SAMPLES_LIGHT_FACE
 uvec4 sampleLightData(ivec3 zonePos, ivec3 zoneShift, uint zoneMemOffset){
-    return imageLoad(lightVox, toMemPos(zonePos,zoneShift,zoneMemOffset));
+    return imageLoad(fsVox, toMemPos(zonePos,zoneShift,zoneMemOffset));
 }
 #endif
 
 
 #ifdef WRITES_LIGHT_FACE
 void setLightData(uvec4 light, ivec3 zonePos, ivec3 zoneShift, uint zoneMemOffset){
+    ivec3 pos = toMemPos(zonePos,zoneShift,zoneMemOffset);
 #if DEBUG_SHOW_UPDATES>=0
-    for(int layer = 0; layer<VOX_LAYERS; layer++){
-        uint frameIndicator = uint(frameCounter&0x3f);
-        setPackedLightFlags(light,(unpackLightFlags(light)&3u) | (frameIndicator<<2u));
-    }
+    imageStore(fsDebugMap,pos,uvec4(uint(frameCounter&0xff),0,0,0));
 #endif
-    imageStore(lightVox,toMemPos(zonePos,zoneShift,zoneMemOffset),light);
+    imageStore(fsVox,pos,light);
 }
 #endif
 
