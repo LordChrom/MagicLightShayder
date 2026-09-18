@@ -405,7 +405,7 @@ bool canIlluminateInBounds(vec4 edges, vec2 ray, uint occlusionMap){
 
 
 bool sameLight(PackedLight a, PackedLight b){
-    return a.xy==b.xy;
+    return a.x==b.x;
 //    return !(bool((a.y^b.y)&0xffffffffu)||(bool((a.x^b.x)&0xffffffffu)));
 }
 
