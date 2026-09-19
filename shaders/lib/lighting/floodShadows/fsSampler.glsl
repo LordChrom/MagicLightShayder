@@ -7,6 +7,10 @@ bool isCrossBlockModel = false;
 uint axis;
 vec3 voxelCenter;
 
+#ifdef DEBUG_SHOW_SECTION_CHANGES
+#define READS_CHANGE_VOX
+#endif
+
 #include "/lib/lighting/floodShadows/fsHelper.glsl"
 #include "/lib/voxelStorage/vsAccess.glsl"
 #include "/lib/util/flicker.glsl"
@@ -389,6 +393,15 @@ vec3 voxelSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue
             subsurfaceLightDepth = depthIntoBlock+terrainBeforeBlock;
         }
        #endif
+
+       #ifdef DEBUG_SHOW_SECTION_CHANGES
+        if(getChangeTime(
+            (areaPos+(((VOXELIZATION_SIZE>>cascadeLevel)-AREA_SIZE)>>1)+(areaShift&(0xf>>cascadeLevel)))>>(4u-cascadeLevel)
+        )<10u){
+            color.r++;
+        }
+       #endif
+
         vec3 zoneNorm = areaToZoneSpaceRelative(normal,axis);
         ivec3 zoneShift = areaToZoneSpace(areaShift, axis);
         ivec3 zonePos = areaToZoneSpace(areaPos, axis);

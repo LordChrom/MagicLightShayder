@@ -31,13 +31,43 @@ ivec3 modVoxelizationSize(ivec3 x){ return ivec3(modVoxelizationSize(uvec3(x)));
 #define READS_BASE_VOX
 #endif
 
+#if defined WRITES_BASE_VOX && defined CHANGE_TRACKING
+#define WRITES_CHANGE_VOX
+#endif
+
+#if defined READS_CHANGE_VOX || defined WRITES_CHANGE_VOX
+layout (r8ui) uniform restrict
+#ifndef WRITES_CHANGE_VOX
+readonly
+#endif
+uimage3D changeVox;
+#endif
+
+#ifdef WRITES_CHANGE_VOX
+void setChangeTime(uint timer, ivec3 sectionPos){
+    sectionPos = modVoxelizationSize((sectionPos+getAreaShift(16.0))<<4)>>4;
+    imageStore(changeVox,sectionPos,uvec4(timer,0,0,0));
+}
+
+void clearChangeTime(ivec3 sectionPos){
+    setChangeTime(0, sectionPos);
+}
+#endif
+
+#ifdef READS_CHANGE_VOX
+uint getChangeTime(ivec3 sectionPos){
+    sectionPos = modVoxelizationSize((sectionPos+getAreaShift(16.0))<<4)>>4;
+    return imageLoad(changeVox,sectionPos).x;
+}
+#endif
+
+
+
+
 #if defined READS_BASE_VOX || defined WRITES_BASE_VOX
 layout (r32ui) uniform restrict
 #ifndef WRITES_BASE_VOX
 readonly
-#endif
-#ifndef READS_BASE_VOX
-writeonly
 #endif
 uimage3D baseWorldVox;
 #endif
@@ -58,7 +88,18 @@ void setBaseVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift){
     ){
         return;
     }
-    imageStore(baseWorldVox,modVoxelizationSize(areaPos+areaShift),uvec4(packedData,0,0,0));
+
+    ivec3 memPos = modVoxelizationSize(areaPos+areaShift);
+    #ifdef CHANGE_TRACKING
+    uint oldData = imageLoad(baseWorldVox,memPos).x;
+    if(bool((oldData^packedData)&~WORLDVOX_AGE_MASK)){
+    #endif
+        imageStore(baseWorldVox,memPos,uvec4(packedData,0,0,0));
+    #ifdef CHANGE_TRACKING
+
+        clearChangeTime((areaPos+(areaShift&0xf))>>4);
+    }
+    #endif
 }
 #endif
 
@@ -66,7 +107,7 @@ void setBaseVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift){
 
 ivec3 getScalingVoxOriginPos(uint cascade){
     if(cascade<=1)
-    return ivec3(0);
+        return ivec3(0);
     return ivec3(VOXELSIZE_HALF-(VOXELSIZE_HALF>>(cascade-2)),VOXELSIZE_HALF,0);
 }
 

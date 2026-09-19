@@ -18,7 +18,7 @@ const int shadowcolor0Format = R32F;
 
 
 const bool colortex0Clear = false;
-const bool colortex1Clear = false;
+const bool colortex1Clear = true;
 const bool colortex2Clear = false;
 const bool colortex3Clear = true;
 const bool colortex4Clear = false;
