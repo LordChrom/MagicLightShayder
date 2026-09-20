@@ -12,7 +12,7 @@ vec2 getLevelCenter(int level){
 float getLevelScale(int level){
     return float(1<<level);
 }
-uniform int frameCounter;
+#include "/lib/util/uniforms/frameCounter"
 
 void main(){
     #ifdef CASCADED_SHADOWS

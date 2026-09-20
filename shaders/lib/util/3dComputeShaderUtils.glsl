@@ -1,3 +1,4 @@
+#include "/lib/util/uniforms/frameCounter"
 uint bayer2u3d(uvec3 pos){
     return ((pos.x&1u)<<2)+((pos.y&1u)<<1)+(pos.z&1u);
 }

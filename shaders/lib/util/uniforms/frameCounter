@@ -1,0 +1,4 @@
+#ifndef FRAME_COUNTER
+    #define FRAME_COUNTER
+    uniform int frameCounter;
+#endif

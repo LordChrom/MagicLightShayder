@@ -22,6 +22,10 @@
 #include "/lib/lighting/screenspaceShadow/screenspaceShadowSampler.glsl"
 #endif
 
+#ifdef SWRT
+#include "/lib/lighting/swrt/swrtSampler.glsl"
+#endif
+
 float mixInSunlight(float blockSun, float shadowSun){
     if(shadowSun<0)
         return blockSun;
@@ -42,6 +46,10 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
 
     #ifdef FLOOD_SHADOWS
     ret.rgb+= voxelSample(worldPos, normal, subsurface, ditherValue);
+    #endif
+
+    #ifdef SWRT
+    ret.rgb+= swrtSample(worldPos, normal, subsurface, ditherValue).rgb;
     #endif
 
     #ifdef SHADOWMAP_SHADOWS

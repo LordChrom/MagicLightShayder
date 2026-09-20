@@ -126,10 +126,12 @@ Packing
 - 1: covers the gaps in cascaded shadows caused by geometry that straddles the border
 ### prepare
 - 0: voxel map cleaner & expirer
+- 1: recently changed section checking (unused)
 - 2: voxel map downsampler
 - 3: flood shadow seam filler
 - 10-17: flood shadow lighting
 - 20: basic floodfill lighter & filler
+- 30: light list propogation for swrt
 ### deferred
 - 1: main lighting for solid terrain
 - 2: SSAO filter to reeduce noise

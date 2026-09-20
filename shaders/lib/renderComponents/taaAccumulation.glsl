@@ -1,6 +1,6 @@
 #include "/lib/settings.glsl"
+#include "/lib/util/uniforms/frameCounter"
 
-uniform int frameCounter;
 uniform vec2 scaledScreenDim;
 uniform float viewWidth,viewHeight;
 

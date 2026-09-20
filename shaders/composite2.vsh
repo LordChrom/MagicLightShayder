@@ -1,5 +1,5 @@
 #version 430 compatibility
-uniform int frameCounter;
+#include "/lib/util/uniforms/frameCounter"
 uniform vec2 scaledScreenDim;
 #include "/lib/settings.glsl"
 

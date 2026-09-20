@@ -27,6 +27,15 @@ int modVoxelizationSize(int x){ return int(modVoxelizationSize(uint(x)));}
 ivec2 modVoxelizationSize(ivec2 x){ return ivec2(modVoxelizationSize(uvec2(x)));}
 ivec3 modVoxelizationSize(ivec3 x){ return ivec3(modVoxelizationSize(uvec3(x)));}
 
+
+ivec3 getScalingVoxOriginPos(uint cascade){
+    if(cascade<=1)
+    return ivec3(0);
+    return ivec3(VOXELSIZE_HALF-(VOXELSIZE_HALF>>(cascade-2)),VOXELSIZE_HALF,0);
+}
+
+#endif
+
 #ifdef READS_SCALING_VOX
 #define READS_BASE_VOX
 #endif
@@ -35,13 +44,14 @@ ivec3 modVoxelizationSize(ivec3 x){ return ivec3(modVoxelizationSize(uvec3(x)));
 #define WRITES_CHANGE_VOX
 #endif
 
-#if defined READS_CHANGE_VOX || defined WRITES_CHANGE_VOX
+#if (defined READS_CHANGE_VOX || defined WRITES_CHANGE_VOX)  && !defined CHANGE_VOX_ACCESS
+#define CHANGE_VOX_ACCESS
+
 layout (r8ui) uniform restrict
 #ifndef WRITES_CHANGE_VOX
 readonly
 #endif
 uimage3D changeVox;
-#endif
 
 #ifdef WRITES_CHANGE_VOX
 void setChangeTime(uint timer, ivec3 sectionPos){
@@ -60,17 +70,19 @@ uint getChangeTime(ivec3 sectionPos){
     return imageLoad(changeVox,sectionPos).x;
 }
 #endif
+#endif
 
 
 
 
-#if defined READS_BASE_VOX || defined WRITES_BASE_VOX
+#if (defined READS_BASE_VOX || defined WRITES_BASE_VOX)  && !defined BASE_VOX_ACCESS
+#define BASE_VOX_ACCESS
+
 layout (r32ui) uniform restrict
 #ifndef WRITES_BASE_VOX
 readonly
 #endif
 uimage3D baseWorldVox;
-#endif
 
 #ifdef READS_BASE_VOX
 uint getBaseVoxData(ivec3 areaPos, ivec3 areaShift){
@@ -102,16 +114,14 @@ void setBaseVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift){
     #endif
 }
 #endif
+#endif
 
 
 
-ivec3 getScalingVoxOriginPos(uint cascade){
-    if(cascade<=1)
-        return ivec3(0);
-    return ivec3(VOXELSIZE_HALF-(VOXELSIZE_HALF>>(cascade-2)),VOXELSIZE_HALF,0);
-}
 
-#if defined READS_SCALING_VOX || defined WRITES_SCALING_VOX
+#if (defined READS_SCALING_VOX || defined WRITES_SCALING_VOX) && !defined SCALING_VOX_ACCESS
+#define SCALING_VOX_ACCESS
+
 layout (r32ui) uniform restrict
 #ifndef WRITES_SCALING_VOX
 readonly
@@ -120,7 +130,6 @@ readonly
 writeonly
 #endif
 uimage3D scalingWorldVox;
-#endif
 
 #ifdef READS_SCALING_VOX
 uint getScalingVoxData(ivec3 pos, uint cascade){
@@ -164,5 +173,4 @@ void setScalingVoxData(uint packedData, ivec3 pos, uint cascade){
     imageStore(scalingWorldVox,pos,uvec4(packedData,0,0,0));
 }
 #endif
-
 #endif

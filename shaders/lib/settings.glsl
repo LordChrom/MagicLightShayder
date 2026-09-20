@@ -157,6 +157,10 @@
 
 #define FLOODFILL_SIZE 64 //[32 64 128 192 256 384]
 
+
+//#define SWRT
+#define SWRT_SIZE 64 //[32 64 128 192 256 384]
+
 #define OBSTRUCTION_MAPPING
 //#define CHANGE_TRACKING
 //#define BASIC_FLOODFILL
@@ -232,7 +236,7 @@
 #endif
 
 ///// The following to be copy pasted into shaders.properties
-#if !(defined FLOOD_SHADOWS || defined BASIC_FLOODFILL)
+#if !(defined FLOOD_SHADOWS || defined BASIC_FLOODFILL || defined SWRT)
     #define VOXELIZATION_MODE -1
 #endif
 
@@ -271,9 +275,18 @@
     #define FLOODFILL_MEM_SIZE  385
 #endif
 
+#define VOXELIZATION_SIZE_EXACT 1
+
+#ifdef FLOOD_SHADOWS
 #define VOXELIZATION_SIZE_EXACT (AREA_SIZE<<(NUM_CASCADES))
-#if (defined BASIC_FLOODFILL) && ((VOXELIZATION_SIZE_EXACT<=FLOODFILL_SIZE) || !defined FLOOD_SHADOWS)
+#endif
+
+#if defined BASIC_FLOODFILL && (FLOODFILL_SIZE >= VOXELIZATION_SIZE_EXACT)
 #define VOXELIZATION_SIZE_EXACT FLOODFILL_SIZE
+#endif
+
+#if defined SWRT && ( SWRT_SIZE >= VOXELIZATION_SIZE_EXACT)
+#define VOXELIZATION_SIZE_EXACT SWRT_SIZE
 #endif
 
 #if VOXELIZATION_SIZE_EXACT  <=32
@@ -340,7 +353,9 @@
 #ifdef DENOISE_REFLECTIONS
 #ifdef SSAO_FILTERING
 #ifdef DUMMY_OPTION
+#ifdef SWRT
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
+#endif
 #endif
 #endif
 #endif

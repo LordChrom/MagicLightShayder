@@ -1,5 +1,6 @@
 #define SAMPLES_LIGHT_FACE
 #define WRITES_LIGHT_FACE
+
 #include "/lib/lighting/floodShadows/fsHelper.glsl"
 #if 0
 #define PackedLight uvec4

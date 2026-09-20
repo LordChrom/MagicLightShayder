@@ -19,10 +19,11 @@ uniform sampler2D colortex3;
 
 uniform vec3 fogColor;
 
+#include "/lib/util/uniforms/frameCounter"
+
 #include "/lib/lighting/lightWrapper.glsl"
 #define TEMPORAL_DITHER
 #if !(defined FLOOD_SHADOWS || defined BASIC_FLOODFILL)
-uniform int frameCounter;
 #endif
 #include "/lib/util/dither.glsl"
 #include "/lib/util/conversions.glsl"

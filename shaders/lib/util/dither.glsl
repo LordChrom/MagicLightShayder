@@ -44,6 +44,7 @@ float dither(ivec2 pos){
 
 #if (defined TEMPORAL_DITHER) && ! defined DITHER_GLSL_TEMPORAL
 #define DITHER_GLSL_TEMPORAL
+#include "/lib/util/uniforms/frameCounter"
 float temporalNoise(float x){
     const uint temporalLoop = 256;
     const uint temporalMult = 203;

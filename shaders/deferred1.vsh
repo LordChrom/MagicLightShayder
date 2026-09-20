@@ -1,6 +1,6 @@
 #version 430 compatibility
 uniform vec2 scaledScreenDim;
-uniform int frameCounter;
+#include "/lib/util/uniforms/frameCounter"
 #include "/lib/settings.glsl"
 
 #ifdef TAA

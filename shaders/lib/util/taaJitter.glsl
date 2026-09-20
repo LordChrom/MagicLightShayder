@@ -5,6 +5,9 @@ vec2 jitter2(int entropy){
     return vec2(ivec2(entropy,entropy>>1)&1)-0.5;
 }
 
+#include "/lib/util/uniforms/frameCounter"
+
+
 vec2 unscaledJitter(){
     vec2 jitter = vec2(0);
 

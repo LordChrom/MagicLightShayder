@@ -1,7 +1,6 @@
 #ifndef VOLUME_SHIFTING_GLSL
 #define VOLUME_SHIFTING_GLSL
 uniform vec3 globalOrigin, previousGlobalOrigin;
-uniform int frameCounter;
 
 vec3 getGlobalOrigin(float scale){
     return floor(globalOrigin/scale)*scale;

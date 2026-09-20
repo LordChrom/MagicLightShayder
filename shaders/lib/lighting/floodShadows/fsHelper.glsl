@@ -3,6 +3,7 @@
 #include "/lib/settings.glsl"
 #include "/lib/voxelStorage/volumeShifting.glsl"
 #include "/lib/voxelStorage/blockPacking.glsl"
+#include "/lib/util/uniforms/frameCounter"
 
 #define PackedLight uvec2
 
