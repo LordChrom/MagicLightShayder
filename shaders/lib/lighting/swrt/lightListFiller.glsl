@@ -114,7 +114,7 @@ void main(){
     ivec3 previousUnitShift = getPreviousUnitShift();
 
     //TODO make this work with the more parralel ver
-//    movementTrim(SWRT_SIZE, unitShift, previousUnitShift);
+//    movementTrimSerial(SWRT_SIZE, unitShift, previousUnitShift);
 
     //TODO probably would benefit from shared mem
     #define DISTANCE_BASED_LIGHT_LIST_SPEED

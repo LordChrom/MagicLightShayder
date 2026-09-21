@@ -13,4 +13,20 @@ float lightFalloff(vec3 displacement){
     #endif
     return lightStrength;
 }
+
+float normalFactor(vec3 normal, vec3 displacement, float subsurface){
+    float lightDotN =-dot(normalize(displacement),normal);
+    #if SUBSURFACE_MODE == 0
+    subsurface*=0.4;
+    lightDotN=max(lightDotN*(1-subsurface),0)+subsurface;
+    #endif
+    #if EVERYTHING_FACING_SRC==1
+    if(lightDotN>0)
+    return 1;
+    #elif EVERYTHING_FACING_SRC==2
+    return 1;
+    #endif
+    return clamp(lightDotN,0,1);
+}
+
 #endif

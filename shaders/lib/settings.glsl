@@ -161,7 +161,7 @@
 //#define SWRT
 #define SWRT_SIZE 64 //[32 64 128 192 256 384]
 #define SWRT_NOISY_PENUMBRAS
-#define SWRT_DENOISE
+#define SWRT_DENOISE 2 //[-1 1 2]
 
 #define OBSTRUCTION_MAPPING
 //#define CHANGE_TRACKING

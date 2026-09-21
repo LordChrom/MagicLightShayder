@@ -104,7 +104,7 @@ void main(){
     ceilingHeight = FLOODFILL_SIZE+min(0,previousUnitShift.y-unitShift.y);
 
     //TODO probably copy sunlight state from closest inbounds neighbor
-    movementTrim(FLOODFILL_SIZE, unitShift, previousUnitShift);
+    movementTrimSerial(FLOODFILL_SIZE, unitShift, previousUnitShift);
 
     //TODO make this handled by more appropriate work groups
 

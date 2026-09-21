@@ -106,5 +106,5 @@ void zeroPosition(ivec3 pos, bool isTop){
 
 void main(){
     shift = getUnitShift();
-    movementTrim(VOXELIZATION_SIZE, shift, getPreviousUnitShift());
+    movementTrimSerial(VOXELIZATION_SIZE, shift, getPreviousUnitShift());
 }

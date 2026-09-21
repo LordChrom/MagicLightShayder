@@ -52,8 +52,10 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
 
     #ifdef SWRT
     #ifndef GBUFFER_SHADER
-        #ifdef SWRT_DENOISE
+        #if SWRT_DENOISE==2
         ret.rgb+=wideSample(colortex6,jitteredTexcoord).rgb;
+        #elif SWRT_DENOISE==1
+        ret.rgb+=fourNeighborsSample(colortex6,jitteredTexcoord).rgb;
         #else
         ret.rgb+=texelFetch(colortex6,ivec2(gl_FragCoord.xy),0).rgb;
         #endif
