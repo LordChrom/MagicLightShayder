@@ -15,6 +15,7 @@ vec3 voxelCenter;
 #include "/lib/voxelStorage/vsAccess.glsl"
 #include "/lib/util/flicker.glsl"
 #include "/lib/util/pixelLock.glsl"
+#include "/lib/lighting/distanceFalloff.glsl"
 
 #if 0
 #define PackedLight uvec4
@@ -44,16 +45,7 @@ float baseLightStrength(PackedLight packedLightSrc, vec3 displacement){
         if(true) return 1;
     #endif
 
-    #ifdef MC_SHAPED_LIGHT_FALLOFF
-    displacement=max(abs(displacement)-0.5,0);
-    vec3 a = unpackLightColor(packedLightSrc);
-    float base = (a.x+a.y+a.b)/3.0;
-    float lightStrength = 2*max(0,base-(displacement.x+displacement.y+displacement.z)/15.0)/base;
-    #else
-    const float b = 1/float(MAX_LIGHT_STRENGTH*MAX_LIGHT_STRENGTH);
-    float lengthSquared = dot(displacement,displacement);
-    float lightStrength = BLOCK_LIGHT_STRENGTH*inversesqrt(lengthSquared*lengthSquared*(1-MIN_COLUMNATION)+b);
-    #endif
+    float lightStrength = lightFalloff(displacement);
 
     #ifdef BLOCKLIGHT_ANIMATION
     if(type==3u) lightStrength *= pulsate();

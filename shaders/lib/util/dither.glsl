@@ -40,6 +40,10 @@ float dither(ivec2 pos){
     return 0.5;
 #endif
 }
+
+float recycleNoise(float noise){
+    return fract(1.61803398875*noise);
+}
 #endif
 
 #if (defined TEMPORAL_DITHER) && ! defined DITHER_GLSL_TEMPORAL

@@ -24,6 +24,8 @@
 
 #ifdef SWRT
 #include "/lib/lighting/swrt/swrtSampler.glsl"
+#include "/lib/util/wideFilteredSample.glsl"
+uniform sampler2D colortex6;
 #endif
 
 float mixInSunlight(float blockSun, float shadowSun){
@@ -49,7 +51,14 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
     #endif
 
     #ifdef SWRT
-    ret.rgb+= swrtSample(worldPos, normal, subsurface, ditherValue).rgb;
+    #ifndef GBUFFER_SHADER
+        #ifdef SWRT_DENOISE
+        ret.rgb+=wideSample(colortex6,jitteredTexcoord).rgb;
+        #else
+        ret.rgb+=texelFetch(colortex6,ivec2(gl_FragCoord.xy),0).rgb;
+        #endif
+    #endif
+//    ret.rgb+= swrtSample(worldPos, normal, subsurface, ditherValue,15u);
     #endif
 
     #ifdef SHADOWMAP_SHADOWS
@@ -96,6 +105,10 @@ vec3 lightingSampleFog(vec3 worldPos, float ditherValue){
     #ifdef SHADOWMAP_SHADOWS
     float shadowLightStrength = shadowmapSampleFog(worldPos);
     ret.a=mixInSunlight(ret.a,shadowLightStrength);
+    #endif
+
+    #ifdef SWRT
+    ret.rgb+= swrtSampleFog(worldPos, vec3(0), 0, ditherValue,8u).rgb;
     #endif
 
     if(ret.a==-1){
