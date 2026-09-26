@@ -37,18 +37,19 @@ uint getVoxel(ivec3 swrtPos){
 }
 
 uint tagWithLength(uint light){
-    light&=0xffffu;
+    light&=LIGHT_NO_META_MASK;
     if(!bool(light&LIGHT_VALID_BIT))
         return 0u;
     float len = packedListedLightLen(light)/maxPossibleLightLen;
-    return light|(uint(clamp(0xffff-int(round(len*0xffff)),0,0xffff))<<16); //so closer lights will be comparable directly with >
+    const int LEN_MASK = 0x3ff;
+    return light|(uint(clamp(LEN_MASK-int(round(len*LEN_MASK)),0,LEN_MASK))<<22); //so closer lights will be comparable directly with >
 }
 
 void verifyLights(){
     uint outIndex = 0u;
     itemsInList = min(itemsInList,SWRT_LIGHTS_PER_BLOCK);
     for(uint i=0;i<itemsInList;i++){
-        uint light = outList[i]&0xffffu;
+        uint light = outList[i]&LIGHT_NO_META_MASK;
         if(!bool(light&LIGHT_VALID_BIT))
             break;
         ivec3 pos = localPos + uncheckedUnpackListedLight(light);
@@ -88,7 +89,7 @@ void verifyLights(){
 
     #endif
 
-        light |= ((voxel>>WORLDVOX_EMISSION_SHIFT)<<28 ) | (blockLightID(voxel)<<16);
+        light |= ((voxel>>WORLDVOX_EMISSION_SHIFT)<<28 ) | (blockLightID(voxel)<<22);
         outList[outIndex] = light;
         outIndex++;
     }
@@ -105,8 +106,8 @@ void merge(ivec3 offset){
     uint selfIndex = 0;
 
     for(;itemsInList<SWRT_LIGHTS_PER_BLOCK && min(selfIndex,neighborIndex)<SWRT_LIGHTS_PER_BLOCK;){
-        uint selfLight = tagWithLength(selfList[selfIndex]&0xffffu);
-        uint neighborLight = tagWithLength(addToPackedLight(neighborList[neighborIndex],offset)&0xffffu);
+        uint selfLight = tagWithLength(selfList[selfIndex]&LIGHT_NO_META_MASK);
+        uint neighborLight = tagWithLength(addToPackedLight(neighborList[neighborIndex],offset)&LIGHT_NO_META_MASK);
 
 
         uint preferableLight = (

@@ -14,7 +14,7 @@
 ivec3 unitShift;
 
 vec3 colorOfPackedLight(uint light){
-    return worldVoxColor((light>>16)&0x3fu,(light>>28)&0x3fu);
+    return worldVoxColor((light>>22)&0x3fu,(light>>28)&0x3fu);
 }
 
 ivec3 worldPosToSWRT(vec3 pos){

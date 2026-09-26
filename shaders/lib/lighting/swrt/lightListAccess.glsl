@@ -6,12 +6,12 @@
 const uint INVALID_PACKED_LIST_LIGHT = 0u;
 const ivec3 INVALID_UNPACKED_LIST_LIGHT = ivec3(0);
 
-#define LIGHT_VALID_BIT 0x8000u
+#define LIGHT_VALID_BIT    0x00200000u
+#define LIGHT_NO_META_MASK 0x003fffffu
 const int offsetToVox = (SWRT_SIZE-VOXELIZATION_SIZE)>>1;
 
-//TODO change packing scheme for more travel dist
-const int swrtMaxDist = 15;
-const float maxPossibleLightLen = 25.99;
+const int swrtMaxDist = MAX_SWRT_LIGHT_DISTANCE;
+const float maxPossibleLightLen = 124.5;
 
 uint modSwrtSize(uint x){
     #if (SWRT_SIZE&(SWRT_SIZE-1))
@@ -77,11 +77,11 @@ void getLightList(out uint[SWRT_LIGHTS_PER_BLOCK] list, ivec3 areaPos, ivec3 uni
 
 uint uncheckedPackListedLight(ivec3 posRel){
     posRel+=swrtMaxDist;
-    return uint((posRel.x<<10)|(posRel.y<<5)|(posRel.z))|LIGHT_VALID_BIT;
+    return uint((posRel.x<<14)|(posRel.y<<7)|(posRel.z))|LIGHT_VALID_BIT;
 }
 
 ivec3 uncheckedUnpackListedLight(uint packedLight){
-    ivec3 ret = ivec3(packedLight>>10,packedLight>>5,packedLight)&0x1f;
+    ivec3 ret = ivec3(packedLight>>14,packedLight>>7,packedLight)&0x7f;
     ret-=swrtMaxDist;
     return ret;
 }
