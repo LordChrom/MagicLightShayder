@@ -38,6 +38,7 @@ float mixInSunlight(float blockSun, float shadowSun){
 }
 
 #define UNIVERSAL_SUBSURFACENESS 0.0
+#ifndef FOG_SHADER
 vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue){
     vec4 ret = vec4(0,0,0,-1);
     subsurface+=UNIVERSAL_SUBSURFACENESS;
@@ -87,6 +88,7 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
     ret.rgb+=ret.a*getSunColor();
     return ret.rgb + MIN_LIGHT_AMOUNT*clamp(1-(ret.r+ret.g+ret.b),0,1);
 }
+#endif
 
 
 vec3 lightingSampleFog(vec3 worldPos, float ditherValue){

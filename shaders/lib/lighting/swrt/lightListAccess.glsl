@@ -6,7 +6,7 @@
 const uint INVALID_PACKED_LIST_LIGHT = 0u;
 const ivec3 INVALID_UNPACKED_LIST_LIGHT = ivec3(0);
 
-#define LIGHT_VALID_BIT    0x00200000u
+#define LIGHT_VALID_BIT    1u
 #define LIGHT_NO_META_MASK 0x003fffffu
 const int offsetToVox = (SWRT_SIZE-VOXELIZATION_SIZE)>>1;
 
@@ -43,11 +43,9 @@ void setLightList(uint[SWRT_LIGHTS_PER_BLOCK] list, ivec3 areaPos, ivec3 unitShi
     areaPos = modSwrtSize(areaPos+unitShift);
     areaPos.y*=SWRT_LIGHT_LAYERS;
     for(int layer=0;layer<SWRT_LIGHT_LAYERS;layer++){
-        uvec4 s;
-        for(int i=0;i<4;i++)
-            s[i]=list[4*layer+i];
-        imageStore(lightSourceList,areaPos,s);
-        areaPos.y++;
+        uint o = layer<<2;
+        uvec4 s = uvec4(list[o],list[o+1],list[o+2],list[o+3]);
+        imageStore(lightSourceList,ivec3(areaPos.x,areaPos.y+layer,areaPos.z),s);
     }
 }
 
@@ -65,25 +63,49 @@ void clearLightList(ivec3 areaPos, ivec3 unitShift){
 void getLightList(out uint[SWRT_LIGHTS_PER_BLOCK] list, ivec3 areaPos, ivec3 unitShift){
     areaPos = modSwrtSize(areaPos+unitShift);
     areaPos.y*=SWRT_LIGHT_LAYERS;
+    uvec4 l1 = imageLoad(lightSourceList,areaPos);
+    #if SWRT_LIGHT_LAYERS>=2
+    uvec4 l2 = imageLoad(lightSourceList,ivec3(areaPos.x,areaPos.y+1,areaPos.z));
+    #if SWRT_LIGHT_LAYERS>=3
+    uvec4 l3 = imageLoad(lightSourceList,ivec3(areaPos.x,areaPos.y+2,areaPos.z));
+    #if SWRT_LIGHT_LAYERS>=4
+    uvec4 l4 = imageLoad(lightSourceList,ivec3(areaPos.x,areaPos.y+3,areaPos.z));
+    #endif
+    #endif
+    #endif
 
-    for(int layer=0;layer<SWRT_LIGHT_LAYERS;layer++){
-        uvec4 s = imageLoad(lightSourceList,areaPos);
-        for(int i=0;i<4;i++)
-            list[layer*4+i]=s[i];
-        areaPos.y++;
-    }
+    list[0]=l1.x;
+    list[1]=l1.y;
+    list[2]=l1.z;
+    list[3]=l1.w;
+    #if SWRT_LIGHT_LAYERS>=2
+    list[4]=l2.x;
+    list[5]=l2.y;
+    list[6]=l2.z;
+    list[7]=l2.w;
+    #if SWRT_LIGHT_LAYERS>=3
+    list[8 ]=l3.x;
+    list[9 ]=l3.y;
+    list[10]=l3.z;
+    list[11]=l3.w;
+    #if SWRT_LIGHT_LAYERS>=4
+    list[12]=l4.x;
+    list[13]=l4.y;
+    list[14]=l4.z;
+    list[15]=l4.w;
+    #endif
+    #endif
+    #endif
 }
 #endif
 
 uint uncheckedPackListedLight(ivec3 posRel){
     posRel+=swrtMaxDist;
-    return uint((posRel.x<<14)|(posRel.y<<7)|(posRel.z))|LIGHT_VALID_BIT;
+    return uint((posRel.x<<15)|(posRel.y<<8)|(posRel.z<<1))|LIGHT_VALID_BIT;
 }
 
 ivec3 uncheckedUnpackListedLight(uint packedLight){
-    ivec3 ret = ivec3(packedLight>>14,packedLight>>7,packedLight)&0x7f;
-    ret-=swrtMaxDist;
-    return ret;
+    return (ivec3(packedLight>>15,packedLight>>8,packedLight>>1)&0x7f)-swrtMaxDist;
 }
 
 uint packListedLight(ivec3 posRel){
@@ -115,7 +137,7 @@ uint addToPackedLight(uint packedLight, ivec3 change){
 uint countLights(uint[SWRT_LIGHTS_PER_BLOCK] list){
     uint ret=0u;
     for(int i=0;i<SWRT_LIGHTS_PER_BLOCK;i++){
-        ret+=uint(bool(list[i]&LIGHT_VALID_BIT));
+        ret+=list[i]&1u;
     }
     return ret;
 }

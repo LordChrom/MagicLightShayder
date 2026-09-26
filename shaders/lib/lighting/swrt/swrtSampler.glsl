@@ -42,7 +42,7 @@ vec4 traceLight(vec3 worldPos,ivec3 areaPos,uint light,uint maxSteps){
 
 
 vec4 swrtSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue, uint maxSteps){
-    worldPos+=clamp(length(worldPos-globalOrigin)*0.001,1e-5,0.1)*normal;
+    worldPos+=clamp(length(worldPos-globalOrigin)*0.001,0.04,0.1)*normal;
     normal=-normal;
     unitShift = getUnitShift();
     ivec3 areaPos = worldPosToSWRT(worldPos);
@@ -59,7 +59,6 @@ vec4 swrtSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue,
 
     #ifdef DEBUG_SWRT_LIGHT_COUNT
     if(true){
-//        numLights=clamp(numLights,0,7);
         float mult = float(numLights)/(4*SWRT_LIGHT_LAYERS);
         numLights = ((numLights-1)%7)+1;
         return vec4(mult*((ivec3(numLights)>>ivec3(2,1,0))&1),1);
@@ -72,33 +71,30 @@ vec4 swrtSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue,
 
 
     for(uint rayNum=0;rayNum<3;rayNum++){
-        uint baseIndex = rayNum+(rayNum>>1); //0,1,3
-        if(baseIndex>numLights)
-            break;
+        vec3 displacementToLight, sampleColor;
+        {
+            uint baseIndex = rayNum+(rayNum>>1); //0,1,3
+            if(baseIndex>numLights)
+                break;
 
-        int numLightsToChooseFrom = 1<<rayNum;//1,2,4
-        uint lightIndex = clamp(uint(ditherValue*numLightsToChooseFrom),0u,uint(numLightsToChooseFrom-1))+baseIndex;
+            int numLightsToChooseFrom = 1<<rayNum;//1,2,4
+            uint lightIndex = clamp(uint(ditherValue*numLightsToChooseFrom),0u,uint(numLightsToChooseFrom-1))+baseIndex;
 
-        ivec3 sourceRel = uncheckedUnpackListedLight(lights[lightIndex]);
-//        vec4 traceColor = traceLight(worldPos,areaPos,unitShift,sourceRel,ditherValue,maxSteps,normal);
+            displacementToLight = uncheckedUnpackListedLight(lights[lightIndex])-fract(worldPos)+0.5;
 
-        vec3 displacementToLight = sourceRel-fract(worldPos)+0.5;
-        uint voxel = getBaseVoxData(areaPos+sourceRel,unitShift);
+            float lightStr = numLightsToChooseFrom*lightFalloff(displacementToLight);
+            lightStr*=normalFactor(normal,displacementToLight,0);
+            sampleColor = colorOfPackedLight(lights[lightIndex])*lightStr;
 
-        float lightStr = lightFalloff(displacementToLight);
-        lightStr*=normalFactor(normal,displacementToLight,0);
+            #ifdef SWRT_NOISY_PENUMBRAS
+            penumbraNoise(displacementToLight,ditherValue);
+            #endif
+        }
 
-        #ifdef SWRT_NOISY_PENUMBRAS
-        penumbraNoise(displacementToLight,ditherValue);
-        #endif
-
-        bool hitObstruction = traceRay(worldPos,displacementToLight,unitShift,maxSteps)>=0;
-        vec4 traceColor = vec4(worldVoxColor(voxel)*lightStr,!hitObstruction);
-
-        traceColor.rgb*=traceColor.a*numLightsToChooseFrom;
-
-        color.rgb+=traceColor.rgb;
-        color.a++;
+        if(traceRay(worldPos,displacementToLight,unitShift,maxSteps)<0){
+            color.rgb+=sampleColor;
+            color.a++;
+        }
     }
 
     return color;
@@ -120,24 +116,24 @@ vec3 swrtSampleFog(vec3 worldPos, float ditherValue, uint maxSteps){
     getLightList(lights,areaPos,unitShift);
     areaPos+=offsetToVox;
 
-    uint numLights = countLights(lights);
-
-    if(numLights==0)
-        return color;
+//    if(numLights==0)
+//        return color;
 
     int i=0;
-    const int raysPerFogSample = 0;
-    for(i=0;i<min(raysPerFogSample,numLights);i++){
-        vec4 hitColor = traceLight(worldPos,areaPos,lights[i],maxSteps);
-        color += hitColor.rgb*hitColor.a;
-    }
+//    const int raysPerFogSample = 0;
+//    for(i=0;i<min(raysPerFogSample,numLights);i++){
+//        vec4 hitColor = traceLight(worldPos,areaPos,lights[i],maxSteps);
+//        color += hitColor.rgb*hitColor.a;
+//    }
 
 
 
-    for(;i<numLights;i++){
+    for(;i<SWRT_LIGHTS_PER_BLOCK;i++){
+        if(!bool(lights[i]&LIGHT_VALID_BIT))
+            break;
         ivec3 lightPosRel = uncheckedUnpackListedLight(lights[i]);
-        vec3 displacementToLight = lightPosRel-fract(worldPos);
-        float lightStr = lightFalloff(displacementToLight+0.5);
+        vec3 displacementToLight = lightPosRel-fract(worldPos)+0.5;
+        float lightStr = lightFalloff(displacementToLight);
 
         color+= colorOfPackedLight(lights[i])*lightStr;
     }
