@@ -139,8 +139,8 @@
 #define PIXEL_LOCK_BLOCK -1 //[-1 16 32 64 128 256]
 #define PIXEL_LOCK_SHADOWMAP -1 //[-1 16 32 64 128 256]
 
-//-1 is none, 0 is shadow, 1 is culled vertex, 2 is unculled vertex
-#define VOXELIZATION_MODE 0 //[-1 0 1 2]
+//-1 is none, 0 is shadow, 1 is culled gbuffer vertex, 2 is unculled gbuffer vertex
+#define VOXELIZATION_MODE 0 //[-1 0 1]
 #define OCCLUDERS_PER_LIGHT 1 //[1 3 5]
 
 #define SHADOWMAP_SHADOWS
@@ -228,7 +228,7 @@
 #define WORLDVOX_BLOCKAGES_MASK (0x3f<<WORLDVOX_BLOCKAGES_SHIFT)
 #define WORLDVOX_AGE_SHIFT 28u
 #define WORLDVOX_AGE_MASK uint(0xffffffff<<WORLDVOX_AGE_SHIFT)
-#define WORLDVOX_INITIAL_TIME 10u
+#define WORLDVOX_INITIAL_TIME 2u
 #define WORLDVOX_EMISSION_SHIFT 16u
 #define WORLDVOX_EMISSION_MASK (0xfu<<WORLDVOX_EMISSION_SHIFT)
 
