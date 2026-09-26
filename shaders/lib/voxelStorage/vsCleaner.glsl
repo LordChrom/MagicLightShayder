@@ -104,7 +104,33 @@ void zeroPosition(ivec3 pos, bool isTop){
 //    }
 //}
 
+void expire(ivec3 pos){
+    uint voxel = getBaseVoxData(pos,shift);
+    int timer = int(voxel>>WORLDVOX_AGE_SHIFT);
+    timer--;
+    if(timer>0){
+        voxel-=(1u<<WORLDVOX_AGE_SHIFT);
+    }else{
+        voxel=0u;
+    }
+    setBaseVoxData(voxel,pos,shift);
+
+}
+
 void main(){
     shift = getUnitShift();
     movementTrimSerial(VOXELIZATION_SIZE, shift, getPreviousUnitShift());
+
+
+    if(!shouldCompute(getUpdatePeriod()))
+        return;
+
+    ivec3 pos;
+    pos.xz=ivec2(SIZE*gl_WorkGroupID.xz)+ivec2(gl_LocalInvocationID.xz);
+
+    for(uint i=0;i<SIZE;i++){
+        pos.y=int(SIZE*gl_WorkGroupID.y+i);
+        expire(pos);
+    }
+
 }

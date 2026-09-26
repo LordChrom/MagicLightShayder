@@ -152,26 +152,26 @@ vec4 swrtSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue,
     return color;
 }
 
-vec3 swrtSampleFog(vec3 worldPos, vec3 normal, float subsurface, float ditherValue, uint maxSteps){
-    worldPos+=0.01*normal;
-    ivec3 unitShift = getUnitShift();
-    ivec3 swrtPos = worldPosToSWRT(worldPos);
-
-    if(swrtPos.x<0||swrtPos.y<0||swrtPos.z<0||
-    swrtPos.x>=SWRT_SIZE||swrtPos.y>=SWRT_SIZE||swrtPos.z>=SWRT_SIZE
-    ){
-        return vec3(0);
-    }
-
-    uvec4 list = getLightList(swrtPos,unitShift);
-    ivec3 areaPos = swrtPos+offsetToVox;
-
-
-    uint numLights = countLights(list);
-    if(numLights==0)
-        return vec3(0);
+vec3 swrtSampleFog(vec3 worldPos, float ditherValue, uint maxSteps){
+    unitShift = getUnitShift();
+    ivec3 areaPos = worldPosToSWRT(worldPos);
 
     vec3 color = vec3(0);
+
+    if(areaPos.x<0||areaPos.y<0||areaPos.z<0||
+        areaPos.x>=SWRT_SIZE||areaPos.y>=SWRT_SIZE||areaPos.z>=SWRT_SIZE
+    ){
+        return color;
+    }
+
+    uvec4 list= getLightList(areaPos,unitShift);
+    areaPos+=offsetToVox;
+
+    uint numLights = countLights(list);
+
+    if(numLights==0)
+        return color;
+
     int i=0;
     const int raysPerFogSample = 1;
     for(i=0;i<min(raysPerFogSample,numLights);i++){

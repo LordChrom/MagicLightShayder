@@ -5,9 +5,11 @@
 #ifdef SHADOW_WATER
     #define COLORED
     #define CAN_VOXELIZE
-#elif defined SHADOW_CUTOUT || defined SHADOW_FALLBACK
+#elif defined SHADOW_CUTOUT
     #define CUTOUT
     #define CAN_VOXELIZE
+#elif defined SHADOW_FALLBACK
+    #define CUTOUT
 #elif defined SHADOW_BLOCK_ENTITIES
     #define CUTOUT
 #elif defined SHADOW_ENTITIES

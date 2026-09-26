@@ -45,7 +45,7 @@ void tagWithLength(inout uint light){
 }
 
 void removeNonexistentLights(){
-    uint testIndex = 0;
+    uint outIndex = 0u;
     for(uint i=0;i<8;i++){
         uint light = personalList[i];
         bool validLight = bool(light&LIGHT_VALID_BIT);
@@ -55,8 +55,13 @@ void removeNonexistentLights(){
             //TODO trace??
         }
         
-        if(!validLight)
-            personalList[i] = 0u;
+        if(validLight){
+            personalList[outIndex] = light;
+            outIndex++;
+        }
+    }
+    for(;outIndex<8;outIndex++){
+        personalList[outIndex] = 0u;
     }
 }
 

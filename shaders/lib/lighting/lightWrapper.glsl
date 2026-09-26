@@ -110,7 +110,7 @@ vec3 lightingSampleFog(vec3 worldPos, float ditherValue){
     #endif
 
     #ifdef SWRT
-    ret.rgb+= swrtSampleFog(worldPos, vec3(0), 0, ditherValue,8u).rgb;
+    ret.rgb+= swrtSampleFog(worldPos, ditherValue,8u).rgb;
     #endif
 
     if(ret.a==-1){
