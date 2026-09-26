@@ -5,6 +5,7 @@
 #include "/lib/voxelStorage/blockPacking.glsl"
 #include "/lib/voxelStorage/vsAccess.glsl"
 #include "/lib/lighting/swrt/lightListAccess.glsl"
+#include "/lib/lighting/swrt/rayIntersect.glsl"
 
 
 #define SIZE 8
@@ -54,7 +55,38 @@ void verifyLights(){
         uint voxel = getVoxel(pos);
         if(!bool(voxel&WORLDVOX_EMISSION_MASK))
             continue;
-        //TODO trace??
+
+        //TODO fix fog flickering when this is on
+    #if SWRT_PRETRACE_LISTS>=0
+        vec3 worldPos = localPos+0.5;
+        vec3 lightDir = pos+0.5-worldPos;
+        worldPos-=(VOXELIZATION_SIZE>>1)-unitShift;
+
+        #if SWRT_PRETRACE_LISTS>=2
+
+        bool lightReachable = false;
+
+        for(int i=0;i<4;i++){
+            vec3 localOffset;
+            localOffset.xy=vec2(1-2*ivec2(i>>1,i&1));
+            localOffset.z=localOffset.x*localOffset.y;
+            localOffset*=0.4;
+
+            float d = traceRay(worldPos+localOffset, lightDir, unitShift, 30u);
+            if(d<0){
+                lightReachable=true;
+                break;
+            }
+        }
+        if(!lightReachable)
+            continue;
+        #else
+        if(traceRay(worldPos, lightDir, unitShift, 30u)>0)
+            continue;
+
+        #endif
+
+    #endif
 
         light |= ((voxel>>WORLDVOX_EMISSION_SHIFT)<<28 ) | (blockLightID(voxel)<<16);
         outList[outIndex] = light;

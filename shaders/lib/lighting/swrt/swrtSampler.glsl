@@ -6,6 +6,7 @@
 #include "/lib/lighting/swrt/lightListAccess.glsl"
 #include "/lib/util/uniforms/frameCounter"
 #include "/lib/lighting/distanceFalloff.glsl"
+#include "/lib/lighting/swrt/rayIntersect.glsl"
 
 #define TEMPORAL_DITHER
 #include "/lib/util/dither.glsl"
@@ -15,53 +16,13 @@ ivec3 unitShift;
 vec3 colorOfPackedLight(uint light){
     return worldVoxColor((light>>16)&0x3fu,(light>>28)&0x3fu);
 }
+
 ivec3 worldPosToSWRT(vec3 pos){
     ivec3 ret = ivec3(floor(pos))-ivec3(floor(globalOrigin));
     ret+=SWRT_SIZE>>1;
     return ret;
 }
 
-float depthTillChange(float value, float differential){
-    return (1-fract(value*sign(differential)))/abs(differential);
-
-}
-
-float minDepthTillChange(vec3 value, vec3 differential){
-    value = 1-fract(value*sign(differential));
-    value/=abs(differential);
-    return min(min(value.x,value.y),value.z);
-}
-
-float traceRay(vec3 worldPos, vec3 worldDirToLight, uint maxSteps){
-    worldPos+=(VOXELIZATION_SIZE>>1)-unitShift;
-
-    ivec3 finalBlock = ivec3(floor(worldPos+worldDirToLight));
-
-    float maxTraceDepth = length(worldDirToLight);
-    worldDirToLight=normalize(worldDirToLight);
-
-    const float nudge = 0.0001;
-
-
-
-    float depth = nudge;
-    for(int i=0;i<maxSteps && depth<maxTraceDepth;i++){
-        vec3 samplePosition = worldPos+depth*worldDirToLight;
-        ivec3 areaPos = ivec3(floor(samplePosition));
-        uint voxel = getBaseVoxData(areaPos,unitShift);
-        float nextDepthDif = minDepthTillChange(samplePosition,worldDirToLight)+nudge;
-
-        if(areaPos==finalBlock)
-            break;
-
-        if(bool(voxel&WORLDVOX_OPAQUE))
-            return depth;
-
-        depth+=nextDepthDif;
-    }
-
-    return -1;
-}
 
 void penumbraNoise(inout vec3 position,float ditherValue){
     vec3 sourcePosNoise = vec3(ditherValue,recycleNoise(ditherValue),0);
@@ -69,23 +30,6 @@ void penumbraNoise(inout vec3 position,float ditherValue){
     position += 0.25*(sourcePosNoise-0.5);
 }
 
-//check if valid BEFORE using
-//vec4 traceLight(vec3 worldPos,ivec3 areaPos, ivec3 unitShift,ivec3 lightPosRel,float ditherValue,uint maxSteps,vec3 normal){
-//    vec3 displacementToLight = lightPosRel-fract(worldPos)+0.5;
-//    uint voxel = getBaseVoxData(areaPos+lightPosRel,unitShift);
-//
-//    float lightStr = lightFalloff(displacementToLight)*normalFactor(-normal,displacementToLight,0);
-////    if(lightStr<=0.01)
-////        return vec4(0);
-//
-//    #ifdef SWRT_NOISY_PENUMBRAS
-//    penumbraNoise(displacementToLight,ditherValue);
-//    #endif
-//
-//
-//    bool hitObstruction = traceRay(worldPos,displacementToLight,unitShift,maxSteps)>=0;
-//    return vec4(worldVoxColor(voxel)*lightStr,!hitObstruction);
-//}
 vec4 traceLight(vec3 worldPos,ivec3 areaPos,uint light,float ditherValue,uint maxSteps){
     ivec3 lightPosRel = uncheckedUnpackListedLight(light);
     vec3 displacementToLight = lightPosRel-fract(worldPos)+0.5;
@@ -97,7 +41,7 @@ vec4 traceLight(vec3 worldPos,ivec3 areaPos,uint light,float ditherValue,uint ma
     #endif
 
 
-    bool hitObstruction = traceRay(worldPos,displacementToLight,maxSteps)>=0;
+    bool hitObstruction = traceRay(worldPos,displacementToLight,unitShift,maxSteps)>=0;
     return vec4(colorOfPackedLight(light)*lightStr,!hitObstruction);
 }
 
@@ -153,7 +97,7 @@ vec4 swrtSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue,
         penumbraNoise(displacementToLight,ditherValue);
         #endif
 
-        bool hitObstruction = traceRay(worldPos,displacementToLight,maxSteps)>=0;
+        bool hitObstruction = traceRay(worldPos,displacementToLight,unitShift,maxSteps)>=0;
         vec4 traceColor = vec4(worldVoxColor(voxel)*lightStr,!hitObstruction);
 
         traceColor.rgb*=traceColor.a*numLightsToChooseFrom;

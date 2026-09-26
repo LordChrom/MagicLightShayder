@@ -164,6 +164,8 @@
 //#define SWRT_NOISY_PENUMBRAS
 #define SWRT_DENOISE 1 //[-1 1 2]
 #define SWRT_LIGHT_LAYERS 2 //[1 2 3 4]
+#define SWRT_PRETRACE_LISTS -1 //[-1 1 2]
+
 
 
 #define OBSTRUCTION_MAPPING
