@@ -4,11 +4,12 @@
 #define LIGHT_LIST_ACCESS_GLSL
 
 const uint INVALID_PACKED_LIST_LIGHT = 0u;
-const ivec3 INVALID_UNPACKED_LIST_LIGHT = ivec3(0x80000000);
+const ivec3 INVALID_UNPACKED_LIST_LIGHT = ivec3(0);
 
 #define LIGHT_VALID_BIT 0x8000u
 const int offsetToVox = (SWRT_SIZE-VOXELIZATION_SIZE)>>1;
 
+//TODO change packing scheme for more travel dist
 const int swrtMaxDist = 15;
 const float maxPossibleLightLen = 25.99;
 
@@ -44,7 +45,7 @@ void setLightList(uint[SWRT_LIGHTS_PER_BLOCK] list, ivec3 areaPos, ivec3 unitShi
     for(int layer=0;layer<SWRT_LIGHT_LAYERS;layer++){
         uvec4 s;
         for(int i=0;i<4;i++)
-            s[i]=list[i&3];
+            s[i]=list[4*layer+i];
         imageStore(lightSourceList,areaPos,s);
         areaPos.y++;
     }
@@ -52,7 +53,11 @@ void setLightList(uint[SWRT_LIGHTS_PER_BLOCK] list, ivec3 areaPos, ivec3 unitShi
 
 void clearLightList(ivec3 areaPos, ivec3 unitShift){
     areaPos = modSwrtSize(areaPos+unitShift);
-    imageStore(lightSourceList,areaPos,uvec4(0));
+    areaPos.y*=SWRT_LIGHT_LAYERS;
+    for(int layer=0;layer<SWRT_LIGHT_LAYERS;layer++){
+        imageStore(lightSourceList,areaPos,uvec4(0));
+        areaPos.y++;
+    }
 }
 #endif
 
@@ -64,12 +69,9 @@ void getLightList(out uint[SWRT_LIGHTS_PER_BLOCK] list, ivec3 areaPos, ivec3 uni
     for(int layer=0;layer<SWRT_LIGHT_LAYERS;layer++){
         uvec4 s = imageLoad(lightSourceList,areaPos);
         for(int i=0;i<4;i++)
-            list[i+layer*4]=s[i];
+            list[layer*4+i]=s[i];
         areaPos.y++;
     }
-//    uvec4 s = imageLoad(lightSourceList,areaPos);
-//    for(int i=0;i<4;i++)
-//        list[i]=s[i];
 }
 #endif
 
@@ -109,13 +111,8 @@ uint addToPackedLight(uint packedLight, ivec3 change){
     return packListedLight(retUnpacked);
 }
 
-//uint getNthLight(uvec4 list, uint n){
-//    return (list[n>>1]>>((n&1u)<<4))&0xffffu;
-//}
 
 uint countLights(uint[SWRT_LIGHTS_PER_BLOCK] list){
-//    list=((list>>15)&1u)+((list>>31)&1u);
-//    return list.x+list.y+list.z+list.w;
     uint ret=0u;
     for(int i=0;i<SWRT_LIGHTS_PER_BLOCK;i++){
         ret+=uint(bool(list[i]&LIGHT_VALID_BIT));

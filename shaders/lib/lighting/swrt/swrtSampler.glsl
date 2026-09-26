@@ -118,6 +118,15 @@ vec4 swrtSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue,
     getLightList(lights,areaPos,unitShift);
     uint numLights = countLights(lights);
 
+    #ifdef DEBUG_SWRT_LIGHT_COUNT
+    if(true){
+//        numLights=clamp(numLights,0,7);
+        float mult = float(numLights)/(4*SWRT_LIGHT_LAYERS);
+        numLights = ((numLights-1)%7)+1;
+        return vec4(mult*((ivec3(numLights)>>ivec3(2,1,0))&1),1);
+    }
+    #endif
+
     areaPos+=offsetToVox;
 
     vec4 color = vec4(0);
@@ -178,7 +187,7 @@ vec3 swrtSampleFog(vec3 worldPos, float ditherValue, uint maxSteps){
         return color;
 
     int i=0;
-    const int raysPerFogSample = 1;
+    const int raysPerFogSample = 0;
     for(i=0;i<min(raysPerFogSample,numLights);i++){
         vec4 hitColor = traceLight(worldPos,areaPos,lights[i],ditherValue,maxSteps);
         color += hitColor.rgb*hitColor.a;

@@ -35,14 +35,12 @@ uint getVoxel(ivec3 swrtPos){
     return getBaseVoxData(swrtPos,unitShift);
 }
 
-void tagWithLength(inout uint light){
+uint tagWithLength(uint light){
     light&=0xffffu;
-    if(!bool(light&LIGHT_VALID_BIT)){
-        light=0u;
-        return;
-    }
+    if(!bool(light&LIGHT_VALID_BIT))
+        return 0u;
     float len = packedListedLightLen(light)/maxPossibleLightLen;
-    light|=uint(clamp(int((1-len)*0xffff),0,0xffff))<<16; //so closer lights will be comparable directly with >
+    return light|(uint(clamp(0xffff-int(round(len*0xffff)),0,0xffff))<<16); //so closer lights will be comparable directly with >
 }
 
 void verifyLights(){
@@ -74,59 +72,52 @@ void merge(ivec3 offset){
     uint neighborIndex = 0;
     uint selfIndex = 0;
 
+    for(;itemsInList<SWRT_LIGHTS_PER_BLOCK && min(selfIndex,neighborIndex)<SWRT_LIGHTS_PER_BLOCK;){
+        uint selfLight = tagWithLength(selfList[selfIndex]&0xffffu);
+        uint neighborLight = tagWithLength(addToPackedLight(neighborList[neighborIndex],offset)&0xffffu);
 
-    for(;itemsInList<SWRT_LIGHTS_PER_BLOCK && min(selfIndex,neighborIndex)<SWRT_LIGHTS_PER_BLOCK; itemsInList++){
-        uint neighborLight= neighborList[neighborIndex];
-        uint selfLight= selfList[selfIndex];
 
-        neighborLight=addToPackedLight(neighborLight,offset);
+        uint preferableLight = (
+            (selfLight>neighborLight && selfIndex<SWRT_LIGHTS_PER_BLOCK) || neighborIndex>=SWRT_LIGHTS_PER_BLOCK
+        )? selfLight:neighborLight;
 
-        tagWithLength(selfLight);
-        tagWithLength(neighborLight);
+        selfIndex    += uint(preferableLight==selfLight     );
+        neighborIndex+= uint(preferableLight==neighborLight );
 
-        bool selfPreferable = (selfLight>neighborLight && selfIndex<SWRT_LIGHTS_PER_BLOCK) || neighborIndex>=SWRT_LIGHTS_PER_BLOCK;
+        if(!bool(preferableLight&LIGHT_VALID_BIT))
+            break;
 
-        uint preferableLight;
-        if(selfPreferable){
-            selfIndex++;
-            preferableLight = selfLight;
-        }else{
-            neighborIndex++;
-            preferableLight = neighborLight;
-        }
-
-        if(itemsInList>0)
-            if(preferableLight>=outList[itemsInList-1]){
-                itemsInList--;
-                continue;
-            }
-        outList[itemsInList] = selfPreferable?selfLight:neighborLight;
+        if((itemsInList==0)||preferableLight<outList[max(0,int(itemsInList)-1)])
+            outList[itemsInList++] = preferableLight;
     }
 }
 
 void main(){
     unitShift=getUnitShift();
+    localPos = ivec3(gl_LocalInvocationID+gl_WorkGroupID*SIZE);
     ivec3 previousUnitShift = getPreviousUnitShift();
 
     //TODO make this work with the more parralel ver
-//    movementTrimSerial(SWRT_SIZE, unitShift, previousUnitShift);
+    movementTrimParallel(SWRT_SIZE, unitShift, previousUnitShift);
 
     //TODO probably would benefit from shared mem
     #define DISTANCE_BASED_LIGHT_LIST_SPEED
     #ifdef DISTANCE_BASED_LIGHT_LIST_SPEED
-    bool shouldCompute = shouldCompute(getUpdatePeriod());
+    uint updatePeriod = getUpdatePeriod();
+
     #ifdef JUMPSTART_LIGHTING
-    shouldCompute=shouldCompute||frameCounter<20;
+    if(frameCounter<54) updatePeriod=1u;
     #endif
+
+    bool shouldCompute = shouldCompute(updatePeriod);
     if(!shouldCompute)
         return;
+    #else
+        const uint updatePeriod = 1u;
     #endif
-    localPos = ivec3(gl_LocalInvocationID+gl_WorkGroupID*SIZE);
-    ivec3 localOffset = ((ivec3(frameCounter)/ivec3(9,3,1))%3)-1;
 
-    if(localOffset==ivec3(0))
-        return;
-
+    int frame = int(uint(frameCounter)/updatePeriod);
+    ivec3 localOffset = ((ivec3(frame/3,frame/9+frame,frame))%3)-1;
 
     uint voxel = getVoxel(localPos);
     getLightList(selfList,localPos,unitShift);
@@ -137,9 +128,8 @@ void main(){
         outList[i]=0u;
 
     if(bool(voxel&WORLDVOX_EMISSION_MASK)){
-        uint light = packListedLight(ivec3(0));
-        tagWithLength(light);
-        outList[itemsInList++]=light;
+        uint newLight = packListedLight(ivec3(0));
+        outList[itemsInList++] = tagWithLength(newLight);
     }
 
     if(!bool(voxel&WORLDVOX_OPAQUE))
