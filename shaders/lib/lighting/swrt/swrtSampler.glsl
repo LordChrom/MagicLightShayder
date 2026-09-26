@@ -30,16 +30,11 @@ void penumbraNoise(inout vec3 position,float ditherValue){
     position += 0.25*(sourcePosNoise-0.5);
 }
 
-vec4 traceLight(vec3 worldPos,ivec3 areaPos,uint light,float ditherValue,uint maxSteps){
+vec4 traceLight(vec3 worldPos,ivec3 areaPos,uint light,uint maxSteps){
     ivec3 lightPosRel = uncheckedUnpackListedLight(light);
     vec3 displacementToLight = lightPosRel-fract(worldPos)+0.5;
 
     float lightStr = lightFalloff(displacementToLight);
-
-    #ifdef SWRT_NOISY_PENUMBRAS
-    penumbraNoise(displacementToLight,ditherValue);
-    #endif
-
 
     bool hitObstruction = traceRay(worldPos,displacementToLight,unitShift,maxSteps)>=0;
     return vec4(colorOfPackedLight(light)*lightStr,!hitObstruction);
@@ -47,7 +42,7 @@ vec4 traceLight(vec3 worldPos,ivec3 areaPos,uint light,float ditherValue,uint ma
 
 
 vec4 swrtSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue, uint maxSteps){
-    worldPos+=0.02*normal;
+    worldPos+=clamp(length(worldPos-globalOrigin)*0.001,1e-5,0.1)*normal;
     normal=-normal;
     unitShift = getUnitShift();
     ivec3 areaPos = worldPosToSWRT(worldPos);
@@ -133,7 +128,7 @@ vec3 swrtSampleFog(vec3 worldPos, float ditherValue, uint maxSteps){
     int i=0;
     const int raysPerFogSample = 0;
     for(i=0;i<min(raysPerFogSample,numLights);i++){
-        vec4 hitColor = traceLight(worldPos,areaPos,lights[i],ditherValue,maxSteps);
+        vec4 hitColor = traceLight(worldPos,areaPos,lights[i],maxSteps);
         color += hitColor.rgb*hitColor.a;
     }
 

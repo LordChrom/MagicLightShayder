@@ -42,7 +42,7 @@ float dither(ivec2 pos){
 }
 
 float recycleNoise(float noise){
-    return fract(1.61803398875*noise);
+    return fract(0.61803398875+10*sin(10*noise));
 }
 #endif
 
