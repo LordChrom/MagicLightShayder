@@ -196,4 +196,8 @@ vec3 worldVoxColor(uint packedData){
     }
     return color;
 }
+
+vec3 worldVoxColor(uint lightID, uint emission){
+    return getLightIDColor(blockLightID(lightID))*(emission*0.06666);
+}
 #endif

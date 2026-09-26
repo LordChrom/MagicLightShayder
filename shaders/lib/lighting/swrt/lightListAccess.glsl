@@ -1,3 +1,5 @@
+#define SWRT_LIGHTS_PER_BLOCK (4*SWRT_LIGHT_LAYERS)
+
 #ifndef LIGHT_LIST_ACCESS_GLSL
 #define LIGHT_LIST_ACCESS_GLSL
 
@@ -36,16 +38,38 @@ restrict uimage3D lightSourceList;
 #endif
 
 #ifdef WRITES_LIGHT_LIST
-void setLightList(uvec4 list, ivec3 areaPos, ivec3 unitShift){
+void setLightList(uint[SWRT_LIGHTS_PER_BLOCK] list, ivec3 areaPos, ivec3 unitShift){
     areaPos = modSwrtSize(areaPos+unitShift);
-    imageStore(lightSourceList,areaPos,list);
+    areaPos.y*=SWRT_LIGHT_LAYERS;
+    for(int layer=0;layer<SWRT_LIGHT_LAYERS;layer++){
+        uvec4 s;
+        for(int i=0;i<4;i++)
+            s[i]=list[i&3];
+        imageStore(lightSourceList,areaPos,s);
+        areaPos.y++;
+    }
+}
+
+void clearLightList(ivec3 areaPos, ivec3 unitShift){
+    areaPos = modSwrtSize(areaPos+unitShift);
+    imageStore(lightSourceList,areaPos,uvec4(0));
 }
 #endif
 
 #ifdef READS_LIGHT_LIST
-uvec4 getLightList(ivec3 areaPos, ivec3 unitShift){
+void getLightList(out uint[SWRT_LIGHTS_PER_BLOCK] list, ivec3 areaPos, ivec3 unitShift){
     areaPos = modSwrtSize(areaPos+unitShift);
-    return imageLoad(lightSourceList,areaPos);
+    areaPos.y*=SWRT_LIGHT_LAYERS;
+
+    for(int layer=0;layer<SWRT_LIGHT_LAYERS;layer++){
+        uvec4 s = imageLoad(lightSourceList,areaPos);
+        for(int i=0;i<4;i++)
+            list[i+layer*4]=s[i];
+        areaPos.y++;
+    }
+//    uvec4 s = imageLoad(lightSourceList,areaPos);
+//    for(int i=0;i<4;i++)
+//        list[i]=s[i];
 }
 #endif
 
@@ -85,13 +109,18 @@ uint addToPackedLight(uint packedLight, ivec3 change){
     return packListedLight(retUnpacked);
 }
 
-uint getNthLight(uvec4 list, uint n){
-    return (list[n>>1]>>((n&1u)<<4))&0xffffu;
-}
+//uint getNthLight(uvec4 list, uint n){
+//    return (list[n>>1]>>((n&1u)<<4))&0xffffu;
+//}
 
-uint countLights(uvec4 list){
-    list=((list>>15)&1u)+((list>>31)&1u);
-    return list.x+list.y+list.z+list.w;
+uint countLights(uint[SWRT_LIGHTS_PER_BLOCK] list){
+//    list=((list>>15)&1u)+((list>>31)&1u);
+//    return list.x+list.y+list.z+list.w;
+    uint ret=0u;
+    for(int i=0;i<SWRT_LIGHTS_PER_BLOCK;i++){
+        ret+=uint(bool(list[i]&LIGHT_VALID_BIT));
+    }
+    return ret;
 }
 
 #endif

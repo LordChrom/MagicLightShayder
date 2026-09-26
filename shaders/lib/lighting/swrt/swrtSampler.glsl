@@ -12,6 +12,9 @@
 
 ivec3 unitShift;
 
+vec3 colorOfPackedLight(uint light){
+    return worldVoxColor((light>>16)&0x3fu,(light>>28)&0x3fu);
+}
 ivec3 worldPosToSWRT(vec3 pos){
     ivec3 ret = ivec3(floor(pos))-ivec3(floor(globalOrigin));
     ret+=SWRT_SIZE>>1;
@@ -83,9 +86,9 @@ void penumbraNoise(inout vec3 position,float ditherValue){
 //    bool hitObstruction = traceRay(worldPos,displacementToLight,unitShift,maxSteps)>=0;
 //    return vec4(worldVoxColor(voxel)*lightStr,!hitObstruction);
 //}
-vec4 traceLight(vec3 worldPos,ivec3 areaPos,ivec3 lightPosRel,float ditherValue,uint maxSteps){
+vec4 traceLight(vec3 worldPos,ivec3 areaPos,uint light,float ditherValue,uint maxSteps){
+    ivec3 lightPosRel = uncheckedUnpackListedLight(light);
     vec3 displacementToLight = lightPosRel-fract(worldPos)+0.5;
-    uint voxel = getBaseVoxData(areaPos+lightPosRel,unitShift);
 
     float lightStr = lightFalloff(displacementToLight);
 
@@ -95,7 +98,7 @@ vec4 traceLight(vec3 worldPos,ivec3 areaPos,ivec3 lightPosRel,float ditherValue,
 
 
     bool hitObstruction = traceRay(worldPos,displacementToLight,maxSteps)>=0;
-    return vec4(worldVoxColor(voxel)*lightStr,!hitObstruction);
+    return vec4(colorOfPackedLight(light)*lightStr,!hitObstruction);
 }
 
 
@@ -111,8 +114,9 @@ vec4 swrtSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue,
         return vec4(0);
     }
 
-    uvec4 list= getLightList(areaPos,unitShift);
-    uint numLights = countLights(list);
+    uint[SWRT_LIGHTS_PER_BLOCK] lights;
+    getLightList(lights,areaPos,unitShift);
+    uint numLights = countLights(lights);
 
     areaPos+=offsetToVox;
 
@@ -127,7 +131,7 @@ vec4 swrtSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue,
         int numLightsToChooseFrom = 1<<rayNum;//1,2,4
         uint lightIndex = clamp(uint(ditherValue*numLightsToChooseFrom),0u,uint(numLightsToChooseFrom-1))+baseIndex;
 
-        ivec3 sourceRel = uncheckedUnpackListedLight(getNthLight(list,lightIndex));
+        ivec3 sourceRel = uncheckedUnpackListedLight(lights[lightIndex]);
 //        vec4 traceColor = traceLight(worldPos,areaPos,unitShift,sourceRel,ditherValue,maxSteps,normal);
 
         vec3 displacementToLight = sourceRel-fract(worldPos)+0.5;
@@ -164,10 +168,11 @@ vec3 swrtSampleFog(vec3 worldPos, float ditherValue, uint maxSteps){
         return color;
     }
 
-    uvec4 list= getLightList(areaPos,unitShift);
+    uint[SWRT_LIGHTS_PER_BLOCK] lights;
+    getLightList(lights,areaPos,unitShift);
     areaPos+=offsetToVox;
 
-    uint numLights = countLights(list);
+    uint numLights = countLights(lights);
 
     if(numLights==0)
         return color;
@@ -175,21 +180,18 @@ vec3 swrtSampleFog(vec3 worldPos, float ditherValue, uint maxSteps){
     int i=0;
     const int raysPerFogSample = 1;
     for(i=0;i<min(raysPerFogSample,numLights);i++){
-        uint source = getNthLight(list,i);
-        vec4 hitColor = traceLight(worldPos,areaPos,uncheckedUnpackListedLight(source),ditherValue,maxSteps);
+        vec4 hitColor = traceLight(worldPos,areaPos,lights[i],ditherValue,maxSteps);
         color += hitColor.rgb*hitColor.a;
     }
 
 
 
     for(;i<numLights;i++){
-        uint source = getNthLight(list,uint(i));
-        ivec3 lightPosRel = uncheckedUnpackListedLight(source);
-        uint voxel = getBaseVoxData(lightPosRel+areaPos,unitShift);
+        ivec3 lightPosRel = uncheckedUnpackListedLight(lights[i]);
         vec3 displacementToLight = lightPosRel-fract(worldPos);
         float lightStr = lightFalloff(displacementToLight+0.5);
 
-        color+= worldVoxColor(voxel)*lightStr;
+        color+= colorOfPackedLight(lights[i])*lightStr;
     }
 
     return color;

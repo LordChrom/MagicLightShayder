@@ -20,12 +20,13 @@ const ivec3 workGroups = ivec3(WORK_SIZE,WORK_SIZE,WORK_SIZE);
 layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = SIZE) in;
 
 ivec3 localPos, unitShift;
-uvec4 selfList;
-uint[8] personalList;
+uint[SWRT_LIGHTS_PER_BLOCK] selfList;
+uint[SWRT_LIGHTS_PER_BLOCK] neighborList;
+uint[SWRT_LIGHTS_PER_BLOCK] outList;
 uint itemsInList = 0;
 
 void zeroPosition(ivec3 pos, bool isTop){
-    setLightList(uvec4(0), pos, unitShift);
+    clearLightList(pos, unitShift);
 }
 #define MOVEMENT_TRIM
 #include "/lib/util/3dComputeShaderUtils.glsl"
@@ -44,53 +45,46 @@ void tagWithLength(inout uint light){
     light|=uint(clamp(int((1-len)*0xffff),0,0xffff))<<16; //so closer lights will be comparable directly with >
 }
 
-void removeNonexistentLights(){
+void verifyLights(){
     uint outIndex = 0u;
-    for(uint i=0;i<8;i++){
-        uint light = personalList[i];
-        bool validLight = bool(light&LIGHT_VALID_BIT);
-        if(validLight){
-            ivec3 pos = localPos + uncheckedUnpackListedLight(light);
-            validLight = bool(getVoxel(pos)&WORLDVOX_EMISSION_MASK);
-            //TODO trace??
-        }
-        
-        if(validLight){
-            personalList[outIndex] = light;
-            outIndex++;
-        }
+    itemsInList = min(itemsInList,SWRT_LIGHTS_PER_BLOCK);
+    for(uint i=0;i<itemsInList;i++){
+        uint light = outList[i]&0xffffu;
+        if(!bool(light&LIGHT_VALID_BIT))
+            break;
+        ivec3 pos = localPos + uncheckedUnpackListedLight(light);
+        uint voxel = getVoxel(pos);
+        if(!bool(voxel&WORLDVOX_EMISSION_MASK))
+            continue;
+        //TODO trace??
+
+        light |= ((voxel>>WORLDVOX_EMISSION_SHIFT)<<28 ) | (blockLightID(voxel)<<16);
+        outList[outIndex] = light;
+        outIndex++;
     }
-    for(;outIndex<8;outIndex++){
-        personalList[outIndex] = 0u;
-    }
+    for(;outIndex<SWRT_LIGHTS_PER_BLOCK;outIndex++)
+        outList[outIndex] = 0u;
 }
 
-uvec4 packList(){
-    uvec4 ret;
-    for(uint i=0;i<4;i++){
-        uint listIndex = i+i;
-        ret[i] = (personalList[listIndex]&0xffffu)|(personalList[listIndex+1]<<16);
-    }
-    return ret;
+void storeData(){
+    setLightList(outList,localPos,unitShift);
 }
 
-void merge(uvec4 priorList, uvec4 neighbor, ivec3 offset){
+void merge(ivec3 offset){
     uint neighborIndex = 0;
     uint selfIndex = 0;
 
-    uint neighborLight = getNthLight(neighbor,0);
-    uint selfLight = getNthLight(priorList,0);
 
-    for(;itemsInList<8 && min(selfIndex,neighborIndex)<8; itemsInList++){
-        neighborLight= getNthLight(neighbor,neighborIndex);
-        selfLight= getNthLight(priorList,selfIndex);
+    for(;itemsInList<SWRT_LIGHTS_PER_BLOCK && min(selfIndex,neighborIndex)<SWRT_LIGHTS_PER_BLOCK; itemsInList++){
+        uint neighborLight= neighborList[neighborIndex];
+        uint selfLight= selfList[selfIndex];
 
         neighborLight=addToPackedLight(neighborLight,offset);
 
         tagWithLength(selfLight);
         tagWithLength(neighborLight);
 
-        bool selfPreferable = (selfLight>neighborLight && selfIndex<8) || neighborIndex>=8;
+        bool selfPreferable = (selfLight>neighborLight && selfIndex<SWRT_LIGHTS_PER_BLOCK) || neighborIndex>=SWRT_LIGHTS_PER_BLOCK;
 
         uint preferableLight;
         if(selfPreferable){
@@ -102,16 +96,12 @@ void merge(uvec4 priorList, uvec4 neighbor, ivec3 offset){
         }
 
         if(itemsInList>0)
-            if(preferableLight>=personalList[itemsInList-1]){
+            if(preferableLight>=outList[itemsInList-1]){
                 itemsInList--;
                 continue;
             }
-        personalList[itemsInList] = selfPreferable?selfLight:neighborLight;
+        outList[itemsInList] = selfPreferable?selfLight:neighborLight;
     }
-}
-
-void mergeFromOffset(uvec4 priorList, ivec3 offset){
-
 }
 
 void main(){
@@ -135,25 +125,27 @@ void main(){
     ivec3 localOffset = ((ivec3(frameCounter)/ivec3(9,3,1))%3)-1;
 
     if(localOffset==ivec3(0))
-    return;
+        return;
 
 
     uint voxel = getVoxel(localPos);
-    uvec4 priorList = getLightList(localPos,unitShift);
-    uvec4 neighborList = getLightList(localPos+localOffset,unitShift);
+    getLightList(selfList,localPos,unitShift);
+    getLightList(neighborList,localPos+localOffset,unitShift);
 
+
+    for(int i=0;i<SWRT_LIGHTS_PER_BLOCK;i++)
+        outList[i]=0u;
 
     if(bool(voxel&WORLDVOX_EMISSION_MASK)){
         uint light = packListedLight(ivec3(0));
         tagWithLength(light);
-        personalList[itemsInList++]=light;
+        outList[itemsInList++]=light;
     }
 
-    if(bool(voxel&WORLDVOX_OPAQUE))
-        priorList=uvec4(0);
+    if(!bool(voxel&WORLDVOX_OPAQUE))
+        merge(localOffset);
 
-    merge(priorList, neighborList,localOffset);
-    removeNonexistentLights();
-    setLightList(packList(),localPos,unitShift);
+    verifyLights();
+    storeData();
 }
 
