@@ -58,7 +58,7 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 | RGBA8   | 3   | transparent abledo           |       | y                    |
 |         | 4   |                              |       |                      |
 |         | 5   |                              |       |                      |
-| RGBA16F | 6   | multiplicative lighting      | y     |                      |
+| RGBA16F | 6   | multiplicative lighting      | y     | y (nether skyboxn't) |
 | RGBA16F | 7   | additive light               | y     |                      |
 | RGBA8UI | 8   | Materials                    | y     | y                    |
 | R32F    | 9   | prev frame depth             |       | n                    |
@@ -67,7 +67,7 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 | RG16F   | 12  | DoF stuff                    |       |                      |
 | RGBA16F | 13  | Downsampling stuff           |       |                      |
 | RGBA8   | 14  | temporary                    |       |                      |
-| R32UI   | 15  | temporary (holds ray hits)   |       | ?                    |
+|         | 15  |                              |       |                      |
 |         | 19  | debug (optional)             | y     |                      |
 
 - albedo.a is 1 exclusively for pre-lit geometry

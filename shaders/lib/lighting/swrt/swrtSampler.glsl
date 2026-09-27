@@ -100,7 +100,7 @@ vec4 swrtSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue,
     return color;
 }
 
-uniform sampler3D swrtRayHitSampler;
+uniform sampler2D swrtRayHitSampler;
 
 vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
     worldPos+=clamp(length(worldPos-globalOrigin)*0.001,0.04,0.1)*normal;
@@ -114,12 +114,12 @@ vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
         return vec3(0);
     }
 
-    uint[SWRT_LIGHTS_PER_BLOCK] lights;
-    getLightList(lights,areaPos,unitShift);
-    uint numLights = countLights(lights);
-
     #ifdef DEBUG_SWRT_LIGHT_COUNT
     if(true){
+        uint[SWRT_LIGHTS_PER_BLOCK] fullLightList;
+        getLightList(fullLightList,areaPos,unitShift);
+        uint numLights = countLights(fullLightList);
+
         float mult = float(numLights)/(4*SWRT_LIGHT_LAYERS);
         numLights = ((numLights-1)%7)+1;
         return vec3(mult*((ivec3(numLights)>>ivec3(2,1,0))&1));
@@ -131,19 +131,22 @@ vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
     vec3 color = vec3(0);
 
 
-    for(uint rayNum=0;rayNum<8;rayNum++){
-        vec3 displacementToLight, sampleColor;
-        {
-            uint light = lights[rayNum];
-            displacementToLight = uncheckedUnpackListedLight(light)-fract(worldPos)+0.5;
+    uvec4 lightShortList;
+    for(uint i=0;i<SWRT_LIGHTS_PER_BLOCK;i++){
+        if((i&3u)==0u)
+            lightShortList = getLightListLayer(areaPos, unitShift, i>>2);
 
-            float lightStr = lightFalloff(displacementToLight);
-            lightStr*=normalFactor(normal,displacementToLight,0);
-            sampleColor = colorOfPackedLight(light)*lightStr;
-        }
+        float visibility = texture(swrtRayHitSampler,tc+vec2(float(i)/SWRT_LIGHTS_PER_BLOCK,0)).x;
 
-        float hitMult = texture(swrtRayHitSampler,vec3(tc,(rayNum+0.5)/8.0)).x;
-        color.rgb+=sampleColor*hitMult;
+        uint light = lightShortList[i&3u];
+        vec3 displacementToLight = uncheckedUnpackListedLight(light)-fract(worldPos)+0.5;
+
+        float lightStr = lightFalloff(displacementToLight);
+        lightStr*=normalFactor(normal,displacementToLight,0);
+        lightStr*=visibility;
+
+        if(lightStr>0)
+            color.rgb+=colorOfPackedLight(light)*lightStr;
     }
 
     return color;

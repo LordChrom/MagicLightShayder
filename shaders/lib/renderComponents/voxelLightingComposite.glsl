@@ -17,7 +17,6 @@ layout (rgba16f) uniform writeonly restrict image2D colorimg6;
 
 uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
 uniform vec3 cameraPosition;
-uniform vec2 scaledScreenDim;
 
 uniform sampler2D colortex2;
 uniform sampler2D depthtex2;
@@ -42,7 +41,7 @@ uniform usampler2D colortex8;
 
 void main() {
     vec4 worldPosRelative;
-    worldPosRelative.xy = (vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5)/scaledScreenDim;
+    worldPosRelative.xy = (vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5)/imageSize(colorimg6);
     vec4 normal = texture(colortex2,worldPosRelative.xy);
     float solidDepth = texture(depthtex2,worldPosRelative.xy).x;
     #if MATERIALS_TYPE >= 0

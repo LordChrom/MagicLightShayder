@@ -10,7 +10,7 @@ layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
 layout (rgba16f) uniform writeonly restrict image2D colorimg7;
 
 
-uniform vec2 scaledScreenDim;
+//uniform vec2 scaledScreenDim;
 
 uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
 uniform vec3 cameraPosition;
@@ -36,7 +36,7 @@ const float fogDensityMult = FOG_THICKNESS*log(0.5)/FOG_HALF_LIFE;
 
 void main() {
     vec4 worldPosRelative;
-    worldPosRelative.xy=(vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5)/scaledScreenDim;
+    worldPosRelative.xy=(vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5)/imageSize(colorimg7);
     ivec2 sourceTexpos = ivec2((worldPosRelative.xy*textureSize(depthtex0,0)+0.01));
 
     bool solidTransInFront = texelFetch(colortex3,sourceTexpos,0).a>=1;

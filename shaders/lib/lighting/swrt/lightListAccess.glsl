@@ -124,11 +124,17 @@ void getStridedLightList(out uint[SWRT_LIGHT_LAYERS] list, ivec3 areaPos, ivec3 
     #endif
 }
 
+
+uvec4 getLightListLayer(ivec3 areaPos, ivec3 unitShift, uint layer){
+    areaPos = modSwrtSize(areaPos+unitShift);
+    areaPos.y=areaPos.y*SWRT_LIGHT_LAYERS+int(layer);
+    return imageLoad(lightSourceList,areaPos);
+}
+
 uint getListLight(ivec3 areaPos, ivec3 unitShift, uint index){
     areaPos = modSwrtSize(areaPos+unitShift);
     areaPos.y=areaPos.y*SWRT_LIGHT_LAYERS+(int(index)>>2);
-    uvec4 l1 = imageLoad(lightSourceList,areaPos);
-    return l1[index&3u];
+    return imageLoad(lightSourceList,areaPos)[index&3u];
 }
 #endif
 
