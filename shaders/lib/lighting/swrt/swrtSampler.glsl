@@ -100,7 +100,9 @@ vec4 swrtSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue,
     return color;
 }
 
-vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, uint rayHits){
+uniform sampler3D swrtRayHitSampler;
+
+vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
     worldPos+=clamp(length(worldPos-globalOrigin)*0.001,0.04,0.1)*normal;
     normal=-normal;
     unitShift = getUnitShift();
@@ -140,8 +142,8 @@ vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, uint rayHits)
             sampleColor = colorOfPackedLight(light)*lightStr;
         }
 
-        if(bool(rayHits&(1u<<(rayNum+rayNum))))
-            color.rgb+=sampleColor;
+        float hitMult = texture(swrtRayHitSampler,vec3(tc,(rayNum+0.5)/8.0)).x;
+        color.rgb+=sampleColor*hitMult;
     }
 
     return color;

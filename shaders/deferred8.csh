@@ -8,10 +8,10 @@
 ///* RENDERTARGETS: 6 */
 //layout(location = 0) out vec4 voxelLighting;
 
-#define SIZE 16
-const vec2 workGroupsRender = vec2(LIGHTING_RENDERSCALE,LIGHTING_RENDERSCALE);
-layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
-layout (r32UI) uniform writeonly restrict uimage2D colorimg15;
+#define SIZE 8
+const vec2 workGroupsRender = vec2(1.0,1.0);
+layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = SWRT_LIGHT_LAYERS) in;
+layout (r8) uniform writeonly restrict image3D swrtRayHits;
 
 uniform sampler2D depthtex2;
 uniform sampler2D colortex2;
@@ -56,10 +56,9 @@ void main(){
 
 
 
-    uint outValue = 0u;
 
     if(!(areaPos.x<0||areaPos.y<0||areaPos.z<0||
-        areaPos.x>=SWRT_SIZE||areaPos.y>=SWRT_SIZE||areaPos.z>=SWRT_SIZE)
+    areaPos.x>=SWRT_SIZE||areaPos.y>=SWRT_SIZE||areaPos.z>=SWRT_SIZE)
     ){
         uint lightIndex=((gl_LocalInvocationID.x&1u)<<1)+(gl_LocalInvocationID.y&1u);
 
@@ -69,18 +68,15 @@ void main(){
 
         //TODO the convergence here is obviously leaving a lot to be desired.
         for(int i=0;i<SWRT_LIGHT_LAYERS;i++){
+            float outF = 0.0;
             uint light = lights[i];
-            if(!bool(light&LIGHT_VALID_BIT))
-                break;
-            vec3 displacementToLight = uncheckedUnpackListedLight(light)+subvoxelOffset;
-
-            uint shift = lightIndex+lightIndex+(i<<3);
-            outValue |= 2u<<(shift);
-            if(traceRay(worldPos.xyz,displacementToLight,unitShift,maxSteps)<0){
-                outValue |= 1u<<(shift);
+            if(bool(light&LIGHT_VALID_BIT)){
+                vec3 displacementToLight = uncheckedUnpackListedLight(light)+subvoxelOffset;
+                if(traceRay(worldPos.xyz,displacementToLight,unitShift,maxSteps)<0){
+                    outF = 1.0;
+                }
             }
+            imageStore(swrtRayHits,ivec3((gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)>>1,lightIndex+4*i),vec4(outF,0,0,0));
         }
     }
-
-    imageStore(colorimg15,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),uvec4(outValue,0u,0u,0u));
 }

@@ -26,7 +26,6 @@
 #include "/lib/lighting/swrt/swrtSampler.glsl"
 #include "/lib/util/wideFilteredSample.glsl"
 uniform sampler2D colortex6;
-uniform usampler2D colortex15;
 #endif
 
 float mixInSunlight(float blockSun, float shadowSun){
@@ -63,9 +62,11 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
 //        #endif
 //    vec2 tc = ;
 //    uint rayHitInfo = texture(colortex15,tc).x;
-    uvec4 a = textureGather(colortex15,(vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5)/textureSize(colortex15,0),0);
+//    uvec4 a = textureGather(swrtRayHitSampler,(vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5)/textureSize(swrtRayHitSampler,0).xy,0);
+//    uint rayHitInfo = texture(swrtRayHitSampler,vec3(,0)).x;
 
-    ret.rgb+=shadePrehitRays(worldPos, normal, subsurface, a.x|a.y|a.z|a.w).xyz;
+    vec2 tc = ((vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5)*0.5)/textureSize(swrtRayHitSampler,0).xy;
+    ret.rgb+=shadePrehitRays(worldPos, normal, subsurface, tc).xyz;
     #endif
 //    ret.rgb+= swrtSample(worldPos, normal, subsurface, ditherValue,15u);
     #endif
