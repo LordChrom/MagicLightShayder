@@ -78,7 +78,7 @@ void taaAccumulate(){
             previousMultAccumulation = texture(colortex10, prevScreenPos.xy);
 
            #if DEBUG_SPECIAL_VIEW == 201
-            previousMultAccumulation=vec4(0,1,0,1);
+            previousMultAccumulation.rgb=vec3(0,1,0.35);
            #endif
 
             vec2 pixelShiftiness = (fract(prevScreenPos.xy*textureSize(depthtex0,0))-0.5);

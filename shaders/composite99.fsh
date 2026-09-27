@@ -57,7 +57,7 @@ void main() {
     float funnyEmissive = (mat.a==255)?0.0:(mat.a/254.0);
     outColor=funnyEmissive+mat.rgb*((1.0-funnyEmissive)/255.0);
     //        outColor=funnyEmissive*mat.rgb*(1.0/255.0);
-#elif (DEBUG_SPECIAL_VIEW == 10) || (DEBUG_SPECIAL_VIEW == 200)
+#elif (DEBUG_SPECIAL_VIEW == 10) || (DEBUG_SPECIAL_VIEW >= 200 && DEBUG_SPECIAL_VIEW <= 202)
     outColor = texture(colortex10,texcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 11
     outColor = texture(colortex11,texcoord).rgb;

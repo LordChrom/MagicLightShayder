@@ -9,8 +9,7 @@ layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
 layout (rgba16f) uniform writeonly restrict image2D colorimg6;
 
 #if DEBUG_SPECIAL_VIEW >= 0
-//TODO restore debug here funnyDebug
-//layout(location = 1) out vec3 funnyDebug;
+layout (rgba8) uniform writeonly restrict image2D colorimg19;
 #endif
 
 
@@ -95,7 +94,7 @@ void main() {
         voxelLighting.a = doSsao(jitteredTexcoord, normal.xyz, solidDepth, ditherValue);
     }
         #if DEBUG_SPECIAL_VIEW == 103
-        funnyDebug = vec3(voxelLighting.a);
+        imageStore(colorimg19,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),vec4(voxelLighting.aaa,0));
         #endif
     #endif
 
