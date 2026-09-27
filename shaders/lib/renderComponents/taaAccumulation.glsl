@@ -33,7 +33,7 @@ uniform sampler2D colortex10;
 uniform sampler2D depthtex0;
 
 layout(location = 0) out float depthAccumulation;
-layout(location = 1) out vec3 multAccumulation;
+layout(location = 1) out vec4 multAccumulation;
 
 void taaAccumulate(){
     vec2 jitteredTexcoord = texcoord-jitter();
@@ -50,10 +50,10 @@ void taaAccumulate(){
     #ifdef TAA_FOG
     #endif
 #endif
-    multAccumulation = texelFetch(colortex6,jitteredTexPos,0).rgb;
+    multAccumulation = texelFetch(colortex6,jitteredTexPos,0);
 
    #if DEBUG_SPECIAL_VIEW == 201
-    multAccumulation=vec3(1,0,0);
+    multAccumulation=vec4(1,0,0,0);
    #endif
 
     bool reprojectValid = false;
@@ -63,7 +63,7 @@ void taaAccumulate(){
     vec3 screenPos = vec3(texcoord,depthAccumulation);
 
     vec4 previousAddAccumulation = vec4(0);
-    vec3 previousMultAccumulation = vec3(0);
+    vec4 previousMultAccumulation = vec4(0);
     vec3 prevScreenPos = reproject(screenPos);
 
     if(prevScreenPos.x>0 && prevScreenPos.y>0 && prevScreenPos.x<1 && prevScreenPos.y<1){
@@ -75,12 +75,23 @@ void taaAccumulate(){
         speedFactor=var>exp2(-14)?speedFactor:1;
         float depthSensitivity = exp2(-14)/speedFactor;
         if(abs(prevScreenPos.z-prevDepth)/prevDepth<=depthSensitivity){
-            previousMultAccumulation = texture(colortex10, prevScreenPos.xy).rgb;
+            previousMultAccumulation = texture(colortex10, prevScreenPos.xy);
 
            #if DEBUG_SPECIAL_VIEW == 201
-            previousMultAccumulation=vec3(0,1,0);
+            previousMultAccumulation=vec4(0,1,0,1);
            #endif
-            multAccumulation=mix(previousMultAccumulation, multAccumulation, lightSampleWeight(jitteredTexcoord));
+
+            vec2 pixelShiftiness = (fract(prevScreenPos.xy*textureSize(depthtex0,0))-0.5);
+            pixelShiftiness = abs(2*pixelShiftiness);
+            previousMultAccumulation.a=min(previousMultAccumulation.a,40);
+            previousMultAccumulation.a*=max(0,1-TAA_ANTI_SMEAR*max(pixelShiftiness.x,pixelShiftiness.y));
+
+            float weight = lightSampleWeight(jitteredTexcoord);
+
+            multAccumulation.a+=previousAddAccumulation.a;
+
+            multAccumulation.a=weight+previousMultAccumulation.a;
+            multAccumulation.rgb=mix(previousMultAccumulation.rgb, multAccumulation.rgb, weight/multAccumulation.a);
 
            #ifdef TAA_FOG
             previousAddAccumulation = texture(colortex11,prevScreenPos.xy);
@@ -90,7 +101,7 @@ void taaAccumulate(){
     }
 
 
-    for(int i=0;i<3;i++){
+    for(int i=0;i<4;i++){
         if(isnan(multAccumulation[i]))
             multAccumulation[i]=0;
     }
@@ -100,10 +111,10 @@ void taaAccumulate(){
 
     ivec2 jitteredTexpos = ivec2(floor((jitteredTexcoord)*scaledScreenDim));
 
-    multAccumulation = texelFetch(colortex6,jitteredTexpos,0).rgb;
-    multAccumulation.xyz=mix(multAccumulation,vec3(weight), weight>=0.95?0.5:0.2);
+    multAccumulation = texelFetch(colortex6,jitteredTexpos,0);
+    multAccumulation = mix(multAccumulation,vec4(weight), weight>=0.95?0.5:0.2);
 #elif DEBUG_SPECIAL_VIEW == 202
     float weight = lightSampleWeight(jitteredTexcoord);
-    multAccumulation = vec3(lightSampleWeight(jitteredTexcoord));
+    multAccumulation = vec4(lightSampleWeight(jitteredTexcoord));
 #endif
 }

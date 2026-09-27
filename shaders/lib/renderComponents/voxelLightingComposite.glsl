@@ -40,12 +40,14 @@ uniform usampler2D colortex8;
 
 
 void main() {
-    vec4 worldPosRelative;
-    worldPosRelative.xy = (vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5)/imageSize(colorimg6);
-    vec4 normal = texture(colortex2,worldPosRelative.xy);
-    float solidDepth = texture(depthtex2,worldPosRelative.xy).x;
+    vec2 jitteredTexcoord = (vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5)/imageSize(colorimg6);
+    #ifdef TAA
+    jitteredTexcoord+=jitter();
+    #endif
+    vec4 normal = texture(colortex2,jitteredTexcoord);
+    float solidDepth = texture(depthtex2,jitteredTexcoord).x;
     #if MATERIALS_TYPE >= 0
-    uvec4 matInfo = texture(colortex8,worldPosRelative.xy);
+    uvec4 matInfo = texture(colortex8,jitteredTexcoord);
     #endif
 
 
@@ -55,9 +57,7 @@ void main() {
     if(solidDepth==1){
         return;
     }
-    worldPosRelative.z = solidDepth;
-    worldPosRelative.w=1;
-    vec2 jitteredTexcoord = worldPosRelative.xy;
+    vec4 worldPosRelative = vec4(jitteredTexcoord,solidDepth,1);
 
     if(isHand){
         #if (IRIS_VERSION < 11008 )&& (DEBUG_SPECIAL_VIEW != 100)
