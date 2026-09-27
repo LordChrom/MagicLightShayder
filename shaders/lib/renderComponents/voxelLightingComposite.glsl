@@ -31,7 +31,11 @@ uniform usampler2D colortex8;
 #define TEMPORAL_DITHER
 #include "/lib/util/dither.glsl"
 
-
+//TODO probably do this better in the future
+#if (defined TAA) && !(defined SHADOWMAP_SHADOWS)
+uniform vec2 scaledScreenDim;
+#include "/lib/util/taaJitter.glsl"
+#endif
 
 #ifdef SSAO
 #include "/lib/renderComponents/ssao.glsl"

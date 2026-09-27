@@ -83,12 +83,10 @@ void taaAccumulate(){
 
             vec2 pixelShiftiness = (fract(prevScreenPos.xy*textureSize(depthtex0,0))-0.5);
             pixelShiftiness = abs(2*pixelShiftiness);
-            previousMultAccumulation.a=min(previousMultAccumulation.a,40);
-            previousMultAccumulation.a*=max(0,1-TAA_ANTI_SMEAR*max(pixelShiftiness.x,pixelShiftiness.y));
+            previousMultAccumulation.a=min(previousMultAccumulation.a,20);
+            previousMultAccumulation.a*=clamp(1-TAA_ANTI_SMEAR*max(pixelShiftiness.x,pixelShiftiness.y)/LIGHTING_RENDERSCALE,0,1);
 
             float weight = lightSampleWeight(jitteredTexcoord);
-
-            multAccumulation.a+=previousAddAccumulation.a;
 
             multAccumulation.a=weight+previousMultAccumulation.a;
             multAccumulation.rgb=mix(previousMultAccumulation.rgb, multAccumulation.rgb, weight/multAccumulation.a);

@@ -143,12 +143,12 @@ vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
         tempTc.x+=float(i)/SWRT_LIGHTS_PER_BLOCK;
         tempTc+=(0.5/textureSize(swrtRayHitSampler,0))*((ivec2(i>>1,i)&1));
 
-        #if SWRT_DENOISE>=0
+        #if SWRT_NOISE_FILTER>=0
         vec2 ts = textureSize(swrtRayHitSampler,0);
         tempTc = mix(tempTc,round(tempTc*ts)/ts,0.7);
         #endif
 
-        #if SWRT_DENOISE<=1
+        #if SWRT_NOISE_FILTER<=1
         float visibility = texture(swrtRayHitSampler,tempTc).x;
         #else
         float visibility = wideSample(swrtRayHitSampler,tempTc).x;
