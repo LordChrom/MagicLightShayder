@@ -8,6 +8,9 @@
 #include "/lib/lighting/distanceFalloff.glsl"
 #include "/lib/lighting/swrt/rayIntersect.glsl"
 
+#include "/lib/util/wideFilteredSample.glsl"
+
+
 #define TEMPORAL_DITHER
 #include "/lib/util/dither.glsl"
 
@@ -139,7 +142,17 @@ vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
         vec2 tempTc = tc;
         tempTc.x+=float(i)/SWRT_LIGHTS_PER_BLOCK;
         tempTc+=(0.5/textureSize(swrtRayHitSampler,0))*((ivec2(i>>1,i)&1));
+
+        #if SWRT_DENOISE>=0
+        vec2 ts = textureSize(swrtRayHitSampler,0);
+        tempTc = mix(tempTc,round(tempTc*ts)/ts,0.7);
+        #endif
+
+        #if SWRT_DENOISE<=1
         float visibility = texture(swrtRayHitSampler,tempTc).x;
+        #else
+        float visibility = wideSample(swrtRayHitSampler,tempTc).x;
+        #endif
 
         uint light = lightShortList[i&3u];
         vec3 displacementToLight = uncheckedUnpackListedLight(light)-fract(worldPos)+0.5;

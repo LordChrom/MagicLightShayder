@@ -24,7 +24,6 @@
 
 #ifdef SWRT
 #include "/lib/lighting/swrt/swrtSampler.glsl"
-#include "/lib/util/wideFilteredSample.glsl"
 #endif
 
 float mixInSunlight(float blockSun, float shadowSun){
