@@ -26,6 +26,7 @@
 #include "/lib/lighting/swrt/swrtSampler.glsl"
 #include "/lib/util/wideFilteredSample.glsl"
 uniform sampler2D colortex6;
+uniform usampler2D colortex15;
 #endif
 
 float mixInSunlight(float blockSun, float shadowSun){
@@ -53,13 +54,18 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
 
     #ifdef SWRT
     #ifndef GBUFFER_SHADER
-        #if SWRT_DENOISE==2
-        ret.rgb+=wideSample(colortex6,jitteredTexcoord).rgb;
-        #elif SWRT_DENOISE==1
-        ret.rgb+=fourNeighborsSample(colortex6,jitteredTexcoord).rgb;
-        #else
-        ret.rgb+=texelFetch(colortex6,ivec2(gl_FragCoord.xy),0).rgb;
-        #endif
+//        #if SWRT_DENOISE==2
+//        ret.rgb+=wideSample(colortex6,jitteredTexcoord).rgb;
+//        #elif SWRT_DENOISE==1
+//        ret.rgb+=fourNeighborsSample(colortex6,jitteredTexcoord).rgb;
+//        #else
+//        ret.rgb+=texelFetch(colortex6,ivec2(gl_FragCoord.xy),0).rgb;
+//        #endif
+//    vec2 tc = ;
+//    uint rayHitInfo = texture(colortex15,tc).x;
+    uvec4 a = textureGather(colortex15,(vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5)/textureSize(colortex15,0),0);
+
+    ret.rgb+=shadePrehitRays(worldPos, normal, subsurface, a.x|a.y|a.z|a.w).xyz;
     #endif
 //    ret.rgb+= swrtSample(worldPos, normal, subsurface, ditherValue,15u);
     #endif

@@ -97,6 +97,39 @@ void getLightList(out uint[SWRT_LIGHTS_PER_BLOCK] list, ivec3 areaPos, ivec3 uni
     #endif
     #endif
 }
+
+void getStridedLightList(out uint[SWRT_LIGHT_LAYERS] list, ivec3 areaPos, ivec3 unitShift, uint slot){
+    areaPos = modSwrtSize(areaPos+unitShift);
+    areaPos.y*=SWRT_LIGHT_LAYERS;
+    uint l1 = imageLoad(lightSourceList,areaPos)[slot];
+    #if SWRT_LIGHT_LAYERS>=2
+    uint l2 = imageLoad(lightSourceList,ivec3(areaPos.x,areaPos.y+1,areaPos.z))[slot];
+    #if SWRT_LIGHT_LAYERS>=3
+    uint l3 = imageLoad(lightSourceList,ivec3(areaPos.x,areaPos.y+2,areaPos.z))[slot];
+    #if SWRT_LIGHT_LAYERS>=4
+    uint l4 = imageLoad(lightSourceList,ivec3(areaPos.x,areaPos.y+3,areaPos.z))[slot];
+    #endif
+    #endif
+    #endif
+
+    list[0]=l1;
+    #if SWRT_LIGHT_LAYERS>=2
+    list[1]=l2;
+    #if SWRT_LIGHT_LAYERS>=3
+    list[2]=l3;
+    #if SWRT_LIGHT_LAYERS>=4
+    list[3]=l4;
+    #endif
+    #endif
+    #endif
+}
+
+uint getListLight(ivec3 areaPos, ivec3 unitShift, uint index){
+    areaPos = modSwrtSize(areaPos+unitShift);
+    areaPos.y=areaPos.y*SWRT_LIGHT_LAYERS+(int(index)>>2);
+    uvec4 l1 = imageLoad(lightSourceList,areaPos);
+    return l1[index&3u];
+}
 #endif
 
 uint uncheckedPackListedLight(ivec3 posRel){

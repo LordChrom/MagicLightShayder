@@ -24,10 +24,10 @@ ivec3 worldPosToSWRT(vec3 pos){
 }
 
 
-void penumbraNoise(inout vec3 position,float ditherValue){
+vec3 penumbraNoise(float ditherValue){
     vec3 sourcePosNoise = vec3(ditherValue,recycleNoise(ditherValue),0);
     sourcePosNoise.z=recycleNoise(sourcePosNoise.y);
-    position += 0.25*(sourcePosNoise-0.5);
+    return 0.25*(sourcePosNoise-0.5);
 }
 
 vec4 traceLight(vec3 worldPos,ivec3 areaPos,uint light,uint maxSteps){
@@ -87,7 +87,7 @@ vec4 swrtSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue,
             sampleColor = colorOfPackedLight(lights[lightIndex])*lightStr;
 
             #ifdef SWRT_NOISY_PENUMBRAS
-            penumbraNoise(displacementToLight,ditherValue);
+            displacementToLight+=penumbraNoise(ditherValue);
             #endif
         }
 
@@ -99,6 +99,54 @@ vec4 swrtSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue,
 
     return color;
 }
+
+vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, uint rayHits){
+    worldPos+=clamp(length(worldPos-globalOrigin)*0.001,0.04,0.1)*normal;
+    normal=-normal;
+    unitShift = getUnitShift();
+    ivec3 areaPos = worldPosToSWRT(worldPos);
+
+    if(areaPos.x<0||areaPos.y<0||areaPos.z<0||
+    areaPos.x>=SWRT_SIZE||areaPos.y>=SWRT_SIZE||areaPos.z>=SWRT_SIZE
+    ){
+        return vec3(0);
+    }
+
+    uint[SWRT_LIGHTS_PER_BLOCK] lights;
+    getLightList(lights,areaPos,unitShift);
+    uint numLights = countLights(lights);
+
+    #ifdef DEBUG_SWRT_LIGHT_COUNT
+    if(true){
+        float mult = float(numLights)/(4*SWRT_LIGHT_LAYERS);
+        numLights = ((numLights-1)%7)+1;
+        return vec3(mult*((ivec3(numLights)>>ivec3(2,1,0))&1));
+    }
+    #endif
+
+    areaPos+=offsetToVox;
+
+    vec3 color = vec3(0);
+
+
+    for(uint rayNum=0;rayNum<8;rayNum++){
+        vec3 displacementToLight, sampleColor;
+        {
+            uint light = lights[rayNum];
+            displacementToLight = uncheckedUnpackListedLight(light)-fract(worldPos)+0.5;
+
+            float lightStr = lightFalloff(displacementToLight);
+            lightStr*=normalFactor(normal,displacementToLight,0);
+            sampleColor = colorOfPackedLight(light)*lightStr;
+        }
+
+        if(bool(rayHits&(1u<<(rayNum+rayNum))))
+            color.rgb+=sampleColor;
+    }
+
+    return color;
+}
+
 
 vec3 swrtSampleFog(vec3 worldPos, float ditherValue, uint maxSteps){
     unitShift = getUnitShift();

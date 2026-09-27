@@ -1,20 +1,24 @@
 #include "/lib/settings.glsl"
 
-in vec2 jitteredTexcoord;
+
+
+#define SIZE 16
+const vec2 workGroupsRender = vec2(LIGHTING_RENDERSCALE,LIGHTING_RENDERSCALE);
+layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
+
+layout (rgba16f) uniform writeonly restrict image2D colorimg6;
 
 #if DEBUG_SPECIAL_VIEW >= 0
-/* RENDERTARGETS: 6,19 */
-layout(location = 1) out vec3 funnyDebug;
-#else
-/* RENDERTARGETS: 6 */
+//TODO restore debug here funnyDebug
+//layout(location = 1) out vec3 funnyDebug;
 #endif
 
-layout(location = 0) out vec4 voxelLighting;
 
 
 uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
 uniform vec3 cameraPosition;
-//uniform vec2 scaledScreenDim;
+uniform vec2 scaledScreenDim;
+
 uniform sampler2D colortex2;
 uniform sampler2D depthtex2;
 uniform sampler2D depthtex0;
@@ -37,26 +41,30 @@ uniform usampler2D colortex8;
 
 
 void main() {
-    vec4 normal = texture(colortex2,jitteredTexcoord);
-    float solidDepth = texture(depthtex2,jitteredTexcoord).x;
+    vec4 worldPosRelative;
+    worldPosRelative.xy = (vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5)/scaledScreenDim;
+    vec4 normal = texture(colortex2,worldPosRelative.xy);
+    float solidDepth = texture(depthtex2,worldPosRelative.xy).x;
     #if MATERIALS_TYPE >= 0
-    uvec4 matInfo = texture(colortex8,jitteredTexcoord);
+    uvec4 matInfo = texture(colortex8,worldPosRelative.xy);
     #endif
 
 
     bool isHand = normal.a>0.4 && normal.a<0.6;
 
-    voxelLighting=vec4(0,0,0,1);
+    vec4 voxelLighting=vec4(0,0,0,1);
     if(solidDepth==1){
         return;
     }
-    vec4 worldPosRelative = vec4(jitteredTexcoord,solidDepth,1);
+    worldPosRelative.z = solidDepth;
+    worldPosRelative.w=1;
+    vec2 jitteredTexcoord = worldPosRelative.xy;
 
     if(isHand){
         #if (IRIS_VERSION < 11008 )&& (DEBUG_SPECIAL_VIEW != 100)
         return;
         #else
-        worldPosRelative.z=texture(depthtex0,jitteredTexcoord).x/MC_HAND_DEPTH;
+        worldPosRelative.z=texture(depthtex0,worldPosRelative.xy).x/MC_HAND_DEPTH;
         #endif
     }
 
@@ -80,7 +88,7 @@ void main() {
 
     normal.xyz = normalize(normal.xyz*2-1);
 
-    float ditherValue = dither(ivec2(gl_FragCoord.xy));
+    float ditherValue = dither(ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy));
 
 
     #ifdef SSAO
@@ -97,4 +105,5 @@ void main() {
     voxelLighting.rgb*=voxelLighting.a;
     #endif
 
+    imageStore(colorimg6,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),voxelLighting);
 }
