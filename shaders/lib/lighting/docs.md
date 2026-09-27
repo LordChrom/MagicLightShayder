@@ -131,15 +131,15 @@ Packing
 - 3: flood shadow seam filler
 - 10-17: flood shadow lighting
 - 20: basic floodfill lighter & filler
-- 30: light list propogation for swrt
+- 30: light list manager for swrt
 ### deferred
-- 1: main lighting for solid terrain
-- 2: SSAO filter to reeduce noise
+- 8: swrt ray intersection (optional)
+- 10: main lighting for solid terrain
+- 20: SSAO filter to reeduce noise
 ### composite
 - 2: volumetric fog
 - 5: depth Hi-z, disabled & unused
 - 6-8: hq fog blur & (bad) bloom
-- 9: reflections if subject to blur, probably can move or remove
 - 10: cheap fog blur
 - 11: reflections if not subject to blur
 - 30: taa accumulation
@@ -152,7 +152,6 @@ Packing
 
 # General TODO List
 ### Needs fixing
-- reflections when view bobbing
 - POM on non-square surfaces
 - voxelizing end gates
 - subsurface on lava

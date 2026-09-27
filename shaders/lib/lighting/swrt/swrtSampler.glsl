@@ -136,7 +136,10 @@ vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
         if((i&3u)==0u)
             lightShortList = getLightListLayer(areaPos, unitShift, i>>2);
 
-        float visibility = texture(swrtRayHitSampler,tc+vec2(float(i)/SWRT_LIGHTS_PER_BLOCK,0)).x;
+        vec2 tempTc = tc;
+        tempTc.x+=float(i)/SWRT_LIGHTS_PER_BLOCK;
+        tempTc+=(0.5/textureSize(swrtRayHitSampler,0))*((ivec2(i>>1,i)&1));
+        float visibility = texture(swrtRayHitSampler,tempTc).x;
 
         uint light = lightShortList[i&3u];
         vec3 displacementToLight = uncheckedUnpackListedLight(light)-fract(worldPos)+0.5;

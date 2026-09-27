@@ -15,7 +15,8 @@ vec3 screenspaceRaycast(
 
     for(int i=0;i<stepsPerBounce;i++){
         newPos = initialPos+(i+ditherValue)*viewDir;
-        float distFromEdge =min(min(newPos.x,newPos.y),1-max(newPos.x,newPos.y));
+        float distFromEdge = min(viewDir.x>0?1-newPos.x:newPos.x,viewDir.y>0?1-newPos.y:newPos.y);
+
         if(distFromEdge<=(fadeAtEdges?ditherValue*0.1:0) || newPos.z<=0.4 || newPos.z>=1){
             hitReason=1;
             break;

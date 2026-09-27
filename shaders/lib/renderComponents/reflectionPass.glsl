@@ -51,7 +51,11 @@ vec3 worldDirToScreen(vec3 worldDirection, vec3 screenPos){
 
 void main() {
 
+    #if VOLUMETRIC_FOG_SAMPLES > 0
     fogColorOut = texelFetch(colortex7,ivec2(gl_FragCoord.xy),0);
+    #else
+    fogColorOut = vec4(0,0,0,1);
+    #endif
 
     vec4 normal = texture(colortex2,texcoord);
     vec3 worldDir = normalize(worldDirNormalizeMe);

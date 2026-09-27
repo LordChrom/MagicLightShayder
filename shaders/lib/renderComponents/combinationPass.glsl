@@ -88,7 +88,7 @@ void main() {
     renderAxisGizmo(color,texcoord);
     #endif
 
-    #if VOLUMETRIC_FOG_SAMPLES > 0
+    #if (VOLUMETRIC_FOG_SAMPLES > 0) || (defined REFLECTIONS)
     color = color*voxelFog.a + voxelFog.rgb;
     #endif
     outputColor=tonemap(color);
