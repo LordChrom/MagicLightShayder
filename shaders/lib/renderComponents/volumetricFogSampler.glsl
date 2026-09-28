@@ -16,10 +16,8 @@ uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
 uniform vec3 cameraPosition;
 
 uniform sampler2D colortex2;
-uniform sampler2D depthtex2;
-uniform sampler2D depthtex0;
-
 uniform sampler2D colortex3;
+uniform sampler2D colortex5;
 
 uniform vec3 fogColor;
 
@@ -37,17 +35,11 @@ const float fogDensityMult = FOG_THICKNESS*log(0.5)/FOG_HALF_LIFE;
 void main() {
     vec4 worldPosRelative;
     worldPosRelative.xy=(vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5)/imageSize(colorimg7);
-    ivec2 sourceTexpos = ivec2((worldPosRelative.xy*textureSize(depthtex0,0)+0.01));
+    ivec2 sourceTexpos = ivec2((worldPosRelative.xy*textureSize(colortex5,0)+0.01));
 
     bool solidTransInFront = texelFetch(colortex3,sourceTexpos,0).a>=1;
 
-    if(abs(texelFetch(colortex2,sourceTexpos,0).a-0.5)<0.1){//hand
-        worldPosRelative.z/=MC_HAND_DEPTH;
-    }else if(solidTransInFront){//solid translucent
-        worldPosRelative.z = texelFetch(depthtex0,sourceTexpos,0).x;
-    }else{//normal terrain
-        worldPosRelative.z = texelFetch(depthtex2,sourceTexpos,0).x;
-    }
+    worldPosRelative.z = texelFetch(colortex5,sourceTexpos,0).x;
 
     worldPosRelative = gbufferProjectionInverse*vec4(worldPosRelative.xyz*2-1,1);
     worldPosRelative/=worldPosRelative.w;

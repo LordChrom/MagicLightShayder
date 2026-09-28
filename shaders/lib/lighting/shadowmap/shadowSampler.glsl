@@ -1,7 +1,4 @@
 uniform mat4 shadowModelView, shadowProjection;
-#ifdef GBUFFER_SHADER
-uniform mat4 gbufferModelViewInverse;
-#endif
 
 uniform sampler2D shadowcolor0;
 uniform vec2 shadowDepthConvConsts;

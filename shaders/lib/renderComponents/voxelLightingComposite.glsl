@@ -18,8 +18,7 @@ uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
 uniform vec3 cameraPosition;
 
 uniform sampler2D colortex2;
-uniform sampler2D depthtex2;
-uniform sampler2D depthtex0;
+uniform sampler2D colortex5;
 uniform sampler2D colortex3;
 
 #if MATERIALS_TYPE >= 0
@@ -49,14 +48,12 @@ void main() {
     #endif
     jitteredTexcoord/=imageSize(colorimg6);
 
-    vec4 normal = texture(colortex2,jitteredTexcoord);
-    float solidDepth = texture(depthtex2,jitteredTexcoord).x;
+    vec3 normal = texture(colortex2,jitteredTexcoord).xyz;
+    float solidDepth = texture(colortex5,jitteredTexcoord).x;
     #if MATERIALS_TYPE >= 0
     uvec4 matInfo = texture(colortex8,jitteredTexcoord);
     #endif
 
-
-    bool isHand = normal.a>0.4 && normal.a<0.6;
 
     vec4 voxelLighting=vec4(0,0,0,1);
     if(solidDepth==1){
@@ -65,13 +62,6 @@ void main() {
     }
     vec4 worldPosRelative = vec4(jitteredTexcoord,solidDepth,1);
 
-    if(isHand){
-        #if (IRIS_VERSION < 11008 )&& (DEBUG_SPECIAL_VIEW != 100)
-        return;
-        #else
-        worldPosRelative.z=texture(depthtex0,worldPosRelative.xy).x/MC_HAND_DEPTH;
-        #endif
-    }
 
     worldPosRelative.xyz=worldPosRelative.xyz*2-1;
     worldPosRelative = gbufferProjectionInverse*worldPosRelative;
@@ -91,21 +81,21 @@ void main() {
 
 
 
-    normal.xyz = normalize(normal.xyz*2-1);
+    normal = normalize(normal*2-1);
 
     float ditherValue = dither(ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy));
 
 
     #ifdef SSAO
-    if(emissive<0.4 && !isHand){
-        voxelLighting.a = doSsao(jitteredTexcoord, normal.xyz, solidDepth, ditherValue);
+    if(emissive<0.4){
+        voxelLighting.a = doSsao(jitteredTexcoord, normal, solidDepth, ditherValue);
     }
         #if DEBUG_SPECIAL_VIEW == 103
         imageStore(colorimg19,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),vec4(voxelLighting.aaa,0));
         #endif
     #endif
 
-    voxelLighting.rgb = lightingSample(worldPosRelative.xyz+cameraPosition,normal.xyz,subsurface,ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
+    voxelLighting.rgb = lightingSample(worldPosRelative.xyz+cameraPosition,normal,subsurface,ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
     #ifdef SSAO
     voxelLighting.rgb*=voxelLighting.a;
     #endif

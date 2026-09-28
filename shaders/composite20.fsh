@@ -9,7 +9,7 @@ layout(location = 0) out vec4 fog;
 
 uniform sampler2D colortex7;
 uniform sampler2D colortex13;
-uniform sampler2D depthtex1;
+uniform sampler2D colortex5;
 
 const int levels = 4;
 
@@ -19,7 +19,7 @@ void main() {
     ivec2 texsize = textureSize(colortex7,0);
 
     fog=texelFetch(colortex7,ivec2(gl_FragCoord.xy),0);
-    float depth = depthToLinear(texture(depthtex1,texcoord).x);
+    float depth = depthToLinear(texture(colortex5,texcoord).x);
     float totalWeight = 0.0;
     fog.rgb*=totalWeight;
 

@@ -8,7 +8,7 @@ uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
 uniform mat4 gbufferPreviousProjection, gbufferPreviousModelView;
 uniform vec3 cameraPosition, previousCameraPosition;
 
-uniform sampler2D depthtex1;
+uniform sampler2D colortex5;
 
 #include "/lib/util/taaHelper.glsl"
 #include "/lib/renderComponents/blur.glsl"
@@ -55,7 +55,7 @@ void taaAccumulate(){
     bool reprojectValid = false;
 
 
-    depthAccumulation = texelFetch(depthtex1,ivec2(gl_FragCoord.xy),0).x;
+    depthAccumulation = texelFetch(colortex5,ivec2(gl_FragCoord.xy),0).x;
     vec3 screenPos = vec3(texcoord,depthAccumulation);
 
     vec4 previousAddAccumulation = vec4(0);
@@ -78,7 +78,7 @@ void taaAccumulate(){
             previousMultAccumulation.rgb=vec3(0,1,0.35);
            #endif
 
-            vec2 pixelShiftiness = (fract(prevScreenPos.xy*textureSize(depthtex1,0))-0.5);
+            vec2 pixelShiftiness = (fract(prevScreenPos.xy*textureSize(colortex5,0))-0.5);
             pixelShiftiness = abs(2*pixelShiftiness);
             previousMultAccumulation.a=min(previousMultAccumulation.a,200);
             previousMultAccumulation.a*=clamp(1-TAA_ANTI_SMEAR*max(pixelShiftiness.x,pixelShiftiness.y)/LIGHTING_RENDERSCALE,0,1);

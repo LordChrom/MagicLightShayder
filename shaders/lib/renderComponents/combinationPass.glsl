@@ -2,7 +2,7 @@
 
 uniform vec2 scaledScreenDim;
 uniform int frameCounter;
-uniform sampler2D depthtex1;
+uniform sampler2D colortex5;
 
 #include "/lib/renderComponents/blur.glsl"
 #include "/lib/renderComponents/bonusHudElements.glsl"

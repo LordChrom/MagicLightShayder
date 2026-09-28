@@ -13,7 +13,7 @@ vec4 multifetch(sampler2D texToBlur, vec2 texCoord, vec2 screenDisplacement, flo
         for(int sign=-1; sign<=1;sign+=2){
             vec2 coord = texCoord+sign*offset;
             if(depthAware){
-                float depth = depthToLinear(texture(depthtex1, coord).x);
+                float depth = depthToLinear(texture(colortex5, coord).x);
                 if (abs(depth-centerDepth)>maxDepthDif){
                     #ifdef DEBUG_FOG_BLUR_EDGES
                         ret.r++;
@@ -32,7 +32,7 @@ vec4 multifetch(sampler2D texToBlur, vec2 texCoord, vec2 screenDisplacement, flo
 
 vec4 doBlur(sampler2D texToBlur, vec2 pos, float pxStep, float weightCenter, float weightEdges, float weightCorners, bool depthAware){
     int we,wc;
-    float centerDepth = depthToLinear(texture(depthtex1,pos).x);
+    float centerDepth = depthToLinear(texture(colortex5,pos).x);
     vec4 edges = multifetch(texToBlur,pos,vec2(pxStep,0),centerDepth,depthAware,we)*weightEdges;
     vec4 corners = multifetch(texToBlur,pos,vec2(pxStep),centerDepth,depthAware,wc)*weightCorners;
     vec4 center = texture(texToBlur,pos);

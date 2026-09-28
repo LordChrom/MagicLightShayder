@@ -6,7 +6,7 @@ uniform float viewHeight;
 // cost is  O(n^2) rad, O((4^n)/(5-n)) quality
 
 
-uniform sampler2D depthtex0, depthtex1, depthtex2;
+uniform sampler2D depthtex0, colortex5, depthtex1, depthtex2;
 uniform float centerDepthSmooth;
 
 #include "/lib/util/conversions.glsl"
@@ -25,7 +25,7 @@ float calcRadius(ivec2 texpos){
     if(texelFetch(depthtex1,texpos,0).x!=texelFetch(depthtex2,texpos,0).x){
         return 0;
     }
-    float solidDepth =  depthToLinear(texelFetch(depthtex1,texpos,0).x);
+    float solidDepth =  depthToLinear(texelFetch(colortex5,texpos,0).x);
     float transDepth =  depthToLinear(texelFetch(depthtex0,texpos,0).x);
     float depthTarget = depthToLinear(centerDepthSmooth);
 

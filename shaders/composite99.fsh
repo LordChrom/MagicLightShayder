@@ -18,6 +18,7 @@ uniform sampler2D colortex1;
 uniform sampler2D colortex2;
 uniform sampler2D colortex3;
 uniform sampler2D colortex4;
+uniform sampler2D colortex5;
 uniform sampler2D colortex6;
 uniform sampler2D colortex7;
 uniform usampler2D colortex8;
@@ -36,6 +37,9 @@ uniform sampler2D colortex19;
 /* RENDERTARGETS: 0 */
 layout(location = 0) out vec3 outColor;
 
+float visiblifyDepth(float scrnDepth){
+    return clamp(0.05*sqrt(depthToLinear(scrnDepth)),0,1);
+}
 
 void main() {
     ivec2 texpos = ivec2(gl_FragCoord.xy);
@@ -48,6 +52,9 @@ void main() {
     outColor=texture(colortex3,texcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 4
     outColor= texture(colortex4,texcoord).rgb*2-1;
+#elif DEBUG_SPECIAL_VIEW == 5
+    float depth = texture(colortex5,texcoord).x;
+    outColor = vec3(visiblifyDepth(depth));
 #elif DEBUG_SPECIAL_VIEW == 6
     outColor=texture(colortex6,texcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 7
@@ -57,6 +64,9 @@ void main() {
     float funnyEmissive = (mat.a==255)?0.0:(mat.a/254.0);
     outColor=funnyEmissive+mat.rgb*((1.0-funnyEmissive)/255.0);
     //        outColor=funnyEmissive*mat.rgb*(1.0/255.0);
+#elif DEBUG_SPECIAL_VIEW == 9
+    float depth = texture(colortex9,texcoord).x;
+    outColor = vec3(visiblifyDepth(depth));
 #elif (DEBUG_SPECIAL_VIEW == 10) || (DEBUG_SPECIAL_VIEW >= 200 && DEBUG_SPECIAL_VIEW <= 202)
     outColor = texture(colortex10,texcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 11

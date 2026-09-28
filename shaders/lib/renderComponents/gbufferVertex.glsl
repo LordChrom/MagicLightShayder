@@ -44,21 +44,9 @@ uniform mat4 gbufferModelViewInverse;
 
 #if ( VOXELIZATION_MODE >=1 ) && (defined IS_TERRAIN )
     #include "/lib/voxelStorage/vsMapper.glsl"
-    #define NEEDS_WORLD_POS 0
     #define UPDATE_VOXEL_MAP
     #define NEEDS_MC_ENTITY
-#endif
-
-#if defined FORWARD_TRANSLUCENTS && defined TRANSLUCENT
-    #define NEEDS_WORLD_POS 1
-#endif
-
-#ifdef NEEDS_WORLD_POS
-uniform vec3 cameraPosition;
-
-#if NEEDS_WORLD_POS>=1
-    out vec3 worldPos;
-#endif
+    uniform vec3 cameraPosition;
 #endif
 
 #if (defined NEEDS_MATERIAL_ID) || (defined HARDCODED_MATERIAL)
@@ -185,18 +173,12 @@ void main() {
     #endif
 #endif
 
-#ifdef NEEDS_WORLD_POS
-    #if NEEDS_WORLD_POS<1
-        vec3
-    #endif
-    worldPos = gl_Vertex.xyz+cameraPosition;
-#endif
-
 #ifdef UPDATE_VOXEL_MAP
-    int emission = int(at_midBlock.w);
-
-    int blockId = int(mc_Entity.x);
-    writeVoxelMap(worldPos+at_midBlock.xyz*0.015625,blockId,emission);
+    writeVoxelMap(
+        gl_Vertex.xyz+cameraPosition+at_midBlock.xyz*0.015625,  //world pos
+        int(mc_Entity.x),                                       //block id
+        int(at_midBlock.w)                                      //emission
+    );
 #endif
 
     glcolor = gl_Color;

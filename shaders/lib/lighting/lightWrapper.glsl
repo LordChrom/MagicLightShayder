@@ -50,16 +50,12 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
     #endif
 
     #ifdef SWRT
-    #ifndef GBUFFER_SHADER
-        vec2 tc = ((vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5)*0.5)/textureSize(swrtRayHitSampler,0).xy;
-            #ifdef TAA
-            tc+=unscaledJitter()/textureSize(swrtRayHitSampler,0);
-            #endif
-        ret.rgb+=shadePrehitRays(worldPos, normal, subsurface, tc).xyz;
-    #else
-        vec4 samp = swrtSample(worldPos, normal, subsurface, ditherValue,15u);
-        ret.rgb+= samp.rgb*samp.a;
-    #endif
+    vec2 tc = ((vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5)*0.5)/textureSize(swrtRayHitSampler,0).xy;
+        #ifdef TAA
+        tc+=unscaledJitter()/textureSize(swrtRayHitSampler,0);
+        #endif
+    ret.rgb+=shadePrehitRays(worldPos, normal, subsurface, tc).xyz;
+
     #endif
 
     #ifdef SHADOWMAP_SHADOWS

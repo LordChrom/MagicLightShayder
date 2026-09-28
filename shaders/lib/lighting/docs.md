@@ -54,16 +54,16 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 |---------|-----|------------------------------|-------|----------------------|
 |         | 0   | main output                  |       |                      |
 | RGBA8   | 1   | solid albedo                 |       | y (nether no skybox) |
-| RGBA8   | 2   | solid normals                |       |                      |
-| RGBA8   | 3   | translucent abledo           |       | y                    |
-| RGBA8   | 4   | translucent normals          |       | y                    |
-|         | 5   |                              |       |                      |
-| RGBA16F | 6   | multiplicative lighting      | y     | y (nether skyboxn't) |
+| RGBA8   | 2   | solid normals                |       | n  just not needed   |
+| RGBA8   | 3   | translucent abledo           |       | Y (trans)            |
+| RGBA8   | 4   | translucent normals          |       | Y (trans)            |
+| R32F    | 5   | processed solid depth        |       |                      |
+| RGBA16F | 6   | multiplicative lighting      | y     | n                    |
 | RGBA16F | 7   | additive light               | y     |                      |
 | RGBA8UI | 8   | Materials                    | y     | y                    |
 | R32F    | 9   | prev frame depth             |       | n                    |
-| RGBA16F | 10  | multiplicative accumulation. |       | n                    |
-| RGBA16F | 11  | additive accumulation.       |       | n                    |
+| RGBA16F | 10  | multiplicative accumulation. |       | N                    |
+| RGBA16F | 11  | additive accumulation.       |       | N                    |
 | RG16F   | 12  | DoF stuff                    |       |                      |
 | RGBA16F | 13  | Downsampling stuff           |       |                      |
 | RGBA8   | 14  | temporary                    |       |                      |
@@ -152,6 +152,10 @@ Packing
 
 # General TODO List
 ### Needs fixing
+- materials for solid translucents
+- reflections on translucents
+- end gates again
+- that situation where there's a translucent, an opaque translucent, then a translucent behind it
 - POM on non-square surfaces
 - voxelizing end gates
 - subsurface on lava

@@ -28,7 +28,7 @@ float doSsao(vec2 texcoord, vec3 normal, float solidDepth, float dither){
         float angle = fract(float(a)/numAngles-angleDither)*TWOPI;
         vec2 offsetTexcoord = texcoord + vec2(cos(angle),sin(angle))*radius;
 
-        vec4 pos = (vec4(offsetTexcoord,texture(depthtex2,offsetTexcoord).x,1)*2-1);
+        vec4 pos = (vec4(offsetTexcoord,texture(colortex5,offsetTexcoord).x,1)*2-1);
         pos = gbufferProjectionInverse*pos;
         pos.xyz/=pos.w;
         pos-=worldPos;

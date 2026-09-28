@@ -14,7 +14,7 @@ layout (rgba8) uniform writeonly restrict image2D swrtRayHits;
 layout (r8) uniform writeonly restrict image2D swrtRayHits;
 #endif
 
-uniform sampler2D depthtex2;
+uniform sampler2D colortex5;
 uniform sampler2D colortex2;
 
 
@@ -31,8 +31,8 @@ void main(){
     jitteredTexcoord+=unscaledJitter();
     #endif
     jitteredTexcoord/=scaledScreenDim;
-    float solidDepth = texture(depthtex2,jitteredTexcoord).x;
-    vec4 normal = texture(colortex2,jitteredTexcoord);
+    float solidDepth = texture(colortex5,jitteredTexcoord).x;
+    vec3 normal = texture(colortex2,jitteredTexcoord).xyz;
     vec4 worldPos = vec4(jitteredTexcoord,solidDepth,1);
 
 
@@ -43,7 +43,7 @@ void main(){
 
 
 
-    worldPos.xyz+=clamp(length(worldPos.xyz)*0.001,0.04,0.1)*normalize(normal.xyz*2-1);
+    worldPos.xyz+=clamp(length(worldPos.xyz)*0.001,0.04,0.1)*normalize(normal*2-1);
     worldPos.xyz+=cameraPosition;
     ivec3 areaPos = worldPosToSWRT(worldPos.xyz);
 

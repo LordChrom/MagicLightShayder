@@ -1,7 +1,6 @@
 #ifndef VOXY_PATCH
 #version 430 compatibility
 #endif
-#define GBUFFER_SHADER
 
 #include "/lib/settings.glsl"
 const float translucentPrecedenceCutoff = 0.99;
@@ -89,13 +88,15 @@ flat in int materialID;
 #if defined TRANSLUCENT
     #ifdef SOLIDIFY_OPAQUE_TRANSLUCENTS
         #ifdef WRITE_MATERIALS
-        /* RENDERTARGETS: 3,4,8,1,2 */
+        /* RENDERTARGETS: 3,4,8,1,2,5 */
         layout(location = 3) out vec4 solidColorOut;
         layout(location = 4) out vec4 solidNormalOut;
+        layout(location = 5) out vec4 specialDepthOut;
         #else
-        /* RENDERTARGETS: 3,4,1,2 */
+        /* RENDERTARGETS: 3,4,1,2,5 */
         layout(location = 2) out vec4 solidColorOut;
         layout(location = 3) out vec4 solidNormalOut;
+        layout(location = 4) out vec4 specialDepthOut;
         #endif
     #else
         #ifdef WRITE_MATERIALS
@@ -339,8 +340,10 @@ void main()
         solidColorOut =vec4(color.rgb,1.0);
         solidNormalOut=vec4(normalOut.rgb,1.0);
         color.a=normalOut.a=0.0;
+        specialDepthOut=vec4(gl_FragCoord.z,0,0,1);
     }else{
         normalOut.a=1.0;
+        specialDepthOut=vec4(0,0,0,0);
     }
     #endif
 #else

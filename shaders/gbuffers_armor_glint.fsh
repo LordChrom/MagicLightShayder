@@ -1,2 +1,3 @@
 #define ENCHANT_GLINT
-#include "/gbuffers_entities_translucent.fsh"
+#define TRANSLUCENT
+#include "/gbuffers_entities.fsh"

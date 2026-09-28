@@ -21,7 +21,7 @@ in vec2 texcoord;
 in vec3 worldDirNormalizeMe;
 
 uniform sampler2D depthtex0;
-uniform sampler2D depthtex2;
+uniform sampler2D colortex5;
 
 uniform sampler2D colortex1;
 uniform sampler2D colortex2;
@@ -73,8 +73,8 @@ void main() {
     vec3 reflectionMult = vec3(1);
 
 
-    if(abs(normal.a-0.5)<0.1)
-        return;
+//    if(abs(normal.a-0.5)<0.1)
+//        return;
     normal.xyz=normalize(normal.xyz*2-1);
 
     bool dirty = false;
@@ -120,7 +120,7 @@ void main() {
         const float maxCastLen = 1.0;
         #endif
         screenPos = screenspaceRaycast(
-            depthtex2,stepsPerBounce,maxCastLen,
+            colortex5,stepsPerBounce,maxCastLen,
             screenPos,worldDirToScreen(worldDir, screenPos),ditherValue,true,
             rayHitReason
         );

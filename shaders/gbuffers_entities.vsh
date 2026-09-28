@@ -5,12 +5,10 @@
 #define ENTITY
 #define POM_ELLIGIBLE
 
-#if defined IRIS_VERSION && !defined TRANSLUCENT
-#if IRIS_VERSION < 11008
-#define FAKE_TRANSLUCENT
-#define TRANSLUCENT //TODO stupid iris
+//stupid iris nonsense
+#ifndef TRANSLUCENT
+    #define FAKE_TRANSLUCENT
+    #define TRANSLUCENT
 #endif
-#endif
-
 
 #include "/lib/renderComponents/gbufferVertex.glsl"

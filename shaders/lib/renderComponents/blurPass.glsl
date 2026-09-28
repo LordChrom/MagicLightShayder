@@ -1,6 +1,6 @@
 #version 430 compatibility
 uniform vec2 scaledScreenDim;
-uniform sampler2D depthtex1;
+uniform sampler2D colortex5;
 
 #include "/lib/renderComponents/blur.glsl"
 

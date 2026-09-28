@@ -9,7 +9,7 @@ uniform sampler2D colortex7;
 layout (rgba16f) uniform writeonly restrict image2D colorimg13;
 
 
-uniform sampler2D depthtex1;
+uniform sampler2D colortex5;
 #include "/lib/util/conversions.glsl"
 
 #define combine atomicAdd
@@ -18,7 +18,7 @@ const float scale = 1048576;
 uvec4 getValue(vec2 texcoord){
     vec4 ret;
     ret.rgb = texture(colortex7, texcoord).rgb;
-    ret.a=depthToLinear(texture(depthtex1 ,texcoord).x);
+    ret.a=depthToLinear(texture(colortex5 ,texcoord).x);
     return uvec4(round(ret*scale));
 }
 

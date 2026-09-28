@@ -10,14 +10,14 @@ uniform sampler2D colortex7;
 layout (r32f) uniform writeonly restrict image2D colorimg12;
 
 
-uniform sampler2D depthtex2;
+uniform sampler2D colortex5;
 #include "/lib/util/conversions.glsl"
 
 #define combine atomicMin
 
 const float scale = 0x40000000;
 uint getValue(vec2 texcoord){
-    float depth = texture(depthtex2, texcoord).x;
+    float depth = texture(colortex5, texcoord).x;
     return uint(round(depth*scale));
 }
 
@@ -30,7 +30,7 @@ void correction(inout uint value){
 }
 
 ivec2 sourceSize(){
-    return textureSize(depthtex2,0);
+    return textureSize(colortex5,0);
 }
 
 #include "/lib/renderComponents/downsamplePass.glsl"
