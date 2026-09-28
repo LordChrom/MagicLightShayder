@@ -53,7 +53,7 @@ void main(){
         return;
 
     float ditherValue = bayer128(ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)>>1);
-    #ifdef SWRT_NOISY_PENUMBRAS
+    #if SWRT_PENUMBRA_SIZE!=-1
     ditherValue = temporalNoise(ditherValue);
     #endif
 
@@ -65,7 +65,7 @@ void main(){
     if(!bool(light&LIGHT_VALID_BIT))
         return;
     vec3 displacementToLight = uncheckedUnpackListedLight(light)+ 0.5-fract(worldPos.xyz);
-    #ifdef SWRT_NOISY_PENUMBRAS
+    #if SWRT_PENUMBRA_SIZE!=-1
     displacementToLight+=penumbraNoise(ditherValue);
     #endif
 

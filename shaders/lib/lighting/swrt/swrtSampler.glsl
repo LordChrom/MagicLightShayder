@@ -30,7 +30,7 @@ ivec3 worldPosToSWRT(vec3 pos){
 vec3 penumbraNoise(float ditherValue){
     vec3 sourcePosNoise = vec3(ditherValue,recycleNoise(ditherValue),0);
     sourcePosNoise.z=recycleNoise(sourcePosNoise.y);
-    return 0.25*(sourcePosNoise-0.5);
+    return SWRT_PENUMBRA_SIZE*(sourcePosNoise-0.5);
 }
 
 vec4 traceLight(vec3 worldPos,ivec3 areaPos,uint light,uint maxSteps){
@@ -89,7 +89,7 @@ vec4 swrtSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue,
             lightStr*=normalFactor(normal,displacementToLight,0);
             sampleColor = colorOfPackedLight(lights[lightIndex])*lightStr;
 
-            #ifdef SWRT_NOISY_PENUMBRAS
+            #if SWRT_PENUMBRA_SIZE!=-1
             displacementToLight+=penumbraNoise(ditherValue);
             #endif
         }
