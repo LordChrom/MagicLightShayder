@@ -26,7 +26,6 @@ uniform usampler2D colortex8;
 #include "/lib/util/conversions.glsl"
 
 #define TWOPI 6.28318530718
-
 float doSsao(vec2 texcoord, vec3 normal){
 
     ivec2 texSize = textureSize(colortex5,0);
@@ -67,14 +66,14 @@ float doSsao(vec2 texcoord, vec3 normal){
         float attenuation = length(pos.xyz);
         attenuation = clamp((SSAO_RADIUS*2.0)/length(pos.xyz),1.0-SSAO_LEAK_REDUCTION,1.0);
 
-        float wallAngle = asin(clamp(dot(normalize(pos.xyz),normal)*attenuation,0,1));
-        sum += 1-cos(2*wallAngle);
+        float wallAngleSin = max(dot(normalize(pos.xyz),normal)*attenuation,0);
+        sum += wallAngleSin*wallAngleSin;
     }
 
 
 
     //0 = fully lit, 1 = fully occluded
-    float ssao = sum*(0.25*PI/numAngles);
+    float ssao = sum*(0.5*PI/numAngles);
 
     //    return ssao>0.01?0:1;
     ssao*=SSAO_STRENGTH;
@@ -106,7 +105,7 @@ void main(){
         emissive = (matInfo.a/254.0);
     #endif
 
-    normal = transpose(mat3(gbufferModelViewInverse))* normalize(normal*2-1);
+    normal = normalize(transpose(mat3(gbufferModelViewInverse))*(normal*2.0-1.0));
 
     if(emissive>0.4)
         return;
