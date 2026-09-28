@@ -1,13 +1,10 @@
 #version 430 compatibility
-uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
+
 
 out vec2 texcoord;
-out vec3 worldDirNormalizeMe;
+out vec3 worldPosDirection;
 
 void main() {
-    gl_Position = ftransform();
-    texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
-    worldDirNormalizeMe = mat3(gbufferModelViewInverse)*(
-        gbufferProjectionInverse[3].xyz+(mat2x3(gbufferProjectionInverse)*(texcoord*2-1))
-    );
+	gl_Position = ftransform();
+	texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
 }

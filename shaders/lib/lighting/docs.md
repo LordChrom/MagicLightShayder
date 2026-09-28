@@ -53,10 +53,10 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 | format  | num | purpose                      | scale | clear                |
 |---------|-----|------------------------------|-------|----------------------|
 |         | 0   | main output                  |       |                      |
-| RGBA8   | 1   | albedo                       |       | y (nether no skybox) |
-| RGBA8   | 2   | normals                      |       |                      |
-| RGBA8   | 3   | transparent abledo           |       | y                    |
-|         | 4   |                              |       |                      |
+| RGBA8   | 1   | solid albedo                 |       | y (nether no skybox) |
+| RGBA8   | 2   | solid normals                |       |                      |
+| RGBA8   | 3   | translucent abledo           |       | y                    |
+| RGBA8   | 4   | translucent normals          |       | y                    |
 |         | 5   |                              |       |                      |
 | RGBA16F | 6   | multiplicative lighting      | y     | y (nether skyboxn't) |
 | RGBA16F | 7   | additive light               | y     |                      |
@@ -133,15 +133,15 @@ Packing
 - 20: basic floodfill lighter & filler
 - 30: light list manager for swrt
 ### deferred
-- 8: swrt ray intersection (optional)
-- 10: main lighting for solid terrain
-- 20: SSAO filter to reeduce noise
+- unused
 ### composite
-- 2: volumetric fog
-- 5: depth Hi-z, disabled & unused
-- 6-8: hq fog blur & (bad) bloom
-- 10: cheap fog blur
-- 11: reflections if not subject to blur
+- 9: swrt ray intersection (optional)
+- 10: main lighting for solid terrain
+- 11: SSAO filter to reeduce noise
+- 12: volumetric fog
+- 17-19: hq fog blur & (bad) bloom
+- 20: cheap fog blur
+- 25: reflections if not subject to blur
 - 30: taa accumulation
 - 50: combination of lighting with terrain
 - 84: DoF setup

@@ -66,23 +66,12 @@ void main() {
     vec4 voxelFog = texture(additiveLightTex,texcoord);
     #endif
 
-    if(albedo.a==1)
+    if(albedo.a<1)
         light=vec3(1);
 
-    vec3 color;
-    if(transColor.a>=0.99){
-        #ifdef FORWARD_TRANSLUCENTS
-            color=transColor.rgb;
-        #else
-            color=transColor.rgb*=light;
-        #endif
-    }else{
-        color=albedo.xyz*light;
-        #ifndef FORWARD_TRANSLUCENTS
-        transColor.xyz*= 0.5*light + ((light.x+light.y+light.z)*0.16 + 0.02);
-        #endif
-        color = blend(vec4(color,1),transColor);
-    }
+    vec3 color=albedo.xyz*light;
+    transColor.xyz*= 0.5*light + ((light.x+light.y+light.z)*0.16 + 0.02);
+    color = blend(vec4(color,1),transColor);
 
     #ifdef AXIS_GIZMO
     renderAxisGizmo(color,texcoord);

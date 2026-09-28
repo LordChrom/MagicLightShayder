@@ -17,9 +17,6 @@ const float translucentPrecedenceCutoff = 0.99;
     #if MATERIALS_TYPE < 0
         #undef WRITE_MATERIALS
     #endif
-    #ifndef TRANSLUCENT
-        #undef FORWARD_TRANSLUCENTS
-    #endif
     #undef POM
 #else
 
@@ -82,33 +79,30 @@ flat in int materialID;
 #include "/lib/voxelStorage/blockPacking.glsl"
 #endif
 
-#if !(defined FORWARD_TRANSLUCENTS && defined TRANSLUCENT && defined LIT)
-    #undef FORWARD_TRANSLUCENTS
-#endif
-
 #if defined MAYBE_END_GATEWAY && defined GATEWAYS_IN_GBUFFER
     uniform float viewWidth, viewHeight;
     #include "/lib/renderComponents/endGateway.glsl"
 #endif
 
-#ifdef FORWARD_TRANSLUCENTS
-    in vec3 worldPos;
-    uniform vec3 cameraPosition;
-    #if SUBSURFACE_MODE==2
-        #define SUBSURFACE_MODE 0
-    #endif
-    #ifdef BASIC_FLOODFILL
-    uniform sampler2D lightmap;
-    #endif
-    #include "/lib/lighting/lightWrapper.glsl"
-    #include "/lib/util/dither.glsl"
+#define SOLIDIFY_OPAQUE_TRANSLUCENTS
 
-    /* RENDERTARGETS: 3,2 */
-#elif defined TRANSLUCENT
-    #ifdef WRITE_MATERIALS
-    /* RENDERTARGETS: 3,2,8 */
+#if defined TRANSLUCENT
+    #ifdef SOLIDIFY_OPAQUE_TRANSLUCENTS
+        #ifdef WRITE_MATERIALS
+        /* RENDERTARGETS: 3,4,8,1,2 */
+        layout(location = 3) out vec4 solidColorOut;
+        layout(location = 4) out vec4 solidNormalOut;
+        #else
+        /* RENDERTARGETS: 3,4,1,2 */
+        layout(location = 2) out vec4 solidColorOut;
+        layout(location = 3) out vec4 solidNormalOut;
+        #endif
     #else
-    /* RENDERTARGETS: 3,2 */
+        #ifdef WRITE_MATERIALS
+        /* RENDERTARGETS: 3,4,8 */
+        #else
+        /* RENDERTARGETS: 3,4 */
+        #endif
     #endif
 #else
     #ifdef WRITE_MATERIALS
@@ -162,12 +156,8 @@ flat in int materialID;
 layout(location = 0) out vec4 color;
 layout(location = 1) out vec4 normalOut;
 
-#ifdef FORWARD_TRANSLUCENTS
-uvec4 materialInfo;
-#else
 #ifdef WRITE_MATERIALS
 layout(location = 2) out uvec4 materialInfo;
-#endif
 #endif
 
 
@@ -339,44 +329,33 @@ void main()
     doBonusStuff();
     #endif
 
-    #ifdef FORWARD_TRANSLUCENTS
-    #ifdef VOXY_PATCH
-    vec3 incidentLightColor = voxyLighting(lmcoord).rgb;
-    color.rgb=mix(color.rgb*min(1,(incidentLightColor.r+incidentLightColor.g+incidentLightColor.b)),color.rgb*incidentLightColor,color.a);
 
-    #else
-    float ditherValue = dither(ivec2(gl_FragCoord.xy));
-    float emissive = (materialInfo.a!=255)?materialInfo.a/254.0:0;
-    float subsurface = clamp(float(int(materialInfo.b)-64)/190.0, 0.0,1.0);
-    #ifdef NEEDS_MATERIAL_ID
-    if(materialID==24709)
-        emissive=1;
-    #endif
-    #ifdef MAYBE_END_GATEWAY
-    if(!isEndGateway)
-    #endif
-    {
-        if(emissive>0)
-            color.rgb*=(EMISSIVE_BRIGHTNESS*emissive);
-        else{
-            vec3 incidentLightColor=lightingSample(vec3(worldPos.xy,worldPos.z-0.1), normalize(normalOut.xyz*2-1), subsurface, ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
-            color.rgb=mix(color.rgb*min(1,(incidentLightColor.r+incidentLightColor.g+incidentLightColor.b)),color.rgb*incidentLightColor,color.a);
-        }
-            //I cannot explain the 0.1 z
+
+#ifdef TRANSLUCENT
+    #ifdef SOLIDIFY_OPAQUE_TRANSLUCENTS
+    solidColorOut=vec4(0.0);
+    solidNormalOut=vec4(0.0);
+    if(color.a>=1.0){
+        solidColorOut =vec4(color.rgb,1.0);
+        solidNormalOut=vec4(normalOut.rgb,1.0);
+        color.a=normalOut.a=0.0;
+    }else{
+        normalOut.a=1.0;
     }
     #endif
-    #endif
+#else
+    #ifdef SKYTEXTURED
 
-#ifndef TRANSLUCENT
-    #ifdef MAYBE_END_GATEWAY
-    color.a=float(isEndGateway);
+    #elif defined MAYBE_END_GATEWAY
+    //TODO fix
+    color.a=isEndGateway?0.0:1.0;
     #elif defined LIT
-    color.a=0;
+    color.a=1.0;
     #elif defined BASIC
     bool isLeash = length(glcolor.xyz-vec3(0.425,0.34,0.25))<0.5;
-    color.a=float(!isLeash);
+    color.a=float(isLeash);
     #else
-    color.a=1;
+    color.a=0.0;
     #endif
 #endif
 }

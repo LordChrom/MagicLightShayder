@@ -60,6 +60,7 @@ void main() {
 
     vec4 voxelLighting=vec4(0,0,0,1);
     if(solidDepth==1){
+        imageStore(colorimg6,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),vec4(1.0));
         return;
     }
     vec4 worldPosRelative = vec4(jitteredTexcoord,solidDepth,1);
