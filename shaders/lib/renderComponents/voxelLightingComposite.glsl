@@ -1,6 +1,8 @@
 #version 430 compatibility
 #include "/lib/settings.glsl"
-
+#ifdef TAA
+#include "/lib/util/taaJitter.glsl"
+#endif
 
 
 #define SIZE 16
@@ -20,8 +22,9 @@ uniform vec3 cameraPosition;
 
 uniform sampler2D colortex1;
 uniform sampler2D colortex2;
-uniform sampler2D colortex5;
 uniform sampler2D colortex3;
+uniform sampler2D colortex5;
+uniform sampler2D colortex6;
 
 #if MATERIALS_TYPE >= 0
 uniform usampler2D colortex8;
@@ -31,11 +34,6 @@ uniform usampler2D colortex8;
 #include "/lib/lighting/lightWrapper.glsl"
 #define TEMPORAL_DITHER
 #include "/lib/util/dither.glsl"
-
-//TODO probably do this better in the future
-#if (defined TAA) && !(defined SHADOWMAP_SHADOWS)
-#include "/lib/util/taaJitter.glsl"
-#endif
 
 #ifdef SSAO
 #include "/lib/renderComponents/ssao.glsl"

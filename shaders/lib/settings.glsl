@@ -168,6 +168,7 @@
 #define MAX_SWRT_LIGHT_DISTANCE 24 //[8 16 24 32 40 48 52 60 63]
 #define SWRT_RAYS_PER_FOG_SAMPLE 0 //[0 1 2 3 4]
 #define SWRT_TRANSLUCENCY 5 //[-1 1 2 3 4 5]
+//#define SWRT_SKY_SHADOW
 
 
 #define OBSTRUCTION_MAPPING
@@ -245,6 +246,10 @@
 #endif
 
 ///// The following to be copy pasted into shaders.properties
+#ifndef SWRT
+    #undef SWRT_SKY_SHADOW
+#endif
+
 #if !(defined FLOOD_SHADOWS || defined BASIC_FLOODFILL || defined SWRT)
     #define VOXELIZATION_MODE -1
 #endif

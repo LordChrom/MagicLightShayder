@@ -1,4 +1,5 @@
-#ifdef TAA
+#if defined TAA && !defined TAA_JITTER_GLSL
+#define TAA_JITTER_GLSL
 
 //from -0.5 to 0.5
 vec2 jitter2(int entropy){

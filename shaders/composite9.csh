@@ -1,1 +1,1 @@
-#include "/lib/lighting/swrt/rayPass.glsl"
+#include "/lib/lighting/swrt/blockRayPass.glsl"

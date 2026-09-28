@@ -58,7 +58,16 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
 
     #endif
 
+    #ifdef SWRT_SKY_SHADOW
+        vec4 swrtSkyShadow = texelFetch(colortex6,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),0);
+        ret.a=mixInSunlight(ret.a,swrtSkyShadow.a);
+    #endif
+
     #ifdef SHADOWMAP_SHADOWS
+        #ifdef SWRT_SKY_SHADOW
+        if(swrtSkyShadow.a<0)
+        #endif
+    {
         float shadowLightStrength = shadowmapSample(worldPos, normal, subsurface, ditherValue);
 
         #ifdef DEBUG_SHOW_SHADOWMAP_RANGE
@@ -66,6 +75,7 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
         #endif
 
         ret.a=mixInSunlight(ret.a,shadowLightStrength);
+    }
     #endif
 
     if(ret.a==-1){
