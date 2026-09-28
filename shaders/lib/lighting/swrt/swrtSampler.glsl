@@ -169,42 +169,50 @@ vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
 }
 
 
-vec3 swrtSampleFog(vec3 worldPos, float ditherValue, uint maxSteps){
+vec3 swrtSampleFog(vec3 worldPos){
     unitShift = getUnitShift();
     ivec3 areaPos = worldPosToSWRT(worldPos);
 
-    vec3 color = vec3(0);
 
     if(areaPos.x<0||areaPos.y<0||areaPos.z<0||
         areaPos.x>=SWRT_SIZE||areaPos.y>=SWRT_SIZE||areaPos.z>=SWRT_SIZE
     ){
-        return color;
+        return vec3(0);
     }
 
-    uint[SWRT_LIGHTS_PER_BLOCK] lights;
-    getLightList(lights,areaPos,unitShift);
     areaPos+=offsetToVox;
 
-//    if(numLights==0)
-//        return color;
-
-    int i=0;
-//    const int raysPerFogSample = 0;
-//    for(i=0;i<min(raysPerFogSample,numLights);i++){
-//        vec4 hitColor = traceLight(worldPos,areaPos,lights[i],maxSteps);
-//        color += hitColor.rgb*hitColor.a;
-//    }
+    uint i=0;
+    uvec4 lightShortList;
+    vec3 color = vec3(0);
 
 
-
-    for(;i<SWRT_LIGHTS_PER_BLOCK;i++){
-        if(!bool(lights[i]&LIGHT_VALID_BIT))
+    #if SWRT_RAYS_PER_FOG_SAMPLE>0
+    lightShortList = getLightListLayer(areaPos, unitShift, 0);
+    for(i=0;i<SWRT_RAYS_PER_FOG_SAMPLE;i++){
+        uint light = lightShortList[i&3u];
+        if(!bool(light&LIGHT_VALID_BIT))
             break;
-        ivec3 lightPosRel = uncheckedUnpackListedLight(lights[i]);
-        vec3 displacementToLight = lightPosRel-fract(worldPos)+0.5;
-        float lightStr = lightFalloff(displacementToLight);
 
-        color+= colorOfPackedLight(lights[i])*lightStr;
+        vec4 hitColor = traceLight(worldPos,areaPos,light,10u);
+        color += hitColor.rgb*hitColor.a;
+    }
+    #endif
+
+    worldPos = 0.5-fract(worldPos);
+
+    #define FOG_SWRT_LIGHTS SWRT_LIGHTS_PER_BLOCK
+    #define FOG_SWRT_LIGHTS 4
+    for(;i<FOG_SWRT_LIGHTS;i++){
+        if((i&3u)==0u)
+            lightShortList = getLightListLayer(areaPos, unitShift, i>>2);
+        uint light = lightShortList[i&3u];
+        if(!bool(light&LIGHT_VALID_BIT))
+            break;
+
+        vec3 displacementToLight = uncheckedUnpackListedLight(light)+worldPos;
+
+        color+= colorOfPackedLight(light)*lightFalloff(displacementToLight);
     }
 
     return color;
