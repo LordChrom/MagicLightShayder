@@ -9,7 +9,10 @@ float minDepthTillChange(vec3 value, vec3 differential){
     return min(min(value.x,value.y),value.z);
 }
 
-float traceRay(vec3 worldPos, vec3 worldDirToLight, ivec3 unitShift, uint maxSteps){
+float traceRay(vec3 worldPos, vec3 worldDirToLight, ivec3 unitShift, uint maxSteps,
+    out uint translucency, out vec4 hits
+){
+    translucency = 0u;
     worldPos+=(VOXELIZATION_SIZE>>1)-unitShift;
 
     ivec3 finalBlock = ivec3(floor(worldPos+worldDirToLight));
@@ -27,13 +30,24 @@ float traceRay(vec3 worldPos, vec3 worldDirToLight, ivec3 unitShift, uint maxSte
         float nextDepthDif = minDepthTillChange(samplePosition,worldDirToLight)+nudge;
 
         if(areaPos==finalBlock)
-        break;
+            break;
 
         if(bool(voxel&WORLDVOX_OPAQUE))
-        return depth;
+            return depth;
+
+        #if SWRT_TRANSLUCENCY>0
+        if(blockIsTranslucent(voxel))
+            translucency = (translucency<<6) | blockLightID(voxel);
+        #endif
 
         depth+=nextDepthDif;
     }
 
     return -1;
+}
+
+float traceRay(vec3 worldPos, vec3 worldDirToLight, ivec3 unitShift, uint maxSteps){
+    uint h;
+    vec4 h2;
+    return traceRay(worldPos,worldDirToLight,unitShift,maxSteps,h,h2);
 }

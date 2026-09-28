@@ -148,10 +148,18 @@ vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
         tempTc = mix(tempTc,round(tempTc*ts)/ts,0.7);
         #endif
 
-        #if SWRT_NOISE_FILTER<=1
-        float visibility = texture(swrtRayHitSampler,tempTc).x;
+        #if SWRT_TRANSLUCENCY>0
+            #if SWRT_NOISE_FILTER<=1
+            vec3 visibility = texture(swrtRayHitSampler,tempTc).rgb;
+            #else
+            vec3 visibility = wideSample(swrtRayHitSampler,tempTc).rgb;
+            #endif
         #else
-        float visibility = wideSample(swrtRayHitSampler,tempTc).x;
+             #if SWRT_NOISE_FILTER<=1
+            float visibility = texture(swrtRayHitSampler,tempTc).x;
+            #else
+            float visibility = wideSample(swrtRayHitSampler,tempTc).x;
+            #endif
         #endif
 
         uint light = lightShortList[i&3u];
@@ -159,10 +167,9 @@ vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
 
         float lightStr = lightFalloff(displacementToLight);
         lightStr*=normalFactor(normal,displacementToLight,0);
-        lightStr*=visibility;
 
         if(lightStr>0)
-            color.rgb+=colorOfPackedLight(light)*lightStr;
+            color.rgb+=colorOfPackedLight(light)*visibility*lightStr;
     }
 
     return color;

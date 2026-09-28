@@ -7,8 +7,12 @@ uniform vec2 scaledScreenDim;
 #define SIZE 16
 const vec2 workGroupsRender = vec2(LIGHTING_RENDERSCALE,LIGHTING_RENDERSCALE);
 layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
+
+#if SWRT_TRANSLUCENCY>0
+layout (rgba8) uniform writeonly restrict image2D swrtRayHits;
+#else
 layout (r8) uniform writeonly restrict image2D swrtRayHits;
-//layout (rgba16f) uniform writeonly restrict image2D colorimg6;
+#endif
 
 uniform sampler2D depthtex2;
 uniform sampler2D colortex2;
@@ -43,7 +47,6 @@ void main(){
     ivec3 areaPos = worldPosToSWRT(worldPos.xyz);
 
 
-//    vec3 color = vec3(0);
     if((areaPos.x<0||areaPos.y<0||areaPos.z<0||
         areaPos.x>=SWRT_SIZE||areaPos.y>=SWRT_SIZE||areaPos.z>=SWRT_SIZE)
     )
@@ -66,9 +69,20 @@ void main(){
     displacementToLight+=penumbraNoise(ditherValue);
     #endif
 
-    if(traceRay(worldPos.xyz,displacementToLight,unitShift,maxSteps)>=0)
+    uint translucencies;
+    vec4 hitDepths;
+    if(traceRay(worldPos.xyz,displacementToLight,unitShift,maxSteps,translucencies,hitDepths)>=0)
         return;
 
-    imageStore(swrtRayHits,(ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)>>1)+ivec2(index*imageSize(swrtRayHits).x/8,0),vec4(1.0,0,0,0));
-//    imageStore(colorimg6,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),vec4(color,0));
+    #if SWRT_TRANSLUCENCY>0
+    vec4 writeColor = vec4(1.0,1.0,1.0,0);
+    for(int i=0;(i<SWRT_TRANSLUCENCY)&&bool(translucencies);i++){
+        writeColor.rgb*= getLightIDColor(translucencies&0x3fu);
+        translucencies>>=6;
+    }
+    #else
+    vec4 writeColor = vec4(1.0,0,0,0);
+    #endif
+
+    imageStore(swrtRayHits,(ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)>>1)+ivec2(index*imageSize(swrtRayHits).x/8,0),writeColor);
 }
