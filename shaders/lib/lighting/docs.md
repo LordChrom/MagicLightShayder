@@ -157,6 +157,7 @@ Packing
 - end gates again
 - that situation where there's a translucent, an opaque translucent, then a translucent behind it
 - POM on non-square surfaces
+- gaps from sampling ray hits where inappropriate
 - voxelizing end gates
 - subsurface on lava
 - other subsurface edge cases (directly contacting light source)

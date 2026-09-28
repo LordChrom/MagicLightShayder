@@ -17,6 +17,7 @@ layout (rgba8) uniform writeonly restrict image2D colorimg19;
 uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
 uniform vec3 cameraPosition;
 
+uniform sampler2D colortex1;
 uniform sampler2D colortex2;
 uniform sampler2D colortex5;
 uniform sampler2D colortex3;
@@ -55,9 +56,9 @@ void main() {
     #endif
 
 
-    vec4 voxelLighting=vec4(0,0,0,1);
+    float albedoA = texture(colortex1,jitteredTexcoord).a;
     if(solidDepth==1){
-        imageStore(colorimg6,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),vec4(1.0));
+        imageStore(colorimg6,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),vec4(albedoA>0));
         return;
     }
     vec4 worldPosRelative = vec4(jitteredTexcoord,solidDepth,1);
@@ -85,6 +86,7 @@ void main() {
 
     float ditherValue = dither(ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy));
 
+    vec4 voxelLighting=vec4(0,0,0,1);
 
     #ifdef SSAO
     if(emissive<0.4){
