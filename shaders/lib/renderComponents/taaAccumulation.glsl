@@ -34,8 +34,9 @@ layout(location = 0) out float depthAccumulation;
 layout(location = 1) out vec4 multAccumulation;
 
 void taaAccumulate(){
-    vec2 jitteredTexcoord = texcoord-jitter();
-    ivec2 jitteredTexPos = ivec2(scaledScreenDim*jitteredTexcoord);
+    vec2 jitteredTexcoord = texcoord;
+    jitteredTexcoord-=unscaledJitter()/scaledScreenDim;
+    multAccumulation = texelFetch(colortex6,ivec2(scaledScreenDim*jitteredTexcoord),0);
 
 #ifdef TAA_FOG
     #ifdef TAA_HQ_BLUR
@@ -45,10 +46,7 @@ void taaAccumulate(){
     const bool colortex7MipmapEnabled = true;
     addAccumulation = texture(colortex7,jitteredTexcoord,FOG_BLUR);
     #endif
-    #ifdef TAA_FOG
-    #endif
 #endif
-    multAccumulation = texelFetch(colortex6,jitteredTexPos,0);
 
    #if DEBUG_SPECIAL_VIEW == 201
     multAccumulation=vec4(1,0,0,0);

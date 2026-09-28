@@ -32,10 +32,6 @@ vec2 unscaledJitter(){
     return jitter;
 }
 
-vec2 jitter(){
-    return unscaledJitter()/scaledScreenDim;
-}
-
 vec2 shadowJitter(){
     return unscaledJitter()/SHADOW_RESOLUTION;
 }

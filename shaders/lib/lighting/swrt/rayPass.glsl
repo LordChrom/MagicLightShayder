@@ -26,10 +26,11 @@ uniform vec3 cameraPosition;
 #include "/lib/lighting/swrt/swrtSampler.glsl"
 
 void main(){
-    vec2 jitteredTexcoord = ((gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5)/scaledScreenDim;
+    vec2 jitteredTexcoord = ((gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5);
     #ifdef TAA
-    jitteredTexcoord+=jitter();
+    jitteredTexcoord+=unscaledJitter();
     #endif
+    jitteredTexcoord/=scaledScreenDim;
     float solidDepth = texture(depthtex2,jitteredTexcoord).x;
     vec4 normal = texture(colortex2,jitteredTexcoord);
     vec4 worldPos = vec4(jitteredTexcoord,solidDepth,1);

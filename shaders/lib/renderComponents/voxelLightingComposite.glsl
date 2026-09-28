@@ -43,10 +43,12 @@ uniform vec2 scaledScreenDim;
 
 
 void main() {
-    vec2 jitteredTexcoord = (vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5)/imageSize(colorimg6);
+    vec2 jitteredTexcoord = (vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5);
     #ifdef TAA
-    jitteredTexcoord+=jitter();
+    jitteredTexcoord+=unscaledJitter();
     #endif
+    jitteredTexcoord/=imageSize(colorimg6);
+
     vec4 normal = texture(colortex2,jitteredTexcoord);
     float solidDepth = texture(depthtex2,jitteredTexcoord).x;
     #if MATERIALS_TYPE >= 0
