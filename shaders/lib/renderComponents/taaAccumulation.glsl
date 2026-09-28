@@ -9,7 +9,6 @@ uniform mat4 gbufferPreviousProjection, gbufferPreviousModelView;
 uniform vec3 cameraPosition, previousCameraPosition;
 
 uniform sampler2D depthtex1;
-//uniform sampler2D depthtex2;
 
 #include "/lib/util/taaHelper.glsl"
 #include "/lib/renderComponents/blur.glsl"
@@ -30,7 +29,6 @@ uniform sampler2D colortex7;
 uniform sampler2D colortex6;
 uniform sampler2D colortex9;
 uniform sampler2D colortex10;
-uniform sampler2D depthtex0;
 
 layout(location = 0) out float depthAccumulation;
 layout(location = 1) out vec4 multAccumulation;
@@ -59,7 +57,7 @@ void taaAccumulate(){
     bool reprojectValid = false;
 
 
-    depthAccumulation = texelFetch(depthtex0,ivec2(gl_FragCoord.xy),0).x;
+    depthAccumulation = texelFetch(depthtex1,ivec2(gl_FragCoord.xy),0).x;
     vec3 screenPos = vec3(texcoord,depthAccumulation);
 
     vec4 previousAddAccumulation = vec4(0);
@@ -71,7 +69,8 @@ void taaAccumulate(){
 
         float var = fwidth(prevDepth);
 
-        float speedFactor = clamp(TAA_MOTION_REJECTION*length(cameraPosition-previousCameraPosition),1,2048);
+        float speed = length(cameraPosition-previousCameraPosition);
+        float speedFactor = clamp(TAA_MOTION_REJECTION*speed,1,2048);
         speedFactor=var>exp2(-14)?speedFactor:1;
         float depthSensitivity = exp2(-14)/speedFactor;
         if(abs(prevScreenPos.z-prevDepth)/prevDepth<=depthSensitivity){
@@ -81,19 +80,25 @@ void taaAccumulate(){
             previousMultAccumulation.rgb=vec3(0,1,0.35);
            #endif
 
-            vec2 pixelShiftiness = (fract(prevScreenPos.xy*textureSize(depthtex0,0))-0.5);
+            vec2 pixelShiftiness = (fract(prevScreenPos.xy*textureSize(depthtex1,0))-0.5);
             pixelShiftiness = abs(2*pixelShiftiness);
-            previousMultAccumulation.a=min(previousMultAccumulation.a,20);
+            previousMultAccumulation.a=min(previousMultAccumulation.a,200);
             previousMultAccumulation.a*=clamp(1-TAA_ANTI_SMEAR*max(pixelShiftiness.x,pixelShiftiness.y)/LIGHTING_RENDERSCALE,0,1);
 
             float weight = lightSampleWeight(jitteredTexcoord);
 
             multAccumulation.a=weight+previousMultAccumulation.a;
-            multAccumulation.rgb=mix(previousMultAccumulation.rgb, multAccumulation.rgb, weight/multAccumulation.a);
+            float mixRatio = clamp(weight/multAccumulation.a,TAA_MIN_ACCUMULATION_RATE,TAA_MAX_ACCUMULATION_RATE);
+            multAccumulation.rgb=mix(previousMultAccumulation.rgb, multAccumulation.rgb, mixRatio);
 
            #ifdef TAA_FOG
+            mixRatio=1-((1-mixRatio)*(1-speed*3));
+            mixRatio=clamp(mixRatio,0,1);
+//            mixRatio=1.0;
             previousAddAccumulation = texture(colortex11,prevScreenPos.xy);
-            addAccumulation =mix(previousAddAccumulation, addAccumulation, fogSampleWeight(jitteredTexcoord));
+            mixRatio*=fogSampleWeight(jitteredTexcoord);
+
+            addAccumulation =mix(previousAddAccumulation, addAccumulation, mixRatio);
            #endif
         }
     }

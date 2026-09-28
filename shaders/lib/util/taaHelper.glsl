@@ -10,10 +10,9 @@ float lightSampleWeight(vec2 jitteredTexpos){
 //    spatialFactor /= max(1,TAA_MOTION_REJECTION*length(cameraPosition-previousCameraPosition));
     float weight = clamp(1-spatialFactor,0,1);
     weight*=weight;
-    return clamp(weight,TAA_MIN_ACCUMULATION_RATE,TAA_MAX_ACCUMULATION_RATE);
+    return clamp(weight,0,1);
 #else
-    const float rate = (TAA_MAX_ACCUMULATION_RATE+TAA_MIN_ACCUMULATION_RATE)*0.5;
-    return rate;
+    return 1.0;
 #endif
 }
 
@@ -28,10 +27,9 @@ float fogSampleWeight(vec2 jitteredTexpos){
     float weight = clamp(1-spatialFactor,0,1);
     weight*=weight;
 
-    return clamp(weight,0,TAA_MAX_ACCUMULATION_RATE);
+    return clamp(weight,0,1);
 #else
-    const float rate = TAA_FOG_FACTOR*(TAA_MAX_ACCUMULATION_RATE+TAA_MIN_ACCUMULATION_RATE)*0.5;
-    return rate;
+    return 1.0;
 #endif
 }
 
