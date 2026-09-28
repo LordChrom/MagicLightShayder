@@ -25,11 +25,11 @@ uniform usampler2D colortex8;
 #include "/lib/util/dither.glsl"
 #include "/lib/util/conversions.glsl"
 
+#define SSAO_MIP 0
 #define TWOPI 6.28318530718
 float doSsao(vec2 texcoord, vec3 normal){
 
-    ivec2 texSize = textureSize(colortex5,0);
-    float solidDepth=texelFetch(colortex5,ivec2(texcoord*texSize),0).x;
+    float solidDepth=texelFetch(colortex5,ivec2(texcoord*textureSize(colortex5,0)),0).x;
     float dither = dither(ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy));
 
 
@@ -37,8 +37,8 @@ float doSsao(vec2 texcoord, vec3 normal){
     dither=temporalNoise(dither);
     #endif
 
-    if(solidDepth>0.99999 || bool(floatBitsToUint(solidDepth)&1u))
-    return 1;
+    if(solidDepth>0.99999)
+        return 1.0;
     vec4 worldPos = gbufferProjectionInverse*(vec4(texcoord,solidDepth,1)*2-1);
     worldPos/=worldPos.w;
 
@@ -48,17 +48,13 @@ float doSsao(vec2 texcoord, vec3 normal){
 
     float sum = 0;
 
-
     dither = fract(23*dither);
 
     for(int a = 0; a<numAngles;a++){
         float angle = fract(float(a)/numAngles-dither)*TWOPI;
         vec4 pos;
         pos.xy = texcoord + vec2(cos(angle),sin(angle))*radius;
-        pos.z = texelFetch(colortex5,clamp(ivec2(pos.xy*texSize),ivec2(0),texSize-1),0).x;
-
-        if(bool(floatBitsToUint(pos.z)&1u))
-            continue;
+        pos.z = textureLod(colortex5,pos.xy,SSAO_MIP).x;
 
         pos = gbufferProjectionInverse*vec4(pos.xyz*2.0-1.0,1.0);
         pos.xyz=pos.xyz/pos.w-worldPos.xyz;
