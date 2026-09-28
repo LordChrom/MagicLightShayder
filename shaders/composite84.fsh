@@ -6,7 +6,7 @@ uniform float viewHeight;
 // cost is  O(n^2) rad, O((4^n)/(5-n)) quality
 
 
-uniform sampler2D depthtex0, colortex5, depthtex1, depthtex2;
+uniform sampler2D depthtex0, colortex5;
 uniform float centerDepthSmooth;
 
 #include "/lib/util/conversions.glsl"
@@ -22,14 +22,18 @@ layout(location=0) out vec2 CoCbuff;
 
 
 float calcRadius(ivec2 texpos){
-    if(texelFetch(depthtex1,texpos,0).x!=texelFetch(depthtex2,texpos,0).x){
-        return 0;
-    }
-    float solidDepth =  depthToLinear(texelFetch(colortex5,texpos,0).x);
-    float transDepth =  depthToLinear(texelFetch(depthtex0,texpos,0).x);
-    float depthTarget = depthToLinear(centerDepthSmooth);
+    float solidDepth = texelFetch(colortex5,texpos,0).x;
+    float transDepth = texelFetch(depthtex0,texpos,0).x;
+    float depthTarget= centerDepthSmooth;
 
     const float focalLength = DOF_FOCAL_LENGTH*1e-3;
+
+    if(bool(floatBitsToUint(solidDepth)&1u))
+        return 0;
+
+    solidDepth  = depthToLinear(solidDepth );
+    transDepth  = depthToLinear(transDepth );
+    depthTarget = depthToLinear(depthTarget);
 
     float focalFactor = (focalLength)/max(0.1,depthTarget-focalLength);
     float solidRad = abs(solidDepth-depthTarget)/solidDepth * focalFactor;

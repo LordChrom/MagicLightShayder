@@ -10,7 +10,7 @@ uniform float viewHeight;
 
 
 #if PASS == -1
-    uniform sampler2D colortex5, depthtex2;
+    uniform sampler2D colortex5;
     uniform float centerDepthSmooth;
 
     #include "/lib/util/conversions.glsl"
@@ -19,13 +19,14 @@ uniform float viewHeight;
     layout(location=0) out vec2 CoCbuff;
 
     float calcRadius(ivec2 texpos){
-        if(texelFetch(colortex5,texpos,0).x!=texelFetch(depthtex2,texpos,0).x){
-            return 0;
-        }
-        float depth = depthToLinear(texelFetch(colortex5,texpos,0).x);
+        float depth = texelFetch(colortex5,texpos,0).x;
         float depthTarget = depthToLinear(centerDepthSmooth);
-
         const float focalLength = DOF_FOCAL_LENGTH*1e-3;
+
+        if(bool(floatBitsToUint(depth)&1u))
+            return 0;
+        depth = depthToLinear(depth);
+
 
         float rad = abs(depth-depthTarget)/depth * (focalLength)/max(0.1,depthTarget-focalLength);
 

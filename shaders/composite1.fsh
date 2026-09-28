@@ -35,7 +35,10 @@ void main(){
         }
     }
 
+    //least significant bit of the mantissa stores depth. The actual depth info represented there is essentially meaningless, and it doesnt affect anything not specifically checking it
+    solidDepthOut=uintBitsToFloat(floatBitsToUint(solidDepthOut)&~1u);
     if(d2!=d1){
-        solidDepthOut=d0/MC_HAND_DEPTH;
+        solidDepthOut=fma(d0,1.0/MC_HAND_DEPTH,(0.5-0.5/MC_HAND_DEPTH));
+        solidDepthOut=uintBitsToFloat(floatBitsToUint(solidDepthOut)|1u);
     }
 }

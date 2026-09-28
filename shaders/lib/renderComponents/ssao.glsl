@@ -2,19 +2,23 @@
 
 #define TWOPI 6.28318530718
 
-float doSsao(vec2 texcoord, vec3 normal, float solidDepth, float dither){
-    if(solidDepth>0.99999)
-        return 1;
+float doSsao(vec2 texcoord, vec3 normal, float dither){
+    ivec2 texSize = textureSize(colortex5,0);
+    float solidDepth=texelFetch(colortex5,ivec2(texcoord*texSize),0).x;
+
+
     #ifdef TAA
     dither=temporalNoise(dither);
     #endif
 
+    if(solidDepth>0.99999 || bool(floatBitsToUint(solidDepth)&1u))
+        return 1;
     vec4 worldPos = gbufferProjectionInverse*(vec4(texcoord,solidDepth,1)*2-1);
     worldPos/=worldPos.w;
 
     float radius = (SSAO_RADIUS)/depthToLinear(solidDepth);
     radius*=0.5;
-    radius = min(radius*(0.01+sqrt(dither)),0.15);
+    radius = min(radius*(0.01+sqrt(dither)),0.10);
 
     const int numAngles = 2*SSAO_QUALITY+1;
 
@@ -28,13 +32,17 @@ float doSsao(vec2 texcoord, vec3 normal, float solidDepth, float dither){
         float angle = fract(float(a)/numAngles-angleDither)*TWOPI;
         vec2 offsetTexcoord = texcoord + vec2(cos(angle),sin(angle))*radius;
 
-        vec4 pos = (vec4(offsetTexcoord,texture(colortex5,offsetTexcoord).x,1)*2-1);
+        float depthSample = texelFetch(colortex5,clamp(ivec2(offsetTexcoord*texSize),ivec2(0),texSize-1),0).x;
+        bool isHand = bool(floatBitsToUint(depthSample)&1u);
+        vec4 pos = (vec4(offsetTexcoord,depthSample,1)*2-1);
         pos = gbufferProjectionInverse*pos;
         pos.xyz/=pos.w;
         pos-=worldPos;
 
         float attenuation = length(pos.xyz);
         attenuation = clamp((SSAO_RADIUS*2.0)/length(pos.xyz),1.0-SSAO_LEAK_REDUCTION,1.0);
+        if(isHand)
+            attenuation=0.0;
 
         float wallAngle = asin(clamp(dot(normalize(pos.xyz),normal)*attenuation,0,1));
         sum -= cos(2*wallAngle);

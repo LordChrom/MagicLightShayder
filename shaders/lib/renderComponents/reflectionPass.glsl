@@ -7,7 +7,7 @@ uniform mat4 gbufferModelView, gbufferProjection;
 #endif
 
 #ifdef REFLECTIONS_TEMPORAL_NOISE
-uniform int frameCounter;
+#include "/lib/util/uniforms/frameCounter"
 #define TEMPORAL_DITHER
 #endif
 

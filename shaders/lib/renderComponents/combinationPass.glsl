@@ -1,7 +1,7 @@
 #include "/lib/bufferInfo.glsl"
 
 uniform vec2 scaledScreenDim;
-uniform int frameCounter;
+#include "/lib/util/uniforms/frameCounter"
 uniform sampler2D colortex5;
 
 #include "/lib/renderComponents/blur.glsl"

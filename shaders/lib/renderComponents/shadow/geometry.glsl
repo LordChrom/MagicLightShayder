@@ -25,7 +25,7 @@ uniform bool hasCeiling;
 
 #ifdef CASCADED_SHADOWS
     #ifndef CAN_VOXELIZE
-    uniform int frameCounter;
+    #include "/lib/util/uniforms/frameCounter"
     #endif
 
     #include "/lib/lighting/shadowmap/distortion.glsl"

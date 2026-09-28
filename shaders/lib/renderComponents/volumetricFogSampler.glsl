@@ -10,8 +10,6 @@ layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
 layout (rgba16f) uniform writeonly restrict image2D colorimg7;
 
 
-//uniform vec2 scaledScreenDim;
-
 uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
 uniform vec3 cameraPosition;
 

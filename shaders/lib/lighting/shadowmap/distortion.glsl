@@ -2,9 +2,7 @@ float distortZ(float z){
     return 0.5*z;
 }
 
-
 #ifdef TAA
-uniform vec2 scaledScreenDim;
 #include "/lib/util/taaJitter.glsl"
 #endif
 

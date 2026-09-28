@@ -33,6 +33,6 @@ vec2 unscaledJitter(){
 }
 
 vec2 shadowJitter(){
-    return unscaledJitter()/SHADOW_RESOLUTION;
+    return unscaledJitter()*(2.0/SHADOW_RESOLUTION);
 }
 #endif

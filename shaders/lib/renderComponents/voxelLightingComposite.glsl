@@ -33,11 +33,11 @@ uniform usampler2D colortex8;
 
 //TODO probably do this better in the future
 #if (defined TAA) && !(defined SHADOWMAP_SHADOWS)
-uniform vec2 scaledScreenDim;
 #include "/lib/util/taaJitter.glsl"
 #endif
 
 #ifdef SSAO
+uniform sampler2D depthtex0;
 #include "/lib/renderComponents/ssao.glsl"
 #endif
 
@@ -90,7 +90,7 @@ void main() {
 
     #ifdef SSAO
     if(emissive<0.4){
-        voxelLighting.a = doSsao(jitteredTexcoord, normal, solidDepth, ditherValue);
+        voxelLighting.a = doSsao(jitteredTexcoord, normal, ditherValue);
     }
         #if DEBUG_SPECIAL_VIEW == 103
         imageStore(colorimg19,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),vec4(voxelLighting.aaa,0));
