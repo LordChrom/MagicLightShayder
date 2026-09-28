@@ -140,8 +140,8 @@ Packing
 - 1 *: finishes cleaning up the mess with translucent/opaque entities
 - 9 *: swrt ray intersection (optional)
 - 10 : main lighting for solid terrain
-- 11*: SSAO filter to reeduce noise
 - 12 : volumetric fog
+- 14*: SSAO filter to reeduce noise
 - 17-19: hq fog blur & (bad) bloom
 - 20*: cheap fog blur
 - 25 : reflections if not subject to blur

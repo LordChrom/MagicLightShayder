@@ -363,7 +363,9 @@
 #ifdef SSAO_FILTERING
 #ifdef DUMMY_OPTION
 #ifdef SWRT
+#ifdef SSAO
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
+#endif
 #endif
 #endif
 #endif

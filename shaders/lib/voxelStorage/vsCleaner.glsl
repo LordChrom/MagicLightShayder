@@ -33,6 +33,9 @@ void zeroPosition(ivec3 pos, bool isTop){
 
 //TODO expiry
 bool isPosExpiryExempt(ivec3 areaPos){
+    #ifdef DEBUG_NOTHING_EXPIRES
+    return true;
+    #endif
     #if VOXELIZATION_MODE == 1
     vec3 pos = vec3(areaPos-(VOXELIZATION_SIZE>>1))+0.5;
     vec4 clipSpace = gbufferProjection*vec4((gbufferModelView*vec4(pos,1)).xyz,1);
