@@ -1,2 +1,2 @@
-#version 430
+#version 430 compatibility
 #include "/lib/voxelStorage/sectionTimerManager.glsl"

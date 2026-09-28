@@ -1,5 +1,4 @@
-#version 430
-
+#version 430 compatibility
 #include "/lib/settings.glsl"
 
 #define STAGES 4

@@ -54,7 +54,7 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 |---------|-----|------------------------------|-------|----------------------|
 |         | 0   | main output                  |       |                      |
 | RGBA8   | 1   | solid albedo                 |       | y (nether no skybox) |
-| RGBA8   | 2   | solid normals                |       | n  just not needed   |
+| RGBA8   | 2   | solid normals                |       | y?      not needed   |
 | RGBA8   | 3   | translucent abledo           |       | Y (trans)            |
 | RGBA8   | 4   | translucent normals          |       | Y (trans)            |
 | R32F    | 5   | processed solid depth        |       |                      |
@@ -120,35 +120,38 @@ Packing
 - 2x8 occlusion ray (b then a), 1x6 unused, 1x6 occlusion hit distance, 4x1 occlusion map
 
 # Programs
+### those marked with a * have significant non-stub code in the composite.csh or .fsh file
+
 ### setup & begin
 - currently unused
 ### shadowcomp
-- 1: covers the gaps in cascaded shadows caused by geometry that straddles the border
+- 1*: covers the gaps in cascaded shadows caused by geometry that straddles the border
 ### prepare
-- 0: voxel map cleaner & expirer
-- 1: recently changed section checking (unused)
-- 2: voxel map downsampler
-- 3: flood shadow seam filler
+- 0 : voxel map cleaner & expirer
+- 1 : recently changed section checking (unused)
+- 2 : voxel map downsampler
+- 3 : flood shadow seam filler
 - 10-17: flood shadow lighting
 - 20: basic floodfill lighter & filler
 - 30: light list manager for swrt
 ### deferred
 - unused
 ### composite
-- 9: swrt ray intersection (optional)
-- 10: main lighting for solid terrain
-- 11: SSAO filter to reeduce noise
-- 12: volumetric fog
+- 1 *: finishes cleaning up the mess with translucent/opaque entities
+- 9 *: swrt ray intersection (optional)
+- 10 : main lighting for solid terrain
+- 11*: SSAO filter to reeduce noise
+- 12 : volumetric fog
 - 17-19: hq fog blur & (bad) bloom
-- 20: cheap fog blur
-- 25: reflections if not subject to blur
-- 30: taa accumulation
-- 50: combination of lighting with terrain
-- 84: DoF setup
-- 85: (csh) Dof main work,
-- 85: (fsh) DoF combination
+- 20*: cheap fog blur
+- 25 : reflections if not subject to blur
+- 30 : taa accumulation
+- 50 : combination of lighting with terrain
+- 84*: DoF setup
+- 85*: (csh) Dof main work,
+- 85*: (fsh) DoF combination
 - 90-95: Old DoF, probably can remove once new DoF is polished
-- 99: Debug views
+- 99*: Debug views
 
 # General TODO List
 ### Needs fixing

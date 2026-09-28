@@ -1,4 +1,4 @@
-#version 430
+#version 430 compatibility
 
 #define PASS_DISABLED
 #include "/lib/settings.glsl"

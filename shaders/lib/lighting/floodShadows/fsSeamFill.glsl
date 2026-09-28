@@ -1,3 +1,4 @@
+#version 430 compatibility
 #define SAMPLES_LIGHT_FACE
 #define WRITES_LIGHT_FACE
 
@@ -66,14 +67,14 @@ void trimLight(ivec3 zonePos){
     setLightData(light, ivec3(zonePos), thisShift, thisMemOffset);
 }
 
-void fillLightSeams(uvec3 workGroupID, uvec3 localID){
-    uint layer = workGroupID.z%VOX_LAYERS;
-    axis = workGroupID.z/VOX_LAYERS;
+void fillLightSeams(){
+    uint layer = gl_WorkGroupID.z%VOX_LAYERS;
+    axis = gl_WorkGroupID.z/VOX_LAYERS;
 #if DEBUG_AXIS>=0
     axis = DEBUG_AXIS;
 #endif
 
-    ivec2 zonePos = ivec2(localID.x,workGroupID.y);
+    ivec2 zonePos = ivec2(gl_LocalInvocationID.x,gl_WorkGroupID.y);
     movement = areaToZoneSpaceRelative(movement,axis);
     thisShift = areaToZoneSpace(thisShift,axis);
 
@@ -118,84 +119,8 @@ bool isPosExpiryExempt(ivec3 areaPos){
 #endif
 }
 
-void fillVoxSeams(uvec3 workGroupID, uvec3 localID){
-    thisMemOffset = areaOffset(cascadeLevel);
-    upperMemOffset = (cascadeLevel<NUM_CASCADES-1)?areaOffset(cascadeLevel+1):0;
-
-
-    ivec2 posXY = ivec2(localID.x,workGroupID.y);
-
-    ivec3 movementSigns = sign(movement);
-    ivec3 edgeToTrim = abs(movement);
-
-    ivec3 validHi = min(AREA_SIZE-1-movement,AREA_SIZE-1);
-    ivec3 validLo = max(-movement,0);
-
-#ifndef DEBUG_NOTHING_EXPIRES
-//    if(cascadeVisitedThisFrame
-//        && (posXY.x>=validLo.x && posXY.x<=validHi.x)
-//        && (posXY.y>=validLo.y && posXY.y<=validHi.y)
-//    ){
-//        for (ivec3 areaPos = ivec3(posXY, 0); areaPos.z<AREA_SIZE; areaPos.z++){
-//            if (isPosExpiryExempt(areaPos) || !(areaPos.z>=validLo.z && areaPos.z<=validHi.z))
-//                continue;
-//            uint voxel=getScalingAreaVoxData(areaPos, cascadeLevel);
-//            voxel-=(uint(bool(voxel))<<WORLDVOX_AGE_SHIFT);
-//            voxel = bool(voxel&WORLDVOX_AGE_MASK)?voxel:0u;
-//            setVoxData(voxel, areaPos, thisShift, thisMemOffset);
-//        }
-//    }
-#endif
-
-
-//    for(int i=0; i<edgeToTrim.x;i++){
-//        int x = movementSigns.x>0?(AREA_SIZE-1)-i:i;
-//        setVoxData(0u,ivec3(x,posXY.xy),thisShift,thisMemOffset);
-//    }
-//    for(int i=0; i<edgeToTrim.y;i++){
-//        int y = movementSigns.y>0?(AREA_SIZE-1)-i:i;
-//        setVoxData(0u,ivec3(posXY.x,y,posXY.y),thisShift,thisMemOffset);
-//    }
-//    for(int i=0; i<edgeToTrim.z;i++){
-//        int z = movementSigns.z>0?(AREA_SIZE-1)-i:i;
-//        setVoxData(0u,ivec3(posXY.xy,z),thisShift,thisMemOffset);
-//    }
-
-
-    if(bool(upperMemOffset)&&bool((frameOffset^cascadeLevel)&1u)){
-//        ivec3 areaPosBase;
-//        areaPosBase.xz = posXY&~1;
-//        areaPosBase.y= ((((posXY.x&1)<<1)+posXY.y&1)<<1);
-//        for(int j=AREA_SIZE/8;j>=0;j--){
-//            ivec3 areaPos = ivec3(areaPosBase.x,(areaPosBase.y&7)|(j<<3),areaPosBase.z);
-//            if(areaPos.y<0 || areaPos.y>=AREA_SIZE) continue;
-//
-//            ivec3 upperAreaPos = upperCascadeAreaPosForSeamFiller(areaPos,thisShift);
-//
-//            if(areaPos.x<validLo.x || areaPos.y<validLo.y || areaPos.z<validLo.z)
-//                continue;
-//
-//            if(voxelIsSplit(upperAreaPos,upperShift, cascadeLevel+1))
-//                continue;
-//
-//            uint representative = 0;
-//            for(int i=0; i<8; i++){
-//                ivec3 subPos = (ivec3(i,i>>1,i>>2)&1)+areaPos;
-//                if(subPos.x>validHi.x || subPos.y>validHi.y || subPos.z>validHi.z)
-//                    continue;
-//                uint sampledVox = getVoxData(subPos, thisShift, thisMemOffset);
-//                if((sampledVox>>WORLDVOX_AGE_SHIFT)<=2) continue;
-//                representative = max(representative,sampledVox&~WORLDVOX_AGE_MASK);
-//            }
-//
-//            representative = representative | uint(WORLDVOX_INITIAL_TIME<<WORLDVOX_AGE_SHIFT);
-//            updateVoxData(representative, upperAreaPos, upperShift, upperMemOffset);
-//        }
-    }
-}
-
-void fillSeams(uvec3 workGroupID, uvec3 localID){
-    cascadeLevel = workGroupID.x;
+void main(){
+    cascadeLevel = gl_WorkGroupID.x;
     frameOffset = frameCounter;
     uint bonusCascadeLevel = getVariableCascadeLevel(frameOffset,false);
 
@@ -214,8 +139,7 @@ void fillSeams(uvec3 workGroupID, uvec3 localID){
 
     movement = clamp(thisShift-previousAreaShift,-AREA_SIZE,AREA_SIZE);
 
-    if(workGroupID.z==(AXIS_LAYER_WORLD_COUNT-1)){
-        fillVoxSeams(workGroupID, localID);
-    }else
-        fillLightSeams(workGroupID,localID);
+    if(gl_WorkGroupID.z==(AXIS_LAYER_WORLD_COUNT-1))
+        return;
+    fillLightSeams();
 }

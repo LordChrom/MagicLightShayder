@@ -1,3 +1,5 @@
+#version 430 compatibility
+#include "/lib/settings.glsl"
 #include "/lib/bufferInfo.glsl"
 
 uniform vec2 scaledScreenDim;

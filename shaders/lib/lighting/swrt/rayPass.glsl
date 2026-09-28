@@ -1,4 +1,4 @@
-#version 430
+#version 430 compatibility
 #include "/lib/settings.glsl"
 #include "/lib/util/dither.glsl"
 uniform vec2 scaledScreenDim;
