@@ -37,6 +37,10 @@ uniform usampler2D colortex8;
 #include "/lib/util/taaJitter.glsl"
 #endif
 
+#ifdef SSAO
+#include "/lib/renderComponents/ssao.glsl"
+#endif
+
 
 void main() {
     vec2 jitteredTexcoord = (vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5);
@@ -84,8 +88,19 @@ void main() {
 
     vec4 voxelLighting=vec4(0,0,0,1);
 
+    #ifdef SSAO
+    if(emissive<0.4){
+        voxelLighting.a = doSsao(jitteredTexcoord, normal, ditherValue);
+    }
+    #if DEBUG_SPECIAL_VIEW == 103
+    imageStore(colorimg19,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),vec4(voxelLighting.aaa,0));
+    #endif
+    #endif
 
     voxelLighting.rgb = lightingSample(worldPosRelative.xyz+cameraPosition,normal,subsurface,ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
+    #ifdef SSAO
+    voxelLighting.rgb*=voxelLighting.a;
+    #endif
 
     imageStore(colorimg6,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),voxelLighting);
 }

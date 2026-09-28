@@ -1,10 +1,14 @@
+//========================
+//This is an unused file, SSAO is done inside the main lighting pass
+//because this waits on l2 and the other stuff is limited by completely different factors
+//========================
+
 #version 430 compatibility
 #include "/lib/settings.glsl"
 
 #define SIZE 16
 const vec2 workGroupsRender = vec2(LIGHTING_RENDERSCALE,LIGHTING_RENDERSCALE);
 
-const int numAngles = 2*SSAO_QUALITY+1;
 layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
 
 layout (rgba16f) uniform writeonly restrict image2D colorimg6;
@@ -23,59 +27,7 @@ uniform usampler2D colortex8;
 
 #define TEMPORAL_DITHER
 #include "/lib/util/dither.glsl"
-#include "/lib/util/conversions.glsl"
-
-#define SSAO_MIP 0
-#define TWOPI 6.28318530718
-float doSsao(vec2 texcoord, vec3 normal){
-
-    float solidDepth=texelFetch(colortex5,ivec2(texcoord*textureSize(colortex5,0)),0).x;
-    float dither = dither(ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy));
-
-
-    #ifdef TAA
-    dither=temporalNoise(dither);
-    #endif
-
-    if(solidDepth>0.99999)
-        return 1.0;
-    vec4 worldPos = gbufferProjectionInverse*(vec4(texcoord,solidDepth,1)*2-1);
-    worldPos/=worldPos.w;
-
-    float radius = (SSAO_RADIUS)/depthToLinear(solidDepth);
-    radius*=0.5;
-    radius = min(radius*(0.01+sqrt(dither)),0.10);
-
-    float sum = 0;
-
-    dither = fract(23*dither);
-
-    for(int a = 0; a<numAngles;a++){
-        float angle = fract(float(a)/numAngles-dither)*TWOPI;
-        vec4 pos;
-        pos.xy = texcoord + vec2(cos(angle),sin(angle))*radius;
-        pos.z = textureLod(colortex5,pos.xy,SSAO_MIP).x;
-
-        pos = gbufferProjectionInverse*vec4(pos.xyz*2.0-1.0,1.0);
-        pos.xyz=pos.xyz/pos.w-worldPos.xyz;
-
-        float attenuation = length(pos.xyz);
-        attenuation = clamp((SSAO_RADIUS*2.0)/length(pos.xyz),1.0-SSAO_LEAK_REDUCTION,1.0);
-
-        float wallAngleSin = max(dot(normalize(pos.xyz),normal)*attenuation,0);
-        sum += wallAngleSin*wallAngleSin;
-    }
-
-
-
-    //0 = fully lit, 1 = fully occluded
-    float ssao = sum*(0.5*PI/numAngles);
-
-    //    return ssao>0.01?0:1;
-    ssao*=SSAO_STRENGTH;
-    return clamp(1-ssao,0.2,1);
-}
-
+#include "/lib/renderComponents/ssao.glsl"
 
 void main(){
     vec2 jitteredTexcoord = (vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5);
@@ -93,15 +45,10 @@ void main(){
 
     float emissive = 0;
     #if MATERIALS_TYPE >= 0
-//    subsurface = clamp(float(int(matInfo.b)-64)/190.0, 0.0,1.0);
-
-    //TODO subsurface on porous materials like wool
-    //    if(matInfo.b>=20u && matInfo.b<=64u) subsurface=float(matInfo.b)/64;
     if(matInfo.a!=255)
         emissive = (matInfo.a/254.0);
     #endif
 
-    normal = normalize(transpose(mat3(gbufferModelViewInverse))*(normal*2.0-1.0));
 
     if(emissive>0.4)
         return;
