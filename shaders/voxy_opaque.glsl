@@ -6,23 +6,6 @@
 #define ALPHATEST
 #define WRITE_MATERIALS
 
-#if VOXY >=2
-vec4 voxyLighting(vec2 lightcoord){
-    return texture(lightmap,lightcoord);
-}
-#else
-
-const vec3 blocklightColor = vec3(1.0, 0.5, 0.08);
-const vec3 skylightColor = vec3(0.05, 0.15, 0.3);
-const vec3 sunlightColor = vec3(1.0);
-const vec3 ambientColor = vec3(0.1);
-
-vec4 voxyLighting(vec2 lightcoord){
-    return vec4((lightcoord.x*blocklightColor + lightcoord.y*max(skylightColor, 1.0) + ambientColor), 1);
-}
-
-#endif
-
 #include "/lib/renderComponents/gbufferFragment.glsl"
 
 
@@ -43,7 +26,5 @@ void voxy_emitFragment(VoxyFragmentParameters parameters) {
 
     if((parameters.face&1)==0) normal=-normal;
 
-//    parameters.lightMap
     handleFragment(parameters.tinting,normal, clamp(parameters.lightMap,vec2(0),vec2(0.5)), parameters.sampledColour, int(parameters.customId));
-
 }

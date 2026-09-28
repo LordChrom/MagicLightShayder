@@ -38,7 +38,6 @@ uniform usampler2D colortex8;
 #endif
 
 #ifdef SSAO
-uniform sampler2D depthtex0;
 #include "/lib/renderComponents/ssao.glsl"
 #endif
 

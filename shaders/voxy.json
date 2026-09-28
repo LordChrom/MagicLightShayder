@@ -4,18 +4,15 @@
         #include "/lib/settings.glsl"
     ",
     "version": 1,
-    "excludeLodsFromVanillaDepth": false,
+    "excludeLodsFromVanillaDepth": true,
     "opaqueDrawBuffers": [
-        1,2,5
+        1,2
 #if MATERIALS_TYPE>=0
         ,8
 #endif
     ],
     "translucentDrawBuffers": [
-        3,2,5
-#if MATERIALS_TYPE>=0
-        ,8
-#endif
+        3,4
     ],
     "blending": {
         -1: "off",
@@ -24,10 +21,10 @@
 
 
     "uniforms": [
-        "alphaTestRef"
+        "alphaTestRef",
+        "vxProjInv"
     ],
     "samplers": {
-        "lightmap": "sampler2D",
         "gtexture": "sampler2D"
     }
 }

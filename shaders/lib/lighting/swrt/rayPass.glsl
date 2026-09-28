@@ -35,6 +35,8 @@ void main(){
     vec3 normal = texture(colortex2,jitteredTexcoord).xyz;
     vec4 worldPos = vec4(jitteredTexcoord,solidDepth,1);
 
+    if(solidDepth>=1.0)
+        return;
 
     worldPos.xyz=worldPos.xyz*2-1;
     worldPos = mat3x4(gbufferProjectionInverse)*worldPos.xyz+gbufferProjectionInverse[3];
@@ -64,7 +66,7 @@ void main(){
     uint light = getListLight(areaPos,unitShift,index);
 
     if(!bool(light&LIGHT_VALID_BIT))
-    return;
+        return;
     vec3 displacementToLight = uncheckedUnpackListedLight(light)+ 0.5-fract(worldPos.xyz);
     #if SWRT_PENUMBRA_SIZE!=-1
     displacementToLight+=penumbraNoise(ditherValue);
@@ -73,7 +75,7 @@ void main(){
     uint translucencies;
     vec4 hitDepths;
     if(traceRay(worldPos.xyz,displacementToLight,unitShift,maxSteps,translucencies,hitDepths)>=0)
-    return;
+        return;
 
     #if SWRT_TRANSLUCENCY>0
     vec4 writeColor = vec4(1.0,1.0,1.0,0);

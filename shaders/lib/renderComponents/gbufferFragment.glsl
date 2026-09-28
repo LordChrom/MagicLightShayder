@@ -6,14 +6,14 @@
 const float translucentPrecedenceCutoff = 0.99;
 
 #ifdef VOXY_PATCH
-    #if MATERIALS_TYPE>=1
+    #if MATERIALS_TYPE>=0 && !defined TRANSLUCENT
         #define NEEDS_MATERIAL_ID
         #define HARDCODED_MATERIAL
         #define MATERIALS_TYPE 0
+        #define WRITE_MATERIALS 2
         #include "/lib/voxelStorage/blockPacking.glsl"
-    #endif
-
-    #if MATERIALS_TYPE < 0
+    #else
+        #define MATERIALS_TYPE -1
         #undef WRITE_MATERIALS
     #endif
     #undef POM
@@ -83,23 +83,24 @@ flat in int materialID;
     #include "/lib/renderComponents/endGateway.glsl"
 #endif
 
-#define SOLIDIFY_OPAQUE_TRANSLUCENTS
+#ifndef VOXY_PATCH
+    #define SOLIDIFY_OPAQUE_TRANSLUCENTS
+#endif
 
 #if defined TRANSLUCENT
     #ifdef SOLIDIFY_OPAQUE_TRANSLUCENTS
         #ifdef WRITE_MATERIALS
-        /* RENDERTARGETS: 3,4,8,1,2,5 */
-        layout(location = 3) out vec4 solidColorOut;
-        layout(location = 4) out vec4 solidNormalOut;
-        layout(location = 5) out vec4 specialDepthOut;
+        #define WRITE_MATERIALS 5
+        /* RENDERTARGETS: 3,4,1,2,5,8 */
         #else
         /* RENDERTARGETS: 3,4,1,2,5 */
+        #endif
         layout(location = 2) out vec4 solidColorOut;
         layout(location = 3) out vec4 solidNormalOut;
         layout(location = 4) out vec4 specialDepthOut;
-        #endif
     #else
         #ifdef WRITE_MATERIALS
+            #define WRITE_MATERIALS 2
         /* RENDERTARGETS: 3,4,8 */
         #else
         /* RENDERTARGETS: 3,4 */
@@ -107,6 +108,7 @@ flat in int materialID;
     #endif
 #else
     #ifdef WRITE_MATERIALS
+        #define WRITE_MATERIALS 2
     /* RENDERTARGETS: 1,2,8 */
     #else
     /* RENDERTARGETS: 1,2 */
@@ -158,7 +160,7 @@ layout(location = 0) out vec4 color;
 layout(location = 1) out vec4 normalOut;
 
 #ifdef WRITE_MATERIALS
-layout(location = 2) out uvec4 materialInfo;
+layout(location = WRITE_MATERIALS) out uvec4 materialInfo;
 #endif
 
 
@@ -331,12 +333,11 @@ void main()
     #endif
 
 
-
 #ifdef TRANSLUCENT
     #ifdef SOLIDIFY_OPAQUE_TRANSLUCENTS
     solidColorOut=vec4(0.0);
     solidNormalOut=vec4(0.0);
-    if(color.a>=1.0){
+    if(color.a>=0.99){
         solidColorOut =vec4(color.rgb,1.0);
         solidNormalOut=vec4(normalOut.rgb,1.0);
         color.a=normalOut.a=0.0;

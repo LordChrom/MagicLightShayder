@@ -57,7 +57,7 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 | RGBA8   | 2   | solid normals                |       | y?      not needed   |
 | RGBA8   | 3   | translucent abledo           |       | Y (trans)            |
 | RGBA8   | 4   | translucent normals          |       | Y (trans)            |
-| R32F    | 5   | processed solid depth        |       |                      |
+| R32F    | 5   | processed depths             |       |                      |
 | RGBA16F | 6   | multiplicative lighting      | y     | n                    |
 | RGBA16F | 7   | additive light               | y     |                      |
 | RGBA8UI | 8   | Materials                    | y     | y                    |
@@ -155,6 +155,7 @@ Packing
 
 # General TODO List
 ### Needs fixing
+- voxy translucent depth
 - materials for solid translucents
 - reflections on translucents
 - end gates again

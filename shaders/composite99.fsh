@@ -36,7 +36,7 @@ uniform sampler2D colortex19;
 layout(location = 0) out vec3 outColor;
 
 float visiblifyDepth(float scrnDepth){
-    scrnDepth = 0.05*(log2(depthToLinear(scrnDepth))+2.0);
+    scrnDepth = 0.1*(log2(depthToLinear(scrnDepth)));
     return clamp(scrnDepth,0,1);
 }
 
@@ -72,10 +72,13 @@ void main() {
     outColor = texture(colortex11,texcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 100
     float depth = texture(colortex5,texcoord).x;
+    float transDepth = texture(depthtex0,texcoord).x;
     float normala = texture(colortex2,texcoord).a;
     bool isHand = bool(floatBitsToUint(depth)&1u);
+    depth = visiblifyDepth(depth);
+    transDepth = visiblifyDepth(transDepth);
 
-    outColor = vec3(visiblifyDepth(depth),float(isHand)*0.1,float(depth==1)*0.5);
+    outColor = vec3(depth,transDepth<depth?-0.5*transDepth:0,isHand?0.1:(float(depth==1)));
     if(outColor.g>0)
         outColor.rb = vec2(0);
     if(outColor.b>0)

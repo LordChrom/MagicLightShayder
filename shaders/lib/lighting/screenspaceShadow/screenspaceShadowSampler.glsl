@@ -18,7 +18,7 @@ float sampleScreenspaceShadow(vec3 worldPos, vec3 normal){
     const int stepsPerBounce=30;
     const float maxCastLen = 1.3;
 
-    float ditherValue = dither(ivec2(gl_FragCoord.xy));
+    float ditherValue = dither(ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy));
     vec3 hitPosition = screenspaceRaycast(
         colortex5,stepsPerBounce,maxCastLen,
         screenPos.xyz,viewDirToScreen(normalize(shadowLightPosition), screenPos.xyz),ditherValue,false,
