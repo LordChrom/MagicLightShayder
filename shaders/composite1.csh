@@ -4,6 +4,7 @@
 const vec2 workGroupsRender = vec2(1.0,1.0);
 layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
 
+layout (rgba8) uniform writeonly restrict image2D colorimg1;
 layout (rgba8) uniform writeonly restrict image2D colorimg3;
 layout (rgba8) uniform writeonly restrict image2D colorimg4;
 layout (r32f) uniform writeonly restrict image2D colorimg5;
@@ -11,6 +12,7 @@ layout (r32f) uniform writeonly restrict image2D colorimg5;
 uniform sampler2D depthtex0;
 uniform sampler2D depthtex1;
 uniform sampler2D depthtex2;
+uniform sampler2D colortex1;
 uniform sampler2D colortex5;
 
 #ifdef VOXY
@@ -38,11 +40,19 @@ void main(){
     #endif
 
     if(d5>0){
+        bool isEndGateway = bool(floatBitsToUint(d5)&1u);
+        vec3 solidAlbedo;
+        if(isEndGateway)
+            solidAlbedo = texelFetch(colortex1,texpos,0).rgb;
+
         solidDepthOut=d5;
         if(d5<=d0){
             imageStore(colorimg3,texpos,vec4(0));
             imageStore(colorimg4,texpos,vec4(0));
         }
+
+        if(isEndGateway)
+            imageStore(colorimg1,texpos,vec4(solidAlbedo,0));
     }
 
     //least significant bit of the mantissa stores depth. The actual depth info represented there is essentially meaningless, and it doesnt affect anything not specifically checking it

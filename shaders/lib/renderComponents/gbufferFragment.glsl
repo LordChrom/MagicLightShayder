@@ -346,12 +346,17 @@ void main()
         normalOut.a=1.0;
         specialDepthOut=vec4(0,0,0,0);
     }
+    uint depthFloatBits = floatBitsToUint(specialDepthOut.x)&~1u;
+    #if defined MAYBE_END_GATEWAY
+    depthFloatBits|=uint(isEndGateway);
+    #endif
+    specialDepthOut.x=uintBitsToFloat(depthFloatBits);
+
     #endif
 #else
     #ifdef SKYTEXTURED
-
+//    color.rgb*=0;
     #elif defined MAYBE_END_GATEWAY
-    //TODO fix
     color.a=isEndGateway?0.0:1.0;
     #elif defined LIT
     color.a=1.0;

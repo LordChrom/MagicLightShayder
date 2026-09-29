@@ -104,5 +104,7 @@ void main(){
     #endif
     writeColor.rgb=writeColor.aaa;
 
+    //TODO normals and translucency and penumbras and stuff. And probably surface bias
+
     imageStore(colorimg6,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),writeColor);
 }

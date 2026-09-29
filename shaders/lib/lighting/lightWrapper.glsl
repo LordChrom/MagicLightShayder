@@ -124,6 +124,6 @@ vec3 lightingSampleFog(vec3 worldPos, float ditherValue){
     }
 
     ret.a=0.2+0.8*clamp(ret.a,0,1);
-    ret.rgb=(FOG_BRIGHTNESS_BLOCK*ret.rgb) + (FOG_BRIGHTNESS_SUN*ret.a)*getSunColor();
+    ret.rgb=(FOG_BRIGHTNESS_BLOCK*ret.rgb) + (FOG_BRIGHTNESS_SUN*ret.a)*getSunColorForFog();
     return ret.rgb;
 }

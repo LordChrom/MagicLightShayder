@@ -70,7 +70,7 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 |         | 15  |                              |       |                      |
 |         | 19  | debug (optional)             | y     |                      |
 
-- albedo.a is 1 exclusively for pre-lit geometry
+- albedo.a is <1 exclusively for pre-lit geometry
 - normals.a is 0 for solid, 0.5 for hand, 1 for translucent
 
 # Layouts
@@ -160,7 +160,6 @@ Packing
 - voxy translucent depth
 - materials for solid translucents
 - reflections on translucents
-- end gates again
 - that situation where there's a translucent, an opaque translucent, then a translucent behind it
 - POM on non-square surfaces
 - gaps from sampling ray hits where inappropriate
