@@ -157,7 +157,6 @@ Packing
 
 # General TODO List
 ### Needs fixing
-- DH overdraw situation
 - reflecting of the hand
 - materials for solid translucents
 - reflections on translucents
@@ -176,6 +175,7 @@ Packing
 - proper system for unlit geometry
 - resolution scaling DoF
 - enchant glint
+- DH overdraw situation at edge of water where the two meet
 
 ### Necessary additions
 - water waves

@@ -87,32 +87,14 @@ in vec2 mc_Entity;
 in vec4 at_midBlock;
 #endif
 
-
 #ifdef DH_SHADER
-uniform mat4 dhProjection;
-uniform mat4 gbufferModelView, gbufferModelViewInverse;
-
-    #define proj dhProjection
-    #define modelView gl_ModelViewMatrix
-#else
-    #define proj gl_ProjectionMatrix
-    #define modelView gl_ModelViewMatrix
+out float distFromCam;
 #endif
 void main() {
+    gl_Position = gl_ProjectionMatrix*(mat3x4(gl_ModelViewMatrix)*gl_Vertex.xyz+gl_ModelViewMatrix[3]);
     #ifdef DH_SHADER
-
-//    vec3 pos = gl_Vertex.xyz;
-//    pos = mat3(gl_ModelViewMatrix)*pos.xyz+gl_ModelViewMatrix[3].xyz;
-//    pos = mat3(gbufferModelViewInverse)*pos+gbufferModelViewInverse[3].xyz;
-//    gl_Position = dhProjection*vec4(pos,1);
-
-    vec4 position = gbufferModelViewInverse * gl_ModelViewMatrix * gl_Vertex;
-    gl_Position = dhProjection * gbufferModelView * position;
-
-    #else
-    gl_Position = proj*(modelView*gl_Vertex);
+    distFromCam=length(gl_Vertex.xyz);
     #endif
-
 #ifdef TEXTURED
     texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
 #endif

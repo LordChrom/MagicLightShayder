@@ -56,33 +56,38 @@ void main(){
     vec2 dhDepths;
     dhDepths.x = texelFetch(dhDepthTex1,texpos,0).x;
     dhDepths.y = texelFetch(dhDepthTex0,texpos,0).x;
-    bvec2 dhNotSky = bvec2(dhDepths.x<1.0 && solidDepthOut.x>=1.0,dhDepths.y<1.0 && solidDepthOut.y>=1.0);
+    bvec2 dhNotSky = bvec2(dhDepths.x<1.0,dhDepths.y<1.0);
     if(dhNotSky.x||dhNotSky.y){
         dhDepths = dhDepths*2.0-1.0;
         dhDepths = 1.0/(dhDepths*dhProjectionInverse[2].w+ dhProjectionInverse[3].w);
         dhDepths = depthsToBuf(dhDepths);
     }
-    if(dhNotSky.x)
+    if(dhNotSky.x && solidDepthOut.x>=1.0)
         solidDepthOut.x = min(solidDepthOut.x,dhDepths.x);
-    if(dhNotSky.y)
+    if(dhNotSky.y && solidDepthOut.y>=1.0)
         solidDepthOut.y = min(solidDepthOut.y,dhDepths.y);
     #endif
-
+    bool isEndGateway = false;
+    vec3 solidAlbedo;
     if(d5>0){
-        bool isEndGateway = bool(floatBitsToUint(d5)&1u);
-        vec3 solidAlbedo;
+        isEndGateway = bool(floatBitsToUint(d5)&1u);
         if(isEndGateway)
             solidAlbedo = texelFetch(colortex1,texpos,0).rgb;
 
         solidDepthOut.x=d5;
-        if(d5<=d0){
-            imageStore(colorimg3,texpos,vec4(0));
-            imageStore(colorimg4,texpos,vec4(0));
-        }
-
-        if(isEndGateway)
-            imageStore(colorimg1,texpos,vec4(solidAlbedo,0));
     }
+    if(solidDepthOut.x<=solidDepthOut.y &&
+        (d5>0.0
+        #ifdef DISTANT_HORIZONS
+        || dhNotSky.y
+        #endif
+    )){
+        imageStore(colorimg3,texpos,vec4(0));
+        imageStore(colorimg4,texpos,vec4(0));
+    }
+
+    if(isEndGateway)
+        imageStore(colorimg1,texpos,vec4(solidAlbedo,0));
 
     //least significant bit of the mantissa stores depth. The actual depth info represented there is essentially meaningless, and it doesnt affect anything not specifically checking it
     solidDepthOut.x=uintBitsToFloat(floatBitsToUint(solidDepthOut.x)&~1u);

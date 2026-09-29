@@ -25,8 +25,13 @@
 
 in vec4 glcolor;
 flat in uint packedNormal;
+in float distFromCam;
+
+uniform float far;
 
 void main() {
+    if(distFromCam<far)
+        discard;
     vec3 normal;
     normal.xy=vec2((uvec2(packedNormal)>>uvec2(17,2))&normPackScale)*(2.0/normPackScale)-1;
     normal.z=dot(normal.xy,normal.xy);
