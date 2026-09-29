@@ -6,8 +6,6 @@
 uniform mat4 gbufferModelViewInverse, gbufferProjectionInverse;
 in vec2 texcoord;
 
-uniform sampler2D depthtex0;
-
 uniform sampler2D shadowtex0;
 uniform sampler2D shadowcolor0;
 
@@ -71,14 +69,13 @@ void main() {
 #elif DEBUG_SPECIAL_VIEW == 11
     outColor = texture(colortex11,texcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 100
-    float depth = texture(colortex5,texcoord).x;
-    float transDepth = texture(depthtex0,texcoord).x;
+    vec2 depths = texture(colortex5,texcoord).xy;
     float normala = texture(colortex2,texcoord).a;
-    bool isHand = bool(floatBitsToUint(depth)&1u);
-    depth = visiblifyDepth(depth);
-    transDepth = visiblifyDepth(transDepth);
+    bool isHand = bool(floatBitsToUint(depths.x)&1u);
+    depths.x = visiblifyDepth(depths.x);
+    depths.y = visiblifyDepth(depths.y);
 
-    outColor = vec3(depth,transDepth<depth?-0.5*transDepth:0,isHand?0.1:(float(depth==1)));
+    outColor = vec3(depths.x,depths.y<depths.x?-0.5*depths.y:0,isHand?0.1:(float(depths.x==1)));
     if(outColor.g>0)
         outColor.rb = vec2(0);
     if(outColor.b>0)

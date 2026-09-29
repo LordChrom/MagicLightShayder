@@ -14,14 +14,13 @@ uniform mat4 gbufferModelView, gbufferProjection;
 #include "/lib/util/dither.glsl"
 #include "/lib/util/blend.glsl"
 #include "/lib/util/conversions.glsl"
+uniform sampler2D colortex5;
 #include "/lib/util/raycast.glsl"
 
 
 in vec2 texcoord;
 in vec3 worldDirNormalizeMe;
 
-uniform sampler2D depthtex0;
-uniform sampler2D colortex5;
 
 uniform sampler2D colortex1;
 uniform sampler2D colortex2;
@@ -60,7 +59,7 @@ void main() {
     vec4 normal = texture(colortex2,texcoord);
     vec3 worldDir = normalize(worldDirNormalizeMe);
     vec3 screenPos;
-    screenPos.z = texture(depthtex0,texcoord).x;
+    screenPos.z = texture(colortex5,texcoord).y;
     screenPos.xy=texcoord;
 
 
@@ -120,7 +119,7 @@ void main() {
         const float maxCastLen = 1.0;
         #endif
         screenPos = screenspaceRaycast(
-            colortex5,stepsPerBounce,maxCastLen,
+            stepsPerBounce,maxCastLen,
             screenPos,worldDirToScreen(worldDir, screenPos),ditherValue,true,
             rayHitReason
         );

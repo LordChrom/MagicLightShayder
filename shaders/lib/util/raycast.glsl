@@ -3,8 +3,7 @@
 //1: hit edge of screen
 //2: hit something, but depth too different
 //4: hit solid terrain
-vec3 screenspaceRaycast(
-    sampler2D depthtex, int stepsPerBounce, float maxCastLen,
+vec3 screenspaceRaycast(int stepsPerBounce, float maxCastLen,
     vec3 initialPos, vec3 viewDir, float ditherValue, bool fadeAtEdges,
     out uint hitReason
 ){
@@ -22,8 +21,8 @@ vec3 screenspaceRaycast(
             break;
         }
 
-        //TODO check both depthtexes, for reflections of terrain visible thru glass
-        texDepth = texture(depthtex,newPos.xy).x;
+        //TODO check both solid and trans, for reflections of terrain visible thru glass
+        texDepth = texture(colortex5,newPos.xy).x;
         if(texDepth<=newPos.z){
             hitReason=4;
             break;
@@ -35,7 +34,7 @@ vec3 screenspaceRaycast(
         newPos-=viewDir;
 
         for(int i=0;i<min(stepsPerBounce,8);i++){
-            texDepth = texture(depthtex,newPos.xy).x;
+            texDepth = texture(colortex5,newPos.xy).x;
             viewDir*=0.5;
             newPos+=(texDepth>=newPos.z)?viewDir:-viewDir;
         }
