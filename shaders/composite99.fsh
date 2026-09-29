@@ -2,6 +2,7 @@
 #include "/lib/settings.glsl"
 #include "/lib/util/conversions.glsl"
 #include "/lib/util/dither.glsl"
+#include "/lib/util/blend.glsl"
 
 uniform mat4 gbufferModelViewInverse, gbufferProjectionInverse;
 in vec2 texcoord;
@@ -46,7 +47,9 @@ void main() {
 #elif DEBUG_SPECIAL_VIEW == 2
     outColor=texture(colortex2,texcoord).rgb*2-1;
 #elif DEBUG_SPECIAL_VIEW == 3
-    outColor=texture(colortex3,texcoord).rgb;
+    vec4 transColor = texture(colortex3,texcoord);
+    outColor = mix(vec3(texcoord,1),vec3(1),0.5);
+    outColor = mixInTranslucent(outColor,transColor);
 #elif DEBUG_SPECIAL_VIEW == 4
     outColor= texture(colortex4,texcoord).rgb*2-1;
 #elif DEBUG_SPECIAL_VIEW == 5

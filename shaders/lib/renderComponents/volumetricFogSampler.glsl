@@ -15,7 +15,6 @@ uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
 uniform vec3 cameraPosition;
 
 uniform sampler2D colortex2;
-uniform sampler2D colortex3;
 uniform sampler2D colortex5;
 
 uniform vec3 fogColor;
@@ -30,21 +29,19 @@ uniform vec3 fogColor;
 
 const float fogDensityMult = FOG_THICKNESS*log(0.5)/FOG_HALF_LIFE;
 
+//TODO account for other lighting systems
+const float maxFogDepth = min(MAX_FOG_DEPTH,MIN_SCALE*0.5*AREA_SIZE*(1<<NUM_CASCADES));
 
 void main() {
     vec4 worldPosRelative;
     worldPosRelative.xy=(vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5)/imageSize(colorimg7);
     ivec2 sourceTexpos = ivec2((worldPosRelative.xy*textureSize(colortex5,0)+0.01));
 
-    bool solidTransInFront = texelFetch(colortex3,sourceTexpos,0).a>=1;
-
     worldPosRelative.z = texelFetch(colortex5,sourceTexpos,0).x;
 
     worldPosRelative = gbufferProjectionInverse*vec4(worldPosRelative.xyz*2-1,1);
     worldPosRelative/=worldPosRelative.w;
     worldPosRelative.xyz = mat3(gbufferModelViewInverse)*worldPosRelative.xyz+gbufferModelViewInverse[3].xyz;;
-
-    const float maxFogDepth = min(MAX_FOG_DEPTH,MIN_SCALE*0.5*AREA_SIZE*(1<<NUM_CASCADES));
 
     if(length(worldPosRelative.xyz)>maxFogDepth){
         worldPosRelative.xyz*=maxFogDepth/length(worldPosRelative.xyz);

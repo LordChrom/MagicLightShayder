@@ -339,11 +339,13 @@ void main()
     if(color.a>=0.99){
         solidColorOut =vec4(color.rgb,1.0);
         solidNormalOut=vec4(normalOut.rgb,1.0);
-        color.a=normalOut.a=0.0;
+        normalOut.a=0.0;
+        color=vec4(0.0);
         specialDepthOut=vec4(gl_FragCoord.z,0,0,1);
     }else{
         normalOut.a=1.0;
         specialDepthOut=vec4(0,0,0,0);
+//        color.rgb*=color.a;
     }
     uint depthFloatBits = floatBitsToUint(specialDepthOut.x)&~1u;
     #if defined MAYBE_END_GATEWAY

@@ -72,8 +72,7 @@ void main() {
         light=vec3(1);
 
     vec3 color=albedo.xyz*light;
-    transColor.xyz*= 0.5*light + ((light.x+light.y+light.z)*0.16 + 0.02);
-    color = blend(vec4(color,1),transColor);
+    color =  mixInTranslucent(color, transColor);
 
     #ifdef AXIS_GIZMO
     renderAxisGizmo(color,texcoord);
