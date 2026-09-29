@@ -21,6 +21,12 @@ uniform mat4 vxProjInv;
 #include "/lib/util/conversions.glsl"
 #endif
 
+#ifdef DISTANT_HORIZONS
+uniform mat4 dhProjectionInverse;
+uniform sampler2D dhDepthTex0;
+uniform sampler2D dhDepthTex1;
+#include "/lib/util/conversions.glsl"
+#endif
 
 void main(){
     ivec2 texpos = ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy);
@@ -41,11 +47,25 @@ void main(){
         vxDepths = depthsToBuf(vxDepths);
     }
     if(vxNotSky.x)
-        solidDepthOut.x = vxDepths.x;
-
+        solidDepthOut.x = min(solidDepthOut.x,vxDepths.x);
     if(vxNotSky.y)
         solidDepthOut.y = min(solidDepthOut.y,vxDepths.y);
+    #endif
 
+    #ifdef DISTANT_HORIZONS
+    vec2 dhDepths;
+    dhDepths.x = texelFetch(dhDepthTex1,texpos,0).x;
+    dhDepths.y = texelFetch(dhDepthTex0,texpos,0).x;
+    bvec2 dhNotSky = bvec2(dhDepths.x<1.0 && solidDepthOut.x>=1.0,dhDepths.y<1.0 && solidDepthOut.y>=1.0);
+    if(dhNotSky.x||dhNotSky.y){
+        dhDepths = dhDepths*2.0-1.0;
+        dhDepths = 1.0/(dhDepths*dhProjectionInverse[2].w+ dhProjectionInverse[3].w);
+        dhDepths = depthsToBuf(dhDepths);
+    }
+    if(dhNotSky.x)
+        solidDepthOut.x = min(solidDepthOut.x,dhDepths.x);
+    if(dhNotSky.y)
+        solidDepthOut.y = min(solidDepthOut.y,dhDepths.y);
     #endif
 
     if(d5>0){

@@ -157,6 +157,7 @@ Packing
 
 # General TODO List
 ### Needs fixing
+- DH overdraw situation
 - reflecting of the hand
 - materials for solid translucents
 - reflections on translucents

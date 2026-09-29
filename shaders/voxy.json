@@ -1,6 +1,7 @@
 {
     "unusedString": "
         #define VOXY_PATCH
+        #define LOD_MOD_SHADER
         #include "/lib/settings.glsl"
     ",
     "version": 1,

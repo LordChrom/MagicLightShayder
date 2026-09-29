@@ -1,4 +1,5 @@
 #define VOXY_PATCH
+#define LOD_MOD_SHADER
 
 #define TEXTURED
 #define LIT
@@ -26,5 +27,5 @@ void voxy_emitFragment(VoxyFragmentParameters parameters) {
 
     if((parameters.face&1)==0) normal=-normal;
 
-    handleFragment(parameters.tinting,normal, clamp(parameters.lightMap,vec2(0),vec2(0.5)), parameters.sampledColour, int(parameters.customId));
+    handleFragment(parameters.tinting,normal, parameters.sampledColour, int(parameters.customId));
 }

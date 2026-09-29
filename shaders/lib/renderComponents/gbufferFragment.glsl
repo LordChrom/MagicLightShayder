@@ -5,7 +5,11 @@
 #include "/lib/settings.glsl"
 const float translucentPrecedenceCutoff = 0.99;
 
-#ifdef VOXY_PATCH
+#ifdef LOD_MOD_SHADER
+    #ifdef DH_SHADER
+    #define MATERIALS_TYPE -1
+    #endif
+
     #if MATERIALS_TYPE>=0 && !defined TRANSLUCENT
         #define NEEDS_MATERIAL_ID
         #define HARDCODED_MATERIAL
@@ -46,11 +50,6 @@ flat in uint packedTangent;
     #endif
 #endif
 
-#ifdef LIT
-//in vec2 lmcoord;
-//uniform sampler2D lightmap;
-#endif
-
 #ifdef VERTEX_NORMALS
 flat in uint packedNormal;
 #endif
@@ -83,7 +82,7 @@ flat in int materialID;
     #include "/lib/renderComponents/endGateway.glsl"
 #endif
 
-#ifndef VOXY_PATCH
+#ifndef LOD_MOD_SHADER
     #define SOLIDIFY_OPAQUE_TRANSLUCENTS
 #endif
 
@@ -163,9 +162,10 @@ layout(location = 1) out vec4 normalOut;
 layout(location = WRITE_MATERIALS) out uvec4 materialInfo;
 #endif
 
+const uint normPackScale = 0x7fff;
 
-#ifdef VOXY_PATCH
-void handleFragment(vec4 glcolor,vec3 normal, vec2 lmcoord, vec4 voxycolor, int materialID)
+#ifdef LOD_MOD_SHADER
+void handleFragment(vec4 glcolor,vec3 normal, vec4 voxycolor, int materialID)
 
 #if 0
 ;//for my IDE :/
@@ -176,8 +176,7 @@ void main()
 #endif
 {
 
-#if defined VERTEX_NORMALS && !defined VOXY_PATCH
-    const uint normPackScale = 0x7fff;
+#if defined VERTEX_NORMALS && !defined LOD_MOD_SHADER
 
     vec3 normal;
 
@@ -234,7 +233,7 @@ void main()
         color *= texture(gtexture, newTexcoord);
     }
 
-#elif defined VOXY_PATCH
+#elif defined LOD_MOD_SHADER
     color *= voxycolor;
 #elif defined TEXTURED
     color *= texture(gtexture, newTexcoord);
@@ -301,7 +300,7 @@ void main()
 
 #ifdef WRITE_MATERIALS
     #if MATERIALS_TYPE == 0 //hardcoded
-        #ifdef VOXY_PATCH
+        #ifdef LOD_MOD_SHADER
     materialInfo = getHardcodedMaterial(uint(materialID));
         #else
     materialInfo = hardcodedMaterialInfo;
