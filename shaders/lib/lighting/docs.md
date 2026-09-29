@@ -158,7 +158,6 @@ Packing
 # General TODO List
 ### Needs fixing
 - reflecting of the hand
-- voxy translucent depth
 - materials for solid translucents
 - reflections on translucents
 - that situation where there's a translucent, an opaque translucent, then a translucent behind it

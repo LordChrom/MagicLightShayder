@@ -16,7 +16,7 @@ uniform sampler2D colortex1;
 uniform sampler2D colortex5;
 
 #ifdef VOXY
-uniform sampler2D vxDepthTexOpaque;
+uniform sampler2D vxDepthTexOpaque,vxDepthTexTrans;
 uniform mat4 vxProjInv;
 #include "/lib/util/conversions.glsl"
 #endif
@@ -31,12 +31,21 @@ void main(){
     vec2 solidDepthOut = vec2(d2,d0);
 
     #ifdef VOXY
-    float dVoxy = texelFetch(vxDepthTexOpaque,texpos,0).x;
-    if(dVoxy<1.0){
-        dVoxy = dVoxy*2.0-1.0;
-        dVoxy = 1.0/(dVoxy*vxProjInv[2].w+ vxProjInv[3].w);
-        solidDepthOut.x = depthToBuf(dVoxy);
+    vec2 vxDepths;
+    vxDepths.x = texelFetch(vxDepthTexOpaque,texpos,0).x;
+    vxDepths.y = texelFetch(vxDepthTexTrans, texpos,0).x;
+    bvec2 vxNotSky = bvec2(vxDepths.x<1.0,vxDepths.y<1.0);
+    if(vxNotSky.x||vxNotSky.y){
+        vxDepths = vxDepths*2.0-1.0;
+        vxDepths = 1.0/(vxDepths*vxProjInv[2].w+ vxProjInv[3].w);
+        vxDepths = depthsToBuf(vxDepths);
     }
+    if(vxNotSky.x)
+        solidDepthOut.x = vxDepths.x;
+
+    if(vxNotSky.y)
+        solidDepthOut.y = min(solidDepthOut.y,vxDepths.y);
+
     #endif
 
     if(d5>0){

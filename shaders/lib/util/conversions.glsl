@@ -13,4 +13,9 @@ float depthToBuf(float worldDepth){
         float sampleDepth =  (1.0/worldDepth-depthConvConsts.x)/depthConvConsts.y;
     return fma(sampleDepth,0.5,0.5);
 }
+
+vec2 depthsToBuf(vec2 worldDepth){
+    vec2 sampleDepth =  (1.0/worldDepth-depthConvConsts.x)/depthConvConsts.y;
+    return sampleDepth*0.5+0.5;
+}
 #endif
