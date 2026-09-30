@@ -45,13 +45,13 @@ void main() {
 #if DEBUG_SPECIAL_VIEW == 1
     outColor=texture(colortex1,texcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 2
-    outColor=texture(colortex2,texcoord).rgb*2-1;
+    outColor=texture(colortex2,texcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 3
     vec4 transColor = texture(colortex3,texcoord);
     outColor = mix(vec3(texcoord,1),vec3(1),0.5);
     outColor = mixInTranslucent(outColor,transColor);
 #elif DEBUG_SPECIAL_VIEW == 4
-    outColor= texture(colortex4,texcoord).rgb*2-1;
+    outColor= texture(colortex4,texcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 5
     float depth = texture(colortex5,texcoord).x;
     outColor = vec3(visiblifyDepth(depth));
@@ -73,7 +73,6 @@ void main() {
     outColor = texture(colortex11,texcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 100
     vec2 depths = texture(colortex5,texcoord).xy;
-    float normala = texture(colortex2,texcoord).a;
     bool isHand = bool(floatBitsToUint(depths.x)&1u);
     depths.x = visiblifyDepth(depths.x);
     depths.y = visiblifyDepth(depths.y);

@@ -80,7 +80,7 @@ void main() {
 
 
 
-    normal = normalize(normal*2-1);
+    normal = normalize(normal);
 
     float ditherValue = dither(ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy));
 

@@ -1,7 +1,7 @@
 /*
 const int colortex0Format = RGBA8;
 const int colortex1Format = RGBA8;
-const int colortex2Format = RGBA8;
+const int colortex2Format = RGBA8_SNORM;
 const int colortex3Format = RGBA8;
 const int colortex4Format = RGBA8_SNORM;
 const int colortex5Format = RG32F;

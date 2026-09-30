@@ -1,6 +1,6 @@
 uniform mat4 gbufferModelView,gbufferProjection;
 #include "/lib/util/conversions.glsl"
-#include "/lib/util/raycast.glsl"
+#include "/lib/util/screenspaceRaycast.glsl"
 #include "/lib/util/dither.glsl"
 
 vec3 viewDirToScreen(vec3 viewDirection, vec3 screenPos){

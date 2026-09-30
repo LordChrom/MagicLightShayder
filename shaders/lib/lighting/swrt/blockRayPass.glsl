@@ -45,7 +45,7 @@ void main(){
 
 
 
-    worldPos.xyz+=clamp(length(worldPos.xyz)*0.001,0.04,0.1)*normalize(normal*2-1);
+    worldPos.xyz+=clamp(length(worldPos.xyz)*0.001,0.04,0.1)*normalize(normal);
     worldPos.xyz+=cameraPosition;
     ivec3 areaPos = worldPosToSWRT(worldPos.xyz);
 

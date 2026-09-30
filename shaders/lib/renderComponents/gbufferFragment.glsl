@@ -283,9 +283,6 @@ void main()
         #endif
     #endif
 
-    normalOut.xyz = (normalOut.xyz+1)*0.5;
-    #else
-    normalOut.xyz = (normal+1)*0.5;
     #endif
 
     normalOut.a=NORMAL_A;

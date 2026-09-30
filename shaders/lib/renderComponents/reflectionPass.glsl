@@ -15,7 +15,7 @@ uniform mat4 gbufferModelView, gbufferProjection;
 #include "/lib/util/blend.glsl"
 #include "/lib/util/conversions.glsl"
 uniform sampler2D colortex5;
-#include "/lib/util/raycast.glsl"
+#include "/lib/util/screenspaceRaycast.glsl"
 
 
 in vec2 texcoord;
@@ -25,6 +25,7 @@ in vec3 worldDirNormalizeMe;
 uniform sampler2D colortex1;
 uniform sampler2D colortex2;
 uniform sampler2D colortex3;
+uniform sampler2D colortex4;
 uniform sampler2D colortex6;
 uniform sampler2D colortex7;
 uniform usampler2D colortex8;
@@ -56,7 +57,8 @@ void main() {
     fogColorOut = vec4(0,0,0,1);
     #endif
 
-    vec4 normal = texture(colortex2,texcoord);
+    vec3 normal = texture(colortex2,texcoord).xyz;
+    vec3 transNormal = texture(colortex4,texcoord).xyz;
     vec3 worldDir = normalize(worldDirNormalizeMe);
     vec3 screenPos;
     screenPos.z = texture(colortex5,texcoord).y;
@@ -72,9 +74,7 @@ void main() {
     vec3 reflectionMult = vec3(1);
 
 
-//    if(abs(normal.a-0.5)<0.1)
-//        return;
-    normal.xyz=normalize(normal.xyz*2-1);
+
 
     bool dirty = false;
 
@@ -88,16 +88,17 @@ void main() {
 
     for(int i=0;i<REFLECTION_BOUNCES;i++)
     {
+        normal=normalize(normal);
+        transNormal=normalize(transNormal);
         #if REFLECTION_BOUNCES>1
         if(!continuing)
         #endif
         {
-            worldDir = vectorReflect(worldDir, normal.xyz);
+            bool reflectingOffTrans = transColor.a>0.05;
+            worldDir = vectorReflect(worldDir, reflectingOffTrans?transNormal:normal);
             #ifndef PERFECT_MIRRORS
-            if(transColor.a==1){
-                return;
-            }else if(transColor.a>0.05){
-                reflectionMult*=1-dot(worldDir,normal.xyz);
+            if(reflectingOffTrans){
+                reflectionMult*=1-dot(worldDir,transNormal);
             }else if(reflectance<=229){
                 reflectionMult*=(reflectance/255.0);
             }else{
@@ -134,18 +135,15 @@ void main() {
             return;
         }
 
-        normal = texture(colortex2,screenPos.xy);
+        normal = texture(colortex2,screenPos.xy).xyz;
         vec3 lightColor = texture(colortex6,screenPos.xy).rgb;
         albedo = texture(colortex1, screenPos.xy).rgb;
         transColor = texture(colortex3,screenPos.xy);
         reflectance = texture(colortex8,screenPos.xy).g;
+        transNormal = texture(colortex4,screenPos.xy).xyz;
 
-        if(abs(normal.a-0.5)<0.1){
-            return;
-        }
-        normal.xyz=normalize(normal.xyz*2-1);
 
-        if(dot(worldDir,normal.xyz)<0){
+        if(dot(worldDir,normal)<0){
             fogColorOut.rgb+= blend(vec4(lightColor*albedo,1),transColor)*reflectionMult;
         }
     }

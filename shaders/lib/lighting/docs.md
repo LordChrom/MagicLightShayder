@@ -53,10 +53,10 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 | format  | num | purpose                      | scale | clear                | notes                           |
 |---------|-----|------------------------------|-------|----------------------|---------------------------------|
 |         | 0   | main output                  |       |                      |                                 |
-| RGBA8   | 1   | solid albedo                 |       | y (nether no skybox) |                                 |
-| RGBA8   | 2   | solid normals                |       | y?      not needed   |                                 |
+| RGBA8   | 1   | solid albedo                 |       | y (nether no skybox) | a<1 indicates pre-lit           |
+| RGBA8_S | 2   | solid normals                |       | y?      not needed   | a unused                        |
 | RGBA8   | 3   | translucent abledo           |       | Y (trans)            | a is calculated in colortex5.y  |
-| RGBA8   | 4   | translucent normals          |       | Y (trans)            | a channel tracks pre-lit trans  |
+| RGBA8_S | 4   | translucent normals          |       | Y (trans)            | a channel tracks pre-lit        |
 | RG32F   | 5   | processed depths             |       |                      |                                 |
 | RGBA16F | 6   | multiplicative lighting      | y     | n                    |                                 |
 | RGBA16F | 7   | additive light               | y     |                      |                                 |
@@ -70,8 +70,6 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 |         | 15  |                              |       |                      |                                 |
 |         | 19  | debug (optional)             | y     |                      |                                 |
 
-- albedo.a is <1 exclusively for pre-lit geometry
-- normals.a is 0 for solid, 0.5 for hand, 1 for translucent
 
 # Layouts
 ### Block.properties
@@ -157,9 +155,7 @@ Packing
 
 # General TODO List
 ### Needs fixing
-- reflecting of the hand
 - materials for solid translucents
-- reflections on translucents
 - POM on non-square surfaces
 - gaps from sampling ray hits where inappropriate
 - voxelizing end gates
@@ -190,3 +186,4 @@ Packing
 ### Potential additions
 - more efficient memory scaling for advanced voxel system
 - yet another lighting mode
+- better accounting for translucents hit on the way to solid terrain in SSR
