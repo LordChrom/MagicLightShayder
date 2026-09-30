@@ -82,7 +82,12 @@ void main(){
         solidAlbedo = texelFetch(colortex1,texpos,0).rgb;
         solidDepthOut.x=dt5.x;
     }
-    if(solidDepthOut.x<=solidDepthOut.y && (dt5.x>0.0)){ //solid trans in front, erase the evidence
+    if(solidDepthOut.x<=solidDepthOut.y && (
+        dt5.x>0.0
+        #ifdef DISTANT_HORIZONS
+        ||dhNotSky.y
+        #endif
+    )){ //solid trans in front, erase the evidence
         transWrites = true; // :)
         imageStore(colorimg4,texpos,vec4(0));
     }else if(dt5.y>0){  //really translucent trans in front, erase the evidence
