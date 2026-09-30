@@ -158,17 +158,15 @@ Packing
 ### Needs fixing
 - materials for solid translucents
 - POM on non-square surfaces
-- gaps from sampling ray hits where inappropriate
 - voxelizing end gates
 - subsurface on lava
 - other subsurface edge cases (directly contacting light source)
 - shadowmap light leak underground (esp for subsurface)
-- reflections secondary bouncing on translucent
 
 ### Needs Improvement
-- shadowmap sun shadows
+- proper system for unlit translucents (beacon beam
+- secondary tanslucent hits in SSR
 - TAA performance
-- proper system for unlit geometry
 - resolution scaling DoF
 - enchant glint
 

@@ -4,24 +4,25 @@
 //2: hit something, but depth too different
 //4: hit solid terrain
 vec3 screenspaceRaycast(int stepsPerBounce, float maxCastLen,
-    vec3 initialPos, vec3 viewDir, float ditherValue, bool fadeAtEdges,
+    vec3 pos, vec3 viewDir, float ditherValue, bool fadeAtEdges,
     out uint hitReason
 ){
     hitReason=0;
     viewDir*=maxCastLen/(stepsPerBounce*length(viewDir.xy));
-    vec3 newPos;
-    float texDepth;
+    float texDepth = 0f;
 
-    for(int i=0;i<stepsPerBounce && hitReason==0;i++){
-        newPos = initialPos+(i+ditherValue)*viewDir;
-        float distFromEdge = min(viewDir.x>0?1-newPos.x:newPos.x,viewDir.y>0?1-newPos.y:newPos.y);
+    pos+=(ditherValue-1)*viewDir;
+    int i;
+    for(i=0;i<stepsPerBounce && hitReason==0;i++){
+        pos+=viewDir;
+        texDepth = texelFetch(colortex5,ivec2(pos.xy*textureSize(colortex5,0)),0).x;
 
-        if(distFromEdge<=(fadeAtEdges?ditherValue*0.1:0) || newPos.z<=0.4 || newPos.z>=1){
+        float distFromEdge = min(viewDir.x>0?1-pos.x:pos.x,viewDir.y>0?1-pos.y:pos.y);
+
+        if(distFromEdge<=(fadeAtEdges?ditherValue*0.1:0) || pos.z<=0.4 || pos.z>=1){
             hitReason=1;
-        }else{
-            texDepth = texelFetch(colortex5,ivec2(newPos.xy*textureSize(colortex5,0)),0).x;
-            if(texDepth<=newPos.z+1e-4)
-                hitReason=4;
+        }else if(texDepth<=pos.z+1e-4){
+            hitReason=4;
         }
     }
 
@@ -29,20 +30,25 @@ vec3 screenspaceRaycast(int stepsPerBounce, float maxCastLen,
         hitReason=2;
 
     if(hitReason==4){
-        viewDir*=0.5;
-        newPos-=viewDir;
+        if(i==1) //if the first step is a hit, this prevents the back marching from going behind the ray source
+            viewDir*=ditherValue;
 
-        for(int i=0;i<min(stepsPerBounce,8);i++){
-            texDepth = texelFetch(colortex5,ivec2(newPos.xy*textureSize(colortex5,0)),0).x;
+        viewDir*=0.5;
+        pos-=viewDir;
+
+        for(int i=0;i<8;i++){
+            texDepth = texelFetch(colortex5,ivec2(pos.xy*textureSize(colortex5,0)),0).x;
             viewDir*=0.5;
-            newPos+=(texDepth>=newPos.z)?viewDir:-viewDir;
+            pos+=(texDepth>=pos.z)?viewDir:-viewDir;
+        }
+
+        if(
+            bool(floatBitsToUint(texDepth)&1u) ||
+            abs(depthToLinear(texDepth)/depthToLinear(pos.z)-1)>0.05
+        ){
+            hitReason=2;
         }
     }
 
-    if((hitReason==4) && (abs(depthToLinear(texDepth)/depthToLinear(newPos.z)-1)>0.1)){
-        //TODO Some kinda problem here
-        hitReason=2;
-    }
-
-    return newPos;
+    return pos;
 }
