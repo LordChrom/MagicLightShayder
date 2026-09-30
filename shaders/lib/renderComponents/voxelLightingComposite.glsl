@@ -55,7 +55,7 @@ void main() {
 
 
     float albedoA = texture(colortex1,jitteredTexcoord).a;
-    if(solidDepth==1){
+    if(solidDepth==1 || albedoA<1){
         imageStore(colorimg6,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),vec4(albedoA>0));
         return;
     }

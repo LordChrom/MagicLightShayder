@@ -13,6 +13,8 @@ uniform sampler2D depthtex0;
 uniform sampler2D depthtex1;
 uniform sampler2D depthtex2;
 uniform sampler2D colortex1;
+uniform sampler2D colortex3;
+uniform sampler2D colortex4;
 uniform sampler2D colortex5;
 
 #ifdef VOXY
@@ -32,11 +34,11 @@ void main(){
     ivec2 texpos = ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy);
     float d2 = texelFetch(depthtex2,texpos,0).x;
     float d0 = texelFetch(depthtex0,texpos,0).x;
-    float d5 = texelFetch(colortex5,texpos,0).x;
+    vec2 dt5 = texelFetch(colortex5,texpos,0).xy;
     float d1 = texelFetch(depthtex1,texpos,0).x;
     vec2 solidDepthOut = vec2(d2,d0);
 
-    #ifdef VOXY
+#ifdef VOXY
     vec2 vxDepths;
     vxDepths.x = texelFetch(vxDepthTexOpaque,texpos,0).x;
     vxDepths.y = texelFetch(vxDepthTexTrans, texpos,0).x;
@@ -50,9 +52,8 @@ void main(){
         solidDepthOut.x = min(solidDepthOut.x,vxDepths.x);
     if(vxNotSky.y)
         solidDepthOut.y = min(solidDepthOut.y,vxDepths.y);
-    #endif
-
-    #ifdef DISTANT_HORIZONS
+#endif
+#ifdef DISTANT_HORIZONS
     vec2 dhDepths;
     dhDepths.x = texelFetch(dhDepthTex1,texpos,0).x;
     dhDepths.y = texelFetch(dhDepthTex0,texpos,0).x;
@@ -66,28 +67,30 @@ void main(){
         solidDepthOut.x = min(solidDepthOut.x,dhDepths.x);
     if(dhNotSky.y && solidDepthOut.y>=1.0)
         solidDepthOut.y = min(solidDepthOut.y,dhDepths.y);
-    #endif
-    bool isEndGateway = false;
+#endif
+
+
+    float transNormalA = 0.0;
     vec3 solidAlbedo;
-    if(d5>0){
-        isEndGateway = bool(floatBitsToUint(d5)&1u);
-        if(isEndGateway)
-            solidAlbedo = texelFetch(colortex1,texpos,0).rgb;
+    bool transWrites = false; //:(
+    vec4 transColor = vec4(0);
 
-        solidDepthOut.x=d5;
+    dt5.x/=1-dt5.y;//corrects for the x getting multiplied by alpha of subsequent translucents
+
+    if(dt5.x>0){
+        transNormalA = texelFetch(colortex4,texpos,0).a;
+        solidAlbedo = texelFetch(colortex1,texpos,0).rgb;
+        solidDepthOut.x=dt5.x;
     }
-    if(solidDepthOut.x<=solidDepthOut.y &&
-        (d5>0.0
-        #ifdef DISTANT_HORIZONS
-        || dhNotSky.y
-        #endif
-    )){
-        imageStore(colorimg3,texpos,vec4(0));
+    if(solidDepthOut.x<=solidDepthOut.y && (dt5.x>0.0)){ //solid trans in front, erase the evidence
+        transWrites = true; // :)
         imageStore(colorimg4,texpos,vec4(0));
+    }else if(dt5.y>0){  //really translucent trans in front, erase the evidence
+        transWrites = true; // :)
+        transColor.rgb = texelFetch(colortex3,texpos,0).rgb;
+        transColor.a=dt5.y;
     }
 
-    if(isEndGateway)
-        imageStore(colorimg1,texpos,vec4(solidAlbedo,0));
 
     //least significant bit of the mantissa stores depth. The actual depth info represented there is essentially meaningless, and it doesnt affect anything not specifically checking it
     solidDepthOut.x=uintBitsToFloat(floatBitsToUint(solidDepthOut.x)&~1u);
@@ -96,4 +99,10 @@ void main(){
         solidDepthOut.x=uintBitsToFloat(floatBitsToUint(solidDepthOut.x)|1u);
     }
     imageStore(colorimg5,texpos,vec4(solidDepthOut,0,0));
+
+    if(transNormalA>=0.9) //end gateway
+        imageStore(colorimg1,texpos,vec4(solidAlbedo,0));
+
+    if(transWrites) //:)
+        imageStore(colorimg3,texpos,transColor);
 }

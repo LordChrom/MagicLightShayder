@@ -334,24 +334,28 @@ void main()
 
 #ifdef TRANSLUCENT
     #ifdef SOLIDIFY_OPAQUE_TRANSLUCENTS
-    solidColorOut=vec4(0.0);
-    solidNormalOut=vec4(0.0);
+
+
     if(color.a>=0.99){
         solidColorOut =vec4(color.rgb,1.0);
         solidNormalOut=vec4(normalOut.rgb,1.0);
-        normalOut.a=0.0;
-        color=vec4(0.0);
+
+        normalOut = vec4(0.0,0.0,0.0,-0.9);
         specialDepthOut=vec4(gl_FragCoord.z,0,0,1);
+
+        color=vec4(0.0,0.0,0.0,1.0);
     }else{
-        normalOut.a=1.0;
-        specialDepthOut=vec4(0,0,0,0);
-//        color.rgb*=color.a;
+        solidColorOut=vec4(0.0);
+        solidNormalOut=vec4(0.0);
+
+        specialDepthOut=vec4(0,color.a,0,color.a);
+        normalOut.a=0;
     }
-    uint depthFloatBits = floatBitsToUint(specialDepthOut.x)&~1u;
-    #if defined MAYBE_END_GATEWAY
-    depthFloatBits|=uint(isEndGateway);
+
+    #ifdef MAYBE_END_GATEWAY
+    if(isEndGateway)
+        normalOut.a=1;
     #endif
-    specialDepthOut.x=uintBitsToFloat(depthFloatBits);
 
     #endif
 #else
