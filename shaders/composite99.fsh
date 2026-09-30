@@ -35,7 +35,9 @@ uniform sampler2D colortex19;
 layout(location = 0) out vec3 outColor;
 
 float visiblifyDepth(float scrnDepth){
-    scrnDepth = 0.1*(log2(depthToLinear(scrnDepth)));
+    if(scrnDepth<=0)
+        return 0;
+    scrnDepth = 0.1*(log2(depthToLinear(scrnDepth)+0.5));
     return clamp(scrnDepth,0,1);
 }
 
@@ -53,8 +55,21 @@ void main() {
 #elif DEBUG_SPECIAL_VIEW == 4
     outColor= texture(colortex4,texcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 5
-    float depth = texture(colortex5,texcoord).x;
-    outColor = vec3(visiblifyDepth(depth));
+    vec2 depths = texture(colortex5,texcoord).xy;
+    if(depths.y>=depths.x && depths.y<1)
+        depths.y=0;
+
+    outColor = vec3(
+        depths.y>=1?0:2*visiblifyDepth(depths.y),
+        depths.x>=1?0:visiblifyDepth(depths.x),
+        depths.y>=1
+    );
+
+    if(bool(floatBitsToUint(depths.x)&1u)){ //is hand
+        outColor.rg*=10;
+        outColor.b=0.4;
+    }
+
 #elif DEBUG_SPECIAL_VIEW == 6
     outColor=texture(colortex6,texcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 7
@@ -72,16 +87,7 @@ void main() {
 #elif DEBUG_SPECIAL_VIEW == 11
     outColor = texture(colortex11,texcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 100
-    vec2 depths = texture(colortex5,texcoord).xy;
-    bool isHand = bool(floatBitsToUint(depths.x)&1u);
-    depths.x = visiblifyDepth(depths.x);
-    depths.y = visiblifyDepth(depths.y);
 
-    outColor = vec3(depths.x,depths.y<depths.x?-0.5*depths.y:0,isHand?0.1:(float(depths.x==1)));
-    if(outColor.g>0)
-        outColor.rb = vec2(0);
-    if(outColor.b>0)
-        outColor.r=0;
 #elif DEBUG_SPECIAL_VIEW == 101
     outColor = vec3(bayer128(texpos));
 #elif DEBUG_SPECIAL_VIEW == 102

@@ -36,7 +36,9 @@ void main(){
     float d0 = texelFetch(depthtex0,texpos,0).x;
     vec2 dt5 = texelFetch(colortex5,texpos,0).xy;
     float d1 = texelFetch(depthtex1,texpos,0).x;
-    vec2 solidDepthOut = vec2(d2,d0);
+    vec4 transColor = texelFetch(colortex3,texpos,0);
+
+    vec2 depthsOut = vec2(d2,d0);
 
 #ifdef VOXY
     vec2 vxDepths;
@@ -49,9 +51,9 @@ void main(){
         vxDepths = depthsToBuf(vxDepths);
     }
     if(vxNotSky.x)
-        solidDepthOut.x = min(solidDepthOut.x,vxDepths.x);
+        depthsOut.x = min(depthsOut.x,vxDepths.x);
     if(vxNotSky.y)
-        solidDepthOut.y = min(solidDepthOut.y,vxDepths.y);
+        depthsOut.y = min(depthsOut.y,vxDepths.y);
 #endif
 #ifdef DISTANT_HORIZONS
     vec2 dhDepths;
@@ -63,47 +65,49 @@ void main(){
         dhDepths = 1.0/(dhDepths*dhProjectionInverse[2].w+ dhProjectionInverse[3].w);
         dhDepths = depthsToBuf(dhDepths);
     }
-    if(dhNotSky.x && solidDepthOut.x>=1.0)
-        solidDepthOut.x = min(solidDepthOut.x,dhDepths.x);
-    if(dhNotSky.y && solidDepthOut.y>=1.0)
-        solidDepthOut.y = min(solidDepthOut.y,dhDepths.y);
+    if(dhNotSky.x && depthsOut.x>=1.0)
+        depthsOut.x = min(depthsOut.x,dhDepths.x);
+    if(dhNotSky.y && depthsOut.y>=1.0)
+        depthsOut.y = min(depthsOut.y,dhDepths.y);
 #endif
 
 
     float transNormalA = 0.0;
     vec3 solidAlbedo;
     bool transWrites = false; //:(
-    vec4 transColor = vec4(0);
 
     dt5.x/=1-dt5.y;//corrects for the x getting multiplied by alpha of subsequent translucents
 
     if(dt5.x>0){
         transNormalA = texelFetch(colortex4,texpos,0).a;
         solidAlbedo = texelFetch(colortex1,texpos,0).rgb;
-        solidDepthOut.x=dt5.x;
+        depthsOut.x=dt5.x;
     }
-    if(solidDepthOut.x<=solidDepthOut.y && (
+    if(depthsOut.x<=depthsOut.y && (
         dt5.x>0.0
         #ifdef DISTANT_HORIZONS
         ||dhNotSky.y
         #endif
     )){ //solid trans in front, erase the evidence
         transWrites = true; // :)
+        transColor = vec4(0);
         imageStore(colorimg4,texpos,vec4(0));
-    }else if(dt5.y>0){  //really translucent trans in front, erase the evidence
+    }else if(d0<depthsOut.x){  //really translucent trans in front, save correct alpha value
         transWrites = true; // :)
-        transColor.rgb = texelFetch(colortex3,texpos,0).rgb;
         transColor.a=dt5.y;
     }
 
 
     //least significant bit of the mantissa stores depth. The actual depth info represented there is essentially meaningless, and it doesnt affect anything not specifically checking it
-    solidDepthOut.x=uintBitsToFloat(floatBitsToUint(solidDepthOut.x)&~1u);
-    if(d2!=d1){
-        solidDepthOut.x=fma(d0,1.0/MC_HAND_DEPTH,(0.5-0.5/MC_HAND_DEPTH));
-        solidDepthOut.x=uintBitsToFloat(floatBitsToUint(solidDepthOut.x)|1u);
+    depthsOut.x=uintBitsToFloat(floatBitsToUint(depthsOut.x)&~1u);
+
+    //TODO translucent hand stuff
+    if(d2!=d1)
+    {
+        depthsOut.x=fma(d0,1.0/MC_HAND_DEPTH,(0.5-0.5/MC_HAND_DEPTH));
+        depthsOut.x=uintBitsToFloat(floatBitsToUint(depthsOut.x)|1u);
     }
-    imageStore(colorimg5,texpos,vec4(solidDepthOut,0,0));
+    imageStore(colorimg5,texpos,vec4(depthsOut,0,0));
 
     if(transNormalA>=0.9) //end gateway
         imageStore(colorimg1,texpos,vec4(solidAlbedo,0));

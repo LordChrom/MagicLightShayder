@@ -92,6 +92,7 @@ out float distFromCam;
 #endif
 void main() {
     gl_Position = gl_ProjectionMatrix*(mat3x4(gl_ModelViewMatrix)*gl_Vertex.xyz+gl_ModelViewMatrix[3]);
+//    gl_Position = gl_ProjectionMatrix*gl_ModelViewMatrix*gl_Vertex;
     #ifdef DH_SHADER
     distFromCam=length(gl_Vertex.xyz);
     #endif

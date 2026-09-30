@@ -50,26 +50,27 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 
 
 # Colortexes
-| format  | num | purpose                      | scale | clear                | notes                           |
-|---------|-----|------------------------------|-------|----------------------|---------------------------------|
-|         | 0   | main output                  |       |                      |                                 |
-| RGBA8   | 1   | solid albedo                 |       | y (nether no skybox) | a<1 indicates pre-lit           |
-| RGBA8_S | 2   | solid normals                |       | y?      not needed   | a unused                        |
-| RGBA8   | 3   | translucent abledo           |       | Y (trans)            | a is calculated in colortex5.y  |
-| RGBA8_S | 4   | translucent normals          |       | Y (trans)            | a channel tracks pre-lit        |
-| RG32F   | 5   | processed depths             |       |                      |                                 |
-| RGBA16F | 6   | multiplicative lighting      | y     | n                    |                                 |
-| RGBA16F | 7   | additive light               | y     |                      |                                 |
-| RGBA8UI | 8   | Materials                    | y     | y                    |                                 |
-| R32F    | 9   | prev frame depth             |       | n                    |                                 |
-| RGBA16F | 10  | multiplicative accumulation. |       | N                    |                                 |
-| RGBA16F | 11  | additive accumulation.       |       | N                    |                                 |
-| RG16F   | 12  | DoF stuff                    |       |                      |                                 |
-| RGBA16F | 13  | Downsampling stuff           |       |                      |                                 |
-| RGBA8   | 14  | temporary                    |       |                      |                                 |
-|         | 15  |                              |       |                      |                                 |
-|         | 19  | debug (optional)             | y     |                      |                                 |
-
+| format  | num | purpose                      | scale | clear           | notes                            |
+|---------|-----|------------------------------|-------|-----------------|----------------------------------|
+|         | 0   | main output                  |       |                 |                                  |
+| RGBA8   | 1   | solid albedo                 |       | y nether no sky | a<1 indicates pre-lit            |
+| RGBA8_S | 2   | solid normals                |       | n? not needed?  | a unused                         |
+| RGBA8   | 3   | translucent abledo           |       | Y (trans)       | a is calculated in colortex5.y   |
+| RGBA8_S | 4   | translucent normals          |       | Y (trans)       | a channel tracks pre-lit         |
+| RG32F   | 5   | processed depths             |       | Y (trans stuff) | different in gbuffers, see comp1 |
+| RGBA16F | 6   | multiplicative lighting      | y     | n               |                                  |
+| RGBA16F | 7   | additive light               | y     |                 |                                  |
+| RGBA8UI | 8   | Materials                    |       | y               |                                  |
+| R32F    | 9   | prev frame depth             |       | N               |                                  |
+| RGBA16F | 10  | multiplicative accumulation. |       | N               |                                  |
+| RGBA16F | 11  | additive accumulation.       |       | N               |                                  |
+| RG16F   | 12  | DoF stuff                    |       |                 |                                  |
+| RGBA16F | 13  | Downsampling stuff           | y     |                 |                                  |
+| RGBA8   | 14  | temporary/DoF                |       |                 |                                  |
+|         | 15  |                              |       |                 |                                  |
+| RGBA8   | 19  | debug (optional)             | y     |                 |                                  |
+|         |     |                              |       |                 |                                  |
+| R32F    | sc0 | processed shadow depth       |       |                 |                                  |
 
 # Layouts
 ### Block.properties
