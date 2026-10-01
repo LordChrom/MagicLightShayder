@@ -33,8 +33,10 @@ out vec2 texcoord;
 flat out uint packedNormal;
 #endif
 
-#ifdef LIT
-//out vec2 lmcoord;
+
+#if defined LIT && defined TRANSLUCENT
+#define NEEDS_LMCOORD
+out vec2 lmcoord;
 #endif
 
 #if defined NORMALS_NOT_INCLUDED || defined HAND
@@ -152,9 +154,9 @@ void main() {
     #endif
 #endif
 
-#ifdef LIT
-//    lmcoord = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
-//    lmcoord = clamp(lmcoord,1.0/32,31.0/32);
+#ifdef NEEDS_LMCOORD
+    lmcoord = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
+    lmcoord = clamp(lmcoord,1.0/32,31.0/32);
 #endif
 
 #if (defined NEEDS_MATERIAL_ID) || (defined HARDCODED_MATERIAL)

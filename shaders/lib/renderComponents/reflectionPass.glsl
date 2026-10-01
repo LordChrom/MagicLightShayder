@@ -90,6 +90,11 @@ void main() {
     {
         normal=normalize(normal);
         transNormal=normalize(transNormal);
+        if(isnan(normal.z))
+            normal = vec3(0,1,0);
+        if(isnan(transNormal.z))
+            transNormal = vec3(0,1,0);
+
         #if REFLECTION_BOUNCES>1
         if(!continuing)
         #endif
@@ -144,7 +149,8 @@ void main() {
 
 
         if(dot(worldDir,normal)<0){
-            fogColorOut.rgb+= blend(vec4(lightColor*albedo,1),transColor)*reflectionMult;
+//            fogColorOut.rgb+= blend(vec4(lightColor*albedo,1),transColor)*reflectionMult;
+            fogColorOut.rgb+= blend(vec4(albedo,1),transColor)*reflectionMult;
         }
     }
 }

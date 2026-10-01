@@ -4,6 +4,7 @@
 #include "/lib/util/dither.glsl"
 #include "/lib/util/blend.glsl"
 
+uniform float frameTimeCounter;
 uniform mat4 gbufferModelViewInverse, gbufferProjectionInverse;
 in vec2 texcoord;
 
@@ -105,4 +106,8 @@ void main() {
     bool checker = bool((int(texpos.x/debugCheckerScale)^int(texpos.y/debugCheckerScale))&1);
     vec3 mult = checker?vec3(1):sign(outColor.xyz)*0.2+0.8;
     outColor=mult*abs(outColor);
+
+    if(isnan(outColor.x+outColor.y+outColor.z)){
+        outColor = (fract(frameTimeCounter*3)<0.5)?vec3(1,0,0):vec3(0,0,0);
+    }
 }

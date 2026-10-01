@@ -19,5 +19,6 @@ void main(){
 
 
     ssao/=4.25;
-    voxelLighting.rgb*=ssao/voxelLighting.a;
+    if(voxelLighting.a>0)
+        voxelLighting.rgb*=ssao/voxelLighting.a;
 }

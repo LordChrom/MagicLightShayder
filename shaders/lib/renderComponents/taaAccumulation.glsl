@@ -80,7 +80,7 @@ void taaAccumulate(){
 
             vec2 pixelShiftiness = (fract(prevScreenPos.xy*textureSize(colortex5,0))-0.5);
             pixelShiftiness = abs(2*pixelShiftiness);
-            previousMultAccumulation.a=min(previousMultAccumulation.a,200);
+            previousMultAccumulation.a=clamp(previousMultAccumulation.a,0.00001,200);
             previousMultAccumulation.a*=clamp(1-TAA_ANTI_SMEAR*max(pixelShiftiness.x,pixelShiftiness.y)/LIGHTING_RENDERSCALE,0,1);
 
             float weight = lightSampleWeight(jitteredTexcoord);
@@ -92,7 +92,6 @@ void taaAccumulate(){
            #ifdef TAA_FOG
             mixRatio=1-((1-mixRatio)*(1-speed*3));
             mixRatio=clamp(mixRatio,0,1);
-//            mixRatio=1.0;
             previousAddAccumulation = texture(colortex11,prevScreenPos.xy);
             mixRatio*=fogSampleWeight(jitteredTexcoord);
 
@@ -102,10 +101,11 @@ void taaAccumulate(){
     }
 
 
-    for(int i=0;i<4;i++){
-        if(isnan(multAccumulation[i]))
-            multAccumulation[i]=0;
-    }
+    if(isnan(multAccumulation.x+multAccumulation.y+multAccumulation.z+multAccumulation.w))
+        multAccumulation=vec4(0.0 );
+    if(isnan(addAccumulation.x+addAccumulation.y+addAccumulation.z+addAccumulation.w))
+        addAccumulation=vec4(0.0);
+
 
 #if DEBUG_SPECIAL_VIEW == 200
     float weight = lightSampleWeight(jitteredTexcoord);

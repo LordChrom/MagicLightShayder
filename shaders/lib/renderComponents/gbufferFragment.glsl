@@ -87,6 +87,11 @@ flat in int materialID;
 #endif
 
 #if defined TRANSLUCENT
+    #if defined LIT && defined TRANSLUCENT
+    #include "/lib/util/shadowLightInfo.glsl"
+    in vec2 lmcoord;
+    #endif
+
     #ifdef SOLIDIFY_OPAQUE_TRANSLUCENTS
         #ifdef WRITE_MATERIALS
         #define WRITE_MATERIALS 5
@@ -342,6 +347,7 @@ void main()
 
         color=vec4(0.0,0.0,0.0,1.0);
     }else{
+        color.rgb*=max(vec3(0.2),lmcoord.y*getSunColor());
         solidColorOut=vec4(0.0);
         solidNormalOut=vec4(0.0);
 
