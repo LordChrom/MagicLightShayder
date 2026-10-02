@@ -149,8 +149,7 @@ void main() {
 
 
         if(dot(worldDir,normal)<0){
-//            fogColorOut.rgb+= blend(vec4(lightColor*albedo,1),transColor)*reflectionMult;
-            fogColorOut.rgb+= blend(vec4(albedo,1),transColor)*reflectionMult;
+            fogColorOut.rgb+= blend(vec4(lightColor*albedo,1),transColor)*reflectionMult;
         }
     }
 }
