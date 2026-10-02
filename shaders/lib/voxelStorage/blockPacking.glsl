@@ -1,5 +1,6 @@
 #ifndef BLOCK_PACKING_GLSL
 #define BLOCK_PACKING_GLSL
+const uint END_GATEWAY_ID = 55498u;
 
 uint blockLightID(uint blockID){
     return uint(blockID)&0x3fu;
@@ -142,13 +143,11 @@ bool isMaterialHardcodedSubsurface(uint materialID){
 }
 
 uvec4 getHardcodedMaterial(uint materialID, uint blockEmission){
-    uint meta = ((materialID>>6)%10u);
-
     float subsurface = float(isMaterialHardcodedSubsurface(materialID));
     uint emissive = 0u;
     float porosity = 0;
     if(materialID>=0){
-        emissive = bool(meta&4u)?int(floor(16.93*blockEmission)):0;
+        emissive = bool(blockLightID(materialID))?int(16.93*blockEmission):0;
     }
 
     return clamp(uvec4(

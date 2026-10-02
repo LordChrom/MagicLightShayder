@@ -200,7 +200,7 @@ void main()
 
 
 #ifdef MAYBE_END_GATEWAY
-    bool isEndGateway = materialID==55498;
+    bool isEndGateway = materialID==END_GATEWAY_ID;
 #endif
 
 #ifdef TEXTURED

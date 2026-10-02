@@ -176,9 +176,6 @@ void main() {
 
 #ifdef HARDCODED_MATERIAL
     hardcodedMaterialInfo = getHardcodedMaterial(materialID,int(at_midBlock.w));
-    #ifdef MAYBE_END_GATEWAY
-    hardcodedMaterialInfo.a=254;
-    #endif
 #endif
 
 #ifdef UPDATE_VOXEL_MAP
