@@ -96,7 +96,7 @@
 #define DOF_FOCAL_LENGTH 23 //[2.5 5 7.5 10 12.5 15 17.5 20 22 23 24 25 26 30 35 40 45 50 60 70 400]
 #define OLDDOF_RAD 16 //[8 16 24 32 40 48 56 64]
 #define OLDDOF_ANTIBLEED 4 //[-1 2 3 4 8 16]
-#define HALF_RES_DOF
+//#define HALF_RES_DOF
 
 #define MATERIALS_TYPE 1 //[-1 0 1]
 #define POM
@@ -159,7 +159,7 @@
 #define FLOODFILL_SIZE 64 //[32 64 128 192 256 384]
 
 
-//#define SWRT
+#define SWRT
 #define SWRT_SIZE 64 //[32 64 128 192 256 384]
 #define SWRT_PENUMBRA_SIZE -1 //[-1 0.05 0.1 0.15 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0]
 #define SWRT_NOISE_FILTER 1 //[-1 1 2]
@@ -174,7 +174,7 @@
 #define OBSTRUCTION_MAPPING
 //#define CHANGE_TRACKING
 //#define BASIC_FLOODFILL
-#define FLOOD_SHADOWS
+//#define FLOOD_SHADOWS
 
 /////
 #define DOF_WG_SIZE 32
