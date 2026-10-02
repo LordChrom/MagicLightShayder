@@ -21,7 +21,7 @@ vec3 screenspaceRaycast(int stepsPerBounce, float maxCastLen,
 
         if(distFromEdge<=(fadeAtEdges?ditherValue*0.1:0) || pos.z<=0.4 || pos.z>=1){
             hitReason=1;
-        }else if(texDepth<=pos.z+1e-4){
+        }else if(texDepth<=pos.z){
             hitReason=4;
         }
     }

@@ -30,6 +30,7 @@ uniform sampler2D dhDepthTex1;
 #include "/lib/util/conversions.glsl"
 #endif
 
+const float almostOne = 0.9999996;
 void main(){
     ivec2 texpos = ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy);
     float d2 = texelFetch(depthtex2,texpos,0).x;
@@ -51,9 +52,9 @@ void main(){
         vxDepths = depthsToBuf(vxDepths);
     }
     if(vxNotSky.x)
-        depthsOut.x = min(depthsOut.x,vxDepths.x);
+        depthsOut.x = min(depthsOut.x,min(vxDepths.x,almostOne));
     if(vxNotSky.y)
-        depthsOut.y = min(depthsOut.y,vxDepths.y);
+        depthsOut.y = min(depthsOut.y,min(vxDepths.y,almostOne));
 #endif
 #ifdef DISTANT_HORIZONS
     vec2 dhDepths;
@@ -66,9 +67,9 @@ void main(){
         dhDepths = depthsToBuf(dhDepths);
     }
     if(dhNotSky.x && depthsOut.x>=1.0)
-        depthsOut.x = min(depthsOut.x,dhDepths.x);
+        depthsOut.x = min(depthsOut.x,min(dhDepths.x,almostOne));
     if(dhNotSky.y && depthsOut.y>=1.0)
-        depthsOut.y = min(depthsOut.y,dhDepths.y);
+        depthsOut.y = min(depthsOut.y,min(dhDepths.y,almostOne));
 #endif
 
 

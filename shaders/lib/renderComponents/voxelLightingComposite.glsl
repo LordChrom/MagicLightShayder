@@ -54,9 +54,9 @@ void main() {
     #endif
 
 
-    float albedoA = texture(colortex1,jitteredTexcoord).a;
-    if(solidDepth==1 || albedoA<1){
-        imageStore(colorimg6,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),vec4(albedoA>0));
+    float albedoA = texelFetch(colortex1,ivec2(jitteredTexcoord*textureSize(colortex1,0)),0).a;
+    if(solidDepth==1.0 || albedoA<1){
+        imageStore(colorimg6,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),vec4(0));
         return;
     }
     vec4 worldPosRelative = vec4(jitteredTexcoord,solidDepth,1);

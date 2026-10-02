@@ -53,6 +53,7 @@ layout(location = 0) out vec3 outputColor;
 void main() {
     ivec2 texpos = ivec2(gl_FragCoord.xy);
     vec4 albedo = texelFetch(colortex1,texpos,0);
+    float solidDepth = texelFetch(colortex5,texpos,0).x;
     vec4 transColor = texelFetch(colortex3,texpos,0);
 
 
@@ -68,7 +69,7 @@ void main() {
     vec4 voxelFog = texture(additiveLightTex,texcoord);
     #endif
 
-    if(albedo.a<1)
+    if(albedo.a<1 || solidDepth==1.0)
         light=vec3(1);
 
     vec3 color=albedo.xyz*light;

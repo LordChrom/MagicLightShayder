@@ -287,7 +287,8 @@ void main()
             color.b=1;
         #endif
     #endif
-
+    #else
+        normalOut.xyz=normal;
     #endif
 
     normalOut.a=NORMAL_A;
