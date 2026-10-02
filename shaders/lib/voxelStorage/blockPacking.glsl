@@ -159,7 +159,7 @@ uvec4 getHardcodedMaterial(uint materialID, uint blockEmission){
 }
 
 uvec4 getHardcodedMaterial(uint materialID){
-    return getHardcodedMaterial(materialID,15);
+    return getHardcodedMaterial(materialID,bool(blockLightID(materialID))&&!isMaterialHardcodedSubsurface(materialID)?15u:0u);
 }
 
 uint packVoxelForStorage(uint blockID, uint emission){
