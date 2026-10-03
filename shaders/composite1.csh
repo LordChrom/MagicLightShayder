@@ -110,7 +110,7 @@ void main(){
     }
     imageStore(colorimg5,texpos,vec4(depthsOut,0,0));
 
-    if(transNormalA>=0.9) //end gateway
+    if(transNormalA>=0.999) //end gateway
         imageStore(colorimg1,texpos,vec4(solidAlbedo,0));
 
     if(transWrites) //:)

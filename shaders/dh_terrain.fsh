@@ -37,5 +37,5 @@ void main() {
     vec2 lmcoord = vec2(0.0);
 //    lmcoord = gl_MultiTexCoord2.xy;
     handleFragment(glcolor,normal, lmcoord, vec4(1,1,1,1), int(-1));
-    normalOut.a=1.0;
+    normalOut.a=0.99;
 }
