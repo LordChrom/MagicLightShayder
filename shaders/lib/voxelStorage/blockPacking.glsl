@@ -167,7 +167,7 @@ uvec4 getHardcodedMaterial(uint materialID){
 uint packVoxelForStorage(uint blockID, uint emission){
 
     blockID = blockID&0xffffu;
-    if(blockID==0xffff){
+    if(blockID==0xffffu){
         blockID = bool(emission)?
             65: //default emissive is like brewing stand
             64; //solid cube

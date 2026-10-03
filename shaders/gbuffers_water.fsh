@@ -6,5 +6,6 @@
 #define WRITE_MATERIALS
 #define POM_ELLIGIBLE
 #define ALPHATEST
+#define MATERIAL_ID_AVAILABLE
 
 #include "/lib/renderComponents/gbufferFragment.glsl"

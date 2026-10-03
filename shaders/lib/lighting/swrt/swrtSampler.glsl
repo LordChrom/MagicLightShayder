@@ -14,7 +14,7 @@
 #define TEMPORAL_DITHER
 #include "/lib/util/dither.glsl"
 
-ivec3 unitShift;
+ivec3 unitShift = ivec3(0);
 
 vec3 colorOfPackedLight(uint light){
     return worldVoxColor((light>>22)&0x3fu,(light>>28)&0x3fu);

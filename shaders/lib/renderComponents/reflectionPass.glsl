@@ -57,8 +57,8 @@ void main() {
     fogColorOut = vec4(0,0,0,1);
     #endif
 
-    vec3 normal = texture(colortex2,texcoord).xyz;
     vec3 transNormal = texture(colortex4,texcoord).xyz;
+    vec3 normal = texture(colortex2,texcoord).xyz;
     vec3 worldDir = normalize(worldDirNormalizeMe);
     vec3 screenPos;
     screenPos.z = texture(colortex5,texcoord).y;
@@ -88,18 +88,16 @@ void main() {
 
     for(int i=0;i<REFLECTION_BOUNCES;i++)
     {
-        normal=normalize(normal);
-        transNormal=normalize(transNormal);
-        if(isnan(normal.z))
-            normal = vec3(0,1,0);
-        if(isnan(transNormal.z))
-            transNormal = vec3(0,1,0);
-
         #if REFLECTION_BOUNCES>1
         if(!continuing)
         #endif
         {
-            bool reflectingOffTrans = transColor.a>0.05;
+            bool reflectingOffTrans = transColor.a>0.05 && length(transNormal)>0.25;
+            transNormal=normalize(transNormal);
+            normal=normalize(normal);
+            if(isnan(normal.z))
+                normal = vec3(0,1,0);
+
             worldDir = vectorReflect(worldDir, reflectingOffTrans?transNormal:normal);
             #ifndef PERFECT_MIRRORS
             if(reflectingOffTrans){

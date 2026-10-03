@@ -25,12 +25,14 @@ const float translucentPrecedenceCutoff = 0.99;
 #undef TRANSLUCENT
 #endif
 
-#if MATERIALS_TYPE == 0 && defined NOT_BLOCK
+#if MATERIALS_TYPE == 0 && !defined MATERIAL_ID_AVAILABLE
     #define MATERIALS_TYPE -1
 #endif
 
-#if MATERIALS_TYPE >= 0
+#if MATERIALS_TYPE >= 0 && (defined WRITE_MATERIALS || defined USES_MATERIALS)
     #define NEEDS_MATERIAL_ID
+#elif defined FAKE_TRANSLUCENT
+    #define MATERIALS_TYPE -2
 #else
     #undef WRITE_MATERIALS
 #endif
@@ -83,7 +85,18 @@ in vec4 glcolor;
 #endif
 
 #if defined TRANSLUCENT
-    #ifdef SOLIDIFY_OPAQUE_TRANSLUCENTS
+
+    #ifdef FAKE_TRANSLUCENT
+        #define NO_TRANSLUCENT_REFLECT
+    #else
+        #undef WRITE_MATERIALS
+    #endif
+
+    #ifdef ENCHANT_GLINT
+        /* RENDERTARGETS: 3,4,1 */
+        layout(location = 2) out vec4 solidColorOut;
+        vec4 solidNormalOut,specialDepthOut; //this is called "lying". armor glint is weird
+    #elif defined SOLIDIFY_OPAQUE_TRANSLUCENTS
         #ifdef WRITE_MATERIALS
         #define WRITE_MATERIALS 5
         /* RENDERTARGETS: 3,4,1,2,5,8 */
@@ -110,22 +123,11 @@ in vec4 glcolor;
     #endif
 #endif
 
-#endif
+#endif //end of the lod shader preproc
 
 
-#ifdef HAND
-    #define NORMAL_A 0.5
-#elif defined TRANSLUCENT
-    #define NORMAL_A 1
-#else
-    #define NORMAL_A 0
-#endif
 
-#if (!defined POM_ELLIGIBLE) || defined NORMALS_NOT_INCLUDED
-    #undef POM
-#endif
-
-#if (defined ENTITY) && !(defined ENTITY_POM)
+#if (!defined POM_ELLIGIBLE) || defined NORMALS_NOT_INCLUDED || ((defined ENTITY) && !(defined ENTITY_POM))
     #undef POM
 #endif
 
@@ -155,7 +157,7 @@ layout(location = 0) out vec4 color;
 layout(location = 1) out vec4 normalOut;
 
 #ifdef WRITE_MATERIALS
-    #if (defined TRANSLUCENT && !defined FAKE_TRANSLUCENT) || WRITE_MATERIALS<0
+    #if WRITE_MATERIALS<0
     uvec4 materialInfo;
     #else
     layout(location = WRITE_MATERIALS) out uvec4 materialInfo;
@@ -172,7 +174,7 @@ layout(location = 1) out vec4 normalOut;
 
 
 #ifdef NEEDS_MATERIAL_ID
-#ifndef VOXY_PATCH
+#ifndef LOD_MOD_SHADER
 flat in int materialID;
 #endif
 #include "/lib/voxelStorage/blockPacking.glsl"
@@ -215,7 +217,7 @@ void main()
 #endif
 
 #ifdef MAYBE_END_GATEWAY
-    bool isEndGateway = materialID==END_GATEWAY_ID;
+    bool isEndGateway = uint(materialID)==END_GATEWAY_ID;
 #endif
 
 #ifdef TEXTURED
@@ -306,8 +308,6 @@ void main()
         normalOut.xyz=normal;
     #endif
 
-    normalOut.a=NORMAL_A;
-
 
     #ifdef TRANSLUCENT
     if(color.a<=translucentPrecedenceCutoff)
@@ -317,7 +317,9 @@ void main()
 
 
 #ifdef USES_MATERIALS
-    #if MATERIALS_TYPE == 0 //hardcoded
+    #if MATERIALS_TYPE == -2 //writes materials of zero (for solid translucents blocking stuff behind them
+    materialInfo = uvec4(0);
+    #elif MATERIALS_TYPE == 0 //hardcoded
     materialInfo = getHardcodedMaterial(uint(materialID));
         #if !(HARDCODED_EMISSIVE_SELECTIVITY==-1)
     if(materialInfo.a!=255){
@@ -363,12 +365,12 @@ void main()
         vec3 lighting = lmcoord.y*getSunColor();
 
         #if MATERIALS_TYPE >= 0
-        #ifdef USES_MATERIALS
+        #if defined USES_MATERIALS && !defined DH_SHADER
         if(materialInfo.a<255)
             lighting += float(materialInfo.a)/254.0;
         #endif
         #ifdef NEEDS_MATERIAL_ID
-        if(materialID==13u)
+        if(uint(materialID)==13u)
             lighting=vec3(1.0);
         #endif
         #endif
@@ -382,6 +384,10 @@ void main()
         specialDepthOut=vec4(0,color.a,0,color.a);
         normalOut.a=0;
     }
+    #ifdef NO_TRANSLUCENT_REFLECT
+    normalOut.a=0;
+    normalOut=vec4(0,0,0,0);
+    #endif
 
     #ifdef MAYBE_END_GATEWAY
     if(isEndGateway)
@@ -404,4 +410,8 @@ void main()
     color.a=0.0;
     #endif
 #endif
+
+    #ifdef ENCHANT_GLINT
+    solidColorOut.a=length(solidColorOut.rgb);
+    #endif
 }

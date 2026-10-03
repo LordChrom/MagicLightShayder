@@ -168,7 +168,6 @@ Packing
 - secondary tanslucent hits in SSR
 - TAA performance
 - resolution scaling DoF
-- enchant glint
 
 ### Necessary additions
 - water waves

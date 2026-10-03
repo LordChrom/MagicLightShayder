@@ -4,7 +4,7 @@
 #include "/lib/voxelStorage/blockPacking.glsl"
 
 
-#if MATERIALS_TYPE == 0 && defined NOT_BLOCK
+#if MATERIALS_TYPE == 0 && !defined MATERIAL_ID_AVAILABLE
     #define MATERIALS_TYPE -1
 #endif
 
@@ -49,10 +49,11 @@ uniform mat4 gbufferModelViewInverse;
     #include "/lib/voxelStorage/vsMapper.glsl"
     #define UPDATE_VOXEL_MAP
     #define NEEDS_MC_ENTITY
+    in vec4 at_midBlock;
     uniform vec3 cameraPosition;
 #endif
 
-#if (defined NEEDS_MATERIAL_ID) || (defined HARDCODED_MATERIAL)
+#ifdef NEEDS_MATERIAL_ID
     #ifdef BLOCK_ENTITY
         uniform int blockEntityId;
     #else
@@ -84,10 +85,6 @@ flat out int materialID;
 
 #ifdef NEEDS_MC_ENTITY
 in vec2 mc_Entity;
-#endif
-
-#if defined HARDCODED_MATERIAL || defined UPDATE_VOXEL_MAP
-in vec4 at_midBlock;
 #endif
 
 #ifdef DH_SHADER
@@ -160,11 +157,7 @@ void main() {
     lmcoord = clamp(lmcoord,1.0/32,31.0/32);
 #endif
 
-#if (defined NEEDS_MATERIAL_ID) || (defined HARDCODED_MATERIAL)
-    #ifndef NEEDS_MATERIAL_ID
-        int materialID;
-    #endif
-
+#ifdef NEEDS_MATERIAL_ID
     #ifdef BLOCK_ENTITY
         materialID = blockEntityId;
         if(materialID==65535)
@@ -173,10 +166,6 @@ void main() {
     //TODO handle old versions, optifine jank
         materialID = int(round(mc_Entity.x));
     #endif
-#endif
-
-#ifdef HARDCODED_MATERIAL
-    hardcodedMaterialInfo = getHardcodedMaterial(materialID,int(at_midBlock.w));
 #endif
 
 #ifdef UPDATE_VOXEL_MAP

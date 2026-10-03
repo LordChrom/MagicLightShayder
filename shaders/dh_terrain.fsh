@@ -7,7 +7,7 @@
 #endif
 
 
-//#define TEXTURED
+//#define TEXTURED-NoIrisWarningThisIsForLater
 #define LIT
 #define VERTEX_NORMALS
 #define IS_TERRAIN

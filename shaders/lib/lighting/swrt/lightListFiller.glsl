@@ -20,7 +20,8 @@
 const ivec3 workGroups = ivec3(WORK_SIZE,WORK_SIZE,WORK_SIZE);
 layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = SIZE) in;
 
-ivec3 localPos, unitShift;
+ivec3 localPos = ivec3(0);
+ivec3 unitShift = ivec3(0);
 uint[SWRT_LIGHTS_PER_BLOCK] selfList;
 uint[SWRT_LIGHTS_PER_BLOCK] neighborList;
 uint[SWRT_LIGHTS_PER_BLOCK] outList;

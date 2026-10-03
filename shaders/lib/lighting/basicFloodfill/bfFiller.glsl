@@ -29,10 +29,10 @@ layout (local_size_x = SIZE, local_size_y = 1, local_size_z = SIZE) in;
 const float oneLightLevel = 1.0/15.0;
 const float oneStep = 1.0/255.0;
 
-ivec3 unitShift;
-vec4 lightOutput;
-uint ceilingHeight;
-uint centerBlock;
+ivec3 unitShift = ivec3(0);
+vec4 lightOutput = vec4(0);
+uint ceilingHeight = 0u;
+uint centerBlock = 0u;
 
 void zeroPosition(ivec3 pos, bool isTop){
     setFloodData(vec4(0,0,0,isTop),pos,unitShift);

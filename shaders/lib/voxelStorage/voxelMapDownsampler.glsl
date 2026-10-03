@@ -23,7 +23,7 @@ uint cascadeLevel;
 //    setBaseVoxData(0,pos,shift);
 //}
 
-//#define MOVEMENT_TRIM
+//#define MOVEMENT_TRIM-NoIrisWarningThisIsForLater
 #include "/lib/util/3dComputeShaderUtils.glsl"
 
 
