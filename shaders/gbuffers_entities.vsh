@@ -4,6 +4,7 @@
 #define WRITE_MATERIALS
 #define ENTITY
 #define POM_ELLIGIBLE
+#define NOT_BLOCK
 
 //stupid iris nonsense
 #ifndef TRANSLUCENT

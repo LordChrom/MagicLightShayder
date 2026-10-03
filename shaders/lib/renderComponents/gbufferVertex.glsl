@@ -3,6 +3,11 @@
 #include "/lib/settings.glsl"
 #include "/lib/voxelStorage/blockPacking.glsl"
 
+
+#if MATERIALS_TYPE == 0 && defined NOT_BLOCK
+    #define MATERIALS_TYPE -1
+#endif
+
 #if MATERIALS_TYPE < 0
     #undef WRITE_MATERIALS
 #endif
@@ -40,7 +45,7 @@ uniform mat4 gbufferModelViewInverse;
 #endif
 
 
-#if ( VOXELIZATION_MODE >=1 ) && (defined IS_TERRAIN )
+#if ( VOXELIZATION_MODE >=1 ) && (defined IS_TERRAIN ) && (!defined LOD_MOD_SHADER)
     #include "/lib/voxelStorage/vsMapper.glsl"
     #define UPDATE_VOXEL_MAP
     #define NEEDS_MC_ENTITY

@@ -17,9 +17,6 @@
 
 #include "/lib/renderComponents/gbufferFragment.glsl"
 
-//void handleFragment(vec4 glcolor,vec3 normal, vec2 lmcoord, vec4 voxycolor, int materialID)
-
-
 
 
 
@@ -37,6 +34,8 @@ void main() {
     normal.z=dot(normal.xy,normal.xy);
     normal.z = normal.z>=1?0:(sqrt(1-normal.z)*(bool(packedNormal&2u)?1:-1));
 
-    handleFragment(glcolor,normal, vec4(1,1,1,1), int(0));
+    vec2 lmcoord = vec2(0.0);
+//    lmcoord = gl_MultiTexCoord2.xy;
+    handleFragment(glcolor,normal, lmcoord, vec4(1,1,1,1), int(-1));
     normalOut.a=1.0;
 }

@@ -14,7 +14,6 @@ const float translucentPrecedenceCutoff = 0.99;
         #define NEEDS_MATERIAL_ID
         #define MATERIALS_TYPE 0
         #define WRITE_MATERIALS 2
-//        #include "/lib/voxelStorage/blockPacking.glsl"
     #else
         #define MATERIALS_TYPE -1
         #undef WRITE_MATERIALS
@@ -24,6 +23,10 @@ const float translucentPrecedenceCutoff = 0.99;
 
 #if ((DEBUG_SPECIAL_VIEW==104) || (DEBUG_SPECIAL_VIEW==106))
 #undef TRANSLUCENT
+#endif
+
+#if MATERIALS_TYPE == 0 && defined NOT_BLOCK
+    #define MATERIALS_TYPE -1
 #endif
 
 #if MATERIALS_TYPE >= 0
@@ -68,11 +71,6 @@ void doBonusStuff();
 in flat vec4 glcolor;
 #else
 in vec4 glcolor;
-#endif
-
-#ifdef NEEDS_MATERIAL_ID
-flat in int materialID;
-#include "/lib/voxelStorage/blockPacking.glsl"
 #endif
 
 #if defined MAYBE_END_GATEWAY && defined GATEWAYS_IN_GBUFFER
@@ -167,16 +165,23 @@ layout(location = 1) out vec4 normalOut;
 
 #if defined LIT && defined TRANSLUCENT
     #include "/lib/util/shadowLightInfo.glsl"
-    #ifndef VOXY_PATCH
+    #ifndef LOD_MOD_SHADER
     in vec2 lmcoord;
     #endif
+#endif
+
+
+#ifdef NEEDS_MATERIAL_ID
+#ifndef VOXY_PATCH
+flat in int materialID;
+#endif
+#include "/lib/voxelStorage/blockPacking.glsl"
 #endif
 
 const uint normPackScale = 0x7fff;
 
 #ifdef LOD_MOD_SHADER
 void handleFragment(vec4 glcolor,vec3 normal,vec2 lmcoord,vec4 voxycolor, int materialID)
-
 #if 0
 ;//for my IDE :/
 #endif
