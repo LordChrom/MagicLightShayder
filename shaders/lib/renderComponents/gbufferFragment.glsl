@@ -12,10 +12,9 @@ const float translucentPrecedenceCutoff = 0.99;
 
     #if MATERIALS_TYPE>=0 && !defined TRANSLUCENT
         #define NEEDS_MATERIAL_ID
-        #define HARDCODED_MATERIAL
         #define MATERIALS_TYPE 0
         #define WRITE_MATERIALS 2
-        #include "/lib/voxelStorage/blockPacking.glsl"
+//        #include "/lib/voxelStorage/blockPacking.glsl"
     #else
         #define MATERIALS_TYPE -1
         #undef WRITE_MATERIALS
@@ -27,17 +26,10 @@ const float translucentPrecedenceCutoff = 0.99;
 #undef TRANSLUCENT
 #endif
 
-#if MATERIALS_TYPE < 0
-    #undef WRITE_MATERIALS
-#endif
-
-#if (defined WRITE_MATERIALS) && (MATERIALS_TYPE == 0)
+#if MATERIALS_TYPE >= 0
     #define NEEDS_MATERIAL_ID
-    #define HARDCODED_MATERIAL
-    flat in uvec4 hardcodedMaterialInfo;
-    #if !(HARDCODED_EMISSIVE_SELECTIVITY==-1)
-        #define NEEDS_MATERIAL_ID
-    #endif
+#else
+    #undef WRITE_MATERIALS
 #endif
 
 #ifdef TEXTURED
@@ -165,7 +157,12 @@ layout(location = 0) out vec4 color;
 layout(location = 1) out vec4 normalOut;
 
 #ifdef WRITE_MATERIALS
-layout(location = WRITE_MATERIALS) out uvec4 materialInfo;
+    #if (defined TRANSLUCENT && !defined FAKE_TRANSLUCENT) || WRITE_MATERIALS<0
+    uvec4 materialInfo;
+    #else
+    layout(location = WRITE_MATERIALS) out uvec4 materialInfo;
+    #endif
+    #define USES_MATERIALS
 #endif
 
 #if defined LIT && defined TRANSLUCENT
@@ -314,13 +311,9 @@ void main()
 #endif
 
 
-#ifdef WRITE_MATERIALS
+#ifdef USES_MATERIALS
     #if MATERIALS_TYPE == 0 //hardcoded
-        #ifdef LOD_MOD_SHADER
     materialInfo = getHardcodedMaterial(uint(materialID));
-        #else
-    materialInfo = hardcodedMaterialInfo;
-        #endif
         #if !(HARDCODED_EMISSIVE_SELECTIVITY==-1)
     if(materialInfo.a!=255){
         vec3 lightColor = getMaterialColor(uint(materialID));
@@ -362,7 +355,21 @@ void main()
         color=vec4(0.0,0.0,0.0,1.0);
     }else{
         #ifdef LIT
-        color.rgb*=max(vec3(0.2),lmcoord.y*getSunColor());
+        vec3 lighting = lmcoord.y*getSunColor();
+
+        #if MATERIALS_TYPE >= 0
+        #ifdef USES_MATERIALS
+        if(materialInfo.a<255)
+            lighting += float(materialInfo.a)/254.0;
+        #endif
+        #ifdef NEEDS_MATERIAL_ID
+        if(materialID==13u)
+            lighting=vec3(1.0);
+        #endif
+        #endif
+
+        lighting = clamp(lighting,vec3(0.2),vec3(1.0));
+        color.rgb*=lighting;
         #endif
         solidColorOut=vec4(0.0);
         solidNormalOut=vec4(0.0);
