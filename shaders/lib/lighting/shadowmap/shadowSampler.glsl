@@ -129,8 +129,8 @@ float shadowSampleCheapest(vec3 shadowpos){
 vec3 worldSpaceToShadow(vec3 worldPos){
     vec4 shadowPos = vec4(mat3(shadowModelView)*worldPos+shadowModelView[3].xyz,1);
     shadowPos = shadowProjection*shadowPos;
-    shadowPos.xyz=distort(shadowPos.xyz);
     shadowPos.xyz/=shadowPos.w;
+    shadowPos.xyz=distort(shadowPos.xyz);
     shadowPos.xyz=shadowPos.xyz*0.5+0.5;
     return shadowPos.xyz;
 }
@@ -165,8 +165,15 @@ float shadowmapSample(vec3 worldPos, vec3 normal, float subsurface, float dither
     vec3 shadowPos = worldSpaceToShadow(worldPos+clamp(worldPosLen,1e-1,0.8)*biasNormal);
     #ifdef SCREENSPACE_SHADOW_FALLBACK
     float distFromEdges = min(min(shadowPos.x,shadowPos.y),1-max(shadowPos.x,shadowPos.y));
-    if(distFromEdges<0.05)
-        return -1;
+
+    #ifdef CASCADED_SHADOWS
+    distFromEdges*=0.33333333;
+    if(max(shadowPos.x,shadowPos.y)<=-0.34)
+    #endif
+    {
+        if(distFromEdges<0.05)
+            return -1;
+    }
     #endif
     shadowPos.z=sunBiasZ(shadowPos);
 
