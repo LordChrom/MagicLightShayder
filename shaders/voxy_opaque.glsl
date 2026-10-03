@@ -27,5 +27,5 @@ void voxy_emitFragment(VoxyFragmentParameters parameters) {
 
     if((parameters.face&1)==0) normal=-normal;
 
-    handleFragment(parameters.tinting,normal, parameters.sampledColour, int(parameters.customId));
+    handleFragment(parameters.tinting,normal,parameters.lightMap,parameters.sampledColour, int(parameters.customId));
 }

@@ -23,7 +23,11 @@
 
     "uniforms": [
         "alphaTestRef",
-        "vxProjInv"
+        "vxProjInv",
+
+        "biome_category",
+        "sunAngle",
+        "hasCeiling"
     ],
     "samplers": {
         "gtexture": "sampler2D"

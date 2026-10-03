@@ -88,7 +88,7 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
         #endif
     }
 
-    ret.a=0.2+0.8*clamp(ret.a,0,1);
+    ret.a=0.1+0.9*clamp(ret.a,0,1);
     ret.rgb+=ret.a*getSunColor();
     return ret.rgb + MIN_LIGHT_AMOUNT*clamp(1-(ret.r+ret.g+ret.b),0,1);
 }

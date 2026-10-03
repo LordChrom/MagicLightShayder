@@ -50,6 +50,12 @@ flat in uint packedTangent;
     #endif
 #endif
 
+#ifndef VOXY
+    #undef CHECK_VOXY_DEPTH
+#elif defined CHECK_VOXY_DEPTH
+    uniform sampler2D vxDepthTexTrans;
+#endif
+
 #ifdef VERTEX_NORMALS
 flat in uint packedNormal;
 #endif
@@ -87,11 +93,6 @@ flat in int materialID;
 #endif
 
 #if defined TRANSLUCENT
-    #if defined LIT && defined TRANSLUCENT
-    #include "/lib/util/shadowLightInfo.glsl"
-    in vec2 lmcoord;
-    #endif
-
     #ifdef SOLIDIFY_OPAQUE_TRANSLUCENTS
         #ifdef WRITE_MATERIALS
         #define WRITE_MATERIALS 5
@@ -167,10 +168,17 @@ layout(location = 1) out vec4 normalOut;
 layout(location = WRITE_MATERIALS) out uvec4 materialInfo;
 #endif
 
+#if defined LIT && defined TRANSLUCENT
+    #include "/lib/util/shadowLightInfo.glsl"
+    #ifndef VOXY_PATCH
+    in vec2 lmcoord;
+    #endif
+#endif
+
 const uint normPackScale = 0x7fff;
 
 #ifdef LOD_MOD_SHADER
-void handleFragment(vec4 glcolor,vec3 normal, vec4 voxycolor, int materialID)
+void handleFragment(vec4 glcolor,vec3 normal,vec2 lmcoord,vec4 voxycolor, int materialID)
 
 #if 0
 ;//for my IDE :/
@@ -198,6 +206,11 @@ void main()
     #endif
 #endif
 
+#ifdef CHECK_VOXY_DEPTH //mainly just for clouds
+    float voxyDepth = texelFetch(vxDepthTexTrans,ivec2(gl_FragCoord.xy),0).x;
+    if(voxyDepth<1.0)
+        discard;
+#endif
 
 #ifdef MAYBE_END_GATEWAY
     bool isEndGateway = materialID==END_GATEWAY_ID;
@@ -348,7 +361,9 @@ void main()
 
         color=vec4(0.0,0.0,0.0,1.0);
     }else{
+        #ifdef LIT
         color.rgb*=max(vec3(0.2),lmcoord.y*getSunColor());
+        #endif
         solidColorOut=vec4(0.0);
         solidNormalOut=vec4(0.0);
 
@@ -360,7 +375,8 @@ void main()
     if(isEndGateway)
         normalOut.a=1;
     #endif
-
+    #elif defined VOXY_PATCH
+    color.rgb*=max(vec3(0.2),lmcoord.y*getSunColor());
     #endif
 #else
     #ifdef SKYTEXTURED

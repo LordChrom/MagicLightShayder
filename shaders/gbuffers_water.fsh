@@ -5,5 +5,6 @@
 #define IS_TERRAIN
 #define WRITE_MATERIALS
 #define POM_ELLIGIBLE
+#define ALPHATEST
 
 #include "/lib/renderComponents/gbufferFragment.glsl"
