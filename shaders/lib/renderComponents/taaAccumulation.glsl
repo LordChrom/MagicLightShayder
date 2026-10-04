@@ -30,10 +30,12 @@ uniform sampler2D colortex6;
 uniform sampler2D colortex9;
 uniform sampler2D colortex10;
 
-layout(location = 0) out float depthAccumulation;
+layout(location = 0) out vec2 depthAndClampRange;
 layout(location = 1) out vec4 multAccumulation;
 
+uniform float frameTimeCounter;
 void taaAccumulate(){
+    float depth = texelFetch(colortex5,ivec2(gl_FragCoord.xy),0).x;
     vec2 jitteredTexcoord = texcoord;
     jitteredTexcoord-=unscaledJitter()/scaledScreenDim;
     multAccumulation = texelFetch(colortex6,ivec2(scaledScreenDim*jitteredTexcoord),0);
@@ -55,23 +57,24 @@ void taaAccumulate(){
     bool reprojectValid = false;
 
 
-    depthAccumulation = texelFetch(colortex5,ivec2(gl_FragCoord.xy),0).x;
-    vec3 screenPos = vec3(texcoord,depthAccumulation);
+    vec3 screenPos = vec3(texcoord,depth);
 
     vec4 previousAddAccumulation = vec4(0);
     vec4 previousMultAccumulation = vec4(0);
     vec3 prevScreenPos = reproject(screenPos);
 
-    if(prevScreenPos.x>0 && prevScreenPos.y>0 && prevScreenPos.x<1 && prevScreenPos.y<1){
-        float prevDepth = texture(colortex9,prevScreenPos.xy).x;
+    vec2 prevDepthAndBrightness = vec2(0);
+    float brightness = (multAccumulation.r+multAccumulation.g+multAccumulation.b)/3.0;
 
-        float var = fwidth(prevDepth);
+    if(prevScreenPos.x>0 && prevScreenPos.y>0 && prevScreenPos.x<1 && prevScreenPos.y<1){
+        prevDepthAndBrightness = texture(colortex9,prevScreenPos.xy).xy;
+        float var = fwidth(prevDepthAndBrightness.x);
 
         float speed = length(cameraPosition-previousCameraPosition);
         float speedFactor = clamp(TAA_MOTION_REJECTION*speed,1,2048);
         speedFactor=var>exp2(-14)?speedFactor:1;
         float depthSensitivity = exp2(-14)/speedFactor;
-        if(abs(prevScreenPos.z-prevDepth)/prevDepth<=depthSensitivity){
+        if(abs(prevScreenPos.z-prevDepthAndBrightness.x)/prevDepthAndBrightness.x<=depthSensitivity){
             previousMultAccumulation = texture(colortex10, prevScreenPos.xy);
 
            #if DEBUG_SPECIAL_VIEW == 201
@@ -80,8 +83,13 @@ void taaAccumulate(){
 
             vec2 pixelShiftiness = (fract(prevScreenPos.xy*textureSize(colortex5,0))-0.5);
             pixelShiftiness = abs(2*pixelShiftiness);
-            previousMultAccumulation.a=clamp(previousMultAccumulation.a,0.00001,200);
-            previousMultAccumulation.a*=clamp(1-TAA_ANTI_SMEAR*max(pixelShiftiness.x,pixelShiftiness.y)/LIGHTING_RENDERSCALE,0,1);
+            float prevBrightness = (previousMultAccumulation.r + previousMultAccumulation.b + previousMultAccumulation.g)/3.0;
+
+            float historyReduction = max(0,(brightness-prevDepthAndBrightness.y)/prevDepthAndBrightness.y)*5;
+            historyReduction = max(historyReduction,0.06*min(prevBrightness,prevDepthAndBrightness.y*1.1)/prevBrightness);
+            previousMultAccumulation.a/=historyReduction*TAA_RESPONSIVENESS+1;
+
+            previousMultAccumulation.a*=clamp(1-(TAA_ANTI_SMEAR/LIGHTING_RENDERSCALE)*max(pixelShiftiness.x,pixelShiftiness.y)/LIGHTING_RENDERSCALE,0,1);
 
             float weight = lightSampleWeight(jitteredTexcoord);
 
@@ -100,12 +108,17 @@ void taaAccumulate(){
         }
     }
 
+//    prevDepthAndBrightness.y-=prevDepthAndBrightness.z*prevDepthAndBrightness.z*0.0001;
+    prevDepthAndBrightness.y-=0.004;
+    prevDepthAndBrightness.y = max(prevDepthAndBrightness.y,brightness);
+
 
     if(isnan(multAccumulation.x+multAccumulation.y+multAccumulation.z+multAccumulation.w))
         multAccumulation=vec4(0.0 );
+    #ifdef TAA_FOG
     if(isnan(addAccumulation.x+addAccumulation.y+addAccumulation.z+addAccumulation.w))
         addAccumulation=vec4(0.0);
-
+    #endif
 
 #if DEBUG_SPECIAL_VIEW == 200
     float weight = lightSampleWeight(jitteredTexcoord);
@@ -118,4 +131,5 @@ void taaAccumulate(){
     float weight = lightSampleWeight(jitteredTexcoord);
     multAccumulation = vec4(lightSampleWeight(jitteredTexcoord));
 #endif
+    depthAndClampRange=vec2(depth,prevDepthAndBrightness.y);
 }

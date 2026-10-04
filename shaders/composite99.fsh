@@ -81,8 +81,10 @@ void main() {
     outColor=funnyEmissive+mat.rgb*((1.0-funnyEmissive)/255.0);
     //        outColor=funnyEmissive*mat.rgb*(1.0/255.0);
 #elif DEBUG_SPECIAL_VIEW == 9
-    float depth = texture(colortex9,texcoord).x;
-    outColor = vec3(visiblifyDepth(depth));
+    vec2 theInfo = texture(colortex9,texcoord).rg;
+//    float depth = .x;
+//    outColor = vec3(visiblifyDepth(depth));
+    outColor =theInfo.yyy;
 #elif (DEBUG_SPECIAL_VIEW == 10) || (DEBUG_SPECIAL_VIEW >= 200 && DEBUG_SPECIAL_VIEW <= 202)
     outColor = texture(colortex10,texcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 11

@@ -61,7 +61,7 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 | RGBA16F | 6   | multiplicative lighting      | y     | n               |                                  |
 | RGBA16F | 7   | additive light               | y     |                 |                                  |
 | RGBA8UI | 8   | Materials                    |       | y               |                                  |
-| R32F    | 9   | prev frame depth             |       | N               |                                  |
+| RG32UI  | 9   | prev frame depth             |       | N               |                                  |
 | RGBA16F | 10  | multiplicative accumulation. |       | N               |                                  |
 | RGBA16F | 11  | additive accumulation.       |       | N               |                                  |
 | RG16F   | 12  | DoF stuff                    |       |                 |                                  |
