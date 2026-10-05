@@ -1,4 +1,6 @@
 #version 430 compatibility
+#extension GL_KHR_shader_subgroup_arithmetic : enable
+
 #include "/lib/settings.glsl"
 
 
@@ -6,128 +8,69 @@
 const vec2 workGroupsRender = vec2(1.0,1.0);
 layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
 
-layout (rgba8) uniform writeonly restrict image2D colorimg14;
+layout (rgba32I) uniform writeonly restrict iimage2D dofImg;
 
 
 uniform sampler2D colortex0;
 uniform sampler2D colortex12;
-
-//yes it matters both that these buffers are separated, and that we're saving the one index of space.
-shared int[SIZE][SIZE] thebufferrrR;
-shared int[SIZE][SIZE] thebufferrrG;
-shared int[SIZE][SIZE] thebufferrrB;
 
 vec3 color;
 ivec2 samplePos;
 float radius;
 
 
-void initBuffer(){
-    thebufferrrR[gl_LocalInvocationID.x][gl_LocalInvocationID.y]=0;
-    thebufferrrG[gl_LocalInvocationID.x][gl_LocalInvocationID.y]=0;
-    thebufferrrB[gl_LocalInvocationID.x][gl_LocalInvocationID.y]=0;
-}
-
-void flushBuffer(){
-    ivec3 value = ivec3(0u);
-    for(uint x=0; x<=gl_LocalInvocationID.x;x++){
-        value+=ivec3(
-            thebufferrrR[x][gl_LocalInvocationID.y],
-            thebufferrrG[x][gl_LocalInvocationID.y],
-            thebufferrrB[x][gl_LocalInvocationID.y]
-        );
-    }
-    imageStore(colorimg14,ivec2(gl_WorkGroupID.xy*gl_WorkGroupSize.xy+gl_LocalInvocationID.xy),vec4(value,0)/DOF_STORAGE_SCALE);
-}
-
-void drawLine(int y, int x1, int x2, ivec3 writeColor){
-    if(x1>x2)
-        return;
-    x2++;
-    if(y<0 || y>=SIZE)
-        return;
-    if(x2<0 || x1>=SIZE)
-        return;
-    x1=max(x1,0);
-    atomicAdd(thebufferrrR[x1][y],writeColor.x);
-    atomicAdd(thebufferrrG[x1][y],writeColor.y);
-    atomicAdd(thebufferrrB[x1][y],writeColor.z);
-
-    if(x2>=SIZE)
-        return;
-    atomicAdd(thebufferrrR[x2][y],-writeColor.x);
-    atomicAdd(thebufferrrG[x2][y],-writeColor.y);
-    atomicAdd(thebufferrrB[x2][y],-writeColor.z);
-}
-
-//void writeSinglePixel(int x,int y){
-//}
-
-void doBlurCircle(){}
-
-void doBlurOctagon(){}
-
-void doBlurSquare(){
-    int rad = clamp(int(radius+0.5),1,DOF_RADIUS);
-
-    int x1 = samplePos.x-rad;
-    int x2 = samplePos.x+rad;
-
-    ivec3 writeColor=ivec3(round(color*DOF_STORAGE_SCALE/(4.0*radius*radius)));
-    ivec3 leftoverColor = ivec3(color*DOF_STORAGE_SCALE*(1-(vec3(1 /(4.0*radius*radius))*(2*rad-1)*(2*rad-1)))/(8*rad));
-    #ifdef DOF_TEST_PATTERN
-    writeColor*=rad*rad;
-    leftoverColor*=rad*rad;
-    #endif
-    drawLine(samplePos.y+rad,x1,x2,leftoverColor);
-    drawLine(samplePos.y-rad,x1,x2,leftoverColor);
-
-    rad--;
-//    x1++;
-//    x2--;
-    for(int y = samplePos.y-rad;y<=samplePos.y+rad;y++){
-        drawLine(y,x1,x2,leftoverColor);
-        drawLine(y,x1+1,x2-1,writeColor-leftoverColor);
-    }
-}
 
 void main(){
-    initBuffer();
-    barrier();
+    uvec2 groupPos = uvec2(gl_SubgroupInvocationID+gl_SubgroupID*gl_SubgroupSize,0);
+    groupPos=uvec2(groupPos.x%SIZE,groupPos.x/SIZE);
 
-    ivec2 scanAreaStart = max(ivec2(-DOF_RADIUS),-ivec2(gl_WorkGroupID.xy*SIZE));
-    ivec2 scanAreaEndExclusive = min(ivec2(SIZE+DOF_RADIUS),textureSize(colortex0,0)-ivec2(gl_WorkGroupID.xy*SIZE));
-    int wrap = scanAreaEndExclusive.y-scanAreaStart.y;
-    int id = wrap*(scanAreaEndExclusive.x-scanAreaStart.x)-int(gl_LocalInvocationIndex);
+    ivec2 samplePos = ivec2(gl_WorkGroupID.xy*gl_WorkGroupSize.xy-DOF_RADIUS);
+    ivec2 texSize = textureSize(colortex0,0);
+    if(samplePos.x>=texSize.x+DOF_RADIUS || samplePos.y>=texSize.y+DOF_RADIUS)
+        return;
 
-    for(;id>=0;id-=SIZE*SIZE){
-        samplePos = ivec2(id/wrap, id%wrap)+scanAreaStart;
+    samplePos+=ivec2(groupPos);
 
-        radius=texelFetch(colortex12,samplePos + ivec2(gl_WorkGroupID.xy*SIZE),0).y;
+    ivec3 value = ivec3(0);
 
-        int rad = clamp(int(radius+0.5),0,DOF_RADIUS);
-        if (samplePos.x+rad<0 || samplePos.y+rad<0 || samplePos.x-rad>=SIZE || samplePos.y-rad>=SIZE)
+    for(int i = -DOF_RADIUS;i<=DOF_RADIUS;i++){
+        if(i==0) continue;
+        ivec2 pos = samplePos+i;
+        if(pos.x<0 || pos.y<0 || pos.x>=texSize.x || pos.y>=texSize.y)
             continue;
+        float radius=texelFetch(colortex12,pos,0).y;
+        radius = max(radius,0.5);
 
+        if(abs(radius-abs(i))<0.5){
+            vec3 color = texelFetch(colortex0,pos,0).rgb;
 
-        color = texelFetch(colortex0,samplePos + ivec2(gl_WorkGroupID.xy*SIZE),0).rgb;
-
-        if(radius<=0.5){
-            drawLine(samplePos.y,samplePos.x,samplePos.x,ivec3(color*DOF_STORAGE_SCALE));
-            continue;
+            color/=4*radius*radius;
+            value+=ivec3(color*DOF_STORAGE_SCALE);
         }
-
-        radius = clamp(radius,0.5,DOF_RADIUS-0.5);
-
-        #if DOF_SHAPE == 1
-        doBlurCircle();
-        #elif DOF_SHAPE == 2
-        doBlurOctagon();
-        #else
-        doBlurSquare();
-        #endif
     }
 
-    barrier();
-    flushBuffer();
+    for(int i = -DOF_RADIUS;i<=DOF_RADIUS;i++){
+        if(i==0) continue;
+        ivec2 pos = samplePos+ivec2(i,-i);
+        if(pos.x<0 || pos.y<0 || pos.x>=texSize.x || pos.y>=texSize.y)
+            continue;
+        float radius=texelFetch(colortex12,pos,0).y;
+        radius = max(radius,0.5);
+
+        if(abs(radius-abs(i))<0.5){
+            vec3 color = texelFetch(colortex0,pos,0).rgb;
+
+            color/=4*radius*radius;
+            value-=ivec3(color*DOF_STORAGE_SCALE);
+        }
+    }
+
+    value = subgroupInclusiveAdd(value);
+
+    if(gl_SubgroupSize>SIZE){
+        ivec3 extraValue = (gl_SubgroupInvocationID%SIZE)==(SIZE-1)?value:ivec3(0);
+        value-=subgroupExclusiveAdd(extraValue);
+    }
+
+    imageStore(dofImg,ivec2(groupPos.xy+gl_WorkGroupID.xy*gl_WorkGroupSize.xy),ivec4(value,0));
 }
