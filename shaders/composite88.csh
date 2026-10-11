@@ -20,7 +20,7 @@ void main(){
 
     ivec2 samplePos = ivec2(groupPos.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy);
     ivec2 siz = imageSize(colorimg0)+2*DOF_RADIUS;
-    if(samplePos.x>=siz.x || samplePos.y>=siz.y
+    if(samplePos.x>siz.x || samplePos.y>siz.y
         || samplePos.x<=(-int(gl_WorkGroupSize.x)-DOF_RADIUS)
         || samplePos.y<=(-int(gl_WorkGroupSize.y)-DOF_RADIUS)
     ){
