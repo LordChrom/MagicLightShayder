@@ -6,7 +6,7 @@
 
 
 #define SIZE 32
-const vec2 workGroupsRender = vec2(1.0,1.0);
+const vec2 workGroupsRender = vec2(1.2,1.2);
 layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
 
 uniform isampler2D dofSampler;
@@ -21,11 +21,14 @@ void main(){
     uvec2 groupPos = uvec2(gl_SubgroupInvocationID+gl_SubgroupID*gl_SubgroupSize,0);
     groupPos=uvec2(groupPos.x%SIZE,groupPos.x/SIZE);
 
-    int samplePosY = int(groupPos.y+gl_WorkGroupSize.y*gl_WorkGroupID.y);
+    ivec2 samplePos = ivec2(groupPos.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy);
+    ivec2 siz = imageSize(dofImg2);
+    if(samplePos.x>=siz.x || samplePos.y>=siz.y)
+        return;
     ivec3 leftEdge = ivec3(0);
 
     for(uint x=groupPos.x;x<gl_WorkGroupID.x;x+=gl_WorkGroupSize.x){
-        leftEdge+=texelFetch(dofSampler,ivec2(int((x+1)*gl_WorkGroupSize.x-1),samplePosY),0).rgb;
+        leftEdge+=texelFetch(dofSampler,ivec2(int((x+1)*gl_WorkGroupSize.x-1),samplePos.y),0).rgb;
     }
     leftEdge = subgroupClusteredAdd(leftEdge, 32);
     ivec3 value = texelFetch(dofSampler,ivec2(groupPos+gl_WorkGroupID.xy*gl_WorkGroupSize.xy),0).rgb+leftEdge;
