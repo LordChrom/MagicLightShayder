@@ -11,13 +11,19 @@ uniform float centerDepthSmooth;
 
 #include "/lib/util/conversions.glsl"
 
-#ifdef DOF_TEST_PATTERN
+#ifdef NEW_NEW_NEW_DOF
+uniform sampler2D colortex0;
+/* RENDERTARGETS: 0 */
+vec2 CoCbuff;
+layout(location=0) out vec4 writeVal;
+#elif defined DOF_TEST_PATTERN
 /* RENDERTARGETS: 12,0 */
 layout(location=1) out vec3 testColor;
+layout(location=0) out vec2 CoCbuff;
 #else
 /* RENDERTARGETS: 12 */
-#endif
 layout(location=0) out vec2 CoCbuff;
+#endif
 
 
 
@@ -54,6 +60,9 @@ uniform float frameTimeCounter;
 
 void main() {
     ivec2 texpos = ivec2(gl_FragCoord.xy);
+    #ifdef NEW_NEW_NEW_DOF
+    writeVal.rgb=texelFetch(colortex0,texpos,0).rgb;
+    #endif
 
     #ifdef DOF_TEST_PATTERN
     testColor=vec3(0);
@@ -69,4 +78,8 @@ void main() {
     CoCbuff.y=calcRadius(texpos);
     #endif
     CoCbuff.y=clamp(abs(CoCbuff.y),0,256);
+
+    #ifdef NEW_NEW_NEW_DOF
+    writeVal.a=CoCbuff.y/DOF_RADIUS;
+    #endif
 }

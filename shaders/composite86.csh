@@ -12,24 +12,19 @@ layout (rgba32I) uniform writeonly restrict iimage2D dofImg;
 
 
 uniform sampler2D colortex0;
-uniform sampler2D colortex12;
 
 ivec2 texSize;
 
 void samplePath(inout ivec3 value, ivec2 startPos, ivec2 delta){
     for(int i = 0;i<DOF_RADIUS;i++){
-        ivec2 pos = startPos+i*delta;;
-        if(pos.x<0 || pos.y<0 || pos.x>=texSize.x || pos.y>=texSize.y)
-            continue;
-        float radius=texelFetch(colortex12,pos,0).y;
+        vec4 colorAndRad = texelFetch(colortex0,startPos+i*delta,0);
 
-        radius = clamp(radius,0.5,DOF_RADIUS-0.501);
+        colorAndRad.a = clamp(colorAndRad.a*DOF_RADIUS,0.5,DOF_RADIUS-0.501);
 
-        int radPx = int(floor(radius+0.5)); //radius (0.5,1.5] -> radpx==1 -> 3x3 square -> full weight on i=0; edge weight on i=1
+        int radPx = int(floor(colorAndRad.a+0.5)); //radius (0.5,1.5] -> radpx==1 -> 3x3 square -> full weight on i=0; edge weight on i=1
         if(radPx==i || radPx==(i+1)){
-            vec3 color = texelFetch(colortex0,pos,0).rgb;
 
-            float centerWeight = 0.25/(radius*radius);
+            float centerWeight = 0.25/(colorAndRad.a*colorAndRad.a);
 
             float fullWeightArea = max(2*radPx-1,0);
                 fullWeightArea*=fullWeightArea;
@@ -37,7 +32,7 @@ void samplePath(inout ivec3 value, ivec2 startPos, ivec2 delta){
             float edgeWeight = (1.0-centerWeight*fullWeightArea)/max(8*radPx,1);
             centerWeight-=edgeWeight;
 
-            value+=ivec3(color*(DOF_STORAGE_SCALE*(radPx==i?edgeWeight:centerWeight)));
+            value+=ivec3(colorAndRad.rgb*(DOF_STORAGE_SCALE*(radPx==i?edgeWeight:centerWeight)));
         }
     }
 }
