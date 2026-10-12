@@ -6,7 +6,7 @@
 
 #define SIZE 32
 const vec2 workGroupsRender = vec2(1.2,1.2);
-layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
+layout (local_size_x = SIZE, local_size_y = 8, local_size_z = 1) in;
 
 layout (rgba32I) uniform writeonly restrict iimage2D dofImg;
 

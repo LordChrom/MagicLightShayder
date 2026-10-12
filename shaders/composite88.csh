@@ -8,7 +8,7 @@
 
 //TODO probably doesnt need to be 1.2 on x if done right
 const vec2 workGroupsRender = vec2(1.2,1.2);
-layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
+layout (local_size_x = 8, local_size_y = SIZE, local_size_z = 1) in;
 
 uniform isampler2D dofSampler2;
 layout (rgba8) uniform writeonly restrict image2D colorimg0;
