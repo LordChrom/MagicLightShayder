@@ -385,13 +385,13 @@ void main()
         normalOut.a=0;
     }
     #ifdef NO_TRANSLUCENT_REFLECT
-    normalOut.a=0;
-    normalOut=vec4(0,0,0,0);
+    normalOut.a=min(normalOut.a,0);
+    normalOut.xyz=vec3(0);
     #endif
 
     #ifdef MAYBE_END_GATEWAY
     if(isEndGateway)
-        normalOut.a=1;
+        normalOut=vec4(0,0,0,1);
     #endif
     #elif defined VOXY_PATCH
     color.rgb*=max(vec3(0.2),lmcoord.y*getSunColor());
