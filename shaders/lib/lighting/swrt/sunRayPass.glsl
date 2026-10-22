@@ -8,9 +8,7 @@ uniform vec2 scaledScreenDim;
 const vec2 workGroupsRender = vec2(LIGHTING_RENDERSCALE,LIGHTING_RENDERSCALE);
 layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
 
-#if SWRT_TRANSLUCENCY>0
 layout (rgba16f) uniform writeonly restrict image2D colorimg6;
-#endif
 
 uniform sampler2D colortex5;
 uniform sampler2D colortex2;
@@ -82,15 +80,6 @@ void main(){
     float hitD = traceRay(worldPos.xyz,displacementToLight,unitShift,maxSteps,translucencies,hitDepths);
 
     vec4 writeColor;
-    #if SWRT_TRANSLUCENCY>0
-//    writeColor = vec4(1.0,1.0,1.0,0);
-//    for(int i=0;(i<SWRT_TRANSLUCENCY)&&bool(translucencies);i++){
-//        writeColor.rgb*= getLightIDColor(translucencies&0x3fu);
-//        translucencies>>=6;
-//    }
-    #else
-//    writeColor = vec4(1.0,0,0,0);
-    #endif
 
     writeColor.a = hitD>0?0.0:1.0;
 

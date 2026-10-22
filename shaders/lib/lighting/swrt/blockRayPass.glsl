@@ -8,11 +8,7 @@ uniform vec2 scaledScreenDim;
 const vec2 workGroupsRender = vec2(LIGHTING_RENDERSCALE,LIGHTING_RENDERSCALE);
 layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
 
-#if SWRT_TRANSLUCENCY>0
 layout (rgba8) uniform writeonly restrict image2D swrtRayHits;
-#else
-layout (r8) uniform writeonly restrict image2D swrtRayHits;
-#endif
 
 uniform sampler2D colortex5;
 uniform sampler2D colortex2;
@@ -25,7 +21,9 @@ uniform vec3 cameraPosition;
 
 #include "/lib/lighting/swrt/swrtSampler.glsl"
 
-void main(){
+vec4 writeColor = vec4(0);
+
+void shade(){
     vec2 jitteredTexcoord = ((gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5);
     #ifdef TAA
     jitteredTexcoord+=unscaledJitter();
@@ -72,20 +70,27 @@ void main(){
     displacementToLight+=penumbraNoise(ditherValue);
     #endif
 
+    ivec3 lightHash3 = floatBitsToInt(floor(worldPos.xyz+displacementToLight));
+    float lightHash = float(((lightHash3.x*53)^(lightHash3.y*17)^(lightHash3.z*97))%255)/255.0;
+    writeColor.a = lightHash;
+
     uint translucencies;
     vec4 hitDepths;
     if(traceRay(worldPos.xyz,displacementToLight,unitShift,maxSteps,translucencies,hitDepths)>=0)
         return;
 
+
+    writeColor.rgb=vec3(1);
     #if SWRT_TRANSLUCENCY>0
-    vec4 writeColor = vec4(1.0,1.0,1.0,0);
     for(int i=0;(i<SWRT_TRANSLUCENCY)&&bool(translucencies);i++){
         writeColor.rgb*= getLightIDColor(translucencies&0x3fu);
         translucencies>>=6;
     }
-    #else
-    vec4 writeColor = vec4(1.0,0,0,0);
     #endif
+}
 
+void main(){
+    shade();
+    uint index = ((gl_LocalInvocationID.x&1u)<<1) + (gl_LocalInvocationID.y&1u) + 4u*gl_LocalInvocationID.z;
     imageStore(swrtRayHits,(ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)>>1)+ivec2(index*imageSize(swrtRayHits).x/SWRT_LIGHTS_PER_BLOCK,0),writeColor);
 }

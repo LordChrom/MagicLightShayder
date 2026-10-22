@@ -148,19 +148,12 @@ vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
         tempTc = mix(tempTc,round(tempTc*ts)/ts,0.7);
         #endif
 
-        #if SWRT_TRANSLUCENCY>0
-            #if SWRT_NOISE_FILTER<=1
-            vec3 visibility = texture(swrtRayHitSampler,tempTc).rgb;
-            #else
-            vec3 visibility = wideSample(swrtRayHitSampler,tempTc).rgb;
-            #endif
+        #if SWRT_NOISE_FILTER<=1
+        vec4 visibility = texture(swrtRayHitSampler,tempTc);
         #else
-             #if SWRT_NOISE_FILTER<=1
-            float visibility = texture(swrtRayHitSampler,tempTc).x;
-            #else
-            float visibility = wideSample(swrtRayHitSampler,tempTc).x;
-            #endif
+        vec4 visibility = wideSample(swrtRayHitSampler,tempTc);
         #endif
+
 
         uint light = lightShortList[i&3u];
         vec3 displacementToLight = uncheckedUnpackListedLight(light)-fract(worldPos)+0.5;
@@ -168,8 +161,27 @@ vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
         float lightStr = lightFalloff(displacementToLight);
         lightStr*=normalFactor(normal,displacementToLight,0);
 
+        ivec3 lightHash3 = floatBitsToInt(floor(worldPos.xyz+displacementToLight));
+        float lightHash = float(((lightHash3.x*53)^(lightHash3.y*17)^(lightHash3.z*97))%255)/255.0;
+
+        const float margin = exp2(-8);
+        if(abs(visibility.a-lightHash)>margin){
+            //different lights in samples
+            ivec2 texel = ivec2((tc+vec2(float(i)/SWRT_LIGHTS_PER_BLOCK,0))*textureSize(swrtRayHitSampler,0));
+            visibility = vec4(0);
+            for(int i=0;i<4;i++){
+                ivec2 offset = ivec2(1,(i&2)-1);
+                offset = bool(i&1)?offset:-offset;
+                vec4 possibleVisibility = texelFetch(swrtRayHitSampler,texel+offset,0);
+                if(abs(possibleVisibility.a-lightHash)<margin){
+                    visibility=possibleVisibility;
+                    break;
+                }
+            }
+        }
+
         if(lightStr>0)
-            color.rgb+=colorOfPackedLight(light)*visibility*lightStr;
+            color.rgb+=colorOfPackedLight(light)*visibility.rgb*lightStr;
     }
 
     return color;
