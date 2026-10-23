@@ -16,6 +16,7 @@ float traceRay(vec3 worldPos, vec3 worldDirToLight, ivec3 unitShift, uint maxSte
     worldPos+=(VOXELIZATION_SIZE>>1)-unitShift;
 
     ivec3 finalBlock = ivec3(floor(worldPos+worldDirToLight));
+    uint finalVoxel = getBaseVoxData(finalBlock,unitShift);
 
     float maxTraceDepth = length(worldDirToLight);
     worldDirToLight=normalize(worldDirToLight);
@@ -29,7 +30,13 @@ float traceRay(vec3 worldPos, vec3 worldDirToLight, ivec3 unitShift, uint maxSte
         uint voxel = getBaseVoxData(areaPos,unitShift);
         float nextDepthDif = minDepthTillChange(samplePosition,worldDirToLight)+nudge;
 
-        if(areaPos==finalBlock)
+        areaPos-=finalBlock;
+        int dist = abs(areaPos.x)+abs(areaPos.y)+abs(areaPos.z);
+
+        if(dist==0)
+            break;
+
+        if(dist==1 && voxel==finalVoxel)
             break;
 
         if(bool(voxel&WORLDVOX_OPAQUE))
