@@ -51,9 +51,6 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
 
     #ifdef SWRT
     vec2 tc = ((vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5)*0.5)/textureSize(swrtRayHitSampler,0).xy;
-        #ifdef TAA
-        tc+=unscaledJitter()/textureSize(swrtRayHitSampler,0);
-        #endif
     ret.rgb+=shadePrehitRays(worldPos, normal, subsurface, tc).xyz;
 
     #endif
