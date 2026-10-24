@@ -3,7 +3,6 @@
 
 uniform vec2 scaledScreenDim;
 uniform float viewWidth,viewHeight;
-uniform float frameTime;
 
 uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
 uniform mat4 gbufferPreviousProjection, gbufferPreviousModelView;
@@ -54,7 +53,6 @@ void taaAccumulate(){
    #if DEBUG_SPECIAL_VIEW == 201
     multAccumulation=vec4(1,0,0,0);
    #endif
-
     bool reprojectValid = false;
 
 
@@ -65,15 +63,13 @@ void taaAccumulate(){
     vec3 prevScreenPos = reproject(screenPos);
 
     vec3 prevDepthAndBrightness = vec3(0);
-    float brightness = max(max(multAccumulation.r, multAccumulation.g), multAccumulation.b);
 
     if(prevScreenPos.x>0 && prevScreenPos.y>0 && prevScreenPos.x<1 && prevScreenPos.y<1){
         prevDepthAndBrightness = texture(colortex9,prevScreenPos.xy).xyz;
-        float var = fwidth(prevDepthAndBrightness.x);
 
         float speed = length(cameraPosition-previousCameraPosition);
         float speedFactor = clamp(TAA_MOTION_REJECTION*speed,1,2048);
-        speedFactor=var>exp2(-14)?speedFactor:1;
+        speedFactor=fwidth(prevDepthAndBrightness.x)>exp2(-14)?speedFactor:1;
         float depthSensitivity = exp2(-14)/speedFactor;
         if(abs(prevScreenPos.z-prevDepthAndBrightness.x)/prevDepthAndBrightness.x<=depthSensitivity){
             previousMultAccumulation = texture(colortex10, prevScreenPos.xy);
@@ -86,20 +82,16 @@ void taaAccumulate(){
             pixelShiftiness = abs(2*pixelShiftiness);
 
 
+            float brightnessDif = max(max(multAccumulation.r, multAccumulation.g), multAccumulation.b) -
+                max(max(previousMultAccumulation.r,previousMultAccumulation.g), previousMultAccumulation.b);
 
-            float decay = 0.1/frameTime;
-            prevDepthAndBrightness.y=min(brightness,prevDepthAndBrightness.y+decay);
-            prevDepthAndBrightness.z=max(brightness,prevDepthAndBrightness.z-decay);
+            prevDepthAndBrightness.y = prevDepthAndBrightness.y*0.999 + (brightnessDif);
+            prevDepthAndBrightness.z = prevDepthAndBrightness.z*0.999 + abs(brightnessDif);
 
-            float prevBrightness = max(max(previousMultAccumulation.r,previousMultAccumulation.g), previousMultAccumulation.b);
-
-
-            float historyReduction = 0;
-
-            historyReduction = max(historyReduction,(prevBrightness-prevDepthAndBrightness.z-0.01)*0.4);
-            historyReduction = max(historyReduction,(prevDepthAndBrightness.y-prevBrightness)*0.4);
-
-            previousMultAccumulation.a/=historyReduction*TAA_RESPONSIVENESS+1;
+            if(abs(prevDepthAndBrightness.y*TAA_RESPONSIVENESS)/(prevDepthAndBrightness.z)>max(1.0/previousMultAccumulation.a,0.0625)){
+                prevDepthAndBrightness.y=0.0;
+                previousMultAccumulation.a=1.0;
+            }
 
 
             previousMultAccumulation.a*=clamp(1-(TAA_ANTI_SMEAR)*max(pixelShiftiness.x,pixelShiftiness.y),0,1);
@@ -121,9 +113,6 @@ void taaAccumulate(){
         }
     }
 
-//    prevDepthAndBrightness.y-=prevDepthAndBrightness.z*prevDepthAndBrightness.z*0.0001;
-//    prevDepthAndBrightness.y-=0.004;
-//    prevDepthAndBrightness.y = max(prevDepthAndBrightness.y,brightness);
 
 
     if(isnan(multAccumulation.x+multAccumulation.y+multAccumulation.z+multAccumulation.w))
