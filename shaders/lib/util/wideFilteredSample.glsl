@@ -17,3 +17,8 @@ vec4 fourNeighborsSample(sampler2D tex, vec2 texcoord){
     vec2 ts = textureSize(tex,0);
     return texture(tex,round(texcoord*ts)/ts);
 }
+
+vec4 partialFourNeighborsSample(sampler2D tex, vec2 texcoord, float mixRatio){
+    vec2 ts = textureSize(tex,0);
+    return texture(tex,mix(texcoord,round(texcoord*ts)/ts,mixRatio));
+}

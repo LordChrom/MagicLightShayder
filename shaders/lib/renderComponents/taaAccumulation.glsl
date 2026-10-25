@@ -62,16 +62,12 @@ void taaAccumulate(){
     vec4 previousMultAccumulation = vec4(0);
     vec3 prevScreenPos = reproject(screenPos);
 
-    vec3 prevDepthAndBrightness = vec3(0);
+    vec3 prevDepthAndBrightness = vec3(0,0,10);
 
     if(prevScreenPos.x>0 && prevScreenPos.y>0 && prevScreenPos.x<1 && prevScreenPos.y<1){
         prevDepthAndBrightness = texture(colortex9,prevScreenPos.xy).xyz;
 
-        float speed = length(cameraPosition-previousCameraPosition);
-        float speedFactor = clamp(TAA_MOTION_REJECTION*speed,1,2048);
-        speedFactor=fwidth(prevDepthAndBrightness.x)>exp2(-14)?speedFactor:1;
-        float depthSensitivity = exp2(-14)/speedFactor;
-        if(abs(prevScreenPos.z-prevDepthAndBrightness.x)/prevDepthAndBrightness.x<=depthSensitivity){
+        if(abs(prevScreenPos.z-prevDepthAndBrightness.x)/prevDepthAndBrightness.x<=exp2(-14)){
             previousMultAccumulation = texture(colortex10, prevScreenPos.xy);
 
            #if DEBUG_SPECIAL_VIEW == 201
@@ -82,13 +78,26 @@ void taaAccumulate(){
             pixelShiftiness = abs(2*pixelShiftiness);
 
 
-            float brightnessDif = max(max(multAccumulation.r, multAccumulation.g), multAccumulation.b) -
-                max(max(previousMultAccumulation.r,previousMultAccumulation.g), previousMultAccumulation.b);
+            float prevBrightness = max(max(previousMultAccumulation.r,previousMultAccumulation.g), previousMultAccumulation.b);
+            float brightness = max(max(multAccumulation.r, multAccumulation.g), multAccumulation.b);
+            float brightnessDif = (brightness-prevBrightness)/(prevBrightness+brightness);
 
-            prevDepthAndBrightness.y = prevDepthAndBrightness.y*0.999 + (brightnessDif);
-            prevDepthAndBrightness.z = prevDepthAndBrightness.z*0.999 + abs(brightnessDif);
+            prevDepthAndBrightness.y = prevDepthAndBrightness.y*0.999 + brightnessDif/sqrt(prevDepthAndBrightness.z);
+            prevDepthAndBrightness.z = mix(prevDepthAndBrightness.z,brightnessDif*brightnessDif,0.001);
 
-            if(abs(prevDepthAndBrightness.y*TAA_RESPONSIVENESS)/(prevDepthAndBrightness.z)>max(1.0/previousMultAccumulation.a,0.0625)){
+            if(isnan(prevDepthAndBrightness.y))
+                prevDepthAndBrightness.y=0.0;
+
+
+            if(isnan(prevDepthAndBrightness.z))
+                prevDepthAndBrightness.z=10.0;
+
+            float personalRejectionness = abs(prevDepthAndBrightness.y*TAA_RESPONSIVENESS);
+
+            float rejectionness = personalRejectionness;
+            rejectionness*=8.0;
+
+            if(rejectionness>max(1.0,64.0/previousMultAccumulation.a)){
                 prevDepthAndBrightness.y=0.0;
                 previousMultAccumulation.a=1.0;
             }
@@ -103,8 +112,9 @@ void taaAccumulate(){
             multAccumulation.rgb=mix(previousMultAccumulation.rgb, multAccumulation.rgb, mixRatio);
 
            #ifdef TAA_FOG
+            float speed = length(cameraPosition-previousCameraPosition);
             mixRatio=1-((1-mixRatio)*(1-speed*3));
-            mixRatio=clamp(mixRatio,0,1);
+            mixRatio=clamp(mixRatio,0.1,1);
             previousAddAccumulation = texture(colortex11,prevScreenPos.xy);
             mixRatio*=fogSampleWeight(jitteredTexcoord);
 

@@ -143,8 +143,8 @@ vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
         tempTc.x+=float(i)/SWRT_LIGHTS_PER_BLOCK;
         tempTc+=(0.5/textureSize(swrtRayHitSampler,0))*((ivec2(i>>1,i)&1));
 
-        #if SWRT_SHADOW_BLUR==1 && !defined TAA
-        vec4 visibility = fourNeighborsSample(swrtRayHitSampler,tempTc);
+        #if SWRT_SHADOW_BLUR==1
+        vec4 visibility = partialFourNeighborsSample(swrtRayHitSampler,tempTc,0.5);
         #elif SWRT_SHADOW_BLUR==2
         vec4 visibility = wideSample(swrtRayHitSampler,tempTc);
         #else
