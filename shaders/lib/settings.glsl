@@ -22,6 +22,7 @@
 //#define DEBUG_SHOW_SHADOWMAP_RANGE
 //#define DEBUG_SHOW_SECTION_CHANGES
 //#define DEBUG_SWRT_LIGHT_COUNT
+//#define DEBUG_WATER_RIPPLES
 
 #define DEBUG_SPECIAL_VIEW -1 //[-1 0 1 2 3 4 5 6 7 8 9 10 11 100 101 102 103 104 105 106 200 201 202 203 204]
 //#define DEBUG_NOTHING_EXPIRES
@@ -181,6 +182,8 @@
 #define WATER_WAVE_HEIGHT 0.2 //[0.05 0.1 0.15 0.2 0.25 0.3 0.4 0.5 0.6 0.8 1.0]
 #define WATER_WAVE_PEAKS_PER_BLOCK 2.0 //[0.5 1.0 1.5 2.0 2.5 3.0 4.0 6.0 8.0 12.0 16.0 24.0 32.0]
 #define WATER_WAVE_SPEED 5.0 //[1.0 2.0 3.0 4.0 5.0 6.0 8.0 10.0 12.0 16.0]
+
+#define WATER_TEXTURE_STRENGTH
 //#define WATER_WAVES
 
 /////
@@ -377,7 +380,9 @@
 #ifdef SWRT
 #ifdef SSAO
 #ifdef NEW_NEW_NEW_DOF
+#ifdef WATER_WAVES
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
+#endif
 #endif
 #endif
 #endif

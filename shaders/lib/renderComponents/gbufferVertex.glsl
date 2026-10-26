@@ -109,7 +109,7 @@ void main() {
     materialID = uint(blockEntityId)&0xffffu;
     #else
     //TODO handle old versions, optifine jank
-    materialID = uint(round(mc_Entity.x));
+    materialID = uint(round(mc_Entity.x))&0xffffu;
     #endif
 
     #ifdef MAYBE_WATER
@@ -118,10 +118,10 @@ void main() {
 
     if(mc_Entity.y>0.5){
         materialID|=0x80000000u;
-        worldPosXz=gl_Vertex.xz+cameraPosition.xz-vec2(67,55);
+        worldPosXz=gl_Vertex.xz+cameraPosition.xz;
 
-        #ifdef WATER_WAVES
-        vertPos.y+=calcWaveHeight(worldPosXz);
+        #if defined WATER_WAVES && !defined DEBUG_WATER_RIPPLES
+        vertPos.y+=calcWavesHeight(wrapRippleCoord(worldPosXz));
         #endif
     }
     #endif

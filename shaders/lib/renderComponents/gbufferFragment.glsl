@@ -154,6 +154,7 @@ in vec4 glcolor;
 #endif
 
 #ifdef MAYBE_WATER
+#include "/lib/util/shadowLightInfo.glsl"
 in vec2 worldPosXz;
 uniform float frameTimeCounter;
 #include "/lib/renderComponents/waterWaves.glsl"
@@ -322,10 +323,17 @@ void main()
 
 
     #if defined MAYBE_WATER && defined WATER_WAVES
+    float waterLight = 1.0;
     if(bool(materialID&0x80000000u)){
-//        color.rg+=vec2(-10,10)*calcWaveHeight(worldPosXz);
-//        color.rgb=mix(color.rgb,vec3(0.4,0.4,0.5),0.0);
-        normalOut.xyz=calcWaveNormal(worldPosXz);
+        if(normalOut.y>0.5){
+            #ifdef DEBUG_WATER_RIPPLES
+            color.rg+=vec2(-10,10)*calcWavesHeight(worldPosXz);
+            color.b=0;
+            color.a=0.99f;
+            #endif
+            normalOut.xyz=calcWavesNormal(worldPosXz);
+            waterLight = (dot(normalize(mat3(gl_ModelViewMatrix)*normalOut.xyz),normalize(shadowLightPosition)));
+        }
     }
     #endif
 #endif
@@ -378,6 +386,9 @@ void main()
     }else{
         #ifdef LIT
         vec3 lighting = lmcoord.y*getSunColor();
+        #if defined MAYBE_WATER && defined WATER_WAVES
+        lighting*=waterLight;
+        #endif
 
         #if MATERIALS_TYPE >= 0
         #if defined USES_MATERIALS && !defined DH_SHADER
