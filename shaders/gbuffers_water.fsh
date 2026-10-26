@@ -7,5 +7,6 @@
 #define POM_ELLIGIBLE
 #define ALPHATEST
 #define MATERIAL_ID_AVAILABLE
+#define MAYBE_WATER
 
 #include "/lib/renderComponents/gbufferFragment.glsl"

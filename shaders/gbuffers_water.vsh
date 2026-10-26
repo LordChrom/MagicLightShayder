@@ -6,5 +6,6 @@
 #define WRITE_MATERIALS
 #define POM_ELLIGIBLE
 #define MATERIAL_ID_AVAILABLE
+#define MAYBE_WATER
 
 #include "/lib/renderComponents/gbufferVertex.glsl"

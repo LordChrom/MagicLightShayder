@@ -153,6 +153,12 @@ in vec4 glcolor;
 #undef POM_NORMALS
 #endif
 
+#ifdef MAYBE_WATER
+in vec2 worldPosXz;
+uniform float frameTimeCounter;
+#include "/lib/renderComponents/waterWaves.glsl"
+#endif
+
 layout(location = 0) out vec4 color;
 layout(location = 1) out vec4 normalOut;
 
@@ -175,7 +181,7 @@ layout(location = 1) out vec4 normalOut;
 
 #ifdef NEEDS_MATERIAL_ID
 #ifndef LOD_MOD_SHADER
-flat in int materialID;
+flat in uint materialID;
 #endif
 #include "/lib/voxelStorage/blockPacking.glsl"
 #endif
@@ -183,7 +189,7 @@ flat in int materialID;
 const uint normPackScale = 0x7fff;
 
 #ifdef LOD_MOD_SHADER
-void handleFragment(vec4 glcolor,vec3 normal,vec2 lmcoord,vec4 voxycolor, int materialID)
+void handleFragment(vec4 glcolor,vec3 normal,vec2 lmcoord,vec4 voxycolor, uint materialID)
 #if 0
 ;//for my IDE :/
 #endif
@@ -217,7 +223,7 @@ void main()
 #endif
 
 #ifdef MAYBE_END_GATEWAY
-    bool isEndGateway = uint(materialID)==END_GATEWAY_ID;
+    bool isEndGateway = materialID==END_GATEWAY_ID;
 #endif
 
 #ifdef TEXTURED
@@ -313,6 +319,15 @@ void main()
     if(color.a<=translucentPrecedenceCutoff)
         normalOut.a=0;
     #endif
+
+
+    #if defined MAYBE_WATER && defined WATER_WAVES
+    if(bool(materialID&0x80000000u)){
+//        color.rg+=vec2(-10,10)*calcWaveHeight(worldPosXz);
+//        color.rgb=mix(color.rgb,vec3(0.4,0.4,0.5),0.0);
+        normalOut.xyz=calcWaveNormal(worldPosXz);
+    }
+    #endif
 #endif
 
 
@@ -320,10 +335,10 @@ void main()
     #if MATERIALS_TYPE == -2 //writes materials of zero (for solid translucents blocking stuff behind them
     materialInfo = uvec4(0);
     #elif MATERIALS_TYPE == 0 //hardcoded
-    materialInfo = getHardcodedMaterial(uint(materialID));
+    materialInfo = getHardcodedMaterial(materialID);
         #if !(HARDCODED_EMISSIVE_SELECTIVITY==-1)
     if(materialInfo.a!=255){
-        vec3 lightColor = getMaterialColor(uint(materialID));
+        vec3 lightColor = getMaterialColor(materialID);
         float brightness = dot(color.rgb/glcolor.rgb,normalize(lightColor));
         brightness*=brightness;
         brightness = brightness*HARDCODED_EMISSIVE_SELECTIVITY + (1-HARDCODED_EMISSIVE_SELECTIVITY);
@@ -370,7 +385,7 @@ void main()
             lighting += float(materialInfo.a)/254.0;
         #endif
         #ifdef NEEDS_MATERIAL_ID
-        if(uint(materialID)==13u)
+        if(materialID==13u)
             lighting=vec3(1.0);
         #endif
         #endif

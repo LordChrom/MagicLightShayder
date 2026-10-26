@@ -3,7 +3,7 @@
 const uint END_GATEWAY_ID = 55498u;
 
 uint blockLightID(uint blockID){
-    return uint(blockID)&0x3fu;
+    return blockID&0x3fu;
 }
 
 uint blockShape(uint blockID){

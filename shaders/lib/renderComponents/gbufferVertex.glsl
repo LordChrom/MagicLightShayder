@@ -50,7 +50,9 @@ uniform mat4 gbufferModelViewInverse;
     #define UPDATE_VOXEL_MAP
     #define NEEDS_MC_ENTITY
     in vec4 at_midBlock;
-    uniform vec3 cameraPosition;
+    #ifndef MAYBE_WATER
+        uniform vec3 cameraPosition;
+    #endif
 #endif
 
 #ifdef NEEDS_MATERIAL_ID
@@ -79,8 +81,16 @@ flat out uint packedTexsize;
 out float worldLength;
 #endif
 
+
+#ifdef MAYBE_WATER
+    out vec2 worldPosXz;
+    uniform float frameTimeCounter;
+    uniform vec3 cameraPosition;
+    #include "/lib/renderComponents/waterWaves.glsl"
+#endif
+
 #ifdef NEEDS_MATERIAL_ID
-flat out int materialID;
+flat out uint materialID;
 #endif
 
 #ifdef NEEDS_MC_ENTITY
@@ -91,10 +101,36 @@ in vec2 mc_Entity;
 out float distFromCam;
 #endif
 void main() {
-    gl_Position = gl_ProjectionMatrix*(mat3x4(gl_ModelViewMatrix)*gl_Vertex.xyz+gl_ModelViewMatrix[3]);
+
+#define vertPos gl_Vertex.xyz
+
+#ifdef NEEDS_MATERIAL_ID
+    #ifdef BLOCK_ENTITY
+    materialID = uint(blockEntityId)&0xffffu;
+    #else
+    //TODO handle old versions, optifine jank
+    materialID = uint(round(mc_Entity.x));
+    #endif
+
+    #ifdef MAYBE_WATER
+    #undef vertPos
+    vec3 vertPos = gl_Vertex.xyz;
+
+    if(mc_Entity.y>0.5){
+        materialID|=0x80000000u;
+        worldPosXz=gl_Vertex.xz+cameraPosition.xz-vec2(67,55);
+
+        #ifdef WATER_WAVES
+        vertPos.y+=calcWaveHeight(worldPosXz);
+        #endif
+    }
+    #endif
+#endif
+
+    gl_Position = gl_ProjectionMatrix*(mat3x4(gl_ModelViewMatrix)*vertPos+gl_ModelViewMatrix[3]);
 //    gl_Position = gl_ProjectionMatrix*gl_ModelViewMatrix*gl_Vertex;
     #ifdef DH_SHADER
-    distFromCam=length(gl_Vertex.xyz);
+    distFromCam=length(vertPos);
     #endif
 #ifdef TEXTURED
     texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
@@ -125,16 +161,16 @@ void main() {
 
     #ifdef POM
     mat3 texTBNinverse = transpose(mat3(at_tangent.xyz,normalize(cross(at_tangent.xyz,gl_Normal)*at_tangent.w),gl_Normal));
-    vec3 texHitVec = texTBNinverse  * gl_Vertex.xyz;
+    vec3 texHitVec = texTBNinverse  * vertPos;
 
-    worldLength = length(gl_Vertex.xyz);
+    worldLength = length(vertPos);
     ivec2 texsize = ivec2(ceil(2*atlasSize*abs(mc_midTexCoord-texcoord)));
     packedTexsize=(texsize.x<<16)|(texsize.y&0xffff);
     ivec2 baseTexpos = ivec2(atlasSize*(mc_midTexCoord-abs(mc_midTexCoord-texcoord)));
     packedBaseTexpos = (baseTexpos.x<<16)|(baseTexpos.y&0xffff);
 
     differential=-texsize*texHitVec.xy/texHitVec.z;
-    if(length(gl_Vertex.xyz)>POM_DISTANCE)
+    if(length(vertPos)>POM_DISTANCE)
         differential=vec2(0);
 
             #ifdef ENTITY
@@ -155,17 +191,6 @@ void main() {
 #ifdef NEEDS_LMCOORD
     lmcoord = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
     lmcoord = clamp(lmcoord,1.0/32,31.0/32);
-#endif
-
-#ifdef NEEDS_MATERIAL_ID
-    #ifdef BLOCK_ENTITY
-        materialID = blockEntityId;
-        if(materialID==65535)
-            materialID=-1;
-    #else
-    //TODO handle old versions, optifine jank
-        materialID = int(round(mc_Entity.x));
-    #endif
 #endif
 
 #ifdef UPDATE_VOXEL_MAP
