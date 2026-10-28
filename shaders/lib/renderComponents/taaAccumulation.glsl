@@ -1,3 +1,4 @@
+#extension GL_KHR_shader_subgroup_quad : enable
 #include "/lib/settings.glsl"
 #include "/lib/util/uniforms/frameCounter"
 
@@ -30,7 +31,15 @@ uniform sampler2D colortex6;
 uniform sampler2D colortex9;
 uniform sampler2D colortex10;
 
-layout(location = 0) out vec3 depthAndClampRange;
+#ifndef SWRT
+#undef LIGHT_SOURCE_HASH_REJECTION
+#endif
+
+#ifdef LIGHT_SOURCE_HASH_REJECTION
+uniform sampler2D swrtRayHitSampler;
+#endif
+
+layout(location = 0) out vec4 depthAndClampRange;
 layout(location = 1) out vec4 multAccumulation;
 
 uniform float frameTimeCounter;
@@ -39,6 +48,16 @@ void taaAccumulate(){
     vec2 jitteredTexcoord = texcoord;
     jitteredTexcoord-=unscaledJitter()/scaledScreenDim;
     multAccumulation = texelFetch(colortex6,ivec2(scaledScreenDim*jitteredTexcoord),0);
+
+#ifdef LIGHT_SOURCE_HASH_REJECTION
+    float lightHash = 0f;
+    ivec2 swrtTexSize = textureSize(swrtRayHitSampler,0).xy;
+    ivec2 swrtTc = ivec2(jitteredTexcoord*swrtTexSize*vec2(0.125,1.0)+0.5);
+    for(int i=0; i<4*SWRT_LIGHT_LAYERS; i++){
+        lightHash += texelFetch(swrtRayHitSampler,swrtTc,0).a;
+        swrtTc.x+=swrtTexSize.x>>3;
+    }
+#endif
 
 #ifdef TAA_FOG
     #ifdef TAA_HQ_BLUR
@@ -62,10 +81,10 @@ void taaAccumulate(){
     vec4 previousMultAccumulation = vec4(0);
     vec3 prevScreenPos = reproject(screenPos);
 
-    vec3 prevDepthAndBrightness = vec3(0,0,10);
+    vec4 prevDepthAndBrightness = vec4(0,0,10,0);
 
     if(prevScreenPos.x>0 && prevScreenPos.y>0 && prevScreenPos.x<1 && prevScreenPos.y<1){
-        prevDepthAndBrightness = texture(colortex9,prevScreenPos.xy).xyz;
+        prevDepthAndBrightness = texture(colortex9,prevScreenPos.xy);
 
         if(abs(prevScreenPos.z-prevDepthAndBrightness.x)/prevDepthAndBrightness.x<=exp2(-14)){
             previousMultAccumulation = texture(colortex10, prevScreenPos.xy);
@@ -82,22 +101,29 @@ void taaAccumulate(){
             float brightness = max(max(multAccumulation.r, multAccumulation.g), multAccumulation.b);
             float brightnessDif = (brightness-prevBrightness)/(prevBrightness+brightness);
 
+            #ifdef LIGHT_SOURCE_HASH_REJECTION
+            bool lightChanged = abs(lightHash-prevDepthAndBrightness.w)>0.01;
+            int lightsChanged = int(lightChanged);
+            lightsChanged+=subgroupQuadSwapVertical(lightsChanged);
+            lightsChanged+=subgroupQuadSwapHorizontal(lightsChanged);
+            if(lightsChanged>=4){
+                previousMultAccumulation.a=0f;
+                previousMultAccumulation=vec4(1,0,0,1);
+            }
+            prevDepthAndBrightness.w=lightHash;
+            #endif
+
             prevDepthAndBrightness.y = prevDepthAndBrightness.y*0.999 + brightnessDif/sqrt(prevDepthAndBrightness.z);
             prevDepthAndBrightness.z = mix(prevDepthAndBrightness.z,brightnessDif*brightnessDif,0.001);
-
             if(isnan(prevDepthAndBrightness.y))
                 prevDepthAndBrightness.y=0.0;
-
 
             if(isnan(prevDepthAndBrightness.z))
                 prevDepthAndBrightness.z=10.0;
 
-            float personalRejectionness = abs(prevDepthAndBrightness.y*TAA_RESPONSIVENESS);
+            float rejectionness = abs(prevDepthAndBrightness.y)*TAA_RESPONSIVENESS;
 
-            float rejectionness = personalRejectionness;
-            rejectionness*=8.0;
-
-            if(rejectionness>max(1.0,64.0/previousMultAccumulation.a)){
+            if(rejectionness>max(0.125,8.0/previousMultAccumulation.a)){
                 prevDepthAndBrightness.y=0.0;
                 previousMultAccumulation.a=1.0;
             }
@@ -143,5 +169,5 @@ void taaAccumulate(){
     float weight = lightSampleWeight(jitteredTexcoord);
     multAccumulation = vec4(lightSampleWeight(jitteredTexcoord));
 #endif
-    depthAndClampRange=vec3(depth,prevDepthAndBrightness.y,prevDepthAndBrightness.z);
+    depthAndClampRange=vec4(depth,prevDepthAndBrightness.yzw);
 }
