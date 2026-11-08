@@ -137,12 +137,10 @@ Packing
 - unused
 ### composite
 - 1 *: finishes cleaning up the mess with translucent/opaque entities
-- 2  : stupid stub to make iris do mipmaps that my compute shader can use (TODO real depth mips)
 - 8  : swrt sun ray intersection (optional)
 - 9  : swrt block ray intersection (optional)
 - 10 : main lighting for solid terrain
 - 12 : volumetric fog
-- 14*: SSAO filter to reduce noise
 - 17-19: hq fog blur & (bad) bloom
 - 20*: cheap fog blur
 - 25 : reflections if not subject to blur

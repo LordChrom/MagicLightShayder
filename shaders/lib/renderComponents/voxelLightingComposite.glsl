@@ -1,4 +1,7 @@
 #version 430 compatibility
+#extension GL_KHR_shader_subgroup_arithmetic : enable
+#extension GL_KHR_shader_subgroup_shuffle : enable
+
 #include "/lib/settings.glsl"
 #ifdef TAA
 #include "/lib/util/taaJitter.glsl"
@@ -30,6 +33,8 @@ uniform sampler2D colortex6;
 uniform usampler2D colortex8;
 #endif
 
+ivec2 texpos;
+vec2 texcoord;
 #include "/lib/util/uniforms/frameCounter"
 #include "/lib/lighting/lightWrapper.glsl"
 #define TEMPORAL_DITHER
@@ -41,25 +46,37 @@ uniform usampler2D colortex8;
 
 
 void main() {
-    vec2 jitteredTexcoord = (vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5);
+    // subgroups arranged makes it out so you can xor by 1 to flip x neighbor, 2 y, 4 futher x, 8 further y
+
+    int spot = int(gl_SubgroupInvocationID+gl_SubgroupID*gl_SubgroupSize);
+    texpos = ivec2(spot&1,spot&2);
+    spot>>=1;
+    texpos += ivec2(spot&2,spot&4);
+    texpos.y>>=1;
+
+    spot=(spot>>3)<<2;
+    texpos+=ivec2((spot/SIZE)<<2,spot%SIZE);
+
+    texpos+=ivec2(gl_WorkGroupSize.xy*gl_WorkGroupID.xy);
+    texcoord = (vec2(texpos)+0.5);
     #ifdef TAA
-    jitteredTexcoord+=unscaledJitter();
+    texcoord+=unscaledJitter();
     #endif
-    jitteredTexcoord/=imageSize(colorimg6);
+    texcoord/=imageSize(colorimg6);
 
-    vec3 normal = texture(colortex2,jitteredTexcoord).xyz;
-    float solidDepth = texture(colortex5,jitteredTexcoord).x;
+    vec3 normal = texture(colortex2,texcoord).xyz;
+    float solidDepth = texture(colortex5,texcoord).x;
     #if MATERIALS_TYPE >= 0
-    uvec4 matInfo = texture(colortex8,jitteredTexcoord);
+    uvec4 matInfo = texture(colortex8,texcoord);
     #endif
 
 
-    float albedoA = texelFetch(colortex1,ivec2(jitteredTexcoord*textureSize(colortex1,0)),0).a;
+    float albedoA = texelFetch(colortex1,ivec2(texcoord*textureSize(colortex1,0)),0).a;
     if(solidDepth==1.0 || albedoA<1){
-        imageStore(colorimg6,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),vec4(0));
+        imageStore(colorimg6,texpos,vec4(0));
         return;
     }
-    vec4 worldPosRelative = vec4(jitteredTexcoord,solidDepth,1);
+    vec4 worldPosRelative = vec4(texcoord,solidDepth,1);
 
 
     worldPosRelative.xyz=worldPosRelative.xyz*2-1;
@@ -82,16 +99,16 @@ void main() {
 
     normal = normalize(normal);
 
-    float ditherValue = dither(ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy));
+    float ditherValue = dither(texpos);
 
     vec4 voxelLighting=vec4(0,0,0,1);
 
     #ifdef SSAO
     if(emissive<0.4){
-        voxelLighting.a = doSsao(jitteredTexcoord, normal, ditherValue);
+        voxelLighting.a = doSsao(normal, ditherValue);
     }
     #if DEBUG_SPECIAL_VIEW == 103
-    imageStore(colorimg19,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),vec4(voxelLighting.aaa,0));
+    imageStore(colorimg19,texpos,vec4(voxelLighting.aaa,0));
     #endif
     #endif
 
@@ -100,5 +117,5 @@ void main() {
     voxelLighting.rgb*=voxelLighting.a;
     #endif
 
-    imageStore(colorimg6,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),voxelLighting);
+    imageStore(colorimg6,texpos,voxelLighting);
 }

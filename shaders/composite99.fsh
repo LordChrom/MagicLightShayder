@@ -67,8 +67,8 @@ void main() {
     );
 
     if(bool(floatBitsToUint(depths.x)&1u)){ //is hand
-        outColor.rg*=10;
-        outColor.b=0.4;
+//        outColor.rg*=10;
+//        outColor.b=0.4;
     }
 
 #elif DEBUG_SPECIAL_VIEW == 6

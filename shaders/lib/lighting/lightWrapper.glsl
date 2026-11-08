@@ -50,13 +50,13 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
     #endif
 
     #ifdef SWRT
-    vec2 tc = ((vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5)*0.5)/textureSize(swrtRayHitSampler,0).xy;
+    vec2 tc = ((vec2(texpos)+0.5)*0.5)/textureSize(swrtRayHitSampler,0).xy;
     ret.rgb+=shadePrehitRays(worldPos, normal, subsurface, tc).xyz;
 
     #endif
 
     #ifdef SWRT_SKY_SHADOW
-        vec4 swrtSkyShadow = texelFetch(colortex6,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),0);
+        vec4 swrtSkyShadow = texelFetch(colortex6,texpos,0);
         ret.a=mixInSunlight(ret.a,swrtSkyShadow.a);
     #endif
 
