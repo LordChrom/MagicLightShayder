@@ -49,13 +49,12 @@ void main() {
     // subgroups arranged makes it out so you can xor by 1 to flip x neighbor, 2 y, 4 futher x, 8 further y
 
     int spot = int(gl_SubgroupInvocationID+gl_SubgroupID*gl_SubgroupSize);
-    texpos = ivec2(spot&1,spot&2);
-    spot>>=1;
-    texpos += ivec2(spot&2,spot&4);
-    texpos.y>>=1;
 
-    spot=(spot>>3)<<2;
-    texpos+=ivec2((spot/SIZE)<<2,spot%SIZE);
+    texpos=ivec2(gl_SubgroupInvocationID,gl_SubgroupInvocationID>>2)&0x3;
+
+    int sgNum=int(gl_SubgroupInvocationID+gl_SubgroupID*gl_SubgroupSize);
+    sgNum= (sgNum>>4)<<2;
+    texpos+=ivec2((sgNum/SIZE)<<2,sgNum%SIZE);
 
     texpos+=ivec2(gl_WorkGroupSize.xy*gl_WorkGroupID.xy);
     texcoord = (vec2(texpos)+0.5);
