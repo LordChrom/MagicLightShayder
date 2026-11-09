@@ -77,25 +77,22 @@ float shadowSamplePixelSoftMode(vec3 shadowpos){
 }
 
 float shadowSampleSoftMode(vec3 shadowpos){
-    float totalValue = 0;
-    float totalWeight = 9;
+    const int texelRadius = 1;
 
-    const int texelRadius = 2;
-
-    vec2 shadowposFract = fract(0.5+fract(shadowpos.xy*SHADOW_RESOLUTION));
+    ivec4 totals=ivec4(0);
     for(int x=-texelRadius;x<=texelRadius;x+=1){
         for(int y=-texelRadius;y<=texelRadius;y+=1){
-            vec2 sampleCoord = shadowpos.xy+oneShadowPixel*vec2(x,y);
-            float depth = texelFetch(shadowcolor0,ivec2(sampleCoord*SHADOW_RESOLUTION+0.5),0).x;
-
-            float distToCenter=length(vec2(x,y)-shadowposFract);
-            float weight = 1.0/max(0.4,distToCenter);
-
-            totalValue+=float(depth>=shadowpos.z)*weight;
-            totalWeight+=weight;
+            totals+= shadowGather(vec3(shadowpos.xy+oneShadowPixel*vec2(x,y),shadowpos.z));
         }
     }
-    return totalValue/totalWeight;
+
+    vec2 mix2d = fract(shadowpos.xy*textureSize(shadowcolor0,0));
+    mix2d = fract(mix2d+0.5);
+    vec4 weights = vec4(mix2d.x,1f-mix2d.x,mix2d.y,1f-mix2d.y);
+    weights = weights.yxyx*weights.wwzz;
+
+    float a = float(texelRadius*2+1);
+    return dot(totals,weights)/(a*a);
 }
 
 
@@ -103,15 +100,15 @@ float shadowSample(vec3 shadowpos){
     if(shadowpos.x<0)
         return 1;
 
-    #if SHADOW_SAMPLING_MODE==0
+    #if SHADOW_FILTER_TYPE==0
     return shadowSampleSinglePixelMode(shadowpos);
-    #elif SHADOW_SAMPLING_MODE==1
+    #elif SHADOW_FILTER_TYPE==1
     return shadowSampleCheapFilterMode(shadowpos);
-    #elif SHADOW_SAMPLING_MODE==2
+    #elif SHADOW_FILTER_TYPE==2
     return shadowSampleAngledMode(shadowpos);
-    #elif SHADOW_SAMPLING_MODE==3
+    #elif SHADOW_FILTER_TYPE==3
     return shadowSamplePixelSoftMode(shadowpos);
-    #elif SHADOW_SAMPLING_MODE==4
+    #elif SHADOW_FILTER_TYPE==4
     return shadowSampleSoftMode(shadowpos);
     #else
     return 0;
