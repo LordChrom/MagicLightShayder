@@ -100,20 +100,23 @@ void main() {
 
     float ditherValue = dither(texpos);
 
-    vec4 voxelLighting=vec4(0,0,0,1);
-
     #ifdef SSAO
+    float ssao = 1f;
     if(emissive<0.4){
-        voxelLighting.a = doSsao(normal, ditherValue);
+        ssao = doSsao(normal, ditherValue);
     }
     #if DEBUG_SPECIAL_VIEW == 103
-    imageStore(colorimg19,texpos,vec4(voxelLighting.aaa,0));
+    imageStore(colorimg19,texpos,vec4(ssao));
     #endif
     #endif
 
-    voxelLighting.rgb = lightingSample(worldPosRelative.xyz+cameraPosition,normal,subsurface,ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
+    vec4 voxelLighting = lightingSample(worldPosRelative.xyz+cameraPosition,normal,subsurface,ditherValue)+(EMISSIVE_BRIGHTNESS*emissive);
     #ifdef SSAO
-    voxelLighting.rgb*=voxelLighting.a;
+    voxelLighting.rgb*=ssao;
+    #endif
+
+    #ifdef DEBUG_LIGHT_HASH
+    voxelLighting=voxelLighting.aaaa;
     #endif
 
     imageStore(colorimg6,texpos,voxelLighting);

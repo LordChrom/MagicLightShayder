@@ -105,7 +105,7 @@ vec4 swrtSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue,
 
 uniform sampler2D swrtRayHitSampler;
 
-vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
+vec4 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
     worldPos+=clamp(length(worldPos-globalOrigin)*0.001,0.04,0.1)*normal;
     normal=-normal;
     unitShift = getUnitShift();
@@ -114,7 +114,7 @@ vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
     if(areaPos.x<0||areaPos.y<0||areaPos.z<0||
     areaPos.x>=SWRT_SIZE||areaPos.y>=SWRT_SIZE||areaPos.z>=SWRT_SIZE
     ){
-        return vec3(0);
+        return vec4(0f);
     }
 
     #ifdef DEBUG_SWRT_LIGHT_COUNT
@@ -125,13 +125,13 @@ vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
 
         float mult = float(numLights)/(4*SWRT_LIGHT_LAYERS);
         numLights = ((numLights-1)%7)+1;
-        return vec3(mult*((ivec3(numLights)>>ivec3(2,1,0))&1));
+        return vec4(mult*((ivec3(numLights)>>ivec3(2,1,0))&1),0f);
     }
     #endif
 
     areaPos+=offsetToVox;
 
-    vec3 color = vec3(0);
+    vec4 color = vec4(0f);
 
 
     uvec4 lightShortList;
@@ -153,6 +153,9 @@ vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
 
 
         uint light = lightShortList[i&3u];
+        if(!bool(light&LIGHT_VALID_BIT))
+            continue;
+
         vec3 displacementToLight = uncheckedUnpackListedLight(light)-fract(worldPos)+0.5;
 
         float lightStr = lightFalloff(displacementToLight);
@@ -160,6 +163,8 @@ vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
 
         ivec3 lightHash3 = floatBitsToInt(floor(worldPos.xyz+displacementToLight));
         float lightHash = float(((lightHash3.x*53)^(lightHash3.y*17)^(lightHash3.z*97))%255)/255.0;
+
+        color.a+=lightHash;
 
         const float margin = exp2(-8);
         if(abs(visibility.a-lightHash)>margin){
@@ -181,6 +186,7 @@ vec3 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
             color.rgb+=colorOfPackedLight(light)*visibility.rgb*lightStr;
     }
 
+    color.a=fract(color.a);
     return color;
 }
 

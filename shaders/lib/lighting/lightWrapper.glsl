@@ -37,8 +37,10 @@ float mixInSunlight(float blockSun, float shadowSun){
 
 #define UNIVERSAL_SUBSURFACENESS 0.0
 #ifndef FOG_SHADER
-vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue){
-    vec4 ret = vec4(0,0,0,-1);
+//a is a hash for rejecting accumulation
+vec4 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue){
+    vec4 ret = vec4(0f);
+    float sunAmount=-1f;
     subsurface+=UNIVERSAL_SUBSURFACENESS;
 
     #ifdef BASIC_FLOODFILL
@@ -51,13 +53,13 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
 
     #ifdef SWRT
     vec2 tc = ((vec2(texpos)+0.5)*0.5)/textureSize(swrtRayHitSampler,0).xy;
-    ret.rgb+=shadePrehitRays(worldPos, normal, subsurface, tc).xyz;
+    ret+=shadePrehitRays(worldPos, normal, subsurface, tc);
 
     #endif
 
     #ifdef SWRT_SKY_SHADOW
         vec4 swrtSkyShadow = texelFetch(colortex6,texpos,0);
-        ret.a=mixInSunlight(ret.a,swrtSkyShadow.a);
+        sunAmount=mixInSunlight(sunAmount,swrtSkyShadow.a);
     #endif
 
     #ifdef SHADOWMAP_SHADOWS
@@ -71,29 +73,31 @@ vec3 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
         if(shadowLightStrength.a==-1) ret.r++;
         #endif
 
-        ret.a=mixInSunlight(ret.a,shadowLightStrength);
+        sunAmount=mixInSunlight(sunAmount,shadowLightStrength);
     }
     #endif
 
-    if(ret.a==-1){
+    if(sunAmount==-1){
         #ifdef SCREENSPACE_SHADOW_FALLBACK
-        ret.a = sampleScreenspaceShadow(worldPos, normal);
+        sunAmount = sampleScreenspaceShadow(worldPos, normal);
         #elif defined SHADOWMAP_SHADOWS
-        ret.a = max(0,dot(normalize(mat3(gbufferModelViewInverse)*shadowLightPosition),normal));
+        sunAmount = max(0,dot(normalize(mat3(gbufferModelViewInverse)*shadowLightPosition),normal));
         #else
-        ret.a=1;
+        sunAmount=1;
         #endif
     }
 
-    ret.a=0.1+0.9*clamp(ret.a,0,1);
-    ret.rgb+=ret.a*getSunColor();
-    return ret.rgb + MIN_LIGHT_AMOUNT*clamp(1-(ret.r+ret.g+ret.b),0,1);
+    sunAmount=0.1+0.9*clamp(sunAmount,0,1);
+    ret.rgb+=sunAmount*getSunColor();
+    ret.rgb+=MIN_LIGHT_AMOUNT*clamp(1-(ret.r+ret.g+ret.b),0,1);
+    return ret;
 }
 #endif
 
 
 vec3 lightingSampleFog(vec3 worldPos, float ditherValue){
-    vec4 ret = vec4(0,0,0,-1);
+    vec4 ret = vec4(0f);
+    float sunAmount=-1f;
     #ifdef BASIC_FLOODFILL
     ret = sampleFloodData(worldPos);
     #endif
@@ -109,18 +113,18 @@ vec3 lightingSampleFog(vec3 worldPos, float ditherValue){
 
     #ifdef SHADOWMAP_SHADOWS
     float shadowLightStrength = shadowmapSampleFog(worldPos);
-    ret.a=mixInSunlight(ret.a,shadowLightStrength);
+    sunAmount=mixInSunlight(sunAmount,shadowLightStrength);
     #endif
 
     #ifdef SWRT
     ret.rgb+= swrtSampleFog(worldPos).rgb;
     #endif
 
-    if(ret.a==-1){
-        ret.a=1;
+    if(sunAmount==-1){
+        sunAmount=1;
     }
 
-    ret.a=0.2+0.8*clamp(ret.a,0,1);
-    ret.rgb=(FOG_BRIGHTNESS_BLOCK*ret.rgb) + (FOG_BRIGHTNESS_SUN*ret.a)*getSunColorForFog();
+    sunAmount=0.2+0.8*clamp(sunAmount,0,1);
+    ret.rgb=(FOG_BRIGHTNESS_BLOCK*ret.rgb) + (FOG_BRIGHTNESS_SUN*sunAmount)*getSunColorForFog();
     return ret.rgb;
 }

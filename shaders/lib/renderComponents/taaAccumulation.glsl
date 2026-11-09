@@ -48,16 +48,9 @@ void taaAccumulate(){
     vec2 jitteredTexcoord = texcoord;
     jitteredTexcoord-=unscaledJitter()/scaledScreenDim;
     multAccumulation = texelFetch(colortex6,ivec2(scaledScreenDim*jitteredTexcoord),0);
-
-#ifdef LIGHT_SOURCE_HASH_REJECTION
-    float lightHash = 0f;
-    ivec2 swrtTexSize = textureSize(swrtRayHitSampler,0).xy;
-    ivec2 swrtTc = ivec2(jitteredTexcoord*swrtTexSize*vec2(0.125,1.0)+0.5);
-    for(int i=0; i<4*SWRT_LIGHT_LAYERS; i++){
-        lightHash += texelFetch(swrtRayHitSampler,swrtTc,0).a;
-        swrtTc.x+=swrtTexSize.x>>3;
-    }
-#endif
+    #ifdef LIGHT_SOURCE_HASH_REJECTION
+    vec4 hashes = textureGather(colortex6,jitteredTexcoord,3);
+    #endif
 
 #ifdef TAA_FOG
     #ifdef TAA_HQ_BLUR
@@ -70,7 +63,7 @@ void taaAccumulate(){
 #endif
 
    #if DEBUG_SPECIAL_VIEW == 201
-    multAccumulation=vec4(1,0,0,0);
+    multAccumulation.rgb=vec3(1,0,0);
    #endif
     bool reprojectValid = false;
 
@@ -102,15 +95,15 @@ void taaAccumulate(){
             float brightnessDif = (brightness-prevBrightness)/(prevBrightness+brightness);
 
             #ifdef LIGHT_SOURCE_HASH_REJECTION
-            bool lightChanged = abs(lightHash-prevDepthAndBrightness.w)>0.01;
-            int lightsChanged = int(lightChanged);
-            lightsChanged+=subgroupQuadSwapVertical(lightsChanged);
-            lightsChanged+=subgroupQuadSwapHorizontal(lightsChanged);
-            if(lightsChanged>=4){
+            float lightHash = hashes.a;
+
+            hashes=abs(hashes-prevDepthAndBrightness.w);
+            hashes.xy=min(hashes.xy,hashes.zw);
+            hashes.x=min(hashes.x,hashes.y);
+            if(hashes.x>0.01){
                 previousMultAccumulation.a=0f;
-                previousMultAccumulation=vec4(1,0,0,1);
+                prevDepthAndBrightness.w=multAccumulation.a;
             }
-            prevDepthAndBrightness.w=lightHash;
             #endif
 
             prevDepthAndBrightness.y = prevDepthAndBrightness.y*0.999 + brightnessDif/sqrt(prevDepthAndBrightness.z);
