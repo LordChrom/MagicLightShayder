@@ -11,10 +11,10 @@
 #define WORK_SIZE VOXELSIZE_EIGTH
 
 const ivec3 workGroups = ivec3(WORK_SIZE,1,WORK_SIZE);
-layout (local_size_x = 8, local_size_y = 4, local_size_z = 8) in;
+layout (local_size_x = 8, local_size_y = 16, local_size_z = 8) in;
 
 layout(std430, binding = 1) buffer ssbo0 {
-    uvec4[2][64][64] bufferedGroupMeta;
+    uvec4[64][64] bufferedGroupMeta;
     uint[2][64][64][64] bufferedData;
 };
 
@@ -128,17 +128,21 @@ void merge(ivec3 offset){
 }
 
 
-uvec4 groupMeta = uvec4(0);
+shared uvec4 groupMeta;
 ivec3 localOffset = ivec3(0,0,0);
 
 void main(){
-    if(gl_LocalInvocationIndex==0u);
-        anyChanges=false;
-    barrier();
     unitShift=getUnitShift();
+    if(gl_LocalInvocationIndex==0u){
+        anyChanges=false;
+        if(frameCounter>0)
+            groupMeta = bufferedGroupMeta[gl_WorkGroupID.x][gl_WorkGroupID.z];
+        else
+            groupMeta=uvec4(0);
+    }
 
-    if(frameCounter>0)
-    groupMeta = bufferedGroupMeta[uint(frameCounter)&1u][gl_WorkGroupID.x][gl_WorkGroupID.z];
+    barrier();
+
 
     localPos = ivec3(uvec3(gl_WorkGroupID.x,groupMeta.x,gl_WorkGroupID.z)*gl_WorkGroupSize+gl_LocalInvocationID);
 
@@ -168,7 +172,7 @@ void main(){
     }
 
     groupMeta.z+=anyChanges?1:-2;
-    if(groupMeta.z>20){
+    if(groupMeta.z>64){
         //TODO some awareness of neighbors' activity
         groupMeta.x++;
         groupMeta.x%=SWRT_SIZE/gl_WorkGroupSize.y;
@@ -178,6 +182,6 @@ void main(){
 
     barrier();
     if(gl_LocalInvocationIndex==0u && gl_WorkGroupID.y==0u)
-        bufferedGroupMeta[(uint(frameCounter)&1u)^1u][gl_WorkGroupID.x][gl_WorkGroupID.z] = groupMeta;
+        bufferedGroupMeta[gl_WorkGroupID.x][gl_WorkGroupID.z] = groupMeta;
 }
 
