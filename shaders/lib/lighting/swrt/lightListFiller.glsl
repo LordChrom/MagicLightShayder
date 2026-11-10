@@ -8,17 +8,18 @@
 #include "/lib/lighting/swrt/rayIntersect.glsl"
 
 
-#define SIZE 8
+#define WORK_SIZE VOXELSIZE_EIGTH
 
-#if SIZE==8
-    #define WORK_SIZE VOXELSIZE_EIGTH
-#else
-    #define SIZE 16
-    #define WORK_SIZE VOXELSIZE_SIXTNTH
-#endif
+const ivec3 workGroups = ivec3(WORK_SIZE,1,WORK_SIZE);
+layout (local_size_x = 8, local_size_y = 4, local_size_z = 8) in;
 
-const ivec3 workGroups = ivec3(WORK_SIZE,WORK_SIZE,WORK_SIZE);
-layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = SIZE) in;
+layout(std430, binding = 1) buffer ssbo0 {
+    uvec4[2][64][64] bufferedGroupMeta;
+    uint[2][64][64][64] bufferedData;
+};
+
+bool personalChanges = false;
+shared bool anyChanges;
 
 ivec3 localPos = ivec3(0);
 ivec3 unitShift = ivec3(0);
@@ -27,11 +28,7 @@ uint[SWRT_LIGHTS_PER_BLOCK] neighborList;
 uint[SWRT_LIGHTS_PER_BLOCK] outList;
 uint itemsInList = 0;
 
-void zeroPosition(ivec3 pos, bool isTop){
-    clearLightList(pos, unitShift);
-}
-#define MOVEMENT_TRIM
-#include "/lib/util/3dComputeShaderUtils.glsl"
+uniform int frameCounter;
 
 uint getVoxel(ivec3 swrtPos){
     return getBaseVoxData(swrtPos,unitShift);
@@ -91,11 +88,15 @@ void verifyLights(){
     #endif
 
         light |= ((voxel>>WORLDVOX_EMISSION_SHIFT)<<28 ) | (blockLightID(voxel)<<22);
+        personalChanges = personalChanges || (light!=selfList[outIndex]);
+
         outList[outIndex] = light;
         outIndex++;
     }
-    for(;outIndex<SWRT_LIGHTS_PER_BLOCK;outIndex++)
+    for(;outIndex<SWRT_LIGHTS_PER_BLOCK;outIndex++){
         outList[outIndex] = 0u;
+        personalChanges = personalChanges || (selfList[outIndex]!=0u);
+    }
 }
 
 void storeData(){
@@ -126,32 +127,23 @@ void merge(ivec3 offset){
     }
 }
 
+
+uvec4 groupMeta = uvec4(0);
+ivec3 localOffset = ivec3(0,0,0);
+
 void main(){
+    if(gl_LocalInvocationIndex==0u);
+        anyChanges=false;
+    barrier();
     unitShift=getUnitShift();
-    localPos = ivec3(gl_LocalInvocationID+gl_WorkGroupID*SIZE);
-    ivec3 previousUnitShift = getPreviousUnitShift();
 
-    //TODO make this work with the more parralel ver
-    movementTrimParallel(SWRT_SIZE, unitShift, previousUnitShift);
+    if(frameCounter>0)
+    groupMeta = bufferedGroupMeta[uint(frameCounter)&1u][gl_WorkGroupID.x][gl_WorkGroupID.z];
 
-    //TODO probably would benefit from shared mem
-    #define DISTANCE_BASED_LIGHT_LIST_SPEED
-    #ifdef DISTANCE_BASED_LIGHT_LIST_SPEED
-    uint updatePeriod = getUpdatePeriod();
+    localPos = ivec3(uvec3(gl_WorkGroupID.x,groupMeta.x,gl_WorkGroupID.z)*gl_WorkGroupSize+gl_LocalInvocationID);
 
-    #ifdef JUMPSTART_LIGHTING
-    if(frameCounter<54) updatePeriod=1u;
-    #endif
-
-    bool shouldCompute = shouldCompute(updatePeriod);
-    if(!shouldCompute)
-        return;
-    #else
-        const uint updatePeriod = 1u;
-    #endif
-
-    int frame = int(uint(frameCounter)/updatePeriod);
-    ivec3 localOffset = ((ivec3(frame/3,frame/9+frame,frame))%3)-1;
+    uint axis = groupMeta.y>>1;
+    localOffset = ivec3(axis==0,axis==1,axis==2)*(1-2*int(groupMeta.y&1u));
 
     uint voxel = getVoxel(localPos);
     getLightList(selfList,localPos,unitShift);
@@ -170,6 +162,22 @@ void main(){
         merge(localOffset);
 
     verifyLights();
-    storeData();
+    if(personalChanges){
+        storeData();
+        anyChanges=true;
+    }
+
+    groupMeta.z+=anyChanges?1:-2;
+    if(groupMeta.z>20){
+        //TODO some awareness of neighbors' activity
+        groupMeta.x++;
+        groupMeta.x%=SWRT_SIZE/gl_WorkGroupSize.y;
+        groupMeta.z=3u;
+    }
+    groupMeta.y=(groupMeta.y+1)%6;
+
+    barrier();
+    if(gl_LocalInvocationIndex==0u && gl_WorkGroupID.y==0u)
+        bufferedGroupMeta[(uint(frameCounter)&1u)^1u][gl_WorkGroupID.x][gl_WorkGroupID.z] = groupMeta;
 }
 

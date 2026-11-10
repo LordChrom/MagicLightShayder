@@ -132,7 +132,8 @@ Packing
 - 3 : flood shadow seam filler
 - 10-17: flood shadow lighting
 - 20: basic floodfill lighter & filler
-- 30: light list manager for swrt
+- 30: light list seam filler for swrt
+- 31: light list manager for swrt
 ### deferred
 - unused
 ### composite

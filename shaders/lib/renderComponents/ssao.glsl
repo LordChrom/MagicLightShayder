@@ -58,9 +58,9 @@ float doSsao(vec3 normal, float dither){
     uint normalCategory = (n2.x<<5) | (n2.y<<3) | (n2.z<<1) | isHand | 256u;
 
     //TODO reject based on normal
-    const float filterTotal = 6;
+    const float filterTotal = 6f;
     const float fT = sqrt(filterTotal);
-    const float fF  = fT-1;
+    const float fF  = fT-1f;
 
     conditionalWeightedShuffle(ssao,normalCategory,1u,fF,fT);
     conditionalWeightedShuffle(ssao,normalCategory,4u,fF,fT);
@@ -76,5 +76,5 @@ float doSsao(vec3 normal, float dither){
 
 
 
-    return clamp(1-ssao*SSAO_STRENGTH,0.2,1);
+    return clamp(1-ssao*SSAO_STRENGTH,0f,1f);
 }
