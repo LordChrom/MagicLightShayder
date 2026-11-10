@@ -3,8 +3,9 @@ const int numSsaoAngles = 2*SSAO_QUALITY+1;
 
 #define TWOPI 6.28318530718
 
-void conditionalWeightedShuffle(inout float x, inout uint check, uint direction, float weightTrue, float weightFalse){
-    x = (check == subgroupShuffle(check,gl_SubgroupInvocationID^direction))?weightTrue*x+subgroupShuffle(x,gl_SubgroupInvocationID^direction):x*weightFalse;
+void conditionalWeightedShuffle(inout float x, inout uint check, uint direction, float weight){
+    if(check == subgroupShuffle(check,gl_SubgroupInvocationID^direction))
+        x = mix(x,subgroupShuffle(x,gl_SubgroupInvocationID^direction),weight);
 }
 
 float doSsao(vec3 normal, float dither){
@@ -57,20 +58,11 @@ float doSsao(vec3 normal, float dither){
     uvec3 n2 = uvec3(normal+1.5); //-1,-0.5,  -0.5,0.5,  0.5,1,  -> 0 1 3
     uint normalCategory = (n2.x<<5) | (n2.y<<3) | (n2.z<<1) | isHand | 256u;
 
-    //TODO reject based on normal
-    const float filterTotal = 6f;
-    const float fT = sqrt(filterTotal);
-    const float fF  = fT-1f;
-
-    conditionalWeightedShuffle(ssao,normalCategory,1u,fF,fT);
-    conditionalWeightedShuffle(ssao,normalCategory,4u,fF,fT);
+    conditionalWeightedShuffle(ssao,normalCategory,1u,0.4);
+    conditionalWeightedShuffle(ssao,normalCategory,4u,0.4);
     #if SSAO_FILTERING>1
-    conditionalWeightedShuffle(ssao,normalCategory,2u,fF,fT);
-    conditionalWeightedShuffle(ssao,normalCategory,8u,fF,fT);
-
-    ssao /=filterTotal*filterTotal;
-    #else
-    ssao /=filterTotal;
+    conditionalWeightedShuffle(ssao,normalCategory,2u,0.25);
+    conditionalWeightedShuffle(ssao,normalCategory,8u,0.25);
     #endif
     #endif
 

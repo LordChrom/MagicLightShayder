@@ -47,10 +47,7 @@ vec2 texcoord;
 
 
 void main() {
-    // subgroups arranged makes it out so you can xor by 1 to flip x neighbor, 2 y, 4 futher x, 8 further y
-
-    int spot = int(gl_SubgroupInvocationID+gl_SubgroupID*gl_SubgroupSize);
-
+    // subgroups arranged makes it out so you can xor by 1 to flip x neighbor, 4 y, 2 futher x, 8 further y
     texpos=ivec2(gl_SubgroupInvocationID,gl_SubgroupInvocationID>>2)&0x3;
 
     int sgNum=int(gl_SubgroupInvocationID+gl_SubgroupID*gl_SubgroupSize);
