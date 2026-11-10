@@ -77,22 +77,28 @@ float shadowSamplePixelSoftMode(vec3 shadowpos){
 }
 
 float shadowSampleSoftMode(vec3 shadowpos){
-    const int texelRadius = 1;
+    #ifdef VOXEL_COMPOSITE_SHADER
+
+    const int texelRadius = 2;
 
     ivec4 totals=ivec4(0);
-    for(int x=-texelRadius;x<=texelRadius;x+=1){
-        for(int y=-texelRadius;y<=texelRadius;y+=1){
-            totals+= shadowGather(vec3(shadowpos.xy+oneShadowPixel*vec2(x,y),shadowpos.z));
+    shadowpos.xy+=oneShadowPixel*(vec2(gl_SubgroupInvocationID&1u,(gl_SubgroupInvocationID&4u)>>2)-(0.5+0.5*texelRadius));
+
+    for(int x=0;x<texelRadius;x++){
+        for(int y=0;y<texelRadius;y++){
+            totals+= shadowGather(vec3(shadowpos.xy+2f*oneShadowPixel*(vec2(x,y)),shadowpos.z));
         }
     }
-
+    totals+=subgroupShuffle(totals,gl_SubgroupInvocationID^4u);
+    totals+=subgroupShuffle(totals,gl_SubgroupInvocationID^1u);
     vec2 mix2d = fract(shadowpos.xy*textureSize(shadowcolor0,0));
     mix2d = fract(mix2d+0.5);
     vec4 weights = vec4(mix2d.x,1f-mix2d.x,mix2d.y,1f-mix2d.y);
-    weights = weights.yxyx*weights.wwzz;
 
-    float a = float(texelRadius*2+1);
-    return dot(totals,weights)/(a*a);
+    return dot(totals,weights.yxyx*weights.wwzz)/(texelRadius*texelRadius*4f);
+    #else
+    return shadowSampleCheapFilterMode(shadowpos);
+    #endif
 }
 
 

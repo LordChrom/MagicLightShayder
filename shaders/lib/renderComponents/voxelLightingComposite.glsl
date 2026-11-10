@@ -1,6 +1,7 @@
 #version 430 compatibility
 #extension GL_KHR_shader_subgroup_arithmetic : enable
 #extension GL_KHR_shader_subgroup_shuffle : enable
+#define VOXEL_COMPOSITE_SHADER
 
 #include "/lib/settings.glsl"
 #ifdef TAA
