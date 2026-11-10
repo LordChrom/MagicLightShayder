@@ -163,7 +163,8 @@
 
 
 #define SWRT
-#define SWRT_SIZE 128//[32 64 128 192 256 384]
+#define SWRT_SIZE 128 //[32 64 128 192 256 384]
+#define SWRT_UPDATE_SPEED 16 //[4 8 16 32 64]
 #define SWRT_PENUMBRA_SIZE -1 //[-1 0.05 0.1 0.15 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0]
 #define SWRT_SHADOW_BLUR 1 //[-1 1 2]
 #define SWRT_LIGHT_LAYERS 2 //[1 2 3 4]
@@ -318,6 +319,7 @@
     #define VOXELSIZE_SIXTNTH  2
     #define VOXELSIZE_3_32NDS  3
     #define VOXELSIZE_EIGTH    4
+    #define VOXELSIZE_QUARTER  8
     #define VOXELSIZE_HALF     16
     #define VOXELSIZE_THREEQR  24
     #define VOXELIZATION_SIZE  32
@@ -325,6 +327,7 @@
     #define VOXELSIZE_SIXTNTH  4
     #define VOXELSIZE_3_32NDS  6
     #define VOXELSIZE_EIGTH    8
+    #define VOXELSIZE_QUARTER  16
     #define VOXELSIZE_HALF     32
     #define VOXELSIZE_THREEQR  48
     #define VOXELIZATION_SIZE  64
@@ -332,6 +335,7 @@
     #define VOXELSIZE_SIXTNTH  8
     #define VOXELSIZE_3_32NDS  12
     #define VOXELSIZE_EIGTH    16
+    #define VOXELSIZE_QUARTER  32
     #define VOXELSIZE_HALF     64
     #define VOXELSIZE_THREEQR  96
     #define VOXELIZATION_SIZE  128
@@ -339,6 +343,7 @@
     #define VOXELSIZE_SIXTNTH  12
     #define VOXELSIZE_3_32NDS  18
     #define VOXELSIZE_EIGTH    24
+    #define VOXELSIZE_QUARTER  48
     #define VOXELSIZE_HALF     96
     #define VOXELSIZE_THREEQR  144
     #define VOXELIZATION_SIZE  192
@@ -346,6 +351,7 @@
     #define VOXELSIZE_SIXTNTH  16
     #define VOXELSIZE_3_32NDS  24
     #define VOXELSIZE_EIGTH    32
+    #define VOXELSIZE_QUARTER  64
     #define VOXELSIZE_HALF     128
     #define VOXELSIZE_THREEQR  192
     #define VOXELIZATION_SIZE  256
@@ -353,6 +359,7 @@
     #define VOXELSIZE_SIXTNTH  24
     #define VOXELSIZE_3_32NDS  36
     #define VOXELSIZE_EIGTH    48
+    #define VOXELSIZE_QUARTER  96
     #define VOXELSIZE_HALF     192
     #define VOXELSIZE_THREEQR  288
     #define VOXELIZATION_SIZE  384
@@ -360,6 +367,7 @@
     #define VOXELSIZE_SIXTNTH  32
     #define VOXELSIZE_3_32NDS  48
     #define VOXELSIZE_EIGTH    64
+    #define VOXELSIZE_QUARTER  128
     #define VOXELSIZE_HALF     256
     #define VOXELSIZE_THREEQR  384
     #define VOXELIZATION_SIZE  512

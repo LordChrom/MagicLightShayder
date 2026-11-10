@@ -1,3 +1,4 @@
+#extension GL_KHR_shader_subgroup_shuffle : enable
 #include "/lib/settings.glsl"
 #define WRITES_LIGHT_LIST
 #define READS_LIGHT_LIST
@@ -8,10 +9,10 @@
 #include "/lib/lighting/swrt/rayIntersect.glsl"
 
 
-#define WORK_SIZE VOXELSIZE_EIGTH
+#define WORK_SIZE VOXELSIZE_QUARTER
 
 const ivec3 workGroups = ivec3(WORK_SIZE,1,WORK_SIZE);
-layout (local_size_x = 8, local_size_y = 16, local_size_z = 8) in;
+layout (local_size_x = 4, local_size_y = SWRT_UPDATE_SPEED, local_size_z = 4) in;
 
 layout(std430, binding = 1) buffer ssbo0 {
     uvec4[64][64] bufferedGroupMeta;
@@ -19,13 +20,12 @@ layout(std430, binding = 1) buffer ssbo0 {
 };
 
 bool personalChanges = false;
-shared bool anyChanges;
 
 ivec3 localPos = ivec3(0);
 ivec3 unitShift = ivec3(0);
 uint[SWRT_LIGHTS_PER_BLOCK] selfList;
 uint[SWRT_LIGHTS_PER_BLOCK] neighborList;
-uint[SWRT_LIGHTS_PER_BLOCK] outList;
+shared uint[gl_WorkGroupSize.x*gl_WorkGroupSize.y*gl_WorkGroupSize.z][SWRT_LIGHTS_PER_BLOCK] outList;
 uint itemsInList = 0;
 
 uniform int frameCounter;
@@ -47,7 +47,7 @@ void verifyLights(){
     uint outIndex = 0u;
     itemsInList = min(itemsInList,SWRT_LIGHTS_PER_BLOCK);
     for(uint i=0;i<itemsInList;i++){
-        uint light = outList[i]&LIGHT_NO_META_MASK;
+        uint light = outList[gl_LocalInvocationIndex][i]&LIGHT_NO_META_MASK;
         if(!bool(light&LIGHT_VALID_BIT))
             break;
         ivec3 pos = localPos + uncheckedUnpackListedLight(light);
@@ -90,17 +90,17 @@ void verifyLights(){
         light |= ((voxel>>WORLDVOX_EMISSION_SHIFT)<<28 ) | (blockLightID(voxel)<<22);
         personalChanges = personalChanges || (light!=selfList[outIndex]);
 
-        outList[outIndex] = light;
+        outList[gl_LocalInvocationIndex][outIndex] = light;
         outIndex++;
     }
     for(;outIndex<SWRT_LIGHTS_PER_BLOCK;outIndex++){
-        outList[outIndex] = 0u;
+        outList[gl_LocalInvocationIndex][outIndex] = 0u;
         personalChanges = personalChanges || (selfList[outIndex]!=0u);
     }
 }
 
 void storeData(){
-    setLightList(outList,localPos,unitShift);
+    setLightList(outList[gl_LocalInvocationIndex],localPos,unitShift);
 }
 
 void merge(ivec3 offset){
@@ -122,29 +122,44 @@ void merge(ivec3 offset){
         if(!bool(preferableLight&LIGHT_VALID_BIT))
             break;
 
-        if((itemsInList==0)||preferableLight<outList[max(0,int(itemsInList)-1)])
-            outList[itemsInList++] = preferableLight;
+        if((itemsInList==0)||preferableLight<outList[gl_LocalInvocationIndex][max(0,int(itemsInList)-1)])
+            outList[gl_LocalInvocationIndex][itemsInList++] = preferableLight;
     }
 }
 
 
 shared uvec4 groupMeta;
 ivec3 localOffset = ivec3(0,0,0);
+void iterateGroupMeta(){
+    groupMeta.z+=bool(groupMeta.w)?1:-2;
+    if(groupMeta.z>64){
+        //TODO some awareness of neighbors' activity
+        groupMeta.x++;
+        groupMeta.x%=SWRT_SIZE/gl_WorkGroupSize.y;
+        groupMeta.z=3u;
+    }
+    groupMeta.y=(groupMeta.y+1)%6;
+}
 
 void main(){
     unitShift=getUnitShift();
     if(gl_LocalInvocationIndex==0u){
-        anyChanges=false;
         if(frameCounter>0)
             groupMeta = bufferedGroupMeta[gl_WorkGroupID.x][gl_WorkGroupID.z];
         else
             groupMeta=uvec4(0);
+        iterateGroupMeta();
+        bufferedGroupMeta[gl_WorkGroupID.x][gl_WorkGroupID.z] = uvec4(groupMeta.xyz,0u);
     }
 
     barrier();
 
 
-    localPos = ivec3(uvec3(gl_WorkGroupID.x,groupMeta.x,gl_WorkGroupID.z)*gl_WorkGroupSize+gl_LocalInvocationID);
+    localPos = ivec3(uvec3(gl_WorkGroupID.x,groupMeta.x,gl_WorkGroupID.z)*gl_WorkGroupSize)
+        +ivec3(gl_SubgroupInvocationID%gl_WorkGroupSize.x,
+            ((gl_SubgroupInvocationID+gl_SubgroupID*gl_SubgroupSize)/(gl_WorkGroupSize.x*gl_WorkGroupSize.z)),
+            (gl_SubgroupInvocationID/gl_WorkGroupSize.x)%gl_WorkGroupSize.z
+        );
 
     uint axis = groupMeta.y>>1;
     localOffset = ivec3(axis==0,axis==1,axis==2)*(1-2*int(groupMeta.y&1u));
@@ -155,11 +170,11 @@ void main(){
 
 
     for(int i=0;i<SWRT_LIGHTS_PER_BLOCK;i++)
-        outList[i]=0u;
+        outList[gl_LocalInvocationIndex][i]=0u;
 
     if(bool(voxel&WORLDVOX_EMISSION_MASK)){
         uint newLight = packListedLight(ivec3(0));
-        outList[itemsInList++] = tagWithLength(newLight);
+        outList[gl_LocalInvocationIndex][itemsInList++] = tagWithLength(newLight);
     }
 
     if(!bool(voxel&WORLDVOX_OPAQUE))
@@ -168,20 +183,7 @@ void main(){
     verifyLights();
     if(personalChanges){
         storeData();
-        anyChanges=true;
+        bufferedGroupMeta[gl_WorkGroupID.x][gl_WorkGroupID.z].w=1;
     }
-
-    groupMeta.z+=anyChanges?1:-2;
-    if(groupMeta.z>64){
-        //TODO some awareness of neighbors' activity
-        groupMeta.x++;
-        groupMeta.x%=SWRT_SIZE/gl_WorkGroupSize.y;
-        groupMeta.z=3u;
-    }
-    groupMeta.y=(groupMeta.y+1)%6;
-
-    barrier();
-    if(gl_LocalInvocationIndex==0u && gl_WorkGroupID.y==0u)
-        bufferedGroupMeta[gl_WorkGroupID.x][gl_WorkGroupID.z] = groupMeta;
 }
 
