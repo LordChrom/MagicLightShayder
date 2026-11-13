@@ -22,7 +22,6 @@ layout(std430, binding = 1) buffer ssbo0 {
 bool personalChanges = false;
 
 ivec3 localPos = ivec3(0);
-ivec3 unitShift = ivec3(0);
 uint[SWRT_LIGHTS_PER_BLOCK] selfList;
 uint[SWRT_LIGHTS_PER_BLOCK] neighborList;
 shared uint[gl_WorkGroupSize.x*gl_WorkGroupSize.y*gl_WorkGroupSize.z][SWRT_LIGHTS_PER_BLOCK] outList;
@@ -71,7 +70,7 @@ void verifyLights(){
             localOffset.z=localOffset.x*localOffset.y;
             localOffset*=0.4;
 
-            float d = traceRay(worldPos+localOffset, lightDir, unitShift, 30u);
+            float d = traceRay(worldPos+localOffset, lightDir, 30u);
             if(d<0){
                 lightReachable=true;
                 break;
@@ -80,7 +79,7 @@ void verifyLights(){
         if(!lightReachable)
             continue;
         #else
-        if(traceRay(worldPos, lightDir, unitShift, 30u)>0)
+        if(traceRay(worldPos, lightDir, 30u)>0)
             continue;
 
         #endif
@@ -100,7 +99,7 @@ void verifyLights(){
 }
 
 void storeData(){
-    setLightList(outList[gl_LocalInvocationIndex],localPos,unitShift);
+    setLightList(outList[gl_LocalInvocationIndex],localPos);
 }
 
 void merge(ivec3 offset){
@@ -142,7 +141,6 @@ void iterateGroupMeta(){
 }
 
 void main(){
-    unitShift=getUnitShift();
     if(gl_LocalInvocationIndex==0u){
         if(frameCounter>0)
             groupMeta = bufferedGroupMeta[gl_WorkGroupID.x][gl_WorkGroupID.z];
@@ -165,8 +163,8 @@ void main(){
     localOffset = ivec3(axis==0,axis==1,axis==2)*(1-2*int(groupMeta.y&1u));
 
     uint voxel = getVoxel(localPos);
-    getLightList(selfList,localPos,unitShift);
-    getLightList(neighborList,localPos+localOffset,unitShift);
+    getLightList(selfList,localPos);
+    getLightList(neighborList,localPos+localOffset);
 
 
     for(int i=0;i<SWRT_LIGHTS_PER_BLOCK;i++)

@@ -29,7 +29,7 @@ layout (local_size_x = SIZE, local_size_y = 1, local_size_z = SIZE) in;
 const float oneLightLevel = 1.0/15.0;
 const float oneStep = 1.0/255.0;
 
-ivec3 unitShift = ivec3(0);
+ivec3 unitShift = getUnitShift();
 vec4 lightOutput = vec4(0);
 uint ceilingHeight = 0u;
 uint centerBlock = 0u;
@@ -99,7 +99,6 @@ void considerSample(ivec3 samplePos, uint axis){
 
 
 void main(){
-    unitShift=getUnitShift();
     ivec3 previousUnitShift = getPreviousUnitShift();
     ceilingHeight = FLOODFILL_SIZE+min(0,previousUnitShift.y-unitShift.y);
 

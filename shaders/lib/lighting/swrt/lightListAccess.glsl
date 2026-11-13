@@ -13,6 +13,8 @@ const int offsetToVox = (SWRT_SIZE-VOXELIZATION_SIZE)>>1;
 const int swrtMaxDist = MAX_SWRT_LIGHT_DISTANCE;
 const float maxPossibleLightLen = 124.5;
 
+ivec3 unitShift = getUnitShift();
+
 uint modSwrtSize(uint x){
     #if (SWRT_SIZE&(SWRT_SIZE-1))
     return (x+0x10000u*SWRT_SIZE)%SWRT_SIZE;
@@ -39,7 +41,7 @@ restrict uimage3D lightSourceList;
 #endif
 
 #ifdef WRITES_LIGHT_LIST
-void setLightList(uint[SWRT_LIGHTS_PER_BLOCK] list, ivec3 areaPos, ivec3 unitShift){
+void setLightList(uint[SWRT_LIGHTS_PER_BLOCK] list, ivec3 areaPos){
     areaPos = modSwrtSize(areaPos+unitShift);
     areaPos.y*=SWRT_LIGHT_LAYERS;
     for(int layer=0;layer<SWRT_LIGHT_LAYERS;layer++){
@@ -49,7 +51,7 @@ void setLightList(uint[SWRT_LIGHTS_PER_BLOCK] list, ivec3 areaPos, ivec3 unitShi
     }
 }
 
-void clearLightList(ivec3 areaPos, ivec3 unitShift){
+void clearLightList(ivec3 areaPos){
     areaPos = modSwrtSize(areaPos+unitShift);
     areaPos.y*=SWRT_LIGHT_LAYERS;
     for(int layer=0;layer<SWRT_LIGHT_LAYERS;layer++){
@@ -60,7 +62,7 @@ void clearLightList(ivec3 areaPos, ivec3 unitShift){
 #endif
 
 #ifdef READS_LIGHT_LIST
-void getLightList(out uint[SWRT_LIGHTS_PER_BLOCK] list, ivec3 areaPos, ivec3 unitShift){
+void getLightList(out uint[SWRT_LIGHTS_PER_BLOCK] list, ivec3 areaPos){
     areaPos = modSwrtSize(areaPos+unitShift);
     areaPos.y*=SWRT_LIGHT_LAYERS;
     uvec4 l1 = imageLoad(lightSourceList,areaPos);
@@ -98,7 +100,7 @@ void getLightList(out uint[SWRT_LIGHTS_PER_BLOCK] list, ivec3 areaPos, ivec3 uni
     #endif
 }
 
-void getStridedLightList(out uint[SWRT_LIGHT_LAYERS] list, ivec3 areaPos, ivec3 unitShift, uint slot){
+void getStridedLightList(out uint[SWRT_LIGHT_LAYERS] list, ivec3 areaPos, uint slot){
     areaPos = modSwrtSize(areaPos+unitShift);
     areaPos.y*=SWRT_LIGHT_LAYERS;
     uint l1 = imageLoad(lightSourceList,areaPos)[slot];
@@ -125,13 +127,13 @@ void getStridedLightList(out uint[SWRT_LIGHT_LAYERS] list, ivec3 areaPos, ivec3 
 }
 
 
-uvec4 getLightListLayer(ivec3 areaPos, ivec3 unitShift, uint layer){
+uvec4 getLightListLayer(ivec3 areaPos, uint layer){
     areaPos = modSwrtSize(areaPos+unitShift);
     areaPos.y=areaPos.y*SWRT_LIGHT_LAYERS+int(layer);
     return imageLoad(lightSourceList,areaPos);
 }
 
-uint getListLight(ivec3 areaPos, ivec3 unitShift, uint index){
+uint getListLight(ivec3 areaPos, uint index){
     areaPos = modSwrtSize(areaPos+unitShift);
     areaPos.y=areaPos.y*SWRT_LIGHT_LAYERS+(int(index)>>2);
     return imageLoad(lightSourceList,areaPos)[index&3u];
@@ -179,6 +181,10 @@ uint countLights(uint[SWRT_LIGHTS_PER_BLOCK] list){
         ret+=list[i]&1u;
     }
     return ret;
+}
+
+vec3 displacementToListedLight(uint light, vec3 worldPos){
+    return uncheckedUnpackListedLight(light)+ 0.5-fract(worldPos.xyz);
 }
 
 #endif

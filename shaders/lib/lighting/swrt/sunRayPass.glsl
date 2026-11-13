@@ -77,7 +77,7 @@ void main(){
 
     uint translucencies;
     vec4 hitDepths;
-    float hitD = traceRay(worldPos.xyz,displacementToLight,unitShift,maxSteps,translucencies,hitDepths);
+    float hitD = traceRay(worldPos.xyz,displacementToLight,maxSteps,translucencies,hitDepths);
 
     vec4 writeColor;
 

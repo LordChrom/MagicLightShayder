@@ -58,14 +58,12 @@ void shade(){
     ditherValue = temporalNoise(ditherValue);
     #endif
 
-    unitShift = getUnitShift();
-
     uint index = ((gl_LocalInvocationID.x&1u)<<1) + (gl_LocalInvocationID.y&1u) + 4u*gl_LocalInvocationID.z;
-    uint light = getListLight(areaPos,unitShift,index);
+    uint light = getListLight(areaPos,index);
 
     if(!bool(light&LIGHT_VALID_BIT))
         return;
-    vec3 displacementToLight = uncheckedUnpackListedLight(light)+ 0.5-fract(worldPos.xyz);
+    vec3 displacementToLight = displacementToListedLight(light,worldPos.xyz);
     #if SWRT_PENUMBRA_SIZE!=-1
     displacementToLight+=penumbraNoise(ditherValue);
     #endif
@@ -76,7 +74,7 @@ void shade(){
 
     uint translucencies;
     vec4 hitDepths;
-    if(traceRay(worldPos.xyz,displacementToLight,unitShift,maxSteps,translucencies,hitDepths)>=0)
+    if(traceRay(worldPos.xyz,displacementToLight,maxSteps,translucencies,hitDepths)>=0)
         return;
 
 

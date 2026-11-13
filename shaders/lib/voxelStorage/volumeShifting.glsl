@@ -17,9 +17,9 @@ ivec3 getPreviousAreaShift(float scale){return ivec3(floor(previousGlobalOrigin/
 ivec3 getPreviousCascadedAreaShift(uint cascadeLevel){return getPreviousAreaShift(MIN_SCALE*float(1<<cascadeLevel));}
 
 ivec3 getUnitShift(){
-    return ivec3(floor(globalOrigin));
+    return ivec3(floor(globalOrigin))&~3;
 }
 ivec3 getPreviousUnitShift(){
-    return ivec3(floor(previousGlobalOrigin));
+    return ivec3(floor(previousGlobalOrigin))&~3;
 }
 #endif

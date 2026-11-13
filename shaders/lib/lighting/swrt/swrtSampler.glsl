@@ -14,14 +14,13 @@
 #define TEMPORAL_DITHER
 #include "/lib/util/dither.glsl"
 
-ivec3 unitShift = ivec3(0);
 
 vec3 colorOfPackedLight(uint light){
     return worldVoxColor((light>>22)&0x3fu,(light>>28)&0x3fu);
 }
 
 ivec3 worldPosToSWRT(vec3 pos){
-    ivec3 ret = ivec3(floor(pos))-ivec3(floor(globalOrigin));
+    ivec3 ret = ivec3(floor(pos))-unitShift;
     ret+=SWRT_SIZE>>1;
     return ret;
 }
@@ -39,7 +38,7 @@ vec4 traceLight(vec3 worldPos,ivec3 areaPos,uint light,uint maxSteps){
 
     float lightStr = lightFalloff(displacementToLight);
 
-    bool hitObstruction = traceRay(worldPos,displacementToLight,unitShift,maxSteps)>=0;
+    bool hitObstruction = traceRay(worldPos,displacementToLight,maxSteps)>=0;
     return vec4(colorOfPackedLight(light)*lightStr,!hitObstruction);
 }
 
@@ -47,7 +46,7 @@ vec4 traceLight(vec3 worldPos,ivec3 areaPos,uint light,uint maxSteps){
 vec4 swrtSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue, uint maxSteps){
     worldPos+=clamp(length(worldPos-globalOrigin)*0.001,0.04,0.1)*normal;
     normal=-normal;
-    unitShift = getUnitShift();
+
     ivec3 areaPos = worldPosToSWRT(worldPos);
 
     if(areaPos.x<0||areaPos.y<0||areaPos.z<0||
@@ -57,7 +56,7 @@ vec4 swrtSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue,
     }
 
     uint[SWRT_LIGHTS_PER_BLOCK] lights;
-    getLightList(lights,areaPos,unitShift);
+    getLightList(lights,areaPos);
     uint numLights = countLights(lights);
 
     #ifdef DEBUG_SWRT_LIGHT_COUNT
@@ -83,7 +82,7 @@ vec4 swrtSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue,
             int numLightsToChooseFrom = 1<<rayNum;//1,2,4
             uint lightIndex = clamp(uint(ditherValue*numLightsToChooseFrom),0u,uint(numLightsToChooseFrom-1))+baseIndex;
 
-            displacementToLight = uncheckedUnpackListedLight(lights[lightIndex])-fract(worldPos)+0.5;
+            displacementToLight = displacementToListedLight(lights[lightIndex],worldPos.xyz);
 
             float lightStr = numLightsToChooseFrom*lightFalloff(displacementToLight);
             lightStr*=normalFactor(normal,displacementToLight,0);
@@ -94,7 +93,7 @@ vec4 swrtSample(vec3 worldPos, vec3 normal, float subsurface, float ditherValue,
             #endif
         }
 
-        if(traceRay(worldPos,displacementToLight,unitShift,maxSteps)<0){
+        if(traceRay(worldPos,displacementToLight,maxSteps)<0){
             color.rgb+=sampleColor;
             color.a++;
         }
@@ -108,19 +107,23 @@ uniform sampler2D swrtRayHitSampler;
 vec4 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
     worldPos+=clamp(length(worldPos-globalOrigin)*0.001,0.04,0.1)*normal;
     normal=-normal;
-    unitShift = getUnitShift();
+
     ivec3 areaPos = worldPosToSWRT(worldPos);
 
     if(areaPos.x<0||areaPos.y<0||areaPos.z<0||
     areaPos.x>=SWRT_SIZE||areaPos.y>=SWRT_SIZE||areaPos.z>=SWRT_SIZE
     ){
+        #ifdef DEBUG_SWRT_DIST
+        return vec4(1,0,0.2,0);
+        #else
         return vec4(0f);
+        #endif
     }
 
     #ifdef DEBUG_SWRT_LIGHT_COUNT
     if(true){
         uint[SWRT_LIGHTS_PER_BLOCK] fullLightList;
-        getLightList(fullLightList,areaPos,unitShift);
+        getLightList(fullLightList,areaPos);
         uint numLights = countLights(fullLightList);
 
         float mult = float(numLights)/(4*SWRT_LIGHT_LAYERS);
@@ -137,7 +140,7 @@ vec4 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
     uvec4 lightShortList;
     for(uint i=0;i<SWRT_LIGHTS_PER_BLOCK;i++){
         if((i&3u)==0u)
-            lightShortList = getLightListLayer(areaPos, unitShift, i>>2);
+            lightShortList = getLightListLayer(areaPos, i>>2);
 
         vec2 tempTc = tc;
         tempTc.x+=float(i)/SWRT_LIGHTS_PER_BLOCK;
@@ -156,7 +159,7 @@ vec4 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
         if(!bool(light&LIGHT_VALID_BIT))
             continue;
 
-        vec3 displacementToLight = uncheckedUnpackListedLight(light)-fract(worldPos)+0.5;
+        vec3 displacementToLight = displacementToListedLight(light,worldPos.xyz);
 
         float lightStr = lightFalloff(displacementToLight);
         lightStr*=normalFactor(normal,displacementToLight,0);
@@ -182,6 +185,8 @@ vec4 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
             }
         }
 
+//        visibility = vec4(1f);
+
         if(lightStr>0)
             color.rgb+=colorOfPackedLight(light)*visibility.rgb*lightStr;
     }
@@ -192,7 +197,6 @@ vec4 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
 
 
 vec3 swrtSampleFog(vec3 worldPos){
-    unitShift = getUnitShift();
     ivec3 areaPos = worldPosToSWRT(worldPos);
 
 
@@ -210,7 +214,7 @@ vec3 swrtSampleFog(vec3 worldPos){
 
 
     #if SWRT_RAYS_PER_FOG_SAMPLE>0
-    lightShortList = getLightListLayer(areaPos, unitShift, 0);
+    lightShortList = getLightListLayer(areaPos, 0);
     for(i=0;i<SWRT_RAYS_PER_FOG_SAMPLE;i++){
         uint light = lightShortList[i&3u];
         if(!bool(light&LIGHT_VALID_BIT))
@@ -227,7 +231,7 @@ vec3 swrtSampleFog(vec3 worldPos){
     #define FOG_SWRT_LIGHTS 4
     for(;i<FOG_SWRT_LIGHTS;i++){
         if((i&3u)==0u)
-            lightShortList = getLightListLayer(areaPos, unitShift, i>>2);
+            lightShortList = getLightListLayer(areaPos, i>>2);
         uint light = lightShortList[i&3u];
         if(!bool(light&LIGHT_VALID_BIT))
             break;

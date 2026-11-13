@@ -9,7 +9,7 @@ float minDepthTillChange(vec3 value, vec3 differential){
     return min(min(value.x,value.y),value.z);
 }
 
-float traceRay(vec3 worldPos, vec3 worldDirToLight, ivec3 unitShift, uint maxSteps,
+float traceRay(vec3 worldPos, vec3 worldDirToLight, uint maxSteps,
     out uint translucency, out vec4 hits
 ){
     translucency = 0u;
@@ -53,8 +53,8 @@ float traceRay(vec3 worldPos, vec3 worldDirToLight, ivec3 unitShift, uint maxSte
     return -1;
 }
 
-float traceRay(vec3 worldPos, vec3 worldDirToLight, ivec3 unitShift, uint maxSteps){
+float traceRay(vec3 worldPos, vec3 worldDirToLight, uint maxSteps){
     uint h;
     vec4 h2;
-    return traceRay(worldPos,worldDirToLight,unitShift,maxSteps,h,h2);
+    return traceRay(worldPos,worldDirToLight,maxSteps,h,h2);
 }
