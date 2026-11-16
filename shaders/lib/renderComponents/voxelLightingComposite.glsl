@@ -114,7 +114,7 @@ void main() {
     #endif
 
     #ifdef DEBUG_LIGHT_HASH
-    voxelLighting=voxelLighting.aaaa;
+    voxelLighting=vec4(fract(50*voxelLighting.a));
     #endif
 
     imageStore(colorimg6,texpos,voxelLighting);

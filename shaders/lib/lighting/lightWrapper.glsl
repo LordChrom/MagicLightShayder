@@ -68,6 +68,7 @@ vec4 lightingSample(vec3 worldPos, vec3 normal, float subsurface, float ditherVa
         #endif
     {
         float shadowLightStrength = shadowmapSample(worldPos, normal, subsurface, ditherValue);
+        ret.a+=0.005*shadowLightStrength;
 
         #ifdef DEBUG_SHOW_SHADOWMAP_RANGE
         if(shadowLightStrength.a==-1) ret.r++;

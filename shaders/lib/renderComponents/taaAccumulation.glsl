@@ -58,7 +58,7 @@ void taaAccumulate(){
     #else
 
     const bool colortex7MipmapEnabled = true;
-    addAccumulation = texture(colortex7,jitteredTexcoord,FOG_BLUR);
+    addAccumulation = textureLod(colortex7,jitteredTexcoord,0);
     #endif
 #endif
 
@@ -77,10 +77,14 @@ void taaAccumulate(){
     vec4 prevDepthAndBrightness = vec4(0,0,10,0);
 
     if(prevScreenPos.x>0 && prevScreenPos.y>0 && prevScreenPos.x<1 && prevScreenPos.y<1){
-        prevDepthAndBrightness = texture(colortex9,prevScreenPos.xy);
+        prevDepthAndBrightness = textureLod(colortex9,prevScreenPos.xy,0);
+        previousMultAccumulation = textureLod(colortex10, prevScreenPos.xy,0);
+
+        #ifdef TAA_FOG
+        previousAddAccumulation = textureLod(colortex11,prevScreenPos.xy,0);
+        #endif
 
         if(abs(prevScreenPos.z-prevDepthAndBrightness.x)/prevDepthAndBrightness.x<=exp2(-14)){
-            previousMultAccumulation = texture(colortex10, prevScreenPos.xy);
 
            #if DEBUG_SPECIAL_VIEW == 201
             previousMultAccumulation.rgb=vec3(0,1,0.35);
@@ -100,7 +104,7 @@ void taaAccumulate(){
             hashes=abs(hashes-prevDepthAndBrightness.w);
             hashes.xy=min(hashes.xy,hashes.zw);
             hashes.x=min(hashes.x,hashes.y);
-            if(hashes.x>0.01){
+            if(hashes.x>0.001){
                 previousMultAccumulation.a=0f;
                 prevDepthAndBrightness.w=multAccumulation.a;
             }
@@ -134,10 +138,8 @@ void taaAccumulate(){
             float speed = length(cameraPosition-previousCameraPosition);
             mixRatio=1-((1-mixRatio)*(1-speed*3));
             mixRatio=clamp(mixRatio,0.1,1);
-            previousAddAccumulation = texture(colortex11,prevScreenPos.xy);
             mixRatio*=fogSampleWeight(jitteredTexcoord);
-
-            addAccumulation =mix(previousAddAccumulation, addAccumulation, mixRatio);
+            addAccumulation.rgb =mix(previousAddAccumulation.rgb, addAccumulation.rgb, mixRatio);
            #endif
         }
     }
