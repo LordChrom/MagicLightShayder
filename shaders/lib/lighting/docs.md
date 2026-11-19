@@ -74,10 +74,23 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 
 # Layouts
 ### Block.properties
-- 8 bits unused
-- 2 bits opacity type (0 is air, 1 is unused, 2 is full opacity, 3 is shaped opacity)
-- 6 bits light ID (also hardcoded subsurface info)
+# BlockID
+- 2b: unused
+- 4b: shape category
+- 4b: shape subcategory
+- 6b: color type ID (includes color, translucency, hardcoded subsurface)
 
+# Categories : subcategories
+- 0: hardcoded
+- - 0: air
+- - 1: solid
+- 1: top stairs/slabs
+- - subcategory is -- +- -+ ++ xz corners
+- 2: bottom stairs/slabs
+- - same subcat as 1
+- 3: Trapdoors
+- - subcat 0-5: -x +x -y +y -z +z
+- 4: layers
 //fences, panes, walls, stairs/slabs, layers, trapdoors,
 //rods, chests
 //fence gates, signs, torches, pots, buttons, levers, plants, anvils, rails, banners
