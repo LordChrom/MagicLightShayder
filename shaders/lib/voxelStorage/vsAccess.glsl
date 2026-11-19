@@ -117,39 +117,6 @@ void setBaseVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift){
 #endif
 
 
-#if ((defined READS_QUARTER_VOX || defined WRITES_QUARTER_VOX)  && !defined QUARTER_VOX_ACCESS)
-#define QUARTER_VOX_ACCESS
-
-layout (rgba32ui) uniform restrict
-#ifndef WRITES_QUARTER_VOX
-readonly
-#endif
-uimage3D quarterWorldVox;
-
-#ifdef READS_QUARTER_VOX
-uvec4 getQuarterVoxData(ivec3 areaPos, ivec3 areaShift){
-    areaPos=clamp(areaPos,0,VOXELIZATION_SIZE-1);
-    areaPos = modVoxelizationSize(areaPos+areaShift);
-    return imageLoad(quarterWorldVox,areaPos>>2);
-}
-#endif
-
-
-#ifdef WRITES_QUARTER_VOX
-void setQuarterVoxData(uvec4 data, ivec3 areaPos, ivec3 areaShift){
-    if(areaPos.x<0 || areaPos.y<0 || areaPos.z<0
-        || areaPos.x>=VOXELIZATION_SIZE || areaPos.y>=VOXELIZATION_SIZE || areaPos.z>=VOXELIZATION_SIZE
-    ){
-        return;
-    }
-
-    ivec3 memPos = modVoxelizationSize(areaPos+areaShift);
-    imageStore(quarterWorldVox,memPos>>2,data);
-}
-#endif
-#endif
-
-
 
 
 #if (defined READS_SCALING_VOX || defined WRITES_SCALING_VOX) && !defined SCALING_VOX_ACCESS

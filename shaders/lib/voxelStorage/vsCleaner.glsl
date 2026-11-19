@@ -1,11 +1,5 @@
 #extension GL_KHR_shader_subgroup_clustered : enable
 
-//#define QUARTERSIZE_VOXEL_MAP
-
-#ifdef QUARTERSIZE_VOXEL_MAP
-#define WRITES_QUARTER_VOX
-#endif
-
 #define READS_BASE_VOX
 #define WRITES_BASE_VOX
 #include "/lib/settings.glsl"
@@ -83,7 +77,7 @@ void expire(ivec3 pos){
     bitSlices[pos.y&3]=voxelLayerSlice;
     if((pos.y&3)==3){
         if((gl_SubgroupInvocationID&0xfu)==0u){
-            setQuarterVoxData(bitSlices,pos,unitShift);
+//            setQuarterVoxData(bitSlices,pos,unitShift);
         }
     }
     #endif
