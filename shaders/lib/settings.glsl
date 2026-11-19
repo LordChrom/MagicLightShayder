@@ -25,6 +25,7 @@
 //#define DEBUG_LIGHT_HASH
 //#define DEBUG_WATER_RIPPLES
 //#define DEBUG_SWRT_DIST
+//#define DEBUG_VOXEL_SWRT_VISION
 
 #define DEBUG_SPECIAL_VIEW -1 //[-1 0 1 2 3 4 5 6 7 8 9 10 11 100 101 102 103 104 105 106 200 201 202 203 204]
 //#define DEBUG_NOTHING_EXPIRES
@@ -390,7 +391,9 @@
 #ifdef SSAO
 #ifdef NEW_NEW_NEW_DOF
 #ifdef WATER_WAVES
+#ifdef DEBUG_VOXEL_SWRT_VISION
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
+#endif
 #endif
 #endif
 #endif

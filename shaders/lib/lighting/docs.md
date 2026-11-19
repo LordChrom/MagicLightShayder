@@ -58,7 +58,7 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 | RGBA8   | 3   | translucent abledo           |       | Y (trans)       | a is calculated in colortex5.y   |
 | RGBA8_S | 4   | translucent normals          |       | Y (trans)       | a channel tracks pre-lit         |
 | RG32F   | 5   | processed depths             |       | Y (trans stuff) | different in gbuffers, see comp1 |
-| RGBA16F | 6   | multiplicative lighting      | y     | n               |                                  |
+| RGBA16F | 6   | multiplicative lighting      | y     | n               | a holds light source hash        |
 | RGBA16F | 7   | additive light               | y     |                 |                                  |
 | RGBA8UI | 8   | Materials                    |       | y               |                                  |
 | RG32F   | 9   | prev frame depth & brightnes |       | N               |                                  |
