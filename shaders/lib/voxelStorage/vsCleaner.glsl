@@ -1,4 +1,11 @@
-#extension GL_KHR_shader_subgroup_shuffle : enable
+#extension GL_KHR_shader_subgroup_clustered : enable
+
+//#define QUARTERSIZE_VOXEL_MAP
+
+#ifdef QUARTERSIZE_VOXEL_MAP
+#define WRITES_QUARTER_VOX
+#endif
+
 #define READS_BASE_VOX
 #define WRITES_BASE_VOX
 #include "/lib/settings.glsl"
@@ -26,6 +33,8 @@ layout (local_size_x = SIZE, local_size_y = 1, local_size_z = SIZE) in;
 
 ivec3 unitShift  = ivec3(0);
 
+uvec4 bitSlices = uvec4(0);
+
 void zeroPosition(ivec3 pos, bool isTop){
     setBaseVoxData(0,pos,unitShift);
 }
@@ -35,34 +44,49 @@ void zeroPosition(ivec3 pos, bool isTop){
 
 //TODO expiry
 #if VOXELIZATION_MODE == 1
-bool posOffScreen(ivec3 areaPos){
+bool posOnScreen(ivec3 areaPos){
     vec3 pos = vec3(areaPos-(VOXELIZATION_SIZE>>1))+0.5;
     pos+=unitShift-cameraPosition;
     vec4 clipSpace = gbufferProjection*vec4((gbufferModelView*vec4(pos,1)).xyz,1);
 //    clipSpace.w*=1.15;
     clipSpace.rgb/=clipSpace.w;
 
-    return abs(clipSpace.x)>1.0 || abs(clipSpace.y)>1.0 || abs(clipSpace.z)>1.0;
+    return abs(clipSpace.x)<1.0 && abs(clipSpace.y)<1.0 && abs(clipSpace.z)<1.0;
 }
 #endif
 
 void expire(ivec3 pos){
+    bool doExpiry;
     #ifdef DEBUG_NOTHING_EXPIRES
-        if(true){return;}
+        doExpiry=false;
     #elif (VOXELIZATION_MODE == 1)
-    if(posOffScreen(pos))
-        return;
+        doExpiry=posOnScreen(pos);
+    #else
+        doExpiry=true;
     #endif
+
     uint voxel = getBaseVoxData(pos,unitShift);
     int timer = int(voxel>>WORLDVOX_AGE_SHIFT);
-    timer--;
-    if(timer>=0){
-        voxel-=(1u<<WORLDVOX_AGE_SHIFT);
-    }else{
-        voxel=0u;
-    }
-    setBaseVoxData(voxel,pos,unitShift);
 
+    if(doExpiry){
+        timer--;
+        if(timer>=0){
+            voxel-=(1u<<WORLDVOX_AGE_SHIFT);
+        }else{
+            voxel=0u;
+        }
+        setBaseVoxData(voxel,pos,unitShift);
+    }
+
+    #ifdef QUARTERSIZE_VOXEL_MAP
+    uint voxelLayerSlice = subgroupClusteredOr((timer>0?1u:0u)<<(gl_SubgroupInvocationID&0xfu),16u);
+    bitSlices[pos.y&3]=voxelLayerSlice;
+    if((pos.y&3)==3){
+        if((gl_SubgroupInvocationID&0xfu)==0u){
+            setQuarterVoxData(bitSlices,pos,unitShift);
+        }
+    }
+    #endif
 }
 
 void main(){

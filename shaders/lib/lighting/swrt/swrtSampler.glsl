@@ -1,5 +1,6 @@
 #define READS_LIGHT_LIST
 #define READS_BASE_VOX
+#define READS_QUARTER_VOX
 #include "/lib/voxelStorage/volumeShifting.glsl"
 #include "/lib/voxelStorage/blockPacking.glsl"
 #include "/lib/voxelStorage/vsAccess.glsl"

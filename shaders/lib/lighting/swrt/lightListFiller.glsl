@@ -2,6 +2,7 @@
 #include "/lib/settings.glsl"
 #define WRITES_LIGHT_LIST
 #define READS_LIGHT_LIST
+#define READS_QUARTER_VOX
 #define READS_BASE_VOX
 #include "/lib/voxelStorage/blockPacking.glsl"
 #include "/lib/voxelStorage/vsAccess.glsl"
