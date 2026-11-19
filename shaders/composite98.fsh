@@ -24,9 +24,20 @@ void main(){
     dir*=VOXELSIZE_HALF;
     float depth = traceRay(cameraPosition,dir,maxSteps,translucency);
 
-    outColor = vec3((log2(depth)+0.7f)*0.7/log2(SWRT_SIZE));
+
+
     if(depth<0)
         outColor=vec3(0.1,0.1,0.8);
+    else{
+        ivec3 areaPos = ivec3(floor(swrt_hitpos.xyz));
+        outColor = vec3((log2(depth)+0.7f)*0.7/log2(SWRT_SIZE));
+
+        #ifdef SWRT_TEXTURED
+        outColor = texturedHit(swrt_hitpos.xyz,areaPos).rgb;
+        #endif
+
+
+    }
 
     #if SWRT_TRANSLUCENCY>0
     for(int i=0;(i<SWRT_TRANSLUCENCY)&&bool(translucency);i++){

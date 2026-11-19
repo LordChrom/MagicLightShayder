@@ -10,6 +10,34 @@ float minDepthTillChange(vec3 value, vec3 differential){
 }
 const float nudge = 0.0001;
 
+#ifdef SWRT_TEXTURED
+uniform sampler2D blockAtlas;
+vec4 texturedHit(vec3 samplePos, ivec3 areaPos){
+    samplePos = fract(samplePos)-0.5f;
+    vec3 axDist = abs(samplePos);
+    uint axis = (axDist.x<max(axDist.y,axDist.z))? (axDist.z>axDist.y? 2u : 1u) : 0u;
+    uint sampleAxis = axis+(samplePos[axis]>0? 3u:0u);
+
+    vec4 texData = getTexVoxData(areaPos,sampleAxis,unitShift);
+
+    if(axis>0)
+        samplePos = axis==1u? samplePos.yzx : samplePos.zxy;
+
+    texData.zw-=0.25;
+
+    if(texData.w>0.25){
+        texData.w-=0.5;
+//        texData.zw=texData.wz;
+        samplePos.yz=samplePos.zy;
+//        texData.zw=vec2(texData.w-0.5,texData.z);
+    }
+
+    texData.xy+=texData.zw*samplePos.yz;
+//    return texData;
+    return texture(blockAtlas,texData.xy);
+}
+#endif
+
 bool rayHitsShapedBlock(vec3 samplePos, vec3 dir, float d, uint shape){
     samplePos=fract(samplePos);
     vec3 postPos = samplePos+dir*d;
@@ -47,6 +75,8 @@ bool rayHitsShapedBlock(vec3 samplePos, vec3 dir, float d, uint shape){
     return false;
 }
 
+vec4 swrt_hitpos;
+
 float traceRay(vec3 worldPos, vec3 worldDirToLight, uint maxSteps,
     out uint translucency
 ){
@@ -61,10 +91,10 @@ float traceRay(vec3 worldPos, vec3 worldDirToLight, uint maxSteps,
 
     float depth = nudge;
     for(int i=0;i<maxSteps && depth<maxTraceDepth;i++){
-        vec3 samplePosition = worldPos+depth*worldDirToLight;
-        ivec3 areaPos = ivec3(floor(samplePosition));
+        swrt_hitpos.xyz = worldPos+depth*worldDirToLight;
+        ivec3 areaPos = ivec3(floor(swrt_hitpos.xyz));
         uint voxel = getBaseVoxData(areaPos,unitShift);
-        float nextDepthDif = minDepthTillChange(samplePosition,worldDirToLight)+nudge;
+        float nextDepthDif = minDepthTillChange(swrt_hitpos.xyz,worldDirToLight)+nudge;
 
         areaPos-=finalBlock;
         int dist = abs(areaPos.x)+abs(areaPos.y)+abs(areaPos.z);
@@ -82,7 +112,7 @@ float traceRay(vec3 worldPos, vec3 worldDirToLight, uint maxSteps,
         //TODO better coherence on this, do it in batches
         uint shape = blockShape(voxel);
         if(shape>=16u){
-            if(rayHitsShapedBlock(samplePosition,worldDirToLight,nextDepthDif,shape))
+            if(rayHitsShapedBlock(swrt_hitpos.xyz,worldDirToLight,nextDepthDif,shape))
                 return depth;
         }
         #endif

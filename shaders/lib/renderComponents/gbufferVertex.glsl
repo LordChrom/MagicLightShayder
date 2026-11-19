@@ -45,16 +45,6 @@ uniform mat4 gbufferModelViewInverse;
 #endif
 
 
-#if ( VOXELIZATION_MODE >=1 ) && (defined IS_TERRAIN ) && (!defined LOD_MOD_SHADER)
-    #include "/lib/voxelStorage/vsMapper.glsl"
-    #define UPDATE_VOXEL_MAP
-    #define NEEDS_MC_ENTITY
-    in vec4 at_midBlock;
-    #ifndef MAYBE_WATER
-        uniform vec3 cameraPosition;
-    #endif
-#endif
-
 #ifdef NEEDS_MATERIAL_ID
     #ifdef BLOCK_ENTITY
         uniform int blockEntityId;
@@ -81,6 +71,21 @@ flat out uint packedTexsize;
 out float worldLength;
 #endif
 
+#if ( VOXELIZATION_MODE >=1 ) && (defined IS_TERRAIN ) && (!defined LOD_MOD_SHADER)
+    #define UPDATE_VOXEL_MAP
+    #define NEEDS_MC_ENTITY
+    in vec4 at_midBlock;
+    #ifndef MAYBE_WATER
+        uniform vec3 cameraPosition;
+    #endif
+    #if (defined TEXTURED) defined (TEXTURED_VOXELIZATION) && !(defined POM)
+        in vec2 mc_midTexCoord;
+        #if MATERIALS_TYPE != 1
+        in vec4 at_tangent;
+        #endif
+    #endif
+    #include "/lib/voxelStorage/vsMapper.glsl"
+#endif
 
 #ifdef MAYBE_WATER
     out vec2 worldPosXz;
@@ -194,11 +199,12 @@ void main() {
 #endif
 
 #ifdef UPDATE_VOXEL_MAP
-    writeVoxelMap(
-        gl_Vertex.xyz+cameraPosition+at_midBlock.xyz*0.015625,  //world pos
-        int(mc_Entity.x),                                       //block id
-        int(at_midBlock.w)                                      //emission
-    );
+    vec3 voxpos = cameraPosition+gl_Vertex.xyz +at_midBlock.xyz*0.015625;
+    #ifdef TEXTURED_VOXELIZATION
+    writeVoxelMapTextured(voxpos, int(mc_Entity.x), int(at_midBlock.w));
+    #else
+    writeVoxelMap(voxpos, int(mc_Entity.x), int(at_midBlock.w));
+    #endif
 #endif
 
     glcolor = gl_Color;

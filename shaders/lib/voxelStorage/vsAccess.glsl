@@ -84,12 +84,28 @@ readonly
 #endif
 uimage3D baseWorldVox;
 
+#ifdef TEXTURED_VOXELIZATION
+    layout (rgba16) uniform restrict
+    #ifndef WRITES_BASE_VOX
+    readonly
+    #endif
+    image3D texWorldVox;
+#endif
+
 #ifdef READS_BASE_VOX
 uint getBaseVoxData(ivec3 areaPos, ivec3 areaShift){
     areaPos=clamp(areaPos,0,VOXELIZATION_SIZE-1);
     areaPos = modVoxelizationSize(areaPos+areaShift);
     return imageLoad(baseWorldVox,areaPos).x;
 }
+#ifdef TEXTURED_VOXELIZATION
+vec4 getTexVoxData(ivec3 areaPos, uint axis, ivec3 areaShift){
+    areaPos=clamp(areaPos,0,VOXELIZATION_SIZE-1);
+    areaPos = modVoxelizationSize(areaPos+areaShift);
+    areaPos.y=areaPos.y*6+int(axis);
+    return imageLoad(texWorldVox,areaPos);
+}
+#endif
 #endif
 
 
@@ -113,9 +129,31 @@ void setBaseVoxData(uint packedData, ivec3 areaPos, ivec3 areaShift){
     }
     #endif
 }
-#endif
-#endif
+#ifdef TEXTURED_VOXELIZATION
+void setTexturedBaseVoxData(uint blockData, vec4 texData, ivec3 areaPos, uint axis, ivec3 areaShift){
+    if(areaPos.x<0 || areaPos.y<0 || areaPos.z<0
+        || areaPos.x>=VOXELIZATION_SIZE || areaPos.y>=VOXELIZATION_SIZE || areaPos.z>=VOXELIZATION_SIZE
+    ){
+        return;
+    }
 
+    ivec3 memPos = modVoxelizationSize(areaPos+areaShift);
+    #ifdef CHANGE_TRACKING
+    uint oldData = imageLoad(baseWorldVox,memPos).x;
+    if(bool((oldData^blockData)&~WORLDVOX_AGE_MASK)){
+        #endif
+        imageStore(baseWorldVox,memPos,uvec4(blockData,0,0,0));
+        memPos.y=memPos.y*6+int(axis);
+        imageStore(texWorldVox,memPos,texData);
+        #ifdef CHANGE_TRACKING
+
+        clearChangeTime((areaPos+(areaShift&0xf))>>4);
+    }
+    #endif
+}
+#endif
+#endif
+#endif
 
 
 

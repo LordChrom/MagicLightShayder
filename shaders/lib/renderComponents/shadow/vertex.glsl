@@ -3,11 +3,16 @@
 #include "/lib/renderComponents/shadow/shadowProgramFeatures.glsl"
 
 #ifdef CAN_VOXELIZE
-#include "/lib/voxelStorage/vsMapper.glsl"
 uniform vec3 cameraPosition;
 
 in vec4 at_midBlock;
 in vec2 mc_Entity;
+    #ifdef TEXTURED_VOXELIZATION
+    in vec2 mc_midTexCoord;
+    in vec4 at_tangent;
+    #endif
+#include "/lib/voxelStorage/vsMapper.glsl"
+
 #endif
 
 #ifdef SHADOWMAP_SHADOWS
@@ -29,7 +34,12 @@ out vec4 glcolorVert;
 
 void main() {
     #ifdef CAN_VOXELIZE
-    writeVoxelMap(cameraPosition+gl_Vertex.xyz +at_midBlock.xyz*0.015625, int(mc_Entity.x), int(at_midBlock.w));
+        #ifdef TEXTURED_VOXELIZATION
+        writeVoxelMapTextured(cameraPosition+gl_Vertex.xyz +at_midBlock.xyz*0.015625, int(mc_Entity.x), int(at_midBlock.w)
+        );
+        #else
+        writeVoxelMap(cameraPosition+gl_Vertex.xyz +at_midBlock.xyz*0.015625, int(mc_Entity.x), int(at_midBlock.w));
+        #endif
     #endif
 
     #ifdef SHADOWMAP_SHADOWS

@@ -176,6 +176,7 @@
 #define SWRT_TRANSLUCENCY 5 //[0 1 2 3 4 5]
 //#define SWRT_SKY_SHADOW
 #define SWRT_SHAPED_BLOCKS
+#define SWRT_TEXTURED
 #define LIGHT_SOURCE_HASH_REJECTION
 
 
@@ -263,6 +264,11 @@
 ///// The following to be copy pasted into shaders.properties
 #ifndef SWRT
     #undef SWRT_SKY_SHADOW
+    #undef SWRT_TEXTURED
+#endif
+
+#ifdef SWRT_TEXTURED
+    #define TEXTURED_VOXELIZATION
 #endif
 
 #if !(defined FLOOD_SHADOWS || defined BASIC_FLOODFILL || defined SWRT)
@@ -326,6 +332,8 @@
     #define VOXELSIZE_HALF     16
     #define VOXELSIZE_THREEQR  24
     #define VOXELIZATION_SIZE  32
+    #define VOXESIZE_THREEX    96
+    #define VOXESIZE_SIXX      192
 #elif VOXELIZATION_SIZE_EXACT<=64
     #define VOXELSIZE_SIXTNTH  4
     #define VOXELSIZE_3_32NDS  6
@@ -334,6 +342,8 @@
     #define VOXELSIZE_HALF     32
     #define VOXELSIZE_THREEQR  48
     #define VOXELIZATION_SIZE  64
+    #define VOXESIZE_THREEX    192
+    #define VOXESIZE_SIXX      384
 #elif VOXELIZATION_SIZE_EXACT<=128
     #define VOXELSIZE_SIXTNTH  8
     #define VOXELSIZE_3_32NDS  12
@@ -342,6 +352,8 @@
     #define VOXELSIZE_HALF     64
     #define VOXELSIZE_THREEQR  96
     #define VOXELIZATION_SIZE  128
+    #define VOXELSIZE_THREEX   384
+    #define VOXELSIZE_SIXX     768
 #elif VOXELIZATION_SIZE_EXACT<=192
     #define VOXELSIZE_SIXTNTH  12
     #define VOXELSIZE_3_32NDS  18
@@ -350,6 +362,8 @@
     #define VOXELSIZE_HALF     96
     #define VOXELSIZE_THREEQR  144
     #define VOXELIZATION_SIZE  192
+    #define VOXELSIZE_THREEX   576
+    #define VOXELSIZE_SIXX     1152
 #elif VOXELIZATION_SIZE_EXACT<=256
     #define VOXELSIZE_SIXTNTH  16
     #define VOXELSIZE_3_32NDS  24
@@ -358,6 +372,8 @@
     #define VOXELSIZE_HALF     128
     #define VOXELSIZE_THREEQR  192
     #define VOXELIZATION_SIZE  256
+    #define VOXELSIZE_THREEX   768
+    #define VOXELSIZE_SIXX     1536
 #elif VOXELIZATION_SIZE_EXACT<=384
     #define VOXELSIZE_SIXTNTH  24
     #define VOXELSIZE_3_32NDS  36
@@ -366,6 +382,8 @@
     #define VOXELSIZE_HALF     192
     #define VOXELSIZE_THREEQR  288
     #define VOXELIZATION_SIZE  384
+    #define VOXELSIZE_THREEX   1152
+    #define VOXELSIZE_SIXX     2304
 #else
     #define VOXELSIZE_SIXTNTH  32
     #define VOXELSIZE_3_32NDS  48
@@ -374,6 +392,8 @@
     #define VOXELSIZE_HALF     256
     #define VOXELSIZE_THREEQR  384
     #define VOXELIZATION_SIZE  512
+    #define VOXELSIZE_THREEX   1536
+    #define VOXELSIZE_SIXX     3072
 #endif
 /////
 #define DUMMY_OPTION
@@ -393,7 +413,9 @@
 #ifdef NEW_NEW_NEW_DOF
 #ifdef WATER_WAVES
 #ifdef DEBUG_VOXEL_SWRT_VISION
+#ifdef SWRT_TEXTURED
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
+#endif
 #endif
 #endif
 #endif
