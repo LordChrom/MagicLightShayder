@@ -96,10 +96,10 @@ bool anyHit(){
     if(bool(swrt_voxel&WORLDVOX_OPAQUE))
         return true;
 
+    bool bonusCheckDone = false;
     #ifdef SWRT_SHAPED_BLOCKS
     //TODO better coherence on this, do it in batches
     uint shape = blockShape(swrt_voxel);
-    bool bonusCheckDone = false;
     if(shape>=16u){
         bonusCheckDone=true;
         if(!rayHitsShapedBlock(swrt_hitpos.xyz,swrt_dir,swrt_nextDepth,shape))
