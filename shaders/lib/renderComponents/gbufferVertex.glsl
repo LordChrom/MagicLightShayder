@@ -78,7 +78,7 @@ out float worldLength;
     #ifndef MAYBE_WATER
         uniform vec3 cameraPosition;
     #endif
-    #if (defined TEXTURED) defined (TEXTURED_VOXELIZATION) && !(defined POM)
+    #if (defined TEXTURED) && (defined TEXTURED_VOXELIZATION) && !(defined POM)
         in vec2 mc_midTexCoord;
         #if MATERIALS_TYPE != 1
         in vec4 at_tangent;

@@ -36,7 +36,7 @@ void writeVoxelMapTextured(vec3 worldPos, int rawBlockID, uint emission){
         nextAxes.xy=nextAxes.yx;
 
     vec3 bitan = normalize(cross(at_tangent.xyz,gl_Normal)*at_tangent.w);
-    texData.zw=(texData.zw*vec2(tan[nextAxes.x],bitan[nextAxes.y]))*1.99f+0.25;
+    texData.zw=(texData.zw*vec2(tan[nextAxes.x],bitan[nextAxes.y]))*2f+0.25;
     if(flipxy)
         texData.w+=0.5;
 

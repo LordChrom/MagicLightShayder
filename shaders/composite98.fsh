@@ -18,11 +18,10 @@ layout(location = 0) out vec3 outColor;
 
 //this could probably be a debugSpecialView but i cant be bothered rn
 void main(){
-    uint translucency;
     vec3 dir = normalize(worldDirNormalizeMe);
     dir/=max(max(abs(dir.x),abs(dir.y)),abs(dir.z));
     dir*=VOXELSIZE_HALF;
-    float depth = traceRay(cameraPosition,dir,maxSteps,translucency);
+    float depth = traceRay(cameraPosition,dir,maxSteps);
 
 
 
@@ -40,9 +39,6 @@ void main(){
     }
 
     #if SWRT_TRANSLUCENCY>0
-    for(int i=0;(i<SWRT_TRANSLUCENCY)&&bool(translucency);i++){
-        outColor.rgb*= getLightIDColor(translucency&0x3fu);
-        translucency>>=6;
-    }
+    outColor.rgb*=unpackSwrtTranslucency();
     #endif
 }

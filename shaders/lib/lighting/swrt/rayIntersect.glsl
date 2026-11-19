@@ -23,17 +23,16 @@ vec4 texturedHit(vec3 samplePos, ivec3 areaPos){
     if(axis>0)
         samplePos = axis==1u? samplePos.yzx : samplePos.zxy;
 
+    if(texData.xy==vec2(0))
+        return vec4(0);
     texData.zw-=0.25;
 
     if(texData.w>0.25){
         texData.w-=0.5;
-//        texData.zw=texData.wz;
         samplePos.yz=samplePos.zy;
-//        texData.zw=vec2(texData.w-0.5,texData.z);
     }
 
-    texData.xy+=texData.zw*samplePos.yz;
-//    return texData;
+    texData.xy+=texData.zw*clamp(samplePos.yz,-0.49,0.49);
     return texture(blockAtlas,texData.xy);
 }
 #endif
@@ -76,59 +75,85 @@ bool rayHitsShapedBlock(vec3 samplePos, vec3 dir, float d, uint shape){
 }
 
 vec4 swrt_hitpos;
+vec3 swrt_dir;
+ivec3 swrt_areaPos;
+float swrt_nextDepth = 0f;
+uint swrt_translucency = 0u;
+uint swrt_voxel = 0u;
+uint swrt_distToFinal = 0u;
+uint swrt_finalVoxel = 0u;
 
-float traceRay(vec3 worldPos, vec3 worldDirToLight, uint maxSteps,
-    out uint translucency
-){
-    translucency = 0u;
+
+bool anyHit(){
+    #if SWRT_TRANSLUCENCY>0
+    if(blockIsTranslucent(swrt_voxel))
+        swrt_translucency = (swrt_translucency<<6) | blockLightID(swrt_voxel);
+    #endif
+
+    if(swrt_distToFinal==1 && swrt_voxel==swrt_finalVoxel)
+        return false;
+
+    if(bool(swrt_voxel&WORLDVOX_OPAQUE))
+        return true;
+
+    #ifdef SWRT_SHAPED_BLOCKS
+    //TODO better coherence on this, do it in batches
+    uint shape = blockShape(swrt_voxel);
+    bool bonusCheckDone = false;
+    if(shape>=16u){
+        bonusCheckDone=true;
+        if(!rayHitsShapedBlock(swrt_hitpos.xyz,swrt_dir,swrt_nextDepth,shape))
+            return false;
+    }
+    #endif
+
+    #ifdef SWRT_CUTOUT_TRACE
+    if(blockIsCutout(swrt_voxel)){
+        bonusCheckDone=true;
+        vec4 tex = texturedHit(swrt_hitpos.xyz,swrt_areaPos);
+        if(tex.a<0.875)
+            return false;
+    }
+    #endif
+
+    return bonusCheckDone;
+}
+
+float traceRay(vec3 worldPos, vec3 worldDirToLight, uint maxSteps){
     worldPos+=(VOXELIZATION_SIZE>>1)-unitShift;
 
     ivec3 finalBlock = ivec3(floor(worldPos+worldDirToLight));
-    uint finalVoxel = getBaseVoxData(finalBlock,unitShift);
+    swrt_finalVoxel = getBaseVoxData(finalBlock,unitShift);
 
     float maxTraceDepth = length(worldDirToLight);
-    worldDirToLight=normalize(worldDirToLight);
+    swrt_dir=normalize(worldDirToLight);
 
     float depth = nudge;
     for(int i=0;i<maxSteps && depth<maxTraceDepth;i++){
-        swrt_hitpos.xyz = worldPos+depth*worldDirToLight;
-        ivec3 areaPos = ivec3(floor(swrt_hitpos.xyz));
-        uint voxel = getBaseVoxData(areaPos,unitShift);
-        float nextDepthDif = minDepthTillChange(swrt_hitpos.xyz,worldDirToLight)+nudge;
+        depth+=swrt_nextDepth;
 
-        areaPos-=finalBlock;
-        int dist = abs(areaPos.x)+abs(areaPos.y)+abs(areaPos.z);
+        swrt_hitpos.xyz = worldPos+depth*swrt_dir;
+        swrt_areaPos = ivec3(floor(swrt_hitpos.xyz));
+        swrt_voxel = getBaseVoxData(swrt_areaPos,unitShift);
+        swrt_nextDepth = minDepthTillChange(swrt_hitpos.xyz,swrt_dir)+nudge;
 
-        if(dist==0)
-            break;
+        swrt_distToFinal = abs(swrt_areaPos.x-finalBlock.x)+abs(swrt_areaPos.y-finalBlock.y)+abs(swrt_areaPos.z-finalBlock.z);
 
-        if(dist==1 && voxel==finalVoxel)
-            break;
+        if(swrt_distToFinal==0)
+            return -1;
 
-        if(bool(voxel&WORLDVOX_OPAQUE))
+        if(anyHit())
             return depth;
-
-        #ifdef SWRT_SHAPED_BLOCKS
-        //TODO better coherence on this, do it in batches
-        uint shape = blockShape(voxel);
-        if(shape>=16u){
-            if(rayHitsShapedBlock(swrt_hitpos.xyz,worldDirToLight,nextDepthDif,shape))
-                return depth;
-        }
-        #endif
-
-        #if SWRT_TRANSLUCENCY>0
-        if(blockIsTranslucent(voxel))
-            translucency = (translucency<<6) | blockLightID(voxel);
-        #endif
-
-        depth+=nextDepthDif;
     }
 
     return -1;
 }
 
-float traceRay(vec3 worldPos, vec3 worldDirToLight, uint maxSteps){
-    uint h;
-    return traceRay(worldPos,worldDirToLight,maxSteps,h);
+vec3 unpackSwrtTranslucency(){
+    vec3 transColor = vec3(1f);
+    for(int i=0;(i<SWRT_TRANSLUCENCY)&&bool(swrt_translucency);i++){
+        transColor*= getLightIDColor(swrt_translucency&0x3fu);
+        swrt_translucency>>=6;
+    }
+    return transColor;
 }

@@ -58,6 +58,10 @@ bool blockIsFullCube(uint blockID){
     return blockShape(blockID)==1u;
 }
 
+bool blockIsCutout(uint blockID){
+    return bool(blockID&0x4000u);
+}
+
 uint blockLightAnimationType(uint blockID){
     blockID = blockLightID(blockID);
     if(blockID>=48) return 0;

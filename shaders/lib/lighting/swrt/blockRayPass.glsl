@@ -72,17 +72,13 @@ void shade(){
     float lightHash = float(((lightHash3.x*53)^(lightHash3.y*17)^(lightHash3.z*97))%255)/255.0;
     writeColor.a = lightHash;
 
-    uint translucencies;
-    if(traceRay(worldPos.xyz,displacementToLight,maxSteps,translucencies)>=0)
+    if(traceRay(worldPos.xyz,displacementToLight,maxSteps)>=0)
         return;
 
 
     writeColor.rgb=vec3(1);
     #if SWRT_TRANSLUCENCY>0
-    for(int i=0;(i<SWRT_TRANSLUCENCY)&&bool(translucencies);i++){
-        writeColor.rgb*= getLightIDColor(translucencies&0x3fu);
-        translucencies>>=6;
-    }
+    writeColor.rgb*=unpackSwrtTranslucency();
     #endif
 }
 

@@ -81,7 +81,7 @@ void main(){
     vec4 writeColor = vec4(0);
 
     if(NoL>=0){
-        float hitD = traceRay(worldPos.xyz,displacementToLight,maxSteps,translucencies);
+        float hitD = traceRay(worldPos.xyz,displacementToLight,maxSteps);
 
 //        writeColor.a = hitD>0?0.0:NoL;
 
