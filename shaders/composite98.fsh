@@ -19,11 +19,10 @@ layout(location = 0) out vec3 outColor;
 //this could probably be a debugSpecialView but i cant be bothered rn
 void main(){
     uint translucency;
-    vec4 h;
     vec3 dir = normalize(worldDirNormalizeMe);
     dir/=max(max(abs(dir.x),abs(dir.y)),abs(dir.z));
     dir*=VOXELSIZE_HALF;
-    float depth = traceRay(cameraPosition,dir,maxSteps,translucency,h);
+    float depth = traceRay(cameraPosition,dir,maxSteps,translucency);
 
     outColor = vec3((log2(depth)+0.7f)*0.7/log2(SWRT_SIZE));
     if(depth<0)

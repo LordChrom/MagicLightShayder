@@ -48,7 +48,7 @@ bool rayHitsShapedBlock(vec3 samplePos, vec3 dir, float d, uint shape){
 }
 
 float traceRay(vec3 worldPos, vec3 worldDirToLight, uint maxSteps,
-    out uint translucency, out vec4 hits
+    out uint translucency
 ){
     translucency = 0u;
     worldPos+=(VOXELIZATION_SIZE>>1)-unitShift;
@@ -100,6 +100,5 @@ float traceRay(vec3 worldPos, vec3 worldDirToLight, uint maxSteps,
 
 float traceRay(vec3 worldPos, vec3 worldDirToLight, uint maxSteps){
     uint h;
-    vec4 h2;
-    return traceRay(worldPos,worldDirToLight,maxSteps,h,h2);
+    return traceRay(worldPos,worldDirToLight,maxSteps,h);
 }

@@ -37,6 +37,7 @@ void main(){
     #endif
     jitteredTexcoord/=scaledScreenDim;
     float solidDepth = texture(colortex5,jitteredTexcoord).x;
+    vec3 normal = texture(colortex2,jitteredTexcoord).xyz;
     vec4 worldPos = vec4(jitteredTexcoord,solidDepth,1);
 
     if(solidDepth>=1.0)
@@ -49,10 +50,11 @@ void main(){
 
 
 
-    worldPos.xyz+=cameraPosition;
+    normal = normalize(normal);
+    worldPos.xyz+=cameraPosition+0.01*normal;
 
     vec3 displacementToLight = normalize(mat3(gbufferModelViewInverse)*shadowLightPosition);
-    worldPos.xyz+=0.01*displacementToLight;
+    float NoL = dot(normal,displacementToLight);
     displacementToLight*=100;
 
     ivec3 areaPos = worldPosToSWRT(worldPos.xyz);
@@ -76,24 +78,26 @@ void main(){
     #endif
 
     uint translucencies;
-    vec4 hitDepths;
-    float hitD = traceRay(worldPos.xyz,displacementToLight,maxSteps,translucencies,hitDepths);
+    vec4 writeColor = vec4(0);
 
-    vec4 writeColor;
+    if(NoL>=0){
+        float hitD = traceRay(worldPos.xyz,displacementToLight,maxSteps,translucencies);
 
-    writeColor.a = hitD>0?0.0:1.0;
+//        writeColor.a = hitD>0?0.0:NoL;
 
-    #ifdef SHADOWMAP_SHADOWS
-    if(hitD<0){
-        displacementToLight=normalize(displacementToLight);
-        displacementToLight*=float(maxSteps)/3.0; //TODO make actually respect angles
-        worldPos.xyz+=displacementToLight;
-        writeColor.a=max(shadowmapSampleFog(worldPos.xyz),0.01);
+        if(hitD<0){
+            writeColor.a=NoL;
+            #ifdef SHADOWMAP_SHADOWS
+            displacementToLight=normalize(displacementToLight);
+            displacementToLight*=float(maxSteps)/3.0; //TODO make actually respect angles
+            worldPos.xyz+=displacementToLight;
+            writeColor.a*=max(shadowmapSampleFog(worldPos.xyz),0.01);
+            #endif
+        }
     }
-    #endif
     writeColor.rgb=writeColor.aaa;
 
-    //TODO normals and translucency and penumbras and stuff. And probably surface bias
+    //TODO translucency and penumbras and stuff. And entities
 
     imageStore(colorimg6,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),writeColor);
 }

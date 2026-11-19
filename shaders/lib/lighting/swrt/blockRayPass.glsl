@@ -73,8 +73,7 @@ void shade(){
     writeColor.a = lightHash;
 
     uint translucencies;
-    vec4 hitDepths;
-    if(traceRay(worldPos.xyz,displacementToLight,maxSteps,translucencies,hitDepths)>=0)
+    if(traceRay(worldPos.xyz,displacementToLight,maxSteps,translucencies)>=0)
         return;
 
 
