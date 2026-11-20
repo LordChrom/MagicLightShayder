@@ -16,12 +16,6 @@ void writeVoxelMap(vec3 worldPos, int rawBlockID, uint emission){
 
 #ifdef TEXTURED_VOXELIZATION
 void writeVoxelMapTextured(vec3 worldPos, int rawBlockID, uint emission){
-    if((rawBlockID&0xffff)!=0xffff){
-        #if (defined ALPHATEST) || (defined SHADOW_CUTOUT)
-        rawBlockID|=0x4000;
-        #endif
-    }
-
     uint packedData = packVoxelForStorage(rawBlockID,emission);
 
 

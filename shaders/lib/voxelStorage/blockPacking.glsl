@@ -169,7 +169,6 @@ uvec4 getHardcodedMaterial(uint materialID){
 }
 
 uint packVoxelForStorage(uint blockID, uint emission){
-
     blockID = blockID&0xffffu;
     if(blockID==0xffffu){
         blockID = bool(emission)?
@@ -177,8 +176,13 @@ uint packVoxelForStorage(uint blockID, uint emission){
             64; //solid cube
     }
 
+    if(blockID==960){
+        blockID=64;
+    }
     #if (defined ALPHATEST) || (defined SHADOW_CUTOUT)
-    blockID|=0x8000u;
+    else{
+        blockID|=0x8000u;
+    }
     #endif
 
     uint ret = 0u;
