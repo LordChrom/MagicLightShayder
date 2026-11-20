@@ -178,22 +178,28 @@ float traceRay(vec3 worldPos, vec3 worldDirToLight){
     swrt_dir.xyz=normalize(worldDirToLight);
     worldPos+=(VOXELIZATION_SIZE>>1)-unitShift;
 
-    float maxTraceDepth = length(worldDirToLight)-minDepthTillChange(vec3(0.5),swrt_dir.xyz)-nudge;
+    float maxTraceDepth = length(worldDirToLight)-minDepthTillChange(worldPos+worldDirToLight,-swrt_dir.xyz)-nudge;
 
     swrt_hitpos.a = 0f;
-    for(int i=0;i<swrtMaxSteps && swrt_hitpos.a<maxTraceDepth;i++){
+    int i=0;
+    for(i=0;i<swrtMaxSteps && swrt_hitpos.a<maxTraceDepth;i++){
         swrt_hitpos.xyz = worldPos+swrt_hitpos.a*swrt_dir.xyz;
         swrt_voxel = getBaseVoxData(ivec3(floor(swrt_hitpos.xyz)),unitShift);
         swrt_dir.a = minDepthTillChange(swrt_hitpos.xyz,swrt_dir.xyz)+nudge;
 
         if(swrt_voxel>0){
             if(anyHit())
-                return swrt_hitpos.a;
+                break;
         }
         swrt_hitpos.a+=swrt_dir.a;
     }
 
-    return -1;
+
+    if(swrt_hitpos.a>=maxTraceDepth || i>=swrtMaxSteps)
+        return -1;
+    if(swrt_hitpos.a+swrt_dir.a>=maxTraceDepth && (blockShape(swrt_voxel)==1u) && bool(swrt_voxel&WORLDVOX_EMISSION_MASK))
+        return -1;
+    return swrt_hitpos.a;
 }
 
 vec3 unpackSwrtTranslucency(){
