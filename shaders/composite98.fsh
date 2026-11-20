@@ -32,7 +32,7 @@ void main(){
         outColor = vec3((log2(depth)+0.7f)*0.7/log2(SWRT_SIZE));
 
         #ifdef SWRT_TEXTURED
-        vec4 texResult = texturedHit(swrt_hitpos.xyz,areaPos);
+        vec4 texResult = swrtTextureSample();
         outColor = texResult.rgb;
         if(texResult.a<0.875)
             outColor=vec3(1,0,0);

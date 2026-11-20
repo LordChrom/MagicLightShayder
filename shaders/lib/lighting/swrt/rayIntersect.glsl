@@ -25,9 +25,8 @@ float swrt_internalHitDepth = 0f;
 
 #ifdef SWRT_TEXTURED
 uniform sampler2D blockAtlas;
-vec4 texturedHit(vec3 samplePos, ivec3 areaPos){
-
-    samplePos+=swrt_internalHitDepth*swrt_dir;
+vec4 swrtTextureSample(){
+    vec3 samplePos=swrt_hitpos.xyz+ swrt_internalHitDepth*swrt_dir;
 
     samplePos = fract(samplePos)-0.5f;
     vec3 axDist = abs(samplePos);
@@ -44,7 +43,7 @@ vec4 texturedHit(vec3 samplePos, ivec3 areaPos){
         axis = sampleAxis>>1;
     }
 
-    vec4 texData = getTexVoxData(areaPos,sampleAxis,unitShift);
+    vec4 texData = getTexVoxData(swrt_areaPos,sampleAxis,unitShift);
 
     if(axis>0)
         samplePos = axis==1u? samplePos.yzx : samplePos.zxy;
@@ -140,7 +139,7 @@ bool anyHit(){
     #ifdef SWRT_CUTOUT_TRACE
     if(blockIsCutout(swrt_voxel)){
         bonusCheckDone=true;
-        vec4 tex = texturedHit(swrt_hitpos.xyz,swrt_areaPos);
+        vec4 tex = swrtTextureSample();
         if(tex.a<0.875)
             return false;
     }
@@ -160,7 +159,7 @@ float traceRay(vec3 worldPos, vec3 worldDirToLight, uint maxSteps){
     float maxTraceDepth = length(worldDirToLight);
     swrt_dir=normalize(worldDirToLight);
 
-    swrt_hitpos.a = nudge;
+    swrt_hitpos.a = 0f;
     for(int i=0;i<maxSteps && swrt_hitpos.a<maxTraceDepth;i++){
         swrt_hitpos.a+=swrt_nextDepth;
 
@@ -174,9 +173,10 @@ float traceRay(vec3 worldPos, vec3 worldDirToLight, uint maxSteps){
         if(swrt_distToFinal==0)
             return -1;
 
-        if(swrt_voxel>0)
+        if(swrt_voxel>0){
             if(anyHit())
                 return swrt_hitpos.a;
+        }
     }
 
     return -1;

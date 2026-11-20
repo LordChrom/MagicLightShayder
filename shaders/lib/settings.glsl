@@ -333,8 +333,8 @@
     #define VOXELSIZE_HALF     16
     #define VOXELSIZE_THREEQR  24
     #define VOXELIZATION_SIZE  32
-    #define VOXESIZE_THREEX    96
-    #define VOXESIZE_SIXX      192
+    #define VOXELSIZE_THREEX    96
+    #define VOXELSIZE_SIXX      192
 #elif VOXELIZATION_SIZE_EXACT<=64
     #define VOXELSIZE_SIXTNTH  4
     #define VOXELSIZE_3_32NDS  6
@@ -343,8 +343,8 @@
     #define VOXELSIZE_HALF     32
     #define VOXELSIZE_THREEQR  48
     #define VOXELIZATION_SIZE  64
-    #define VOXESIZE_THREEX    192
-    #define VOXESIZE_SIXX      384
+    #define VOXELSIZE_THREEX    192
+    #define VOXELSIZE_SIXX      384
 #elif VOXELIZATION_SIZE_EXACT<=128
     #define VOXELSIZE_SIXTNTH  8
     #define VOXELSIZE_3_32NDS  12
