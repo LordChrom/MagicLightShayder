@@ -102,7 +102,8 @@ By default a section is 16x16x16 voxels, and an area is 4x4x4 sections or 64x64x
 - 1: translucent              (partially redundant now)
 - 1: opaque
 - 4: emission intensity
-- 16: blockID
+- cutout
+- 15: blockID
 
 ### Light sample
 Attributes

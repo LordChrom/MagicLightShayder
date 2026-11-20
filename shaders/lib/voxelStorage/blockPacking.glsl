@@ -59,7 +59,7 @@ bool blockIsFullCube(uint blockID){
 }
 
 bool blockIsCutout(uint blockID){
-    return bool(blockID&0x4000u);
+    return bool(blockID&0x8000u);
 }
 
 uint blockLightAnimationType(uint blockID){
@@ -176,6 +176,10 @@ uint packVoxelForStorage(uint blockID, uint emission){
             65: //default emissive is like brewing stand
             64; //solid cube
     }
+
+    #if (defined ALPHATEST) || (defined SHADOW_CUTOUT)
+    blockID|=0x8000u;
+    #endif
 
     uint ret = 0u;
     if(blockIsTranslucent(blockID)){

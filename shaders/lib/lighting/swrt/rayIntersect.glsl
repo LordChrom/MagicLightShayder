@@ -118,7 +118,11 @@ bool anyHit(){
     if(swrt_distToFinal==1 && swrt_voxel==swrt_finalVoxel)
         return false;
 
-    if(bool(swrt_voxel&WORLDVOX_OPAQUE))
+    if(bool(swrt_voxel&WORLDVOX_OPAQUE)
+        #ifdef SWRT_CUTOUT_TRACE
+        && !blockIsCutout(swrt_voxel)
+        #endif
+    )
         return true;
 
     bool bonusCheckDone = false;
@@ -170,8 +174,9 @@ float traceRay(vec3 worldPos, vec3 worldDirToLight, uint maxSteps){
         if(swrt_distToFinal==0)
             return -1;
 
-        if(anyHit())
-            return swrt_hitpos.a;
+        if(swrt_voxel>0)
+            if(anyHit())
+                return swrt_hitpos.a;
     }
 
     return -1;
