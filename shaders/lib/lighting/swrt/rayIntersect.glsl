@@ -33,7 +33,7 @@ vec4 swrtTextureSample(){
     uint axis = (axDist.x<max(axDist.y,axDist.z))? (axDist.z>axDist.y? 2u : 1u) : 0u;
     axis = (axis<<1)+uint(samplePos[axis]>0);
 
-    if(swrt_internalHitDepth>nudge){
+    if(swrt_internalHitDepth>0f){
         uint shape = blockShape(swrt_voxel);
         axis = (shape>>4)==3u ? (shape&0xfu)^1u : 3u;
     }
@@ -86,7 +86,7 @@ bool rayHitsShapedBlock(){
         if(min(axisCoords.x,axisCoords.y)<slabCheckDepth){
             #ifdef SWRT_CUTOUT_TRACE
             if(axisCoords.x>slabCheckDepth){
-                swrt_internalHitDepth = swrt_dir.a* abs(slabCheckDepth-axisCoords.x)/abs(axisCoords.y-axisCoords.x);
+                swrt_internalHitDepth = swrt_dir.a* abs(slabCheckDepth-axisCoords.x)/abs(axisCoords.y-axisCoords.x)+nudge;
             }
             #endif
             return true;
@@ -95,6 +95,7 @@ bool rayHitsShapedBlock(){
 
     if(shape<=0x2fu){
         vec2 halfwayChange = samplePos.xz + swrt_dir.xz*(minDepthTillChange(samplePos.xz*2,swrt_dir.xz)*0.5+nudge);
+        //TODO this is bugged
         uint corners = 1u << (uint(halfwayChange.x<0.5)+2*uint(halfwayChange.y<0.5));
         corners |= 1u << (uint(samplePos.x<0.5)+2*uint(samplePos.z<0.5));
         corners |= 1u << (uint(postPos.x<0.5)+2*uint(postPos.z<0.5));

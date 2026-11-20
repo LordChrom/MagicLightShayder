@@ -57,14 +57,15 @@ void main() {
     #endif
 
     voxelFog = vec4(0,0,0,1);
-    float prevFogDecay = 1.0;
+    worldPosRelative.w=length(worldPosRelative.xyz);
+    float prevFogDecay = exp(fogDensityMult*worldPosRelative.w);
 
 
     for(int i=0; i<VOLUMETRIC_FOG_SAMPLES; i++){
         //TODO better fog amount calc, and fix the banding, maybe smarter spacing
         float weight = 1-(float(i)+ditherValue)/VOLUMETRIC_FOG_SAMPLES;
         float localFogDensity = fogDensityMult;
-        float fogDecay = (i==VOLUMETRIC_FOG_SAMPLES-1)? 1 : exp(localFogDensity*length(worldPosRelative.xyz)*weight);
+        float fogDecay = (i==VOLUMETRIC_FOG_SAMPLES-1)? 1 : exp(localFogDensity*worldPosRelative.w*weight);
 
         vec3 newSample = lightingSampleFog(cameraPosition + worldPosRelative.xyz*weight,ditherValue);
 

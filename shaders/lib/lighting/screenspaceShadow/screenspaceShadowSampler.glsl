@@ -9,7 +9,7 @@ vec3 viewDirToScreen(vec3 viewDirection, vec3 screenPos){
     return normalize(pos.xyz-pos.w*(2*screenPos-1));
 }
 
-float sampleScreenspaceShadow(vec3 worldPos, vec3 normal){
+float sampleScreenspaceShadow(vec3 worldPos, vec3 normal, float ditherValue){
     vec4 screenPos = gbufferProjection*vec4(mat3(gbufferModelView)*(worldPos-cameraPosition),1);
     screenPos.xyz=(screenPos.xyz/screenPos.w)*0.5+0.5;
 
@@ -18,7 +18,6 @@ float sampleScreenspaceShadow(vec3 worldPos, vec3 normal){
     const int stepsPerBounce=30;
     const float maxCastLen = 1.3;
 
-    float ditherValue = dither(ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy));
     vec3 hitPosition = screenspaceRaycast(
         stepsPerBounce,maxCastLen,
         screenPos.xyz,viewDirToScreen(normalize(shadowLightPosition), screenPos.xyz),ditherValue,false,
