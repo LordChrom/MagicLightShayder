@@ -1,14 +1,15 @@
 #version 430 compatibility
 #include "/lib/settings.glsl"
 
+in vec2 texcoord;
 
-///* RENDERTARGETS: 7 */
-//layout(location = 0) out vec4 voxelFog;
-#define SIZE 16
-const vec2 workGroupsRender = vec2(LIGHTING_RENDERSCALE,LIGHTING_RENDERSCALE);
-layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
+/* RENDERTARGETS: 7 */
+layout(location = 0) out vec4 voxelFog;
+//#define SIZE 16
+//const vec2 workGroupsRender = vec2(LIGHTING_RENDERSCALE,LIGHTING_RENDERSCALE);
+//layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
 
-layout (rgba16f) uniform writeonly restrict image2D colorimg7;
+//layout (rgba16f) uniform writeonly restrict image2D colorimg7;
 
 
 uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
@@ -38,12 +39,11 @@ const float maxFogDepth = min(MAX_FOG_DEPTH,MIN_SCALE*0.5*AREA_SIZE*(1<<NUM_CASC
 
 void main() {
     vec4 worldPosRelative;
-    worldPosRelative.xy=(vec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5)/imageSize(colorimg7);
-    ivec2 sourceTexpos = ivec2((worldPosRelative.xy*textureSize(colortex5,0)+0.01));
 
-    worldPosRelative.z = texelFetch(colortex5,sourceTexpos,0).x;
+    worldPosRelative.z = texture(colortex5,texcoord).x;
+    float ditherValue = dither(ivec2(gl_FragCoord.xy));
 
-    worldPosRelative = gbufferProjectionInverse*vec4(worldPosRelative.xyz*2-1,1);
+    worldPosRelative = gbufferProjectionInverse*vec4(texcoord*2f-1f,worldPosRelative.z*2f-1f,1f);
     worldPosRelative/=worldPosRelative.w;
     worldPosRelative.xyz = mat3(gbufferModelViewInverse)*worldPosRelative.xyz+gbufferModelViewInverse[3].xyz;;
 
@@ -52,32 +52,29 @@ void main() {
     }
 
 
-    float ditherValue = dither(ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy));
     #ifdef FOG_TEMPORAL_NOISE
     ditherValue = temporalNoise(ditherValue);
     #endif
 
-    vec4 voxelFog = vec4(0,0,0,1);
-    float prevWeight = 1.0;
+    voxelFog = vec4(0,0,0,1);
+    float prevFogDecay = 1.0;
 
 
     for(int i=0; i<VOLUMETRIC_FOG_SAMPLES; i++){
         //TODO better fog amount calc, and fix the banding, maybe smarter spacing
         float weight = 1-(float(i)+ditherValue)/VOLUMETRIC_FOG_SAMPLES;
-        vec3 newSample = lightingSampleFog(cameraPosition + worldPosRelative.xyz*weight,ditherValue);
-
         float localFogDensity = fogDensityMult;
-        float worldPosLen = length(worldPosRelative);
-        float prevFogDecay= exp(localFogDensity*worldPosLen*prevWeight);
-        float fogDecay = (i==VOLUMETRIC_FOG_SAMPLES-1)? 1 : exp(localFogDensity*worldPosLen*weight);
+        float fogDecay = (i==VOLUMETRIC_FOG_SAMPLES-1)? 1 : exp(localFogDensity*length(worldPosRelative.xyz)*weight);
+
+        vec3 newSample = lightingSampleFog(cameraPosition + worldPosRelative.xyz*weight,ditherValue);
 
         voxelFog *= prevFogDecay/fogDecay;
         voxelFog.rgb += newSample*(fogDecay-prevFogDecay);
-        prevWeight=weight;
+        prevFogDecay=fogDecay;
     }
 
     vec3 fogCol = max(fogColor,0.01);
     fogCol=fogCol*(FOG_BIOME_TINT_STRENGTH/length(fogCol)) + (1-FOG_BIOME_TINT_STRENGTH);
     voxelFog.rgb*=fogCol.rgb;
-    imageStore(colorimg7,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),voxelFog);
+//    imageStore(colorimg7,ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy),voxelFog);
 }

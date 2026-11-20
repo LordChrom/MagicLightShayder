@@ -1,7 +1,4 @@
 const uint signBit = 0x80000000u;
-//float depthTillChange(float value, float differential){
-//    return (1-fract(value*sign(differential)))/abs(differential);
-//}
 
 float minDepthTillChange(vec2 value, vec2 differential){
     value = uintBitsToFloat(floatBitsToUint(value)^(floatBitsToUint(differential)&signBit));
@@ -11,14 +8,15 @@ float minDepthTillChange(vec2 value, vec2 differential){
 
 float minDepthTillChange(vec3 value, vec3 differential){
     value = uintBitsToFloat(floatBitsToUint(value)^(floatBitsToUint(differential)&signBit));
-    value = fract(-value)/abs(differential);
+    value = (1f-fract(value))/abs(differential);
     return min(min(value.x,value.y),value.z);
 }
-const float nudge = 0.0001;
+
+const float nudge = 0.0001220703125; //2^-13, should immediate better i think
 
 
-vec4 swrt_hitpos; //a is depth
-vec4 swrt_dir;    //a is depth increment for next block
+vec4 swrt_hitpos = vec4(0); //a is depth
+vec4 swrt_dir = vec4(0);    //a is depth increment for next block
 uint swrt_translucency = 0u;
 uint swrt_voxel = 0u;
 float swrt_internalHitDepth = 0f;
@@ -33,22 +31,17 @@ vec4 swrtTextureSample(){
     samplePos = fract(samplePos)-0.5f;
     vec3 axDist = abs(samplePos);
     uint axis = (axDist.x<max(axDist.y,axDist.z))? (axDist.z>axDist.y? 2u : 1u) : 0u;
-    uint sampleAxis = (axis<<1)+uint(samplePos[axis]>0);
+    axis = (axis<<1)+uint(samplePos[axis]>0);
 
     if(swrt_internalHitDepth>nudge){
         uint shape = blockShape(swrt_voxel);
-        if((shape>>4)==3u){
-            sampleAxis = (shape&0xfu)^1u;
-        }else{
-            sampleAxis=3u;
-        }
-        axis = sampleAxis>>1;
+        axis = (shape>>4)==3u ? (shape&0xfu)^1u : 3u;
     }
 
-    vec4 texData = getTexVoxData(ivec3(floor(swrt_hitpos.xyz)),sampleAxis,unitShift);
+    vec4 texData = imageLoad(texWorldVox,ivec3(swrt_hitpos.x,int(swrt_hitpos.y)*6+axis,swrt_hitpos.z));
 
-    if(axis>0)
-        samplePos = axis==1u? samplePos.yzx : samplePos.zxy;
+    if(axis>1u)
+        samplePos = (axis>3u)? samplePos.zxy : samplePos.yzx;
 
     if(texData.xy==vec2(0))
         return vec4(0);
@@ -173,25 +166,28 @@ bool anyHit(){
 }
 
 
+uniform usampler3D baseWorldVoxSampler;
 
 float traceRay(vec3 worldPos, vec3 worldDirToLight){
     swrt_dir.xyz=normalize(worldDirToLight);
-    worldPos+=(VOXELIZATION_SIZE>>1)-unitShift;
+    swrt_hitpos.xyz= worldPos + (VOXELIZATION_SIZE>>1);
 
-    float maxTraceDepth = length(worldDirToLight)-minDepthTillChange(worldPos+worldDirToLight,-swrt_dir.xyz)-nudge;
+    float maxTraceDepth = length(worldDirToLight)-minDepthTillChange(swrt_hitpos.xyz+worldDirToLight,-swrt_dir.xyz)-nudge;
 
     swrt_hitpos.a = 0f;
     int i=0;
-    for(i=0;i<swrtMaxSteps && swrt_hitpos.a<maxTraceDepth;i++){
-        swrt_hitpos.xyz = worldPos+swrt_hitpos.a*swrt_dir.xyz;
-        swrt_voxel = getBaseVoxData(ivec3(floor(swrt_hitpos.xyz)),unitShift);
-        swrt_dir.a = minDepthTillChange(swrt_hitpos.xyz,swrt_dir.xyz)+nudge;
+    for(i=0;i<=swrtMaxSteps && swrt_hitpos.a<maxTraceDepth;i++){
+        swrt_hitpos.xyz=fract(swrt_hitpos.xyz/VOXELIZATION_SIZE);
+        swrt_voxel = texture(baseWorldVoxSampler,swrt_hitpos.xyz).x;
+        swrt_hitpos.xyz*=VOXELIZATION_SIZE;
+
+        swrt_dir.a=minDepthTillChange(swrt_hitpos.xyz,swrt_dir.xyz)+nudge;
 
         if(swrt_voxel>0){
             if(anyHit())
                 break;
         }
-        swrt_hitpos.a+=swrt_dir.a;
+        swrt_hitpos+=vec4(swrt_dir.a*swrt_dir.xyz,swrt_dir.a);
     }
 
 

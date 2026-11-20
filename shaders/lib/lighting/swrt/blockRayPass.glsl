@@ -44,7 +44,7 @@ void shade(){
 
 
 
-    worldPos.xyz+=clamp(length(worldPos.xyz)*0.001,0.04,0.1)*normalize(normal);
+    worldPos.xyz+=clamp(length(worldPos.xyz),1,16f)*normalize(normal)/1024f;
     worldPos.xyz+=cameraPosition;
     ivec3 areaPos = worldPosToSWRT(worldPos.xyz);
 

@@ -32,15 +32,6 @@ vec3 penumbraNoise(float ditherValue){
 
 #ifdef SWRT_INCLUDE_TRACE
 #include "/lib/lighting/swrt/rayIntersect.glsl"
-vec4 traceLight(vec3 worldPos,ivec3 areaPos,uint light){
-    ivec3 lightPosRel = uncheckedUnpackListedLight(light);
-    vec3 displacementToLight = lightPosRel-fract(worldPos)+0.5;
-
-    float lightStr = lightFalloff(displacementToLight);
-
-    bool hitObstruction = traceRay(worldPos,displacementToLight)>=0;
-    return vec4(colorOfPackedLight(light)*lightStr,!hitObstruction);
-}
 #endif
 
 uniform sampler2D swrtRayHitSampler;
@@ -154,32 +145,27 @@ vec3 swrtSampleFog(vec3 worldPos){
     vec3 color = vec3(0);
 
 
-    #if (SWRT_RAYS_PER_FOG_SAMPLE>0) && (defined SWRT_INCLUDE_TRACE)
-    lightShortList = getLightListLayer(areaPos, 0);
-    for(i=0;i<SWRT_RAYS_PER_FOG_SAMPLE;i++){
-        uint light = lightShortList[i&3u];
-        if(!bool(light&LIGHT_VALID_BIT))
-            break;
-
-        vec4 hitColor = traceLight(worldPos,areaPos,light);
-        color += hitColor.rgb*hitColor.a;
-    }
-    #endif
-
-    worldPos = 0.5-fract(worldPos);
-
     #define FOG_SWRT_LIGHTS SWRT_LIGHTS_PER_BLOCK
     #define FOG_SWRT_LIGHTS 4
-    for(;i<FOG_SWRT_LIGHTS;i++){
-        if((i&3u)==0u)
-            lightShortList = getLightListLayer(areaPos, i>>2);
+    lightShortList = getLightListLayer(areaPos, 0);
+    for(i=0;i<FOG_SWRT_LIGHTS;i++){
         uint light = lightShortList[i&3u];
+
         if(!bool(light&LIGHT_VALID_BIT))
             break;
 
-        vec3 displacementToLight = uncheckedUnpackListedLight(light)+worldPos;
+        ivec3 lightPosRel = uncheckedUnpackListedLight(light);
+        vec3 displacementToLight = lightPosRel-fract(worldPos)+0.5;
 
-        color+= colorOfPackedLight(light)*lightFalloff(displacementToLight);
+        float lightStr = lightFalloff(displacementToLight);
+
+        #if (SWRT_RAYS_PER_FOG_SAMPLE>0) && (defined SWRT_INCLUDE_TRACE)
+        if(i<SWRT_RAYS_PER_FOG_SAMPLE)
+            if(traceRay(worldPos,displacementToLight)>=0)
+                continue;
+        #endif
+
+        color+= colorOfPackedLight(light)*lightStr;
     }
 
     return color;
