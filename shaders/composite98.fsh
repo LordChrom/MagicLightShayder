@@ -4,9 +4,10 @@
 uniform vec2 scaledScreenDim;
 #include "/lib/util/taaJitter.glsl"
 
-const uint maxSteps = SWRT_SIZE;
 uniform vec3 cameraPosition;
 
+const uint swrtMaxSteps = SWRT_SIZE;
+#define SWRT_INCLUDE_TRACE
 #include "/lib/lighting/swrt/swrtSampler.glsl"
 in vec3 worldDirNormalizeMe;
 
@@ -21,7 +22,7 @@ void main(){
     vec3 dir = normalize(worldDirNormalizeMe);
     dir/=max(max(abs(dir.x),abs(dir.y)),abs(dir.z));
     dir*=VOXELSIZE_HALF;
-    float depth = traceRay(cameraPosition,dir,maxSteps);
+    float depth = traceRay(cameraPosition,dir);
 
 
 
@@ -33,9 +34,11 @@ void main(){
 
         #ifdef SWRT_TEXTURED
         vec4 texResult = swrtTextureSample();
-        outColor = texResult.rgb;
-        if(texResult.a<0.875)
-            outColor=vec3(1,0,0);
+        if(texResult.a<0.875){
+            outColor.r=1;
+        }else{
+            outColor = texResult.rgb;
+        }
         #endif
 
 

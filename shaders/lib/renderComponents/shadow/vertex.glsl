@@ -7,6 +7,9 @@ uniform vec3 cameraPosition;
 
 in vec4 at_midBlock;
 in vec2 mc_Entity;
+    #if (defined SWRT_ONLY_TEXTURIZE_CUTOUTS) && !(defined SHADOW_CUTOUT)
+    #undef TEXTURED_VOXELIZATION
+    #endif
     #ifdef TEXTURED_VOXELIZATION
     in vec2 mc_midTexCoord;
     in vec4 at_tangent;

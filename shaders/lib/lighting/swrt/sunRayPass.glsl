@@ -14,10 +14,11 @@ uniform sampler2D colortex5;
 uniform sampler2D colortex2;
 
 
-const uint maxSteps = 15u;
-
 uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
 uniform vec3 cameraPosition;
+
+const uint swrtMaxSteps = 15u;
+#define SWRT_INCLUDE_TRACE
 
 #include "/lib/lighting/swrt/swrtSampler.glsl"
 #include "/lib/util/shadowLightInfo.glsl"
@@ -81,7 +82,7 @@ void main(){
     vec4 writeColor = vec4(0);
 
     if(NoL>=0){
-        float hitD = traceRay(worldPos.xyz,displacementToLight,maxSteps);
+        float hitD = traceRay(worldPos.xyz,displacementToLight);
 
 //        writeColor.a = hitD>0?0.0:NoL;
 
@@ -89,7 +90,7 @@ void main(){
             writeColor.a=NoL;
             #ifdef SHADOWMAP_SHADOWS
             displacementToLight=normalize(displacementToLight);
-            displacementToLight*=float(maxSteps)/3.0; //TODO make actually respect angles
+            displacementToLight*=float(swrtMaxSteps)/3.0; //TODO make actually respect angles
             worldPos.xyz+=displacementToLight;
             writeColor.a*=max(shadowmapSampleFog(worldPos.xyz),0.01);
             #endif

@@ -6,6 +6,9 @@
 #include "/lib/voxelStorage/blockPacking.glsl"
 #include "/lib/voxelStorage/vsAccess.glsl"
 #include "/lib/lighting/swrt/lightListAccess.glsl"
+
+const uint swrtMaxSteps = 30u;
+#define SWRT_INCLUDE_TRACE
 #include "/lib/lighting/swrt/rayIntersect.glsl"
 
 
@@ -13,6 +16,7 @@
 
 const ivec3 workGroups = ivec3(WORK_SIZE,1,WORK_SIZE);
 layout (local_size_x = 4, local_size_y = SWRT_UPDATE_SPEED, local_size_z = 4) in;
+
 
 layout(std430, binding = 1) buffer ssbo0 {
     uvec4[64][64] bufferedGroupMeta;
@@ -70,7 +74,7 @@ void verifyLights(){
             localOffset.z=localOffset.x*localOffset.y;
             localOffset*=0.4;
 
-            float d = traceRay(worldPos+localOffset, lightDir, 30u);
+            float d = traceRay(worldPos+localOffset, lightDir);
             if(d<0){
                 lightReachable=true;
                 break;
@@ -79,7 +83,7 @@ void verifyLights(){
         if(!lightReachable)
             continue;
         #else
-        if(traceRay(worldPos, lightDir, 30u)>0)
+        if(traceRay(worldPos, lightDir)>0)
             continue;
 
         #endif

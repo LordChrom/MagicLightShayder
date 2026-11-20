@@ -14,11 +14,12 @@ uniform sampler2D colortex5;
 uniform sampler2D colortex2;
 
 
-const uint maxSteps = 15u;
 
 uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
 uniform vec3 cameraPosition;
 
+const uint swrtMaxSteps = 15u;
+#define SWRT_INCLUDE_TRACE
 #include "/lib/lighting/swrt/swrtSampler.glsl"
 
 vec4 writeColor = vec4(0);
@@ -72,7 +73,7 @@ void shade(){
     float lightHash = float(((lightHash3.x*53)^(lightHash3.y*17)^(lightHash3.z*97))%255)/255.0;
     writeColor.a = lightHash;
 
-    if(traceRay(worldPos.xyz,displacementToLight,maxSteps)>=0)
+    if(traceRay(worldPos.xyz,displacementToLight)>=0)
         return;
 
 

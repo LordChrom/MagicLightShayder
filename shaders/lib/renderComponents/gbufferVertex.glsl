@@ -71,6 +71,10 @@ flat out uint packedTexsize;
 out float worldLength;
 #endif
 
+#if (defined SWRT_ONLY_TEXTURIZE_CUTOUTS) && !(defined ALPHATEST)
+#undef TEXTURED_VOXELIZATION
+#endif
+
 #if ( VOXELIZATION_MODE >=1 ) && (defined IS_TERRAIN ) && (!defined LOD_MOD_SHADER)
     #define UPDATE_VOXEL_MAP
     #define NEEDS_MC_ENTITY

@@ -1,24 +1,26 @@
-float depthTillChange(float value, float differential){
-    return (1-fract(value*sign(differential)))/abs(differential);
+const uint signBit = 0x80000000u;
+//float depthTillChange(float value, float differential){
+//    return (1-fract(value*sign(differential)))/abs(differential);
+//}
 
+float minDepthTillChange(vec2 value, vec2 differential){
+    value = uintBitsToFloat(floatBitsToUint(value)^(floatBitsToUint(differential)&signBit));
+    value = fract(-value)/abs(differential);
+    return min(value.x,value.y);
 }
 
 float minDepthTillChange(vec3 value, vec3 differential){
-    value = 1-fract(value*sign(differential));
-    value/=abs(differential);
+    value = uintBitsToFloat(floatBitsToUint(value)^(floatBitsToUint(differential)&signBit));
+    value = fract(-value)/abs(differential);
     return min(min(value.x,value.y),value.z);
 }
 const float nudge = 0.0001;
 
 
-vec4 swrt_hitpos;
-vec3 swrt_dir;
-ivec3 swrt_areaPos;
-float swrt_nextDepth = 0f;
+vec4 swrt_hitpos; //a is depth
+vec4 swrt_dir;    //a is depth increment for next block
 uint swrt_translucency = 0u;
 uint swrt_voxel = 0u;
-uint swrt_distToFinal = 0u;
-uint swrt_finalVoxel = 0u;
 float swrt_internalHitDepth = 0f;
 
 
@@ -26,7 +28,7 @@ float swrt_internalHitDepth = 0f;
 #ifdef SWRT_TEXTURED
 uniform sampler2D blockAtlas;
 vec4 swrtTextureSample(){
-    vec3 samplePos=swrt_hitpos.xyz+ swrt_internalHitDepth*swrt_dir;
+    vec3 samplePos=swrt_hitpos.xyz+ swrt_internalHitDepth*swrt_dir.xyz;
 
     samplePos = fract(samplePos)-0.5f;
     vec3 axDist = abs(samplePos);
@@ -43,7 +45,7 @@ vec4 swrtTextureSample(){
         axis = sampleAxis>>1;
     }
 
-    vec4 texData = getTexVoxData(swrt_areaPos,sampleAxis,unitShift);
+    vec4 texData = getTexVoxData(ivec3(floor(swrt_hitpos.xyz)),sampleAxis,unitShift);
 
     if(axis>0)
         samplePos = axis==1u? samplePos.yzx : samplePos.zxy;
@@ -64,38 +66,40 @@ vec4 swrtTextureSample(){
 
 
 
-bool rayHitsShapedBlock(vec3 samplePos, vec3 dir, uint shape){
-    samplePos=fract(samplePos);
-    vec3 postPos = samplePos+dir*swrt_nextDepth;
-    uint shapeCat = shape>>4;
+bool rayHitsShapedBlock(){
+    uint shape = blockShape(swrt_voxel);
 
     uint slabCheckAxis=2u;
     float slabCheckDepth = 0f;
 
-    if(shapeCat<=2u){
+    if(shape<=0x2fu){
         slabCheckDepth=8f;
-        slabCheckAxis|=shapeCat;
-    }else if (shapeCat==3u){
+        slabCheckAxis|=shape>>4;
+    }else if (shape<=0x3fu){
         slabCheckAxis=shape&0xfu;
         slabCheckDepth=3f;
-    }else if (shapeCat==4u){
+    }else if (shape<=0x4fu){
         slabCheckDepth=shape&0xfu;
     }
 
+    vec3 samplePos=fract(swrt_hitpos.xyz);
+    vec3 postPos = samplePos+swrt_dir.xyz*swrt_dir.a;
     vec2 axisCoords = vec2(samplePos[slabCheckAxis>>1],postPos[slabCheckAxis>>1]);
     if(bool(slabCheckAxis&1u))
         axisCoords=1f-axisCoords;
     slabCheckDepth*=0.0625;
     if(min(axisCoords.x,axisCoords.y)<slabCheckDepth){
+        #ifdef SWRT_CUTOUT_TRACE
         if(axisCoords.x>slabCheckDepth){
-            swrt_internalHitDepth = swrt_nextDepth* abs(slabCheckDepth-axisCoords.x)/abs(axisCoords.y-axisCoords.x);
+            swrt_internalHitDepth = swrt_dir.a* abs(slabCheckDepth-axisCoords.x)/abs(axisCoords.y-axisCoords.x);
         }
+        #endif
         return true;
     }
 
-    if(shapeCat<=2u){
-        vec3 halfwayChange = samplePos + dir*(minDepthTillChange(samplePos*2,dir)*0.5+nudge);
-        uint corners = 1u << (uint(halfwayChange.x<0.5)+2*uint(halfwayChange.z<0.5));
+    if(shape<=0x2fu){
+        vec2 halfwayChange = samplePos.xz + swrt_dir.xz*(minDepthTillChange(samplePos.xz*2,swrt_dir.xz)*0.5+nudge);
+        uint corners = 1u << (uint(halfwayChange.x<0.5)+2*uint(halfwayChange.y<0.5));
         corners |= 1u << (uint(samplePos.x<0.5)+2*uint(samplePos.z<0.5));
         corners |= 1u << (uint(postPos.x<0.5)+2*uint(postPos.z<0.5));
 
@@ -114,9 +118,6 @@ bool anyHit(){
         swrt_translucency = (swrt_translucency<<6) | blockLightID(swrt_voxel);
     #endif
 
-    if(swrt_distToFinal==1 && swrt_voxel==swrt_finalVoxel)
-        return false;
-
     if(bool(swrt_voxel&WORLDVOX_OPAQUE)
         #ifdef SWRT_CUTOUT_TRACE
         && !blockIsCutout(swrt_voxel)
@@ -128,10 +129,9 @@ bool anyHit(){
     #ifdef SWRT_SHAPED_BLOCKS
     swrt_internalHitDepth = 0f;
     //TODO better coherence on this, do it in batches
-    uint shape = blockShape(swrt_voxel);
-    if(shape>=16u){
+    if(blockShape(swrt_voxel)>=16u){
         bonusCheckDone=true;
-        if(!rayHitsShapedBlock(swrt_hitpos.xyz,swrt_dir,shape))
+        if(!rayHitsShapedBlock())
             return false;
     }
     #endif
@@ -150,33 +150,23 @@ bool anyHit(){
 
 
 
-float traceRay(vec3 worldPos, vec3 worldDirToLight, uint maxSteps){
+float traceRay(vec3 worldPos, vec3 worldDirToLight){
+    swrt_dir.xyz=normalize(worldDirToLight);
     worldPos+=(VOXELIZATION_SIZE>>1)-unitShift;
 
-    ivec3 finalBlock = ivec3(floor(worldPos+worldDirToLight));
-    swrt_finalVoxel = getBaseVoxData(finalBlock,unitShift);
-
-    float maxTraceDepth = length(worldDirToLight);
-    swrt_dir=normalize(worldDirToLight);
+    float maxTraceDepth = length(worldDirToLight)-minDepthTillChange(vec3(0.5),swrt_dir.xyz)-nudge;
 
     swrt_hitpos.a = 0f;
-    for(int i=0;i<maxSteps && swrt_hitpos.a<maxTraceDepth;i++){
-        swrt_hitpos.a+=swrt_nextDepth;
-
-        swrt_hitpos.xyz = worldPos+swrt_hitpos.a*swrt_dir;
-        swrt_areaPos = ivec3(floor(swrt_hitpos.xyz));
-        swrt_voxel = getBaseVoxData(swrt_areaPos,unitShift);
-        swrt_nextDepth = minDepthTillChange(swrt_hitpos.xyz,swrt_dir)+nudge;
-
-        swrt_distToFinal = abs(swrt_areaPos.x-finalBlock.x)+abs(swrt_areaPos.y-finalBlock.y)+abs(swrt_areaPos.z-finalBlock.z);
-
-        if(swrt_distToFinal==0)
-            return -1;
+    for(int i=0;i<swrtMaxSteps && swrt_hitpos.a<maxTraceDepth;i++){
+        swrt_hitpos.xyz = worldPos+swrt_hitpos.a*swrt_dir.xyz;
+        swrt_voxel = getBaseVoxData(ivec3(floor(swrt_hitpos.xyz)),unitShift);
+        swrt_dir.a = minDepthTillChange(swrt_hitpos.xyz,swrt_dir.xyz)+nudge;
 
         if(swrt_voxel>0){
             if(anyHit())
                 return swrt_hitpos.a;
         }
+        swrt_hitpos.a+=swrt_dir.a;
     }
 
     return -1;

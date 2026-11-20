@@ -21,6 +21,10 @@ uniform vec3 fogColor;
 
 #include "/lib/util/uniforms/frameCounter"
 #define FOG_SHADER
+#if (SWRT_RAYS_PER_FOG_SAMPLE>0)
+    const uint swrtMaxSteps = 10u;
+    #define SWRT_INCLUDE_TRACE
+#endif
 #include "/lib/lighting/lightWrapper.glsl"
 #define TEMPORAL_DITHER
 #include "/lib/util/dither.glsl"
