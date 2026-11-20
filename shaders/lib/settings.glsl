@@ -180,8 +180,6 @@
 #define SWRT_CUTOUT_TRACE
 #define LIGHT_SOURCE_HASH_REJECTION
 
-#define SWRT_ONLY_TEXTURIZE_CUTOUTS
-
 
 #define OBSTRUCTION_MAPPING
 //#define CHANGE_TRACKING
@@ -264,6 +262,9 @@
     #define TAA
 #endif
 
+#ifndef DEBUG_VOXEL_SWRT_VISION
+#define SWRT_ONLY_TEXTURIZE_CUTOUTS
+#endif
 ///// The following to be copy pasted into shaders.properties
 #ifndef SWRT
     #undef SWRT_SKY_SHADOW

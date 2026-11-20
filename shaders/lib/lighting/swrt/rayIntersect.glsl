@@ -84,17 +84,20 @@ bool rayHitsShapedBlock(){
 
     vec3 samplePos=fract(swrt_hitpos.xyz);
     vec3 postPos = samplePos+swrt_dir.xyz*swrt_dir.a;
-    vec2 axisCoords = vec2(samplePos[slabCheckAxis>>1],postPos[slabCheckAxis>>1]);
-    if(bool(slabCheckAxis&1u))
-        axisCoords=1f-axisCoords;
-    slabCheckDepth*=0.0625;
-    if(min(axisCoords.x,axisCoords.y)<slabCheckDepth){
-        #ifdef SWRT_CUTOUT_TRACE
-        if(axisCoords.x>slabCheckDepth){
-            swrt_internalHitDepth = swrt_dir.a* abs(slabCheckDepth-axisCoords.x)/abs(axisCoords.y-axisCoords.x);
+
+    if(slabCheckDepth>0){
+        vec2 axisCoords = vec2(samplePos[slabCheckAxis>>1],postPos[slabCheckAxis>>1]);
+        if(bool(slabCheckAxis&1u))
+            axisCoords=1f-axisCoords;
+        slabCheckDepth*=0.0625;
+        if(min(axisCoords.x,axisCoords.y)<slabCheckDepth){
+            #ifdef SWRT_CUTOUT_TRACE
+            if(axisCoords.x>slabCheckDepth){
+                swrt_internalHitDepth = swrt_dir.a* abs(slabCheckDepth-axisCoords.x)/abs(axisCoords.y-axisCoords.x);
+            }
+            #endif
+            return true;
         }
-        #endif
-        return true;
     }
 
     if(shape<=0x2fu){
@@ -105,6 +108,27 @@ bool rayHitsShapedBlock(){
 
         if(bool(shape&corners))
             return true;
+    }
+
+    if((shape>>4)==5u){
+        float poleSize = (shape&0xfu);
+        poleSize*=0.0625;
+
+        float m = (postPos.z-samplePos.z)/(postPos.x-samplePos.x);
+
+        //TODO this feels very inefficient but it works for now
+        vec2 poses = vec2(0.5-poleSize,0.5+poleSize)*m+(samplePos.z-m*samplePos.x);
+        poses = clamp(poses,min(postPos.z,samplePos.z),max(postPos.z,samplePos.z));
+        poses-=0.5;
+
+        if(poses.x*poses.y<0 || abs(poses.x)<poleSize|| abs(poses.y)<poleSize){
+            poses = vec2(0.5-poleSize,0.5+poleSize)/m+(samplePos.x-samplePos.z/m);
+            poses = clamp(poses,min(postPos.x,samplePos.x),max(postPos.x,samplePos.x));
+            poses-=0.5;
+
+            if(poses.x*poses.y<0 || abs(poses.x)<poleSize|| abs(poses.y)<poleSize)
+                return true;
+        }
     }
 
     return false;
