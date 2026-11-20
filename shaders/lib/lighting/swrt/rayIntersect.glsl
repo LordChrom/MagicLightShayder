@@ -10,13 +10,39 @@ float minDepthTillChange(vec3 value, vec3 differential){
 }
 const float nudge = 0.0001;
 
+
+vec4 swrt_hitpos;
+vec3 swrt_dir;
+ivec3 swrt_areaPos;
+float swrt_nextDepth = 0f;
+uint swrt_translucency = 0u;
+uint swrt_voxel = 0u;
+uint swrt_distToFinal = 0u;
+uint swrt_finalVoxel = 0u;
+float swrt_internalHitDepth = 0f;
+
+
+
 #ifdef SWRT_TEXTURED
 uniform sampler2D blockAtlas;
 vec4 texturedHit(vec3 samplePos, ivec3 areaPos){
+
+    samplePos+=swrt_internalHitDepth*swrt_dir;
+
     samplePos = fract(samplePos)-0.5f;
     vec3 axDist = abs(samplePos);
     uint axis = (axDist.x<max(axDist.y,axDist.z))? (axDist.z>axDist.y? 2u : 1u) : 0u;
-    uint sampleAxis = axis+(samplePos[axis]>0? 3u:0u);
+    uint sampleAxis = (axis<<1)+uint(samplePos[axis]>0);
+
+    if(swrt_internalHitDepth>nudge){
+        uint shape = blockShape(swrt_voxel);
+        if((shape>>4)==3u){
+            sampleAxis = (shape&0xfu)^1u;
+        }else{
+            sampleAxis=3u;
+        }
+        axis = sampleAxis>>1;
+    }
 
     vec4 texData = getTexVoxData(areaPos,sampleAxis,unitShift);
 
@@ -37,9 +63,11 @@ vec4 texturedHit(vec3 samplePos, ivec3 areaPos){
 }
 #endif
 
-bool rayHitsShapedBlock(vec3 samplePos, vec3 dir, float d, uint shape){
+
+
+bool rayHitsShapedBlock(vec3 samplePos, vec3 dir, uint shape){
     samplePos=fract(samplePos);
-    vec3 postPos = samplePos+dir*d;
+    vec3 postPos = samplePos+dir*swrt_nextDepth;
     uint shapeCat = shape>>4;
 
     uint slabCheckAxis=2u;
@@ -58,8 +86,13 @@ bool rayHitsShapedBlock(vec3 samplePos, vec3 dir, float d, uint shape){
     vec2 axisCoords = vec2(samplePos[slabCheckAxis>>1],postPos[slabCheckAxis>>1]);
     if(bool(slabCheckAxis&1u))
         axisCoords=1f-axisCoords;
-    if(min(axisCoords.x,axisCoords.y)*16f<slabCheckDepth)
+    slabCheckDepth*=0.0625;
+    if(min(axisCoords.x,axisCoords.y)<slabCheckDepth){
+        if(axisCoords.x>slabCheckDepth){
+            swrt_internalHitDepth = swrt_nextDepth* abs(slabCheckDepth-axisCoords.x)/abs(axisCoords.y-axisCoords.x);
+        }
         return true;
+    }
 
     if(shapeCat<=2u){
         vec3 halfwayChange = samplePos + dir*(minDepthTillChange(samplePos*2,dir)*0.5+nudge);
@@ -74,14 +107,6 @@ bool rayHitsShapedBlock(vec3 samplePos, vec3 dir, float d, uint shape){
     return false;
 }
 
-vec4 swrt_hitpos;
-vec3 swrt_dir;
-ivec3 swrt_areaPos;
-float swrt_nextDepth = 0f;
-uint swrt_translucency = 0u;
-uint swrt_voxel = 0u;
-uint swrt_distToFinal = 0u;
-uint swrt_finalVoxel = 0u;
 
 
 bool anyHit(){
@@ -98,11 +123,12 @@ bool anyHit(){
 
     bool bonusCheckDone = false;
     #ifdef SWRT_SHAPED_BLOCKS
+    swrt_internalHitDepth = 0f;
     //TODO better coherence on this, do it in batches
     uint shape = blockShape(swrt_voxel);
     if(shape>=16u){
         bonusCheckDone=true;
-        if(!rayHitsShapedBlock(swrt_hitpos.xyz,swrt_dir,swrt_nextDepth,shape))
+        if(!rayHitsShapedBlock(swrt_hitpos.xyz,swrt_dir,shape))
             return false;
     }
     #endif
@@ -119,6 +145,8 @@ bool anyHit(){
     return bonusCheckDone;
 }
 
+
+
 float traceRay(vec3 worldPos, vec3 worldDirToLight, uint maxSteps){
     worldPos+=(VOXELIZATION_SIZE>>1)-unitShift;
 
@@ -128,11 +156,11 @@ float traceRay(vec3 worldPos, vec3 worldDirToLight, uint maxSteps){
     float maxTraceDepth = length(worldDirToLight);
     swrt_dir=normalize(worldDirToLight);
 
-    float depth = nudge;
-    for(int i=0;i<maxSteps && depth<maxTraceDepth;i++){
-        depth+=swrt_nextDepth;
+    swrt_hitpos.a = nudge;
+    for(int i=0;i<maxSteps && swrt_hitpos.a<maxTraceDepth;i++){
+        swrt_hitpos.a+=swrt_nextDepth;
 
-        swrt_hitpos.xyz = worldPos+depth*swrt_dir;
+        swrt_hitpos.xyz = worldPos+swrt_hitpos.a*swrt_dir;
         swrt_areaPos = ivec3(floor(swrt_hitpos.xyz));
         swrt_voxel = getBaseVoxData(swrt_areaPos,unitShift);
         swrt_nextDepth = minDepthTillChange(swrt_hitpos.xyz,swrt_dir)+nudge;
@@ -143,7 +171,7 @@ float traceRay(vec3 worldPos, vec3 worldDirToLight, uint maxSteps){
             return -1;
 
         if(anyHit())
-            return depth;
+            return swrt_hitpos.a;
     }
 
     return -1;

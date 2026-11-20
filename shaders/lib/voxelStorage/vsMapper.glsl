@@ -40,8 +40,8 @@ void writeVoxelMapTextured(vec3 worldPos, int rawBlockID, uint emission){
     if(flipxy)
         texData.w+=0.5;
 
-    if(gl_Normal[axis]>0)
-        axis+=3u;
+    axis = (axis<<1)+uint(gl_Normal[axis]>0);
+
     setTexturedBaseVoxData(packedData, texData, areaPos, axis, shift);
 }
 #endif
