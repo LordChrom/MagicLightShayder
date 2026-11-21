@@ -71,10 +71,10 @@ uint blockLightAnimationType(uint blockID){
         :2u;
 }
 
+#ifdef SETUP_PASS
 vec3 getLightIDColor(uint lightID){
     uint packedColor = 0u;
 
-    //TODO: this could also be in an SSBO or custom image, and would cache very nicely test performance thereof
     switch (lightID){
         //no animation
         case  1: packedColor=0x984u; break;//glowstone,redstone lamps, copper bulbs, brewing stands
@@ -137,6 +137,26 @@ vec3 getLightIDColor(uint lightID){
             packedColor
     )&0xfu)/9.0;
 }
+
+layout(std430, binding = 2) writeonly buffer ssbo2 {
+    vec3[64] lightColors;
+};
+
+void setupLightID(uint lightID){
+    lightColors[lightID] = getLightIDColor(lightID);
+}
+
+#else
+
+layout(std430, binding = 2) readonly buffer ssbo2 {
+    vec3[64] lightColors;
+};
+
+//this is the version that other programs actually use
+vec3 getLightIDColor(uint lightID){
+    return lightColors[lightID];
+}
+#endif
 
 vec3 getMaterialColor(uint materialID){
     return getLightIDColor(blockLightID(materialID));
