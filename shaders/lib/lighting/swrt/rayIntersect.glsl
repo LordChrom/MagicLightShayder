@@ -129,41 +129,27 @@ bool rayHitsShapedBlock(){
 }
 
 
-
+//TODO better coherence on this, do it in batches
 bool anyHit(){
-    #if SWRT_TRANSLUCENCY>0
-    if(blockIsTranslucent(swrt_voxel))
-        swrt_translucency = (swrt_translucency<<6) | blockLightID(swrt_voxel);
-    #endif
+    uint shape = blockShape(swrt_voxel);
 
-    if(bool(swrt_voxel&WORLDVOX_OPAQUE)
-        #ifdef SWRT_CUTOUT_TRACE
-        && !blockIsCutout(swrt_voxel)
-        #endif
-    )
-        return true;
-
-    bool bonusCheckDone = false;
-    #ifdef SWRT_SHAPED_BLOCKS
-    swrt_internalHitDepth = 0f;
-    //TODO better coherence on this, do it in batches
-    if(blockShape(swrt_voxel)>=16u){
-        bonusCheckDone=true;
-        if(!rayHitsShapedBlock())
-            return false;
-    }
-    #endif
+#ifdef SWRT_SHAPED_BLOCKS
+    if(shape<2)
+        return shape==1;
+    else if(!rayHitsShapedBlock())
+        return false;
 
     #ifdef SWRT_CUTOUT_TRACE
-    if(blockIsCutout(swrt_voxel)){
-        bonusCheckDone=true;
-        vec4 tex = swrtTextureSample();
-        if(tex.a<0.875)
-            return false;
-    }
+    if(!blockIsCutout(swrt_voxel))
+        return true;
+    vec4 tex = swrtTextureSample();
+    return tex.a>=0.875;
+    #else
+    return true;
     #endif
-
-    return bonusCheckDone;
+#else
+    return shape>0;
+#endif
 }
 
 
@@ -184,9 +170,16 @@ float traceRay(vec3 worldPos, vec3 worldDirToLight){
 
         swrt_dir.a=minDepthTillChange(swrt_hitpos.xyz,swrt_dir.xyz)+nudge;
 
+        swrt_internalHitDepth = 0f;
+
         if(swrt_voxel>0){
-            if(anyHit())
-                break;
+            if(anyHit()){
+                if(!blockIsTranslucent(swrt_voxel))
+                    break;
+                #if SWRT_TRANSLUCENCY>0
+                swrt_translucency = (swrt_translucency<<6) | blockLightID(swrt_voxel);
+                #endif
+            }
         }
         swrt_hitpos+=vec4(swrt_dir.a*swrt_dir.xyz,swrt_dir.a);
     }
