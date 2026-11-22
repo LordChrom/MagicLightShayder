@@ -134,9 +134,10 @@ bool anyHit(){
     uint shape = blockShape(swrt_voxel);
 
 #ifdef SWRT_SHAPED_BLOCKS
-    if(shape<2)
-        return shape==1;
-    else if(!rayHitsShapedBlock())
+    if(shape<2){
+        if(!blockIsCutout(swrt_voxel))
+            return shape==1;
+    }else if(!rayHitsShapedBlock())
         return false;
 
     #ifdef SWRT_CUTOUT_TRACE
