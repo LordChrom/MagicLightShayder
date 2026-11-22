@@ -21,7 +21,7 @@ const float translucentPrecedenceCutoff = 0.99;
     #undef POM
 #else
 
-#if ((DEBUG_SPECIAL_VIEW==104) || (DEBUG_SPECIAL_VIEW==106))
+#if ((DEBUG_SPECIAL_VIEW==104) || (DEBUG_SPECIAL_VIEW==106)) && !(defined ENCHANT_GLINT)
 #undef TRANSLUCENT
 #endif
 

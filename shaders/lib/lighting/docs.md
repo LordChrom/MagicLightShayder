@@ -199,3 +199,19 @@ Packing
 - more efficient memory scaling for advanced voxel system
 - yet another lighting mode
 - better accounting for translucents hit on the way to solid terrain in SSR
+
+### Debug Views
+- <100 are buffers
+- 100 is nothing
+- 101 is dither
+- 102 kkinda shows where pixels are
+- 103 is SSAO via ct19
+- 104 is something pom related and broken i think
+- 105 is unused
+- 106 also maybe pom related and broken?
+- 107 is swrt primary ray
+- 200 is taa spatiality scaled up and slowed
+- 201 is taa rejection
+- 202 is taa spatiality in practice
+- 203 is raw shadowtex0
+- 204 is shadowcolor0 (probably to be removed?)

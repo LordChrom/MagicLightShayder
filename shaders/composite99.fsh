@@ -6,7 +6,8 @@
 
 uniform float frameTimeCounter;
 uniform mat4 gbufferModelViewInverse, gbufferProjectionInverse;
-in vec2 texcoord;
+uniform vec2 scaledScreenDim;
+uniform vec3 cameraPosition;
 
 uniform sampler2D shadowtex0;
 uniform sampler2D shadowcolor0;
@@ -32,6 +33,12 @@ uniform sampler2D colortex17;
 uniform sampler2D colortex18;
 uniform sampler2D colortex19;
 
+#if DEBUG_SPECIAL_VIEW==107
+const uint swrtMaxSteps = SWRT_SIZE;
+#define SWRT_INCLUDE_TRACE
+#include "/lib/lighting/swrt/swrtSampler.glsl"
+#endif
+
 /* RENDERTARGETS: 0 */
 layout(location = 0) out vec3 outColor;
 
@@ -43,9 +50,19 @@ float visiblifyDepth(float scrnDepth){
 }
 
 void main() {
-    ivec2 texpos = ivec2(gl_FragCoord.xy);
+    ivec2 outputSize = textureSize(colortex0,0);
+    ivec2 texpos = ivec2(gl_FragCoord);
 
-#if DEBUG_SPECIAL_VIEW == 1
+    texpos = (texpos)/DEBUG_ZOOM+(outputSize/2-outputSize/(2*DEBUG_ZOOM));
+
+    vec2 texcoord = (vec2(texpos)+0.5)/outputSize;
+    vec3 worldDir = normalize(mat3(gbufferModelViewInverse)*(
+        gbufferProjectionInverse[3].xyz+(mat2x3(gbufferProjectionInverse)*(texcoord*2-1))
+    ));
+
+#if DEBUG_SPECIAL_VIEW == 0
+    outColor=texture(colortex0,texcoord).rgb;
+#elif DEBUG_SPECIAL_VIEW == 1
     outColor=texture(colortex1,texcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 2
     outColor=texture(colortex2,texcoord).rgb;
@@ -95,6 +112,34 @@ void main() {
     outColor = vec3(bayer128(texpos));
 #elif DEBUG_SPECIAL_VIEW == 102
     outColor = vec3((texpos.x^texpos.y)&4,(texpos.x^texpos.y)&2,(texpos.x^texpos.y)&1);
+#elif DEBUG_SPECIAL_VIEW == 107
+    worldDir/=max(max(abs(worldDir.x),abs(worldDir.y)),abs(worldDir.z));
+    worldDir*=VOXELSIZE_HALF;
+    float depth = traceRay(cameraPosition,worldDir);
+
+
+
+    if(depth<0)
+    outColor=vec3(0.1,0.1,0.8);
+    else{
+        ivec3 areaPos = ivec3(floor(swrt_hitpos.xyz));
+        outColor = vec3((log2(depth)+0.7f)*0.7/log2(SWRT_SIZE));
+
+        #ifdef SWRT_TEXTURED
+        vec4 texResult = swrtTextureSample();
+        if(texResult.a<0.875){
+            outColor.r=1;
+        }else{
+            outColor = texResult.rgb;
+        }
+        #endif
+
+
+    }
+
+    #if SWRT_TRANSLUCENCY>0
+    outColor.rgb*=unpackSwrtTranslucency();
+    #endif
 #elif DEBUG_SPECIAL_VIEW == 203
     outColor=vec3(texture(shadowtex0,vec2(1-texcoord.y,texcoord.x)).rgb);
 #elif DEBUG_SPECIAL_VIEW == 204

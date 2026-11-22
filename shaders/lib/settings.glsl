@@ -25,9 +25,9 @@
 //#define DEBUG_LIGHT_HASH
 //#define DEBUG_WATER_RIPPLES
 //#define DEBUG_SWRT_DIST
-//#define DEBUG_VOXEL_SWRT_VISION
+#define DEBUG_ZOOM 1 //[1 2 3 4 5 6 7 8 12 16 24 32 48 64 92 128]
 
-#define DEBUG_SPECIAL_VIEW -1 //[-1 0 1 2 3 4 5 6 7 8 9 10 11 100 101 102 103 104 105 106 200 201 202 203 204]
+#define DEBUG_SPECIAL_VIEW -1 //[-1 0 1 2 3 4 5 6 7 8 9 10 11 100 101 102 103 104 105 106 107 200 201 202 203 204]
 //#define DEBUG_NOTHING_EXPIRES
 //#define AXIS_GIZMO
 
@@ -262,9 +262,6 @@
     #define TAA
 #endif
 
-#ifndef DEBUG_VOXEL_SWRT_VISION
-#define SWRT_ONLY_TEXTURIZE_CUTOUTS
-#endif
 ///// The following to be copy pasted into shaders.properties
 #ifndef SWRT
     #undef SWRT_SKY_SHADOW
@@ -416,8 +413,8 @@
 #ifdef SSAO
 #ifdef NEW_NEW_NEW_DOF
 #ifdef WATER_WAVES
-#ifdef DEBUG_VOXEL_SWRT_VISION
 #ifdef SWRT_TEXTURED
+#ifdef DEBUG_MAGNIFIER
 #undef IrisOptionsWontShowThisOtherwiseBecauseItsInAPreprocessorThingOtherThanIfdefOrIfndef
 #endif
 #endif
