@@ -210,6 +210,7 @@ Packing
 - 105 is unused
 - 106 also maybe pom related and broken?
 - 107 is swrt primary ray
+- 108 is swrt ray hit tex
 - 200 is taa spatiality scaled up and slowed
 - 201 is taa rejection
 - 202 is taa spatiality in practice

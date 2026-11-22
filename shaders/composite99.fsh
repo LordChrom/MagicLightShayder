@@ -34,10 +34,11 @@ uniform sampler2D colortex18;
 uniform sampler2D colortex19;
 
 #if DEBUG_SPECIAL_VIEW==107
-const uint swrtMaxSteps = SWRT_SIZE;
 #define SWRT_INCLUDE_TRACE
-#include "/lib/lighting/swrt/swrtSampler.glsl"
 #endif
+
+const uint swrtMaxSteps = SWRT_SIZE;
+#include "/lib/lighting/swrt/swrtSampler.glsl"
 
 /* RENDERTARGETS: 0 */
 layout(location = 0) out vec3 outColor;
@@ -117,8 +118,6 @@ void main() {
     worldDir*=VOXELSIZE_HALF;
     float depth = traceRay(cameraPosition,worldDir);
 
-
-
     if(depth<0)
     outColor=vec3(0.1,0.1,0.8);
     else{
@@ -140,6 +139,8 @@ void main() {
     #if SWRT_TRANSLUCENCY>0
     outColor.rgb*=unpackSwrtTranslucency();
     #endif
+#elif DEBUG_SPECIAL_VIEW == 108
+    outColor = texture(swrtRayHitSampler,texcoord).rgb;
 #elif DEBUG_SPECIAL_VIEW == 203
     outColor=vec3(texture(shadowtex0,vec2(1-texcoord.y,texcoord.x)).rgb);
 #elif DEBUG_SPECIAL_VIEW == 204

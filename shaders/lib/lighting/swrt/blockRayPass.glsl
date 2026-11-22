@@ -6,7 +6,7 @@ uniform vec2 scaledScreenDim;
 
 #define SIZE 16
 const vec2 workGroupsRender = vec2(LIGHTING_RENDERSCALE,LIGHTING_RENDERSCALE);
-layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
+layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = SWRT_LIGHT_LAYERS) in;
 
 layout (rgba8) uniform writeonly restrict image2D swrtRayHits;
 
