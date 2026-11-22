@@ -9,7 +9,6 @@ uniform sampler2D colortex5;
 #include "/lib/renderComponents/blur.glsl"
 #include "/lib/renderComponents/bonusHudElements.glsl"
 #include "/lib/util/blend.glsl"
-#include "/lib/util/tonemap.glsl"
 #include "/lib/util/dither.glsl"
 
 
@@ -35,6 +34,7 @@ uniform sampler2D colortex3;
 
 
 in vec2 texcoord;
+#include "/lib/util/tonemap.glsl"
 
 
 const float sunPathRotation=SUN_PATH_ROTATION;
@@ -48,7 +48,7 @@ const float shadowDistanceRenderMul = 1.0;
 const float ambientOcclusionLevel = 0.0; //[0.0 0.25 0.5 0.75 1.0]
 
 /* RENDERTARGETS: 0 */
-layout(location = 0) out vec3 outputColor;
+layout(location = 0) out vec3 color;
 
 void main() {
     ivec2 texpos = ivec2(gl_FragCoord.xy);
@@ -69,10 +69,10 @@ void main() {
     vec4 voxelFog = texture(additiveLightTex,texcoord);
     #endif
 
-    if(albedo.a<1 || solidDepth==1.0)
+    if(albedo.a<1f || solidDepth==1.0)
         light=vec3(1);
 
-    vec3 color=albedo.xyz*light;
+    color=albedo.xyz*light;
     color =  mixInTranslucent(color, transColor);
 
     #ifdef AXIS_GIZMO
@@ -82,9 +82,10 @@ void main() {
     #if (VOLUMETRIC_FOG_SAMPLES > 0) || (defined REFLECTIONS)
     color = color*voxelFog.a + voxelFog.rgb;
     #endif
-    outputColor=tonemap(color);
+    if(albedo.a>=1f)
+        color=tonemap(color);
 
     #ifdef POST_DITHER
-    outputColor+=(bayer4(texpos)-0.5)/255;
+    color+=(bayer4(texpos)-0.5)/255;
     #endif
 }
