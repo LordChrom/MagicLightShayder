@@ -36,6 +36,7 @@ vec3 penumbraNoise(float ditherValue){
 
 uniform sampler2D swrtRayHitSampler;
 
+#ifdef VOXEL_COMPOSITE_SHADER
 vec4 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
     worldPos+=clamp(length(worldPos-globalOrigin)*0.001,0.04,0.1)*normal;
     normal=-normal;
@@ -68,6 +69,10 @@ vec4 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
 
     vec4 color = vec4(0f);
 
+    float blockPosHash = float(((areaPos.x*53)^(areaPos.y*17)^(areaPos.z*97))%255)/255.0;
+
+    //xoring with subgroup invocation ID will get the one thats clockwise in the 2x2 group
+    uint goClockwise = ((gl_SubgroupInvocationID&5u)==1u) || ((gl_SubgroupInvocationID&5u)==4u)?1u:4u;
 
     uvec4 lightShortList;
     for(uint i=0;i<SWRT_LIGHTS_PER_BLOCK;i++){
@@ -76,15 +81,16 @@ vec4 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
 
         vec2 tempTc = tc;
         tempTc.x+=float(i)/SWRT_LIGHTS_PER_BLOCK;
-        tempTc+=(0.5/textureSize(swrtRayHitSampler,0))*((ivec2(i>>1,i)&1));
 
-        #if SWRT_SHADOW_BLUR==1
-        vec4 visibility = partialFourNeighborsSample(swrtRayHitSampler,tempTc,0.5);
-        #elif SWRT_SHADOW_BLUR==2
-        vec4 visibility = wideSample(swrtRayHitSampler,tempTc);
-        #else
+        vec2 diagTc = subgroupShuffle(tempTc,gl_SubgroupInvocationID^5u);
+        vec2 backupTc =  2.5*tempTc-1.5*diagTc;
+        vec2 quadCenter=0.5*(tempTc+diagTc);
+
+        //of the two directly adjacent source texels, this gets the counterclockwise one
+        backupTc = bool(goClockwise&1u)?vec2(2.5*tempTc.x-1.5*diagTc.x,quadCenter.y) : vec2(quadCenter.x,2.5*tempTc.y-1.5*diagTc.y);
         vec4 visibility = texture(swrtRayHitSampler,tempTc);
-        #endif
+        vec4 centerBackupVis = texture(swrtRayHitSampler,quadCenter);
+        vec4 outerBackupA = texture(swrtRayHitSampler,backupTc);
 
 
         uint light = lightShortList[i&3u];
@@ -101,23 +107,17 @@ vec4 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
 
         color.a+=lightHash;
 
+        vec4 outerBackupB = subgroupShuffle(outerBackupA,gl_SubgroupInvocationID^goClockwise);
         const float margin = exp2(-8);
-        if(abs(visibility.a-lightHash)>margin){
-            //different lights in samples
-            ivec2 texel = ivec2((tc+vec2(float(i)/SWRT_LIGHTS_PER_BLOCK,0))*textureSize(swrtRayHitSampler,0));
-            visibility = vec4(0);
-            for(int i=0;i<4;i++){
-                ivec2 offset = ivec2(1,(i&2)-1);
-                offset = bool(i&1)?offset:-offset;
-                vec4 possibleVisibility = texelFetch(swrtRayHitSampler,texel+offset,0);
-                if(abs(possibleVisibility.a-lightHash)<margin){
-                    visibility=possibleVisibility;
-                    break;
-                }
+        if(abs(visibility.a-blockPosHash)>margin){
+            visibility=centerBackupVis;
+            if(abs(visibility.a-blockPosHash)>margin){
+                if(abs(outerBackupA.a-blockPosHash)<margin)
+                    visibility.rgb=outerBackupA.rgb;
+                else if(abs(outerBackupB.a-blockPosHash)<margin)
+                    visibility.rgb=outerBackupB.rgb;
             }
         }
-
-//        visibility = vec4(1f);
 
         if(lightStr>0)
             color.rgb+=colorOfPackedLight(light)*visibility.rgb*lightStr;
@@ -126,6 +126,7 @@ vec4 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
     color.a=fract(color.a);
     return color;
 }
+#endif
 
 
 vec3 swrtSampleFog(vec3 worldPos){

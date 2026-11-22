@@ -154,6 +154,12 @@ void main() {
     vec3 mult = checker?vec3(1):sign(outColor.xyz)*0.2+0.8;
     outColor=mult*abs(outColor);
 
+#if DEBUG_ZOOM >=4
+//    if(bool(6&texpos.x) && bool(6&texpos.y))
+    if(bool(2&(texpos.x^texpos.y)))
+        outColor+=(float(1&(texpos.x^texpos.y))-0.5)/32f;
+#endif
+
     if(isnan(outColor.x+outColor.y+outColor.z)){
         outColor = (fract(frameTimeCounter*3)<0.5)?vec3(1,0,0):vec3(0,0,0);
     }

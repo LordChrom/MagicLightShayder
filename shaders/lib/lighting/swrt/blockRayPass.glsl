@@ -25,14 +25,14 @@ const uint swrtMaxSteps = 15u;
 vec4 writeColor = vec4(0);
 
 void shade(){
-    vec2 jitteredTexcoord = ((gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)+0.5);
+    vec2 texcoord = vec2((gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)|1u);
     #ifdef TAA
-    jitteredTexcoord+=unscaledJitter();
+    texcoord+=unscaledJitter();
     #endif
-    jitteredTexcoord/=scaledScreenDim;
-    float solidDepth = texture(colortex5,jitteredTexcoord).x;
-    vec3 normal = texture(colortex2,jitteredTexcoord).xyz;
-    vec4 worldPos = vec4(jitteredTexcoord,solidDepth,1);
+    texcoord/=scaledScreenDim;
+    float solidDepth = texture(colortex5,texcoord).x;
+    vec3 normal = texture(colortex2,texcoord).xyz;
+    vec4 worldPos = vec4(texcoord,solidDepth,1);
 
     if(solidDepth>=1.0)
         return;
@@ -44,7 +44,7 @@ void shade(){
 
 
 
-    worldPos.xyz+=clamp(length(worldPos.xyz),1,16f)*normalize(normal)/1024f;
+    worldPos.xyz+=clamp(length(worldPos.xyz),1f,16f)*normal/2048f;
     worldPos.xyz+=cameraPosition;
     ivec3 areaPos = worldPosToSWRT(worldPos.xyz);
 
@@ -61,6 +61,7 @@ void shade(){
 
     uint index = ((gl_LocalInvocationID.x&1u)<<1) + (gl_LocalInvocationID.y&1u) + 4u*gl_LocalInvocationID.z;
     uint light = getListLight(areaPos,index);
+    writeColor.a = float(((areaPos.x*53)^(areaPos.y*17)^(areaPos.z*97))%255)/255.0;
 
     if(!bool(light&LIGHT_VALID_BIT))
         return;
@@ -69,9 +70,9 @@ void shade(){
     displacementToLight+=penumbraNoise(ditherValue);
     #endif
 
-    ivec3 lightHash3 = floatBitsToInt(floor(worldPos.xyz+displacementToLight));
-    float lightHash = float(((lightHash3.x*53)^(lightHash3.y*17)^(lightHash3.z*97))%255)/255.0;
-    writeColor.a = lightHash;
+//    ivec3 lightHash3 = floatBitsToInt(floor(worldPos.xyz+displacementToLight));
+//    float lightHash = float(((lightHash3.x*53)^(lightHash3.y*17)^(lightHash3.z*97))%255)/255.0;
+//    writeColor.a = lightHash;
 
     if(traceRay(worldPos.xyz,displacementToLight)>=0)
         return;
