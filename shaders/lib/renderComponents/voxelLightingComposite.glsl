@@ -99,10 +99,38 @@ void main() {
     float ditherValue = dither(texpos);
 
     #ifdef SSAO
-    float ssao = 1f;
+    float ssao = 0f;
     if(emissive<0.4){
         ssao = doSsao(normal, ditherValue);
     }
+
+
+
+    #if SSAO_FILTERING>0
+    uvec3 n2 = uvec3(normal+1.5); //-1,-0.5,  -0.5,0.5,  0.5,1,  -> 0 1 3
+    uint normalCheck = (n2.x<<5) | (n2.y<<3) | (n2.z<<1) | floatBitsToUint(solidDepth)&1u | 256u;
+
+    uvec2 neighbor = subgroupShuffleXor(uvec2(normalCheck,floatBitsToUint(ssao)),1u);
+    if(neighbor.x==normalCheck)
+        ssao = mix(ssao,uintBitsToFloat(neighbor.y),0.4);
+    neighbor = subgroupShuffleXor(uvec2(normalCheck,floatBitsToUint(ssao)),4u);
+    if(neighbor.x==normalCheck)
+        ssao = mix(ssao,uintBitsToFloat(neighbor.y),0.4);
+
+    #if SSAO_FILTERING>1
+    neighbor = subgroupShuffleXor(uvec2(normalCheck,floatBitsToUint(ssao)),2u);
+    if(neighbor.x==normalCheck)
+        ssao = mix(ssao,uintBitsToFloat(neighbor.y),0.25);
+    neighbor = subgroupShuffleXor(uvec2(normalCheck,floatBitsToUint(ssao)),8u);
+    if(neighbor.x==normalCheck)
+        ssao = mix(ssao,uintBitsToFloat(neighbor.y),0.25);
+    #endif
+
+    #endif
+
+    ssao = clamp(1-ssao*SSAO_STRENGTH,0f,1f);
+
+
     #if DEBUG_SPECIAL_VIEW == 103
     imageStore(colorimg19,texpos,vec4(ssao));
     #endif
