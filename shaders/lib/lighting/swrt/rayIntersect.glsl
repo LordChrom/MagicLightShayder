@@ -170,7 +170,7 @@ float traceRay(vec3 worldPos, vec3 worldDirToLight){
         swrt_voxel = texture(baseWorldVoxSampler,swrt_hitpos.xyz).x;
         swrt_hitpos.xyz*=VOXELIZATION_SIZE;
 
-        swrt_dir.a=minDepthTillChange(swrt_hitpos.xyz,swrt_dir.xyz)+nudge;
+        swrt_dir.a=minDepthTillChange(swrt_hitpos.xyz,swrt_dir.xyz);
 
         swrt_internalHitDepth = 0f;
 
@@ -184,6 +184,9 @@ float traceRay(vec3 worldPos, vec3 worldDirToLight){
             }
         }
         swrt_hitpos+=vec4(swrt_dir.a*swrt_dir.xyz,swrt_dir.a);
+
+        //this biases to the next float in the direction of the sign of swrt_dir. DM me about if if you wanna know more
+        swrt_hitpos.xyz=intBitsToFloat(floatBitsToInt(swrt_hitpos.xyz+1f)+((floatBitsToInt(swrt_dir.xyz)>>31)|1))-1f;
     }
 
 

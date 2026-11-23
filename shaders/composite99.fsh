@@ -115,7 +115,7 @@ void main() {
     outColor = vec3((texpos.x^texpos.y)&4,(texpos.x^texpos.y)&2,(texpos.x^texpos.y)&1);
 #elif DEBUG_SPECIAL_VIEW == 107
     worldDir/=max(max(abs(worldDir.x),abs(worldDir.y)),abs(worldDir.z));
-    worldDir*=VOXELSIZE_HALF;
+    worldDir*=VOXELSIZE_HALF-4;
     float depth = traceRay(cameraPosition,worldDir);
 
     if(depth<0)
