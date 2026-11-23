@@ -107,7 +107,7 @@ vec4 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
 
         color.a+=lightHash;
 
-        vec4 outerBackupB = subgroupShuffle(outerBackupA,goClockwise);
+        vec4 outerBackupB = subgroupShuffle(outerBackupA,gl_SubgroupInvocationID^goClockwise);
         const float margin = exp2(-8);
         if(abs(visibility.a-blockPosHash)>margin){
             visibility=centerBackupVis;
