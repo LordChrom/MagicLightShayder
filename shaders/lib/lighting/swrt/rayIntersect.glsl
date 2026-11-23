@@ -52,8 +52,9 @@ vec4 swrtTextureSample(){
         samplePos.yz=samplePos.zy;
     }
 
-    texData.xy+=texData.zw*clamp(samplePos.yz,-0.49,0.49);
-    return texture(blockAtlas,texData.xy);
+    samplePos.yz=clamp(samplePos.yz,-0.49,0.49);
+    texData.xy+=texData.zw*samplePos.yz;
+    return texelFetch(blockAtlas,ivec2(texData.xy*textureSize(blockAtlas,0)),0);
 }
 #endif
 
