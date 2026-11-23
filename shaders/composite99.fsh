@@ -140,7 +140,23 @@ void main() {
     outColor.rgb*=unpackSwrtTranslucency();
     #endif
 #elif DEBUG_SPECIAL_VIEW == 108
-    outColor = texture(swrtRayHitSampler,texcoord).rgb;
+    #if SWRT_LIGHTS_PER_BLOCK<=4
+    const int gridSize = 2;
+    #elif SWRT_LIGHTS_PER_BLOCK<=9
+    const int gridSize = 3;
+    #else
+    const int gridSize = 4;
+    #endif
+
+    ivec2 texpos2 = texpos%(outputSize/gridSize);
+    int index = ((texpos.x*gridSize)/outputSize.x)+ gridSize*((gridSize-1)-(texpos.y*gridSize)/outputSize.y);
+
+    if(index<SWRT_LIGHTS_PER_BLOCK){
+        texpos2.x=texpos2.x*SWRT_LIGHTS_PER_BLOCK + index;
+        outColor = texelFetch(swrtRayHitSampler,texpos2,0).rgb;
+    }else{
+        outColor=vec3(0.1);
+    }
 #elif DEBUG_SPECIAL_VIEW == 203
     outColor=vec3(texture(shadowtex0,vec2(1-texcoord.y,texcoord.x)).rgb);
 #elif DEBUG_SPECIAL_VIEW == 204

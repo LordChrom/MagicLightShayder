@@ -39,7 +39,6 @@ uniform sampler2D swrtRayHitSampler;
 #ifdef VOXEL_COMPOSITE_SHADER
 vec4 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
     worldPos+=clamp(length(worldPos-globalOrigin)*0.001,0.04,0.1)*normal;
-    normal=-normal;
 
     ivec3 areaPos = worldPosToSWRT(worldPos);
 
@@ -72,25 +71,21 @@ vec4 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
     float blockPosHash = float(((areaPos.x*53)^(areaPos.y*17)^(areaPos.z*97))%255)/255.0;
 
     //xoring with subgroup invocation ID will get the one thats clockwise in the 2x2 group
-    uint goClockwise = ((gl_SubgroupInvocationID&5u)==1u) || ((gl_SubgroupInvocationID&5u)==4u)?1u:4u;
+//    uint centerPos = (gl_SubgroupInvocationID&0xf0u) | (((gl_SubgroupInvocationID&10u)>>1)+5u);
+//    uint crossoverXor = ((gl_SubgroupInvocationID ^ (gl_SubgroupInvocationID<<1))&10u)|5u;
+//    ivec2 largerSamplePos = ((texpos>>2)<<1)+ivec2(texpos&3u)-1;
+//    largerSamplePos.x*=SWRT_LIGHTS_PER_BLOCK;
+
+    ivec2 nearest = texpos>>1;
+    ivec2 furthest = nearest+((texpos&1)<<1)-1;
+    nearest.x*=SWRT_LIGHTS_PER_BLOCK;
+    furthest.x*=SWRT_LIGHTS_PER_BLOCK;
+
 
     uvec4 lightShortList;
     for(uint i=0;i<SWRT_LIGHTS_PER_BLOCK;i++){
         if((i&3u)==0u)
             lightShortList = getLightListLayer(areaPos, i>>2);
-
-        vec2 tempTc = tc;
-        tempTc.x+=float(i)/SWRT_LIGHTS_PER_BLOCK;
-
-        vec2 diagTc = subgroupShuffleXor(tempTc,5u);
-        vec2 backupTc =  2.5*tempTc-1.5*diagTc;
-        vec2 quadCenter=0.5*(tempTc+diagTc);
-
-        //of the two directly adjacent source texels, this gets the counterclockwise one
-        backupTc = bool(goClockwise&1u)?vec2(2.5*tempTc.x-1.5*diagTc.x,quadCenter.y) : vec2(quadCenter.x,2.5*tempTc.y-1.5*diagTc.y);
-        vec4 visibility = texture(swrtRayHitSampler,tempTc);
-        vec4 centerBackupVis = texture(swrtRayHitSampler,quadCenter);
-        vec4 outerBackupA = texture(swrtRayHitSampler,backupTc);
 
 
         uint light = lightShortList[i&3u];
@@ -100,27 +95,37 @@ vec4 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
         vec3 displacementToLight = displacementToListedLight(light,worldPos.xyz);
 
         float lightStr = lightFalloff(displacementToLight);
-        lightStr*=normalFactor(normal,displacementToLight,0);
+        lightStr*=normalFactor(normal,-displacementToLight,0);
 
         ivec3 lightHash3 = floatBitsToInt(floor(worldPos.xyz+displacementToLight));
         float lightHash = float(((lightHash3.x*53)^(lightHash3.y*17)^(lightHash3.z*97))%255)/255.0;
-
         color.a+=lightHash;
 
-        vec4 outerBackupB = subgroupShuffle(outerBackupA,gl_SubgroupInvocationID^goClockwise);
-        const float margin = exp2(-8);
-        if(abs(visibility.a-blockPosHash)>margin){
-            visibility=centerBackupVis;
-            if(abs(visibility.a-blockPosHash)>margin){
-                if(abs(outerBackupA.a-blockPosHash)<margin)
-                    visibility.rgb=outerBackupA.rgb;
-                else if(abs(outerBackupB.a-blockPosHash)<margin)
-                    visibility.rgb=outerBackupB.rgb;
-            }
-        }
+        vec4 v1 = texelFetch(swrtRayHitSampler,nearest,0);
+        vec4 v2 = texelFetch(swrtRayHitSampler,ivec2(nearest.x,furthest.y),0);
+        vec4 v3 = texelFetch(swrtRayHitSampler,ivec2(furthest.x,nearest.y),0);
+        vec4 v4 = texelFetch(swrtRayHitSampler,furthest,0);
+        nearest.x++;
+        furthest.x++;
 
-        if(lightStr>0)
+
+        vec4 visibility = vec4(0);
+        const float margin = exp2(-8);
+
+        if(abs(v1.a-blockPosHash)<margin)
+            visibility+=vec4(v1.rgb*3f,3f);
+        if(abs(v2.a-blockPosHash)<margin)
+            visibility+=vec4(v2.rgb,1f);
+        if(abs(v3.a-blockPosHash)<margin)
+            visibility+=vec4(v3.rgb,1f);
+        if(abs(v4.a-blockPosHash)<margin || visibility.a<=0)
+            visibility+=vec4(v4.rgb*0.333333333,0.333333333);
+
+        visibility.rgb/=visibility.a;
+
+        if(lightStr>0){
             color.rgb+=colorOfPackedLight(light)*visibility.rgb*lightStr;
+        }
     }
 
     color.a=fract(color.a);

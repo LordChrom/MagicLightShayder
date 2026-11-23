@@ -6,7 +6,7 @@ uniform vec2 scaledScreenDim;
 
 #define SIZE 16
 const vec2 workGroupsRender = vec2(LIGHTING_RENDERSCALE,LIGHTING_RENDERSCALE);
-layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = SWRT_LIGHT_LAYERS) in;
+layout (local_size_x = SIZE, local_size_y = SIZE, local_size_z = 1) in;
 
 layout (rgba8) uniform writeonly restrict image2D swrtRayHits;
 
@@ -23,6 +23,8 @@ const uint swrtMaxSteps = 15u;
 #include "/lib/lighting/swrt/swrtSampler.glsl"
 
 vec4 writeColor = vec4(0);
+
+uint index = ((gl_LocalInvocationID.x&1u)<<1) + (gl_LocalInvocationID.y&1u);
 
 void shade(){
     vec2 texcoord = vec2((gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)|1u);
@@ -70,10 +72,6 @@ void shade(){
     displacementToLight+=penumbraNoise(ditherValue);
     #endif
 
-//    ivec3 lightHash3 = floatBitsToInt(floor(worldPos.xyz+displacementToLight));
-//    float lightHash = float(((lightHash3.x*53)^(lightHash3.y*17)^(lightHash3.z*97))%255)/255.0;
-//    writeColor.a = lightHash;
-
     if(traceRay(worldPos.xyz,displacementToLight)>=0)
         return;
 
@@ -85,7 +83,11 @@ void shade(){
 }
 
 void main(){
-    shade();
-    uint index = ((gl_LocalInvocationID.x&1u)<<1) + (gl_LocalInvocationID.y&1u) + 4u*gl_LocalInvocationID.z;
-    imageStore(swrtRayHits,(ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)>>1)+ivec2(index*imageSize(swrtRayHits).x/SWRT_LIGHTS_PER_BLOCK,0),writeColor);
+    for(uint i=0; i<SWRT_LIGHT_LAYERS; i++){
+        shade();
+        ivec2 writePos = ivec2(gl_LocalInvocationID.xy+gl_WorkGroupSize.xy*gl_WorkGroupID.xy)>>1;
+        writePos.x = writePos.x*SWRT_LIGHTS_PER_BLOCK+int(index);
+        imageStore(swrtRayHits,writePos,writeColor);
+        index+=4;
+    }
 }
