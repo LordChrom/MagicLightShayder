@@ -89,8 +89,8 @@ float shadowSampleSoftMode(vec3 shadowpos){
             totals+= shadowGather(vec3(shadowpos.xy+2f*oneShadowPixel*(vec2(x,y)),shadowpos.z));
         }
     }
-    totals+=subgroupShuffle(totals,gl_SubgroupInvocationID^4u);
-    totals+=subgroupShuffle(totals,gl_SubgroupInvocationID^1u);
+    totals+=subgroupShuffleXor(totals,4u);
+    totals+=subgroupShuffleXor(totals,1u);
     vec2 mix2d = fract(shadowpos.xy*textureSize(shadowcolor0,0));
     mix2d = fract(mix2d+0.5);
     vec4 weights = vec4(mix2d.x,1f-mix2d.x,mix2d.y,1f-mix2d.y);

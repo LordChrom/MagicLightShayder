@@ -82,7 +82,7 @@ vec4 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
         vec2 tempTc = tc;
         tempTc.x+=float(i)/SWRT_LIGHTS_PER_BLOCK;
 
-        vec2 diagTc = subgroupShuffle(tempTc,gl_SubgroupInvocationID^5u);
+        vec2 diagTc = subgroupShuffleXor(tempTc,5u);
         vec2 backupTc =  2.5*tempTc-1.5*diagTc;
         vec2 quadCenter=0.5*(tempTc+diagTc);
 
@@ -107,7 +107,7 @@ vec4 shadePrehitRays(vec3 worldPos, vec3 normal, float subsurface, vec2 tc){
 
         color.a+=lightHash;
 
-        vec4 outerBackupB = subgroupShuffle(outerBackupA,gl_SubgroupInvocationID^goClockwise);
+        vec4 outerBackupB = subgroupShuffle(outerBackupA,goClockwise);
         const float margin = exp2(-8);
         if(abs(visibility.a-blockPosHash)>margin){
             visibility=centerBackupVis;

@@ -3,11 +3,6 @@ const int numSsaoAngles = 2*SSAO_QUALITY+1;
 
 #define TWOPI 6.28318530718
 
-void conditionalWeightedShuffle(inout float x, inout uint check, uint direction, float weight){
-    if(check == subgroupShuffle(check,gl_SubgroupInvocationID^direction))
-        x = mix(x,subgroupShuffle(x,gl_SubgroupInvocationID^direction),weight);
-}
-
 float doSsao(vec3 normal, float dither){
     normal = normalize(transpose(mat3(gbufferModelViewInverse))*normal);
     float solidDepth=texelFetch(colortex5,ivec2(texcoord*textureSize(colortex5,0)),0).x;
@@ -53,20 +48,5 @@ float doSsao(vec3 normal, float dither){
     //0 = fully lit, 1 = fully occluded
     ssao *= (0.5*PI/numSsaoAngles);
 
-
-    #if SSAO_FILTERING>0
-    uvec3 n2 = uvec3(normal+1.5); //-1,-0.5,  -0.5,0.5,  0.5,1,  -> 0 1 3
-    uint normalCategory = (n2.x<<5) | (n2.y<<3) | (n2.z<<1) | isHand | 256u;
-
-    conditionalWeightedShuffle(ssao,normalCategory,1u,0.4);
-    conditionalWeightedShuffle(ssao,normalCategory,4u,0.4);
-    #if SSAO_FILTERING>1
-    conditionalWeightedShuffle(ssao,normalCategory,2u,0.25);
-    conditionalWeightedShuffle(ssao,normalCategory,8u,0.25);
-    #endif
-    #endif
-
-
-
-    return clamp(1-ssao*SSAO_STRENGTH,0f,1f);
+    return ssao;
 }
