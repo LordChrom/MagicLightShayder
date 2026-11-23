@@ -95,8 +95,7 @@ bool rayHitsShapedBlock(){
     }
 
     if(shape<=0x2fu){
-        vec2 halfwayChange = samplePos.xz + swrt_dir.xz*(minDepthTillChange(samplePos.xz*2,swrt_dir.xz)*0.5+nudge);
-        //TODO this is bugged
+        vec2 halfwayChange = samplePos.xz + swrt_dir.xz*(minDepthTillChange(samplePos.xyz,swrt_dir.xyz)*0.5+nudge);
         uint corners = 1u << (uint(halfwayChange.x<0.5)+2*uint(halfwayChange.y<0.5));
         corners |= 1u << (uint(samplePos.x<0.5)+2*uint(samplePos.z<0.5));
         corners |= 1u << (uint(postPos.x<0.5)+2*uint(postPos.z<0.5));

@@ -201,7 +201,8 @@ uint packVoxelForStorage(uint blockID, uint emission){
     }
     #if (defined ALPHATEST) || (defined SHADOW_CUTOUT)
     else{
-        blockID|=0x8000u;
+        if(blockShape(blockID)>0)
+            blockID|=0x8000u;
     }
     #endif
 
